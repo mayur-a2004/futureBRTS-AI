@@ -1,0 +1,7 @@
+﻿{
+  "tiers": {
+    "free": { "features": ["basic_seo_scan"], "price": 0 },
+    "pro": { "features": ["auto_meta","social_suggest"], "price": 499 },
+    "premium": { "features": ["auto_post","priority_support","predictive_scores"], "price": 1499 }
+  }
+}

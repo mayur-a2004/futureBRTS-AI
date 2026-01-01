@@ -1,0 +1,8 @@
+﻿{
+  "Article": {
+    "headline": "<TITLE>",
+    "author": "<AUTHOR>",
+    "datePublished": "<YYYY-MM-DD>",
+    "image": "<URL>"
+  }
+}
