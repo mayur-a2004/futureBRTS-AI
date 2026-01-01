@@ -1,0 +1,9 @@
+{
+    "name": "api-gateway-archived",
+    "version": "1.0.0",
+    "scripts": {
+        "start": "echo 'START DISABLED: ARCHIVED PROJECT' && exit 1",
+        "dev": "echo 'DEV DISABLED: ARCHIVED PROJECT' && exit 1",
+        "build": "echo 'BUILD DISABLED: ARCHIVED PROJECT' && exit 1"
+    }
+}

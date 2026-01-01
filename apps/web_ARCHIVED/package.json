@@ -1,0 +1,10 @@
+{
+    "name": "web-archived",
+    "version": "0.0.0",
+    "private": true,
+    "scripts": {
+        "build": "echo 'BUILD DISABLED: ARCHIVED PROJECT' && exit 1",
+        "dev": "echo 'DEV DISABLED: ARCHIVED PROJECT' && exit 1",
+        "start": "echo 'START DISABLED: ARCHIVED PROJECT' && exit 1"
+    }
+}
