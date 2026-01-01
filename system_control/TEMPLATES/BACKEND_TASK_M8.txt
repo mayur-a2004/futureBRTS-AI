@@ -1,0 +1,20 @@
+TASK: Maintenance & Scaling Engine Backend
+
+Includes:
+1) Health monitor service
+2) Auto-healing logic (restart on failure)
+3) Scaling rules (CPU-based)
+4) Maintenance mode API
+5) Error aggregation API
+6) Metrics provider (CPU, Memory, uptime, failures)
+7) Background watchdog service
+
+APIs:
+- GET /maint/status
+- POST /maint/toggle
+- GET /scale/config
+- POST /scale/update
+- GET /metrics/services
+- POST /service/restart
+
+Output: output_v8_BACKEND.md

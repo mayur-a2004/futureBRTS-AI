@@ -1,0 +1,50 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Futurebilder Nexus</title>
+    <style>
+        body { background: #0f172a; color: #f8fafc; font-family: monospace; display: flex; height: 100vh; margin: 0; }
+        #sidebar { width: 250px; background: #1e293b; padding: 20px; border-right: 1px solid #334155; }
+        #main { flex: 1; padding: 20px; overflow: auto; }
+        .log-item { padding: 5px; cursor: pointer; color: #94a3b8; }
+        .log-item:hover { color: #38bdf8; }
+        pre { background: #1e293b; padding: 20px; border-radius: 8px; white-space: pre-wrap; }
+        h1 { margin-top: 0; color: #38bdf8; }
+        input { background: #334155; border: none; padding: 5px; color: white; width: 100%; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div id="sidebar">
+        <h3>ðŸ”® Nexus</h3>
+        <input type="password" id="token" placeholder="Admin Token" value="YOUR_SECRET_ADMIN_TOKEN" />
+        <div id="logList">Loading...</div>
+    </div>
+    <div id="main">
+        <h1 id="title">Dashboard</h1>
+        <div id="content">Select a log to view details.</div>
+    </div>
+    <script>
+        const TOKEN = document.getElementById('token').value;
+        
+        async function fetchLogs() {
+            const res = await fetch('/api/logs?token=' + document.getElementById('token').value);
+            if (!res.ok) return alert('Auth Failed');
+            const data = await res.json();
+            document.getElementById('logList').innerHTML = data.map(l => 
+                \<div class="log-item" onclick="viewLog('\')">\ <small>(\kb)</small></div>\
+            ).join('');
+        }
+
+        async function viewLog(name) {
+            document.getElementById('title').innerText = name;
+            const res = await fetch('/api/logs/' + name + '?token=' + document.getElementById('token').value);
+            const txt = await res.text();
+            document.getElementById('content').innerHTML = \<pre>\</pre>\;
+        }
+
+        // Auto load if token present
+        if(TOKEN) fetchLogs();
+    </script>
+</body>
+</html>

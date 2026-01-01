@@ -1,0 +1,12 @@
+TASK: Documentation for Real Microservice Architecture & Build Engine
+
+Include:
+- Next.js frontend structure
+- Express TS backend structure
+- Python worker structure & Redis queue schema
+- API contracts
+- Docker compose instructions
+- Local dev manual
+- Deployment notes & environment variables
+
+Output: output_v6_DOC.md

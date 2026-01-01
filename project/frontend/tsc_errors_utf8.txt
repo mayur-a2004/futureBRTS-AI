@@ -1,0 +1,12 @@
+﻿src/components/ui/UniverseBackground.tsx(1,29): error TS6133: 'useMemo' is declared but its value is never read.
+src/pages/builder/Builder.tsx(1,38): error TS6133: 'useRef' is declared but its value is never read.
+src/pages/builder/Builder.tsx(2,18): error TS6133: 'AnimatePresence' is declared but its value is never read.
+src/pages/builder/Builder.tsx(3,10): error TS6133: 'Layers' is declared but its value is never read.
+src/pages/builder/Builder.tsx(3,18): error TS6133: 'MousePointer' is declared but its value is never read.
+src/pages/builder/Builder.tsx(3,51): error TS6133: 'Type' is declared but its value is never read.
+src/pages/builder/Builder.tsx(3,57): error TS6133: 'Grid' is declared but its value is never read.
+src/pages/builder/Builder.tsx(3,63): error TS6133: 'Columns' is declared but its value is never read.
+src/pages/growth/SkillGap.tsx(2,54): error TS6133: 'CheckCircle' is declared but its value is never read.
+src/pages/LandingPage.tsx(180,41): error TS6133: 'onboardingCompleted' is declared but its value is never read.
+src/pages/prediction/Prediction.tsx(3,10): error TS6133: 'TrendingUp' is declared but its value is never read.
+src/pages/prediction/Prediction.tsx(3,34): error TS6133: 'Calendar' is declared but its value is never read.

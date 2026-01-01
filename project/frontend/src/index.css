@@ -1,0 +1,123 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --background: #050505;
+        --foreground: #ffffff;
+
+        /* Font Scale - Refined for readability */
+        --h-xl: clamp(40px, 7vw, 52px);
+        --h-l: clamp(28px, 5vw, 36px);
+        --h-m: clamp(20px, 3vw, 24px);
+        --body: 13px;
+        --small: 11px;
+
+        --glass-bg: rgba(255, 255, 255, 0.05);
+        --glass-border: rgba(255, 255, 255, 0.1);
+    }
+
+    * {
+        border-color: rgba(255, 255, 255, 0.05);
+    }
+
+    body {
+        /* These are valid standard CSS variables or properties */
+        background-color: var(--background);
+        color: var(--foreground);
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        font-feature-settings: "cv02", "cv05", "cv08", "cv09", "cv10", "cv11";
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    ::selection {
+        background-color: rgba(99, 102, 241, 0.3);
+        color: #fff;
+    }
+
+    h1,
+    .h-xl {
+        font-size: var(--h-xl);
+        font-weight: 900;
+        letter-spacing: -0.05em;
+        line-height: 0.95;
+    }
+
+    h2,
+    .h-l {
+        font-size: var(--h-l);
+        font-weight: 700;
+        letter-spacing: -0.025em;
+        line-height: 1.2;
+    }
+
+    h3,
+    .h-m {
+        font-size: var(--h-m);
+        font-weight: 700;
+        letter-spacing: -0.025em;
+    }
+
+    p,
+    .body {
+        font-size: var(--body);
+        line-height: 1.625;
+    }
+}
+
+@layer components {
+    .brand-gradient {
+        background: linear-gradient(to right, #60a5fa, #8b5cf6, #22d3ee);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+
+    .glass {
+        background-color: var(--glass-bg);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid var(--glass-border);
+    }
+
+    .glass-card {
+        background-color: rgba(17, 24, 39, 0.4);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border: 1px solid rgba(31, 41, 55, 0.5);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+
+    .glow-divider {
+        height: 1px;
+        background: linear-gradient(to right, transparent, rgba(99, 102, 241, 0.2), transparent);
+        box-shadow: 0 0 15px rgba(99, 102, 241, 0.1);
+    }
+
+    .neon-border {
+        box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.1), 0 0 20px rgba(99, 102, 241, 0.05);
+    }
+}
+
+/* Custom Scrollbar using standard CSS */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #09090b;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #27272a;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #3f3f46;
+}

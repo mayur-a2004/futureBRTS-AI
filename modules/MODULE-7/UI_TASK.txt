@@ -1,0 +1,19 @@
+TASK: Cloud Control Dashboard UI
+
+Goal:
+Create Cloud Dashboard UI to monitor & manage deployment.
+
+Screens:
+1) Overview (status of API, Frontend, Worker, Redis, Mongo)
+2) Service Actions (Start / Stop / Restart / Scale)
+3) Deploy Panel (Trigger Deploy, Show Logs)
+4) Logs Viewer (Live logs)
+5) History (Past deployments)
+
+APIs:
+GET /infra/services
+POST /infra/service/{name}/action
+POST /infra/deploy
+GET /infra/logs
+
+Output: output_v7_UI.md

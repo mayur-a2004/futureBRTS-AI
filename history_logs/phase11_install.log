@@ -1,0 +1,26 @@
+﻿2025-12-08 11:30:21 - WARNING: Not running as Administrator. Some actions will be skipped.
+2025-12-08 11:30:21 - Snapshot saved: C:\Users\Admin\.gemini\antigravity\futurebilder_tool\snapshots\phase11_snapshot_20251208_113021.json
+2025-12-08 11:30:21 - Created phase11 security folder: C:\Users\Admin\.gemini\antigravity\futurebilder_tool\system_control\phase11_security
+2025-12-08 11:30:21 - Created: C:\Users\Admin\.gemini\antigravity\futurebilder_tool\system_control\phase11_security\audit
+2025-12-08 11:30:21 - Created: C:\Users\Admin\.gemini\antigravity\futurebilder_tool\system_control\phase11_security\hooks
+2025-12-08 11:30:21 - Created: C:\Users\Admin\.gemini\antigravity\futurebilder_tool\system_control\phase11_security\quarantine
+2025-12-08 11:30:21 - Created: C:\Users\Admin\.gemini\antigravity\futurebilder_tool\system_control\phase11_security\policies
+2025-12-08 11:30:21 - Wrote lockdown policy: C:\Users\Admin\.gemini\antigravity\futurebilder_tool\system_control\phase11_security\policies\lockdown_policy.ps1
+2025-12-08 11:30:21 - Wrote audit script: C:\Users\Admin\.gemini\antigravity\futurebilder_tool\system_control\phase11_security\audit\watchdog_audit.ps1
+2025-12-08 11:30:21 - Set restrictive ACLs on C:\Users\Admin\.gemini\antigravity\futurebilder_tool\system_control\phase11_security for LAPTOP-67HUI7E1\Admin and SYSTEM.
+2025-12-08 11:30:21 - Admin required for firewall rules.
+2025-12-08 11:30:21 - Admin required for scheduled tasks.
+2025-12-08 11:30:21 - Quarantine placeholder created.
+2025-12-08 11:30:21 - Snapshot saved: C:\Users\Admin\.gemini\antigravity\futurebilder_tool\snapshots\phase11_snapshot_20251208_113021.json
+2025-12-08 11:30:21 - Phase-11 installation completed.
+2025-12-08 11:32:21 - WARNING: Not running as Administrator. Some actions will be skipped.
+2025-12-08 11:32:21 - Snapshot saved: C:\Users\Admin\.gemini\antigravity\futurebilder_tool\snapshots\phase11_snapshot_20251208_113221.json
+2025-12-08 11:32:21 - Phase11 folder exists: C:\Users\Admin\.gemini\antigravity\futurebilder_tool\system_control\phase11_security
+2025-12-08 11:32:21 - Wrote lockdown policy: C:\Users\Admin\.gemini\antigravity\futurebilder_tool\system_control\phase11_security\policies\lockdown_policy.ps1
+2025-12-08 11:32:21 - Wrote audit script: C:\Users\Admin\.gemini\antigravity\futurebilder_tool\system_control\phase11_security\audit\watchdog_audit.ps1
+2025-12-08 11:32:21 - Set restrictive ACLs on C:\Users\Admin\.gemini\antigravity\futurebilder_tool\system_control\phase11_security for LAPTOP-67HUI7E1\Admin and SYSTEM.
+2025-12-08 11:32:21 - Admin required for firewall rules.
+2025-12-08 11:32:21 - Admin required for scheduled tasks.
+2025-12-08 11:32:21 - Quarantine placeholder created.
+2025-12-08 11:32:21 - Snapshot saved: C:\Users\Admin\.gemini\antigravity\futurebilder_tool\snapshots\phase11_snapshot_20251208_113221.json
+2025-12-08 11:32:21 - Phase-11 installation completed.

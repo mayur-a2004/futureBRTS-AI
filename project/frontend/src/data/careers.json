@@ -1,0 +1,38 @@
+[
+    {
+        "id": 1,
+        "title": "Data Scientist",
+        "salary": "₹12L - ₹30L",
+        "growth": "High",
+        "tags": [
+            "AI",
+            "Math",
+            "Tech"
+        ],
+        "desc": "Analyze complex data to help companies make better decisions."
+    },
+    {
+        "id": 2,
+        "title": "Product Manager",
+        "salary": "₹15L - ₹40L",
+        "growth": "Moderate",
+        "tags": [
+            "Management",
+            "Tech",
+            "UX"
+        ],
+        "desc": "Lead product development and strategy."
+    },
+    {
+        "id": 3,
+        "title": "UX Designer",
+        "salary": "₹8L - ₹25L",
+        "growth": "High",
+        "tags": [
+            "Design",
+            "Creativity",
+            "Tech"
+        ],
+        "desc": "Design intuitive and beautiful user interfaces."
+    }
+]

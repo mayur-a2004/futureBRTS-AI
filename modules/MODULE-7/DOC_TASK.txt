@@ -1,0 +1,12 @@
+TASK: Documentation for Cloud Infra
+
+Includes:
+- Infra Overview Diagram
+- docker-compose workflow
+- service topology
+- environment variables
+- deployment pipeline
+- rollback strategy
+- k8s migration notes
+
+Output: output_v7_DOC.md

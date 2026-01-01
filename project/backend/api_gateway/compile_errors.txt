@@ -1,0 +1,5 @@
+src/modules/builder/builder.controller.ts(6,8): error TS1192: Module '"C:/Users/Admin/.gemini/antigravity/futurebilder_tool/project/backend/api_gateway/src/modules/onboarding/onboarding.model"' has no default export.
+src/modules/onboarding/onboarding.controller.ts(8,32): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/modules/onboarding/onboarding.controller.ts(28,32): error TS2339: Property 'user' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/modules/onboarding/onboarding.service.ts(1,10): error TS2305: Module '"./onboarding.model"' has no exported member 'OnboardingSession'.
+src/modules/onboarding/onboarding.service.ts(1,29): error TS2305: Module '"./onboarding.model"' has no exported member 'RoadmapOption'.

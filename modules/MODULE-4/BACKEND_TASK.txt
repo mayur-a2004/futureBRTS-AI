@@ -1,0 +1,57 @@
+TASK: Feature Composer Backend Logic (Module-4)
+
+Goal:
+Allow user changes (features, tables, theme) to be saved into the blueprint,
+so that Module-3 Build Engine can read and generate correct code.
+
+APIs to implement:
+
+1) PATCH /blueprint/{id}/features
+   Input: {
+     features: {
+       auth_login: boolean,
+       email_otp: boolean,
+       payments: boolean,
+       admin_panel: boolean,
+       notifications: boolean,
+       api_security: boolean
+     }
+   }
+   Output: updated blueprint JSON
+
+2) POST /blueprint/{id}/table
+   Input: {
+     table_name: string,
+     columns: [
+       { name: string, type: string, is_primary: boolean }
+     ]
+   }
+   Output: updated list of tables in blueprint
+
+3) PATCH /blueprint/{id}/column
+   Input example: {
+     table_name: "users",
+     action: "add" | "update" | "delete",
+     column: { name, type, is_primary }
+   }
+
+4) POST /blueprint/{id}/relation
+   Input: {
+     from_table: string,
+     to_table: string,
+     type: "one-to-many" | "many-to-many"
+   }
+
+5) PATCH /blueprint/{id}/theme
+   Input: {
+     primary_color: string,
+     secondary_color: string,
+     font_family: string,
+     radius: number,
+     mode: "light" | "dark"
+   }
+
+All responses: JSON
+Storage: keep everything under blueprint document so Module-3 can consume it.
+
+Output file: output_v4_BACKEND.md

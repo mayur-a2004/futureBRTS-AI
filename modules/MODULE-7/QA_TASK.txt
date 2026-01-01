@@ -1,0 +1,12 @@
+TASK: QA Test Plan for Cloud Infra
+
+Test Cases:
+TC-7.1 Service Boot Test
+TC-7.2 Deploy Trigger Test
+TC-7.3 Service Restart Test
+TC-7.4 Logs Fetch Test
+TC-7.5 Scale Up/Down Test
+TC-7.6 Failure & Recovery Test
+TC-7.7 Security Negative Tests
+
+Output: output_v7_QA.md

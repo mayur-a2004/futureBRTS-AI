@@ -1,0 +1,26 @@
+
+RAPIDAPI_KEY=73fc4f96a4msh716784d65729e86p1e9643jsnce856c443424
+
+# RapidAPI Endpoint 1 (GPT-like)
+Host: chat-gpt26.p.rapidapi.com
+Model: GPT-5-mini
+Snippet:
+const options = {
+	method: 'POST',
+	hostname: 'chat-gpt26.p.rapidapi.com',
+	headers: {
+		'x-rapidapi-key': '...',
+		'x-rapidapi-host': 'chat-gpt26.p.rapidapi.com',
+        ...
+	}
+};
+
+# RapidAPI Endpoint 2 (Llama/OpenAI Wrapper)
+Host: open-ai21.p.rapidapi.com
+Path: /conversationllama
+
+# RapidAPI Endpoint 3 (AItoHuman)
+Host: chatgpt-42.p.rapidapi.com
+
+# Gemini Key (Currently Active in System)
+# AIzaSyAZMgmBKmUC5dy5F9ZJZhMDMdOt1qfV624

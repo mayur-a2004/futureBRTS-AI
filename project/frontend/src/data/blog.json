@@ -1,0 +1,20 @@
+[
+    {
+        "id": 1,
+        "title": "Understanding Education Paths",
+        "date": "2025-01-15",
+        "excerpt": "10th vs 12th vs Diploma: What is right for you?"
+    },
+    {
+        "id": 2,
+        "title": "The Rise of AI Careers",
+        "date": "2025-02-01",
+        "excerpt": "How AI is reshaping the job market in 2025."
+    },
+    {
+        "id": 3,
+        "title": "Startup vs Corporate",
+        "date": "2025-02-20",
+        "excerpt": "Choosing between stability and high growth."
+    }
+]

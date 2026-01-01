@@ -1,0 +1,18 @@
+TASK: Maintenance & Scaling UI
+
+Goal:
+Provide dashboard controls for:
+- Maintenance mode toggle
+- Auto-healing status display
+- Scaling configuration panel
+- CPU/Memory chart
+- Restart/Disable services
+- Upgrade view
+
+Screens:
+1) Maintenance Panel
+2) Scaling Panel (min/max replicas)
+3) Metrics Monitor
+4) Error Logs Panel
+
+Output: output_v8_UI.md
