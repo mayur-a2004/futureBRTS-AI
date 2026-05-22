@@ -6,7 +6,6 @@ import {
     Download, ArrowLeft, Terminal, FileCode,
     Folder, Layers, Box, Cpu, Rocket, MessageSquare, Activity, Play, Send
 } from 'lucide-react';
-import UniverseBackground from '@/components/ui/UniverseBackground';
 import { io } from 'socket.io-client';
 import { Button } from '@/components/ui/Button';
 import Prism from 'prismjs';

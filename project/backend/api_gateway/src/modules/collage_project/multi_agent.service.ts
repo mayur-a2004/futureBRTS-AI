@@ -836,23 +836,64 @@ const SystemLogger = {
 // ============================================================
 const CommandExecutor = {
   writeFile: async (projectId: string, filePath: string, content: string) => {
+    let projectTitle = '';
+    try {
+      const project = await CollageProject.findById(projectId);
+      if (project) {
+        projectTitle = project.title || '';
+      }
+    } catch (e) {
+      console.error('Failed to fetch project title in writeFile:', e);
+    }
+
+    let cleanPath = filePath.replace(/\\/g, '/');
+    cleanPath = cleanPath.replace(/^\/+/g, '');
+    cleanPath = cleanPath.replace(/^[a-zA-Z]:\/?/g, '');
+
+    if (projectTitle) {
+      const cleanTitle = projectTitle.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+      const pathParts = cleanPath.split('/');
+      if (pathParts.length > 1) {
+        const firstPartClean = pathParts[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        if (firstPartClean === cleanTitle) {
+          pathParts.shift();
+          cleanPath = pathParts.join('/');
+        }
+      }
+    }
+
+    let prev;
+    do {
+      prev = cleanPath;
+      cleanPath = cleanPath.replace(/(^|\/)\.\.\//g, '/').replace(/(^|\/)\.\//g, '/');
+      cleanPath = cleanPath.replace(/\/+/g, '/').replace(/^\/+/g, '');
+    } while (cleanPath !== prev);
+
+    if (cleanPath.startsWith('src/') && !cleanPath.startsWith('frontend/')) {
+      cleanPath = 'frontend/' + cleanPath;
+    }
+
+    if (!cleanPath || cleanPath === '.' || cleanPath === '..') {
+      throw new Error(`SECURITY_VIOLATION: Invalid target path: ${filePath}`);
+    }
+
     const baseDir = path.resolve(__dirname, '../../../../projects', projectId);
-    const fullPath = path.resolve(baseDir, filePath);
+    const fullPath = path.resolve(baseDir, cleanPath);
 
     // CRITICAL: Prevent Path Traversal (COL-1)
     if (!fullPath.startsWith(baseDir)) {
-      throw new Error(`SECURITY_VIOLATION: Attempted path traversal in filePath: ${filePath}`);
+      throw new Error(`SECURITY_VIOLATION: Attempted path traversal in filePath: ${cleanPath}`);
     }
 
     // Fix MED-5: Meaningful file validation (at least 50 chars)
     if (!content || content.trim().length < 50) {
-      throw new Error(`FILE_QUALITY_FAIL: ${filePath} — Content too short (${content?.length || 0} chars). Required 50+ chars.`);
+      throw new Error(`FILE_QUALITY_FAIL: ${cleanPath} — Content too short (${content?.length || 0} chars). Required 50+ chars.`);
     }
 
     const objectId = new mongoose.Types.ObjectId(projectId);
 
     await ProjectFile.findOneAndUpdate(
-      { projectId: objectId, filePath },
+      { projectId: objectId, filePath: cleanPath },
       { fileContent: content, createdAt: new Date() },
       { upsert: true }
     );
@@ -863,7 +904,7 @@ const CommandExecutor = {
     fs.writeFileSync(fullPath, content, 'utf8');
 
     SocketService.emitToSession(projectId, 'file_created', {
-      path: filePath,
+      path: cleanPath,
       lines: content.split('\n').length,
       time: new Date().toISOString()
     });

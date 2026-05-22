@@ -2,13 +2,11 @@ import { useState, useEffect } from 'react';
 import {
     Briefcase,
     Search,
-    ExternalLink,
     Clock,
     User,
     Loader2,
     CheckCircle2,
     Zap,
-    Activity,
     Shield,
     Terminal,
     ArrowUpRight,

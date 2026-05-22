@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { motion, useScroll, useTransform } from "framer-motion"
-import { TrendingUp, AlertCircle, Brain, ShieldCheck, Target, ArrowRight, Sparkles, Activity, Search, Zap, Cpu } from "lucide-react"
+import { TrendingUp, AlertCircle, Brain, Target, ArrowRight, Sparkles, Activity, Zap, Cpu } from "lucide-react"
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { Button } from "@/components/ui/Button";
 import axios from "axios";

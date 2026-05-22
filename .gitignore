@@ -58,3 +58,15 @@ Thumbs.db
 
 # Exceptions
 !project/backend/api_gateway/.env
+
+# Dynamically generated projects
+project/backend/projects/
+
+# Temporary python worker debugging files
+project/worker/disassemble_pyc.py
+project/worker/disassembled_memory.txt
+project/worker/disassembled_memory_utf8.txt
+project/worker/disassembled_metadata_store.txt
+project/worker/disassembled_metadata_store_utf8.txt
+project/worker/inspect_pyc.py
+

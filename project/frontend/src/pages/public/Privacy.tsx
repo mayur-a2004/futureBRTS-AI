@@ -1,4 +1,4 @@
-import { Shield, Lock, Eye, Database, Server, RefreshCcw, Activity, Fingerprint, Key, ArrowRight, ShieldCheck, Cpu } from "lucide-react"
+import { Shield, Lock, Eye, Database, RefreshCcw, Activity, Fingerprint, Key, ArrowRight, ShieldCheck, Cpu } from "lucide-react"
 import { motion, useScroll, useTransform } from "framer-motion"
 import { Button } from "@/components/ui/Button"
 
