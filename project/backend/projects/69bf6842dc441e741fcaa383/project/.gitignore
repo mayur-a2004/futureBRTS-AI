@@ -1,0 +1,13 @@
+# .gitignore
+
+## Overview
+This file contains the files and directories that should be ignored by Git.
+
+## Files and Directories
+- .idea/
+- .vscode/
+- node_modules/
+- .env
+
+## Explanation
+The files and directories listed in this file should be ignored by Git to prevent them from being committed to the repository.

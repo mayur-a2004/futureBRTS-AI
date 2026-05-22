@@ -1,0 +1,5 @@
+﻿
+> future-brts-frontend@0.1.0 type-check
+> tsc --noEmit
+
+src/components/builder/CollageProjectModal.tsx(134,17): error TS6133: 'list' is declared but its value is never read.

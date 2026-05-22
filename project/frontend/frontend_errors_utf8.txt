@@ -1,0 +1,3 @@
+﻿src/components/layout/Layout.tsx(2,233): error TS6133: 'Briefcase' is declared but its value is never read.
+src/components/layout/Layout.tsx(2,244): error TS6133: 'Brain' is declared but its value is never read.
+src/components/layout/Layout.tsx(2,251): error TS6133: 'TrendingUp' is declared but its value is never read.

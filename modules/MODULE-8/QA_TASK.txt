@@ -1,4 +1,0 @@
-TASK: QA for Stability
-1. Chaos Engineering tests.
-2. Soak/Endurance testing.
-3. Security Penetration testing.

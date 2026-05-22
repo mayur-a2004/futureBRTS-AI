@@ -1,0 +1,12 @@
+﻿src/pages/builder/Builder.tsx(4,24): error TS2307: Cannot find module '@/components/ui/Button' or its corresponding type declarations.
+src/pages/builder/Builder.tsx(6,25): error TS2307: Cannot find module '@/context/AuthContext' or its corresponding type declarations.
+src/pages/builder/Builder.tsx(7,31): error TS2307: Cannot find module '@/components/chat/MessageBubble' or its corresponding type declarations.
+src/pages/builder/Builder.tsx(8,23): error TS2307: Cannot find module '@/components/economy/TokenWall' or its corresponding type declarations.
+src/pages/builder/Builder.tsx(9,26): error TS2307: Cannot find module '@/context/ModalContext' or its corresponding type declarations.
+src/pages/builder/Builder.tsx(11,37): error TS2307: Cannot find module '@/components/builder/CollageProjectModal' or its corresponding type declarations.
+src/pages/LandingPage.tsx(3,24): error TS2307: Cannot find module '@/components/ui/Button' or its corresponding type declarations.
+src/pages/LandingPage.tsx(5,25): error TS2307: Cannot find module '@/context/AuthContext' or its corresponding type declarations.
+src/pages/LandingPage.tsx(6,17): error TS2307: Cannot find module '@/components/SEO' or its corresponding type declarations.
+src/pages/LandingPage.tsx(7,31): error TS2307: Cannot find module '@/components/ErrorBoundary' or its corresponding type declarations.
+src/pages/roadmap/Roadmap.tsx(6,24): error TS2307: Cannot find module '@/components/ui/Button' or its corresponding type declarations.
+src/pages/roadmap/Roadmap.tsx(7,27): error TS2307: Cannot find module '@/components/ui/LoadingScreen' or its corresponding type declarations.

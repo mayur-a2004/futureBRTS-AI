@@ -3,110 +3,102 @@ import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import {
-    Check, ChevronRight, Map, Zap,
-    School, GraduationCap, Briefcase, Building2, Rocket, BookOpen,
-    Compass, Wrench, MapPin, DollarSign, Clock, RefreshCw
-} from "lucide-react";
+import { ChevronRight, ChevronLeft, Check, Rocket } from "lucide-react";
 import { onboardingApi } from "@/api/onboarding.api";
 
-// --- TYPES ---
-interface UserContext {
-    stage: string;
-    main_problems: string[];
-    original_goal_text: string;
-    selected_mode: 'ROADMAP' | 'BUILDER';
-}
+// --- CONFIGURATION ---
 
-// --- CONFIG ---
-// --- CONFIG ---
-const STAGE_OPTIONS = [
-    {
-        id: "Freelancer / Solopreneur",
-        icon: Briefcase,
-        label: "Freelancer",
-        desc: "Working independently or building a client base."
-    },
-    {
-        id: "Post-Secondary Exploration (High School)",
-        icon: School,
-        label: "School Student",
-        desc: "Exploring career paths after 10th/12th."
-    },
-    {
-        id: "Undergraduate Student",
-        icon: GraduationCap,
-        label: "College Student",
-        desc: "Pursuing a degree and looking for skills."
-    },
-    {
-        id: "Recent Graduate",
-        icon: BookOpen, // Changed to avoid duplicate Briefcase if needed, but Briefcase fits freelancers better. 
-        // Recent grad could be GraduationCap again or BookOpen (learning). 
-        // Let's use BookOpen for recent grad or just keep Briefcase for both? 
-        // User asked for Freelancer specifically. I will give Freelancer 'Briefcase' and change Recent Graduate to 'Award' or 'Scroll'?
-        // Actually, let's keep it simple. Freelancer -> Briefcase.
-        label: "Recent Graduate",
-        desc: "Job hunting or planning next steps."
-    },
-    {
-        id: "Working Professional",
-        icon: Building2,
-        label: "Working Professional",
-        desc: "Looking to switch or upskill."
-    },
-    {
-        id: "Founder / Entrepreneur",
-        icon: Rocket,
-        label: "Founder / Entrepreneur",
-        desc: "Building a startup or business."
-    },
-    {
-        id: "Competitive Exam Aspirant",
-        icon: BookOpen,
-        label: "Exam Aspirant",
-        desc: "Preparing for GATE, CAT, UPSC, etc."
-    }
+type Question = {
+    id: string;
+    text: string;
+    type: 'single' | 'multi' | 'text';
+    options?: string[];
+    subtext?: string;
+};
+
+// 🟢 Q1: Universal Entry
+const Q1_LIFE_STAGE: Question = {
+    id: "life_stage",
+    text: "Which life stage are you currently at?",
+    type: "single",
+    options: [
+        "School (8-10)", "High School (11-12)", "Graduation",
+        "Post Graduation", "PhD", "Job / Working Professional",
+        "Job Switch / Career Change", "Business / Startup",
+        "Government Exam Aspirant", "Abroad Planning", "Other"
+    ]
+};
+
+// 🟢 Q7: Universal Final
+const Q7_FINAL_GOAL: Question = {
+    id: "final_goal",
+    text: "Where do you want to see yourself in 6-12 months?",
+    subtext: "e.g. Job ready, Exam cleared, Business started...",
+    type: "text"
+};
+
+// 🔀 BRANCH CONFIGS
+const BRANCHES: Record<string, Question[]> = {
+    // 🧩 A. School (8-10)
+    "School (8-10)": [
+        { id: "class_level", text: "Which class are you in?", type: "single", options: ["8th", "9th", "10th"] },
+        { id: "confusion", text: "What is your biggest confusion?", type: "single", options: ["Stream selection (11th)", "Marks / Subjects", "No career idea", "Pressure (Parents/School)"] },
+        { id: "interest", text: "What do you enjoy the most?", type: "single", options: ["Maths / Logic", "Science / Experiments", "Business / Money", "Arts / Creativity", "Not sure"] },
+        { id: "expectation", text: "What do you want from Future BRTS?", type: "single", options: ["Options after 10th", "Choose right stream", "Slow & safe guidance"] },
+        { id: "tuition", text: "Do you take coaching / tuition?", type: "single", options: ["Yes", "No"] }
+    ],
+    // 🧩 B. High School (11-12)
+    "High School (11-12)": [
+        { id: "stream", text: "What is your stream?", type: "single", options: ["Science", "Commerce", "Arts", "Diploma", "Not decided"] },
+        { id: "problem", text: "Biggest problem right now?", type: "single", options: ["Graduation confusion", "Marks pressure", "Competitive exams", "Parent expectations"] },
+        { id: "grad_thought", text: "Thoughts on Graduation?", type: "single", options: ["Clear idea", "2-3 options in mind", "Completely confused"] },
+        { id: "guidance_type", text: "What kind of guidance do you need?", type: "single", options: ["Degree selection", "Career roadmap", "Exam vs Degree clarity"] },
+        { id: "timeline", text: "Your Timeline?", type: "single", options: ["Next 6 months", "1 year", "Flexible"] }
+    ],
+    // 🧩 C. Grad / PG / PhD (Merged Logic)
+    "Graduation": [
+        { id: "field", text: "What is your field?", type: "text", subtext: "e.g. B.Tech CS, BBA, MBBS..." },
+        { id: "phase", text: "Which year / phase are you in?", type: "single", options: ["First year", "Mid-course", "Final year / Thesis"] },
+        { id: "problem", text: "Biggest problem?", type: "single", options: ["Project / Thesis", "Skills gap", "Job clarity", "Higher studies dilemma"] },
+        { id: "project_level", text: "Desired Project Level?", type: "single", options: ["College pass level", "Strong practical", "Industry-ready"] },
+        { id: "future_interest", text: "What looks attractive next?", type: "single", options: ["Job", "Higher Studies", "Business", "Not sure"] }
+    ],
+    // 🧩 D. Job / Switch
+    "Job / Working Professional": [
+        { id: "role", text: "Current Role / Background?", type: "text", subtext: "e.g. Software Engineer, Sales, Marketing..." },
+        { id: "reason", text: "Why do you want a change?", type: "single", options: ["No Growth", "Salary issues", "Interest change", "Burnout"] },
+        { id: "experience", text: "Years of Experience?", type: "single", options: ["< 1 year", "1-3 years", "3-5 years", "5+ years"] },
+        { id: "risk", text: "Risk Tolerance?", type: "single", options: ["Low", "Medium", "High"] },
+        { id: "direction", text: "Preferred Direction?", type: "single", options: ["New Job", "New Field", "Freelance", "Business"] }
+    ],
+    // 🧩 E. Business
+    "Business / Startup": [
+        { id: "stage", text: "Business Stage?", type: "single", options: ["Just an Idea", "Running", "Scaling", "Family Business"] },
+        { id: "challenge", text: "Biggest Challenge?", type: "single", options: ["Idea Validation", "Sales / Marketing", "Team Building", "Funding"] },
+        { id: "type", text: "Business Type?", type: "single", options: ["Online", "Offline", "Hybrid"] },
+        { id: "need", text: "Guidance Needed?", type: "single", options: ["Step-by-step Roadmap", "Execution Tasks", "Market Understanding"] },
+        { id: "risk", text: "Risk Tolerance?", type: "single", options: ["Low", "Medium", "High"] }
+    ]
+};
+
+// Aliases for Shared Logic
+BRANCHES["Post Graduation"] = BRANCHES["Graduation"];
+BRANCHES["PhD"] = BRANCHES["Graduation"];
+BRANCHES["Job Switch / Career Change"] = BRANCHES["Job / Working Professional"];
+
+// 🧩 F. Catch-all for Govt/Abroad/Other
+const GENERIC_FLOW: Question[] = [
+    { id: "status", text: "Current Status?", type: "text", subtext: "Briefly describe where you are." },
+    { id: "confusion", text: "Biggest Confusion?", type: "single", options: ["Path Selection", "Preparation Strategy", "Financials", "Motivation"] },
+    { id: "timeline", text: "Timeline?", type: "single", options: ["Urgent (3 months)", "6 months", "1 year+"] },
+    { id: "support", text: "Support Needed?", type: "single", options: ["Roadmap", "Resources", "Mentorship"] },
+    { id: "risk", text: "Risk Level?", type: "single", options: ["Safe play", "Balanced", "All in"] }
 ];
 
-const PROBLEM_OPTIONS = [
-    {
-        id: "Lack of Clarity on Next Steps",
-        icon: Compass,
-        label: "Lack of Clarity",
-        desc: "Don't know what to do next."
-    },
-    {
-        id: "Difficulty with Practical Implementation",
-        icon: Wrench,
-        label: "Practical Issues",
-        desc: "Stuck on projects or real-work."
-    },
-    {
-        id: "Have Skills, Missing Direction",
-        icon: MapPin,
-        label: "Missing Direction",
-        desc: "Know the tech, but not the path."
-    },
-    {
-        id: "Financial or Revenue Pressure",
-        icon: DollarSign,
-        label: "Financial Pressure",
-        desc: "Need to earn money soon."
-    },
-    {
-        id: "Time Management & Discipline",
-        icon: Clock,
-        label: "Time Management",
-        desc: "Struggling to stay consistent."
-    },
-    {
-        id: "Career Switch Confusion",
-        icon: RefreshCw,
-        label: "Career Switch",
-        desc: "Want to change fields safely."
-    }
-];
+["Government Exam Aspirant", "Abroad Planning", "Other"].forEach(key => {
+    BRANCHES[key] = GENERIC_FLOW;
+});
+
 
 export default function Onboarding() {
     const { onboardingCompleted } = useAuth();
@@ -120,8 +112,7 @@ export default function Onboarding() {
 
     return (
         <ErrorBoundary>
-            {/* Transparent to show global UniverseBackground */}
-            <div className="min-h-screen flex items-center justify-center p-4">
+            <div className="min-h-screen flex items-center justify-center p-4 bg-black/50">
                 <OnboardingWizard />
             </div>
         </ErrorBoundary>
@@ -129,192 +120,205 @@ export default function Onboarding() {
 }
 
 function OnboardingWizard() {
-    const { completeOnboardingState, setIntent } = useAuth();
+    const { completeOnboardingState } = useAuth();
     const navigate = useNavigate();
-    const [step, setStep] = useState(1);
+
+    // State
+    const [stepIndex, setStepIndex] = useState(0);
+    const [answers, setAnswers] = useState<Record<string, any>>({});
     const [loading, setLoading] = useState(false);
 
-    const [context, setContext] = useState<UserContext>({
-        stage: '',
-        main_problems: [],
-        original_goal_text: '',
-        selected_mode: 'BUILDER' // Default as per prompt
-    });
+    // Logic
+    const currentQ1 = answers["life_stage"];
 
-    // Check for saved intent
-    useEffect(() => {
-        const intent = localStorage.getItem('fb_intent');
-        if (intent && !context.original_goal_text) {
-            setContext(c => ({ ...c, original_goal_text: intent }));
-        }
-    }, []);
+    // Dynamic Question List Construction
+    const getQuestions = () => {
+        const base = [Q1_LIFE_STAGE];
+        if (!currentQ1) return base; // Only show Q1 until selected
 
-    const handleNext = () => setStep(s => s + 1);
-    const handleBack = () => setStep(s => s - 1);
-
-    const toggleProblem = (p: string) => {
-        setContext(prev => {
-            const exists = prev.main_problems.includes(p);
-            if (exists) return { ...prev, main_problems: prev.main_problems.filter(x => x !== p) };
-            if (prev.main_problems.length >= 3) return prev; // Max 3
-            return { ...prev, main_problems: [...prev.main_problems, p] };
-        });
+        const branchQs = BRANCHES[currentQ1] || GENERIC_FLOW;
+        return [...base, ...branchQs, Q7_FINAL_GOAL];
     };
 
-    const handleFinalSubmit = async (mode: 'ROADMAP' | 'BUILDER') => {
+    const questions = getQuestions();
+    const currentQ = questions[stepIndex];
+    const progress = Math.round(((stepIndex + 1) / questions.length) * 100);
+
+    const handleAnswer = (val: any) => {
+        const newAnswers = { ...answers, [currentQ.id]: val };
+        setAnswers(newAnswers);
+
+        // Auto-advance for single select
+        if (currentQ.type === 'single') {
+            setTimeout(() => {
+                if (stepIndex < questions.length - 1) setStepIndex(prev => prev + 1);
+            }, 100); // Tiny delay for visual feedback
+        }
+    };
+
+    const handleNext = () => {
+        if (stepIndex < questions.length - 1) setStepIndex(prev => prev + 1);
+    };
+
+    const handleBack = () => {
+        if (stepIndex > 0) setStepIndex(prev => prev - 1);
+    };
+
+    const handleFinalSubmit = async () => {
         setLoading(true);
-        const finalContext = { ...context, selected_mode: mode };
 
-        // Save to Backend
-        const token = localStorage.getItem('fb_token');
+        const summary = {
+            ...answers,
+            life_stage: answers['life_stage'],
+            target_outcome: answers['final_goal']
+        };
+
+        const token = localStorage.getItem('fbrts_token');
         if (token) {
-            if (token) {
-                await onboardingApi.saveStep(finalContext as any, token);
+            try {
+                // 1. Save Onboarding Step
+                await onboardingApi.saveStep(summary as any, token);
+
+                // 2. Complete Onboarding
                 await onboardingApi.complete(token);
+
+                // 3. Create FIRST Session (With Context)
+                // This violates the "Empty Start" rule BUT fulfills the "Onboarding Handoff" rule which takes precedence for the very first interaction.
+                const intentContext = `User is a ${summary.life_stage}. Goal: ${summary.target_outcome}. Context: ${JSON.stringify(summary)}`;
+
+                const sessionRes = await fetch('/api/builder/session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({
+                        initialPrompt: intentContext,
+                        title: summary.target_outcome?.substring(0, 30) || "My First Plan"
+                    })
+                });
+
+                const sessionData = await sessionRes.json();
+
+                completeOnboardingState();
+                localStorage.setItem('fbrts_onboarding_backup', JSON.stringify(summary));
+
+                if (sessionData.success && sessionData.session?._id) {
+                    localStorage.setItem('fbrts_active_session', sessionData.session._id);
+                    navigate(`/builder`, { replace: true });
+                } else {
+                    navigate('/builder');
+                }
+
+            } catch (e) {
+                console.error("Onboarding Handoff Error", e);
+                navigate('/builder');
             }
-        }
-
-        // Complete & Navigate
-        completeOnboardingState();
-        localStorage.setItem('fb_onboarding_backup', JSON.stringify(finalContext));
-
-        // Ensure intent is active in context
-        if (context.original_goal_text) {
-            setIntent(context.original_goal_text);
-        }
-
-        if (mode === 'ROADMAP') {
-            navigate('/roadmap', { state: { context: finalContext } });
-        } else {
-            navigate('/builder');
         }
         setLoading(false);
     };
 
+    const isCurrentValid = () => {
+        const ans = answers[currentQ.id];
+        if (currentQ.type === 'text') return ans && ans.trim().length > 2;
+        return !!ans;
+    };
+
     return (
-        <div className="w-full max-w-5xl bg-[#09090b]/60 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:p-10 shadow-2xl relative overflow-hidden">
-            {/* Step Progress */}
-            <div className="flex gap-2 mb-8 max-w-xs mx-auto md:mx-0">
-                {[1, 2, 3].map(s => (
-                    <div key={s} className={`h-1 flex-1 rounded-full transition-colors ${s <= step ? 'bg-indigo-500' : 'bg-white/10'}`} />
-                ))}
+        <div className="w-full max-w-3xl bg-[#09090b] border border-white/10 rounded-3xl p-5 md:p-12 shadow-2xl relative overflow-hidden flex flex-col min-h-[500px] md:min-h-[600px] animate-in fade-in zoom-in-95 duration-300 mx-2">
+
+            {/* Header */}
+            <div className="mb-6 md:mb-10">
+                <div className="flex justify-between items-center mb-4">
+                    <span className="text-[9px] md:text-[10px] font-black tracking-[0.2em] text-indigo-400 uppercase">
+                        Question {stepIndex + 1} of {questions.length}
+                    </span>
+                    <span className="text-[10px] md:text-xs font-bold text-gray-500">{progress}%</span>
+                </div>
+                <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                    <div
+                        className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500 ease-out"
+                        style={{ width: `${progress}%` }}
+                    />
+                </div>
             </div>
 
-            <div className="min-h-[400px]">
-                {/* STEP 1: STAGE */}
-                {step === 1 && (
-                    <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-                        <div className="space-y-2 text-center md:text-left">
-                            <h2 className="text-3xl md:text-4xl font-black tracking-tight">Who are you?</h2>
-                            <p className="text-gray-400">Select the profile that best describes you.</p>
-                        </div>
+            {/* Question Content */}
+            <div className="flex-1 flex flex-col justify-center animate-in slide-in-from-right-8 duration-300 key={stepIndex}">
+                <h2 className="text-2xl md:text-4xl font-black text-white mb-3 leading-tight tracking-tight">
+                    {currentQ.text}
+                </h2>
+                {currentQ.subtext && (
+                    <p className="text-gray-400 mb-6 md:mb-8 text-base md:text-lg italic font-medium">{currentQ.subtext}</p>
+                )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {STAGE_OPTIONS.map(opt => (
-                                <div key={opt.id}
-                                    onClick={() => setContext({ ...context, stage: opt.id })}
-                                    className={`p-5 rounded-2xl border cursor-pointer flex flex-col gap-3 transition-all active:scale-[0.98] relative overflow-hidden group ${context.stage === opt.id ? 'bg-indigo-600 border-indigo-500 text-white shadow-xl shadow-indigo-900/20' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:border-white/20'}`}>
-
-                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${context.stage === opt.id ? 'bg-white/20' : 'bg-white/5 group-hover:bg-white/10'}`}>
-                                        <opt.icon size={20} />
-                                    </div>
-
-                                    <div>
-                                        <h3 className={`font-bold text-lg ${context.stage === opt.id ? 'text-white' : 'text-gray-200'}`}>{opt.label}</h3>
-                                        <p className={`text-xs mt-1 leading-relaxed ${context.stage === opt.id ? 'text-indigo-100' : 'text-gray-500'}`}>{opt.desc}</p>
-                                    </div>
-
-                                    {context.stage === opt.id && <div className="absolute top-4 right-4"><Check size={20} className="text-white" /></div>}
-                                </div>
+                <div className="mt-4 md:mt-6">
+                    {currentQ.type === 'single' && currentQ.options && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 md:gap-3">
+                            {currentQ.options.map(opt => (
+                                <button
+                                    key={opt}
+                                    onClick={() => handleAnswer(opt)}
+                                    className={`p-4 md:p-5 rounded-xl border text-left font-bold text-sm md:text-base transition-all flex justify-between items-center group
+                                        ${answers[currentQ.id] === opt
+                                            ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-500/20'
+                                            : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:border-white/20 hover:text-white'
+                                        }`}
+                                >
+                                    <span className="truncate pr-4">{opt}</span>
+                                    {answers[currentQ.id] === opt && <Check size={16} className="shrink-0 animate-in zoom-in spin-in-90 duration-200" />}
+                                </button>
                             ))}
                         </div>
-                    </div>
-                )}
+                    )}
 
-                {/* STEP 2: PROBLEMS */}
-                {step === 2 && (
-                    <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-                        <div className="space-y-2 text-center md:text-left">
-                            <h2 className="text-3xl md:text-4xl font-black tracking-tight">What's holding you back?</h2>
-                            <p className="text-gray-400">Select top 3 challenges you are facing.</p>
+                    {currentQ.type === 'text' && (
+                        <div className="space-y-4">
+                            <input
+                                autoFocus
+                                value={answers[currentQ.id] || ''}
+                                onChange={(e) => setAnswers({ ...answers, [currentQ.id]: e.target.value })}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && isCurrentValid()) {
+                                        if (stepIndex === questions.length - 1) handleFinalSubmit();
+                                        else handleNext();
+                                    }
+                                }}
+                                placeholder="State your objective..."
+                                className="w-full bg-white/5 border border-white/10 rounded-xl p-4 md:p-5 text-lg md:text-xl text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all placeholder:text-gray-700"
+                            />
+                            <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest ml-1">PRESS_ENTER_TO_CONTINUE</p>
                         </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {PROBLEM_OPTIONS.map(opt => (
-                                <div key={opt.id}
-                                    onClick={() => toggleProblem(opt.id)}
-                                    className={`p-5 rounded-2xl border cursor-pointer flex flex-col gap-3 transition-all active:scale-[0.98] relative overflow-hidden group ${context.main_problems.includes(opt.id) ? 'bg-indigo-600 border-indigo-500 text-white shadow-xl shadow-indigo-900/20' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:border-white/20'}`}>
-
-                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${context.main_problems.includes(opt.id) ? 'bg-white/20' : 'bg-white/5 group-hover:bg-white/10'}`}>
-                                        <opt.icon size={20} />
-                                    </div>
-
-                                    <div>
-                                        <h3 className={`font-bold text-lg ${context.main_problems.includes(opt.id) ? 'text-white' : 'text-gray-200'}`}>{opt.label}</h3>
-                                        <p className={`text-xs mt-1 leading-relaxed ${context.main_problems.includes(opt.id) ? 'text-indigo-100' : 'text-gray-500'}`}>{opt.desc}</p>
-                                    </div>
-
-                                    {context.main_problems.includes(opt.id) && <div className="absolute top-4 right-4"><Check size={20} className="text-white" /></div>}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* STEP 3: MODE */}
-                {step === 3 && (
-                    <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-300">
-                        <div className="space-y-2 text-center md:text-left">
-                            <h2 className="text-3xl md:text-4xl font-black tracking-tight">How would you like to proceed?</h2>
-                            <p className="text-gray-400">Choose your preferred execution style.</p>
-                        </div>
-
-                        <div className="grid md:grid-cols-2 gap-6">
-                            {/* Roadmap Card */}
-                            <div
-                                onClick={() => handleFinalSubmit('ROADMAP')}
-                                className="group relative p-8 rounded-3xl bg-white/5 border border-white/10 hover:border-indigo-500/50 hover:bg-white/[0.08] cursor-pointer transition-all overflow-hidden"
-                            >
-                                <div className="absolute top-0 right-0 p-4 opacity-50"><Map size={40} className="text-gray-600 group-hover:text-indigo-500 transition-colors" /></div>
-                                <div className="mt-8 space-y-4">
-                                    <h3 className="text-2xl font-black group-hover:text-indigo-400 transition-colors">Visualize Strategic Roadmap</h3>
-                                    <p className="text-gray-400 font-medium leading-relaxed">Understand the full path in 5-6 clear, high-level milestones.</p>
-                                </div>
-                            </div>
-
-                            {/* Builder Card (Highlighed) */}
-                            <div
-                                onClick={() => handleFinalSubmit('BUILDER')}
-                                className="group relative p-8 rounded-3xl bg-indigo-600/10 border border-indigo-500/50 hover:bg-indigo-600/20 hover:border-indigo-400 cursor-pointer transition-all overflow-hidden ring-1 ring-indigo-500/20"
-                            >
-                                <div className="absolute top-4 right-4 bg-indigo-500 text-white text-[10px] font-black px-2 py-1 rounded uppercase tracking-wider">Recommended</div>
-                                <div className="absolute top-0 right-0 p-4 mt-6 opacity-50"><Zap size={40} className="text-indigo-400 group-hover:text-white transition-colors" /></div>
-                                <div className="mt-8 space-y-4">
-                                    <h3 className="text-2xl font-black text-indigo-100 group-hover:text-white transition-colors">Start Execution & Building</h3>
-                                    <p className="text-indigo-200/70 font-medium leading-relaxed">Jump straight into action with guided tasks and immediate support.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
 
-            {/* Navigation Buttons (Hidden on Step 3) */}
-            {step < 3 && (
-                <div className="mt-10 flex justify-between items-center border-t border-white/5 pt-6">
-                    {step > 1 ? (
-                        <Button variant="ghost" onClick={handleBack} className="text-gray-400 hover:text-white px-0 hover:bg-transparent uppercase tracking-wider font-bold text-xs">Back</Button>
-                    ) : <div />}
+            {/* Navigation */}
+            <div className="mt-8 md:mt-12 flex justify-between items-center border-t border-white/5 pt-6">
+                <Button
+                    variant="ghost"
+                    onClick={handleBack}
+                    disabled={stepIndex === 0}
+                    className={`text-gray-500 hover:text-white uppercase tracking-wider font-black text-[10px] gap-2 ${stepIndex === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+                >
+                    <ChevronLeft size={14} /> Back
+                </Button>
 
+                {stepIndex < questions.length - 1 ? (
                     <Button
                         onClick={handleNext}
-                        disabled={loading || (step === 1 && !context.stage) || (step === 2 && context.main_problems.length === 0)}
-                        className="bg-white text-black hover:bg-gray-200 px-8 py-6 rounded-2xl font-black text-sm uppercase tracking-widest transition-all hover:scale-105"
+                        disabled={!isCurrentValid()}
+                        className="bg-white text-black hover:bg-gray-200 px-6 md:px-10 py-5 md:py-6 rounded-xl md:rounded-2xl font-black text-xs md:text-sm uppercase tracking-[0.15em] transition-all disabled:opacity-50"
                     >
-                        Next <ChevronRight size={16} className="ml-2" />
+                        Next <ChevronRight size={16} className="ml-1 md:ml-2" />
                     </Button>
-                </div>
-            )}
+                ) : (
+                    <Button
+                        onClick={handleFinalSubmit}
+                        disabled={!isCurrentValid() || loading}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 md:px-12 py-5 md:py-6 rounded-xl md:rounded-2xl font-black text-xs md:text-sm uppercase tracking-[0.15em] transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-70"
+                    >
+                        {loading ? 'Initializing...' : 'Construct Plan'} <Rocket size={16} className="ml-1 md:ml-2" />
+                    </Button>
+                )}
+            </div>
         </div>
     );
 }

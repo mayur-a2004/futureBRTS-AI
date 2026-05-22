@@ -1,0 +1,217 @@
+**Order History Page**
+=======================
+
+### Overview
+
+The order history page is a crucial component of an e-commerce application, allowing users to view their past orders, track their order status, and access order details. This page will be built using HTML, CSS, and JavaScript for the frontend, with Core PHP as the backend technology, and MySQL/MariaDB as the database management system.
+
+### Database Schema
+
+Before diving into the code, let's define the database schema for the order history page. We'll need the following tables:
+
+*   `orders`
+    *   `id` (primary key)
+    *   `user_id` (foreign key referencing the `users` table)
+    *   `order_date`
+    *   `total`
+    *   `status`
+*   `order_items`
+    *   `id` (primary key)
+    *   `order_id` (foreign key referencing the `orders` table)
+    *   `product_id` (foreign key referencing the `products` table)
+    *   `quantity`
+    *   `price`
+
+### PHP Code
+
+First, let's create a PHP file (`order_history.php`) to handle the backend logic:
+
+```php
+<?php
+// Configuration
+$db_host = 'localhost';
+$db_username = 'your_username';
+$db_password = 'your_password';
+$db_name = 'your_database';
+
+// Connect to the database
+$conn = new mysqli($db_host, $db_username, $db_password, $db_name);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Function to retrieve order history
+function get_order_history($user_id) {
+    global $conn;
+    $query = "SELECT * FROM orders WHERE user_id = '$user_id' ORDER BY order_date DESC";
+    $result = $conn->query($query);
+    $orders = array();
+    while ($row = $result->fetch_assoc()) {
+        $orders[] = $row;
+    }
+    return $orders;
+}
+
+// Function to retrieve order items
+function get_order_items($order_id) {
+    global $conn;
+    $query = "SELECT * FROM order_items WHERE order_id = '$order_id'";
+    $result = $conn->query($query);
+    $order_items = array();
+    while ($row = $result->fetch_assoc()) {
+        $order_items[] = $row;
+    }
+    return $order_items;
+}
+
+// Get the user's order history
+$user_id = $_SESSION['user_id'];
+$orders = get_order_history($user_id);
+
+// Close the database connection
+$conn->close();
+?>
+```
+
+### HTML Code
+
+Next, let's create the HTML file (`order-history.html`) to display the order history:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order History</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Order History</h1>
+    <table id="order-history-table">
+        <thead>
+            <tr>
+                <th>Order Date</th>
+                <th>Order Total</th>
+                <th>Status</th>
+                <th>View Details</th>
+            </tr>
+        </thead>
+        <tbody id="order-history-body">
+            <?php foreach ($orders as $order) { ?>
+            <tr>
+                <td><?php echo $order['order_date']; ?></td>
+                <td><?php echo $order['total']; ?></td>
+                <td><?php echo $order['status']; ?></td>
+                <td><button class="view-details-btn" data-order-id="<?php echo $order['id']; ?>">View Details</button></td>
+            </tr>
+            <?php } ?>
+        </tbody>
+    </table>
+
+    <!-- Modal for viewing order details -->
+    <div id="order-details-modal" style="display: none;">
+        <h2>Order Details</h2>
+        <table id="order-items-table">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Quantity</th>
+                    <th>Price</th>
+                </tr>
+            </thead>
+            <tbody id="order-items-body">
+            </tbody>
+        </table>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+### JavaScript Code
+
+Finally, let's add the JavaScript code (`script.js`) to handle the frontend logic:
+
+```javascript
+// Get the view details buttons
+const viewDetailsBtns = document.querySelectorAll('.view-details-btn');
+
+// Add event listeners to the view details buttons
+viewDetailsBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+        const orderId = btn.getAttribute('data-order-id');
+        // Send an AJAX request to retrieve the order items
+        fetch(`order_items.php?order_id=${orderId}`)
+            .then((response) => response.json())
+            .then((orderItems) => {
+                // Populate the order items table
+                const orderItemsTableBody = document.getElementById('order-items-body');
+                orderItemsTableBody.innerHTML = '';
+                orderItems.forEach((item) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${item.product_name}</td>
+                        <td>${item.quantity}</td>
+                        <td>${item.price}</td>
+                    `;
+                    orderItemsTableBody.appendChild(row);
+                });
+                // Show the order details modal
+                document.getElementById('order-details-modal').style.display = 'block';
+            });
+    });
+});
+
+// Add an event listener to the modal to close it when clicked outside
+document.addEventListener('click', (e) => {
+    if (e.target === document.getElementById('order-details-modal')) {
+        document.getElementById('order-details-modal').style.display = 'none';
+    }
+});
+```
+
+### Order Items PHP File
+
+Create a new PHP file (`order_items.php`) to handle the AJAX request for retrieving order items:
+
+```php
+<?php
+// Configuration
+$db_host = 'localhost';
+$db_username = 'your_username';
+$db_password = 'your_password';
+$db_name = 'your_database';
+
+// Connect to the database
+$conn = new mysqli($db_host, $db_username, $db_password, $db_name);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Get the order ID from the GET request
+$orderId = $_GET['order_id'];
+
+// Retrieve the order items
+$query = "SELECT * FROM order_items WHERE order_id = '$orderId'";
+$result = $conn->query($query);
+$orderItems = array();
+while ($row = $result->fetch_assoc()) {
+    $orderItems[] = $row;
+}
+
+// Close the database connection
+$conn->close();
+
+// Output the order items as JSON
+header('Content-Type: application/json');
+echo json_encode($orderItems);
+?>
+```
+
+This code provides a basic structure for an order history page, including a table to display the user's past orders, a modal to view order details, and AJAX requests to retrieve order items. You can customize and extend this code to fit your specific requirements.

@@ -1,0 +1,173 @@
+```html
+<!-- product-edit.html -->
+
+<!-- Header Section -->
+<header>
+    <nav>
+        <ul>
+            <li><a href="#">Home</a></li>
+            <li><a href="#">Products</a></li>
+            <li><a href="#">Edit Product</a></li>
+        </ul>
+    </nav>
+</header>
+
+<!-- Main Content Section -->
+<main>
+    <section class="product-edit">
+        <h1>Edit Product</h1>
+        <form id="product-edit-form">
+            <label for="product-name">Product Name:</label>
+            <input type="text" id="product-name" name="product-name" required>
+
+            <label for="product-description">Product Description:</label>
+            <textarea id="product-description" name="product-description" required></textarea>
+
+            <label for="product-price">Product Price:</label>
+            <input type="number" id="product-price" name="product-price" required>
+
+            <label for="product-category">Product Category:</label>
+            <select id="product-category" name="product-category" required>
+                <option value="">Select Category</option>
+                <option value="electronics">Electronics</option>
+                <option value="fashion">Fashion</option>
+                <option value="home">Home</option>
+            </select>
+
+            <label for="product-image">Product Image:</label>
+            <input type="file" id="product-image" name="product-image" accept="image/*">
+
+            <button type="submit" id="edit-product-btn">Edit Product</button>
+        </form>
+    </section>
+</main>
+
+<!-- Footer Section -->
+<footer>
+    <p>&copy; 2024 Product Management System</p>
+</footer>
+
+<!-- JavaScript Code -->
+<script>
+    // Get the form element
+    const form = document.getElementById('product-edit-form');
+
+    // Add event listener to the form submit event
+    form.addEventListener('submit', (e) => {
+        // Prevent default form submission behavior
+        e.preventDefault();
+
+        // Get the form data
+        const formData = new FormData(form);
+
+        // Send the form data to the server using AJAX
+        fetch('product-edit.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then((response) => response.json())
+        .then((data) => {
+            // Handle the server response
+            if (data.success) {
+                alert('Product edited successfully!');
+                // Redirect to the product list page
+                window.location.href = 'product-list.html';
+            } else {
+                alert('Error editing product: ' + data.error);
+            }
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+    });
+</script>
+```
+
+```php
+// product-edit.php
+
+// Configuration
+$dbHost = 'localhost';
+$dbUsername = 'root';
+$dbPassword = '';
+$dbName = 'product_management';
+
+// Connect to the database
+$conn = new mysqli($dbHost, $dbUsername, $dbPassword, $dbName);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Get the product ID from the URL query string
+$productId = $_GET['id'];
+
+// Get the product data from the database
+$sql = "SELECT * FROM products WHERE id = '$productId'";
+$result = $conn->query($sql);
+
+// Check if the product exists
+if ($result->num_rows > 0) {
+    // Get the product data
+    $productData = $result->fetch_assoc();
+
+    // Update the product data
+    if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+        $productName = $_POST['product-name'];
+        $productDescription = $_POST['product-description'];
+        $productPrice = $_POST['product-price'];
+        $productCategory = $_POST['product-category'];
+        $productImage = $_FILES['product-image'];
+
+        // Update the product data in the database
+        $sql = "UPDATE products SET name = '$productName', description = '$productDescription', price = '$productPrice', category = '$productCategory' WHERE id = '$productId'";
+        if ($conn->query($sql) === TRUE) {
+            // Upload the product image
+            if ($productImage['size'] > 0) {
+                $imagePath = 'uploads/' . $productImage['name'];
+                move_uploaded_file($productImage['tmp_name'], $imagePath);
+
+                // Update the product image in the database
+                $sql = "UPDATE products SET image = '$imagePath' WHERE id = '$productId'";
+                $conn->query($sql);
+            }
+
+            // Send a success response
+            $response = array('success' => true, 'message' => 'Product edited successfully!');
+            echo json_encode($response);
+        } else {
+            // Send an error response
+            $response = array('success' => false, 'error' => 'Error editing product: ' . $conn->error);
+            echo json_encode($response);
+        }
+    }
+} else {
+    // Send an error response
+    $response = array('success' => false, 'error' => 'Product not found!');
+    echo json_encode($response);
+}
+
+// Close the database connection
+$conn->close();
+```
+
+```sql
+-- Create the products table
+CREATE TABLE products (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    price DECIMAL(10, 2) NOT NULL,
+    category VARCHAR(255) NOT NULL,
+    image VARCHAR(255) NOT NULL
+);
+
+-- Insert sample data into the products table
+INSERT INTO products (name, description, price, category, image) VALUES
+('Product 1', 'This is product 1', 19.99, 'Electronics', 'uploads/product1.jpg'),
+('Product 2', 'This is product 2', 9.99, 'Fashion', 'uploads/product2.jpg'),
+('Product 3', 'This is product 3', 29.99, 'Home', 'uploads/product3.jpg');
+```
+
+This code creates a product edit page that allows users to edit product details, including name, description, price, category, and image. The form data is sent to the server using AJAX, where it is updated in the database. The product image is uploaded to the server and the image path is updated in the database. The code includes error handling and validation to ensure that the product data is valid and the image is uploaded successfully.

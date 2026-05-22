@@ -1,0 +1,109 @@
+**Product 2 Image**
+====================
+### Overview
+
+The following code is used to display the product 2 image on a webpage. The image is stored in the `images` directory and is named `product2.jpg`.
+
+### Frontend Code (HTML, CSS, JS)
+#### HTML
+```html
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product 2 Image</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="product-image-container">
+        <img src="images/product2.jpg" alt="Product 2 Image" id="product2-image">
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+#### CSS
+```css
+/* styles.css */
+.product-image-container {
+    width: 50%;
+    margin: 40px auto;
+    text-align: center;
+}
+
+#product2-image {
+    width: 100%;
+    height: auto;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+```
+
+#### JavaScript
+```javascript
+// script.js
+const product2Image = document.getElementById('product2-image');
+
+// Add event listener to image
+product2Image.addEventListener('click', () => {
+    // Perform action when image is clicked
+    console.log('Product 2 image clicked');
+});
+```
+
+### Backend Code (Core PHP)
+#### PHP
+```php
+// product2.php
+<?php
+// Check if image exists
+if (file_exists('images/product2.jpg')) {
+    // Display image
+    $image = 'images/product2.jpg';
+    header('Content-Type: image/jpeg');
+    readfile($image);
+} else {
+    // Display error message
+    echo 'Image not found';
+}
+```
+
+### Database Code (MySQL / MariaDB)
+#### SQL
+```sql
+-- create table
+CREATE TABLE products (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255),
+    image_url VARCHAR(255)
+);
+
+-- insert data
+INSERT INTO products (name, image_url) VALUES ('Product 2', 'images/product2.jpg');
+
+-- retrieve data
+SELECT * FROM products WHERE name = 'Product 2';
+```
+
+### Full Logic
+1. The user requests the webpage by navigating to `index.html`.
+2. The browser loads the HTML, CSS, and JavaScript files.
+3. The JavaScript code adds an event listener to the product 2 image.
+4. When the image is clicked, the JavaScript code logs a message to the console.
+5. The PHP code checks if the image exists and displays it if it does.
+6. The SQL code creates a table to store product information, inserts data into the table, and retrieves data from the table.
+
+### Example Use Case
+To use this code, simply create a new directory and add the following files:
+* `index.html`
+* `styles.css`
+* `script.js`
+* `product2.php`
+* `images/product2.jpg`
+
+Then, navigate to `index.html` in your browser to view the product 2 image. Clicking on the image will log a message to the console.
+
+Note: This code assumes that the image is stored in the `images` directory and is named `product2.jpg`. You may need to adjust the file paths and names to match your specific use case.

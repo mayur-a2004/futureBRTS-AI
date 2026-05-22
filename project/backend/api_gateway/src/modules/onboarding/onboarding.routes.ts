@@ -8,7 +8,7 @@ const router = Router();
 router.post('/answer', authMiddleware, onboardingController.submitAnswer); // Legacy
 router.get('/result', authMiddleware, onboardingController.getResults); // Legacy
 
-router.post('/save-step', authMiddleware, onboardingController.saveStep);
+router.post('/step', authMiddleware, onboardingController.saveStep);
 router.get('/status', authMiddleware, onboardingController.getStatus);
 router.post('/complete', authMiddleware, onboardingController.complete);
 

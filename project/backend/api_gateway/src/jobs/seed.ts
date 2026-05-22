@@ -8,7 +8,7 @@ dotenv.config();
 
 const seedData = async () => {
     try {
-        await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/futurebuilder');
+        await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/FutureBRTS');
         console.log("Connected to DB for seeding...");
 
         // 👉 1. Landing Page Seed
@@ -32,7 +32,7 @@ const seedData = async () => {
                 }
             ],
             seo: {
-                title: "FutureBuilder | AI Roadmaps",
+                title: "FutureBRTS | AI Roadmaps",
                 description: "Build your future with predictive intelligence.",
                 keywords: ["roadmap", "career", "future", "ai"]
             }

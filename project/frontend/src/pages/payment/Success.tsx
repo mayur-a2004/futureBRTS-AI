@@ -42,7 +42,7 @@ export default function Success() {
                 <div>
                     <h1 className="text-4xl font-bold mb-4">Payment Successful!</h1>
                     <p className="text-gray-400 text-lg">
-                        Welcome to FutureBuilder Pro. Your account has been upgraded and all features are unlocked.
+                        Welcome to FutureBRTS Pro. Your account has been upgraded and all features are unlocked.
                     </p>
                 </div>
 

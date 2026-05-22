@@ -1,0 +1,268 @@
+**Access Control Page**
+=======================
+
+### Overview
+
+The access control page is a crucial component of any web application, as it ensures that only authorized users can access sensitive data and features. In this implementation, we will create a basic access control system using HTML, CSS, JS, Core PHP, and MySQL/MariaDB.
+
+### Database Schema
+
+Before we dive into the code, let's define the database schema for our access control system. We will need two tables: `users` and `roles`.
+
+```sql
+CREATE TABLE users (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  username VARCHAR(255) NOT NULL,
+  password VARCHAR(255) NOT NULL,
+  role_id INT NOT NULL,
+  FOREIGN KEY (role_id) REFERENCES roles(id)
+);
+
+CREATE TABLE roles (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(255) NOT NULL,
+  description TEXT NOT NULL
+);
+```
+
+### HTML Structure
+
+Now, let's create the HTML structure for our access control page.
+
+```html
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Access Control Page</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <nav>
+      <ul>
+        <li><a href="#">Home</a></li>
+        <li><a href="#">About</a></li>
+        <li><a href="#">Contact</a></li>
+      </ul>
+    </nav>
+  </header>
+  <main>
+    <section class="login-form">
+      <h2>Login</h2>
+      <form id="login-form">
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username"><br><br>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password"><br><br>
+        <button type="submit">Login</button>
+      </form>
+    </section>
+    <section class="register-form">
+      <h2>Register</h2>
+      <form id="register-form">
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username"><br><br>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password"><br><br>
+        <label for="role">Role:</label>
+        <select id="role" name="role">
+          <option value="1">Admin</option>
+          <option value="2">Moderator</option>
+          <option value="3">User</option>
+        </select><br><br>
+        <button type="submit">Register</button>
+      </form>
+    </section>
+  </main>
+  <script src="script.js"></script>
+</body>
+</html>
+```
+
+### CSS Styles
+
+Next, let's add some basic CSS styles to our access control page.
+
+```css
+/* styles.css */
+body {
+  font-family: Arial, sans-serif;
+}
+
+header {
+  background-color: #333;
+  color: #fff;
+  padding: 1em;
+  text-align: center;
+}
+
+nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: space-between;
+}
+
+nav li {
+  margin-right: 20px;
+}
+
+nav a {
+  color: #fff;
+  text-decoration: none;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2em;
+}
+
+.login-form, .register-form {
+  background-color: #f7f7f7;
+  padding: 1em;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+input[type="text"], input[type="password"] {
+  width: 100%;
+  height: 40px;
+  margin-bottom: 20px;
+  padding: 10px;
+  border: 1px solid #ccc;
+}
+
+button[type="submit"] {
+  background-color: #4CAF50;
+  color: #fff;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button[type="submit"]:hover {
+  background-color: #3e8e41;
+}
+```
+
+### JavaScript Code
+
+Now, let's add some JavaScript code to handle the login and registration forms.
+
+```javascript
+// script.js
+const loginForm = document.getElementById('login-form');
+const registerForm = document.getElementById('register-form');
+
+loginForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const username = document.getElementById('username').value;
+  const password = document.getElementById('password').value;
+  fetch('login.php', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ username, password })
+  })
+  .then((res) => res.json())
+  .then((data) => {
+    if (data.success) {
+      window.location.href = 'dashboard.php';
+    } else {
+      alert('Invalid username or password');
+    }
+  })
+  .catch((err) => console.error(err));
+});
+
+registerForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const username = document.getElementById('username').value;
+  const password = document.getElementById('password').value;
+  const role = document.getElementById('role').value;
+  fetch('register.php', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ username, password, role })
+  })
+  .then((res) => res.json())
+  .then((data) => {
+    if (data.success) {
+      window.location.href = 'login.php';
+    } else {
+      alert('Registration failed');
+    }
+  })
+  .catch((err) => console.error(err));
+});
+```
+
+### PHP Code
+
+Finally, let's create the PHP code to handle the login and registration forms.
+
+```php
+// login.php
+<?php
+require_once 'db.php';
+
+$username = $_POST['username'];
+$password = $_POST['password'];
+
+$query = "SELECT * FROM users WHERE username = '$username' AND password = '$password'";
+$result = mysqli_query($conn, $query);
+
+if (mysqli_num_rows($result) > 0) {
+  $row = mysqli_fetch_assoc($result);
+  $_SESSION['user_id'] = $row['id'];
+  $_SESSION['username'] = $row['username'];
+  $_SESSION['role'] = $row['role_id'];
+  echo json_encode(['success' => true]);
+} else {
+  echo json_encode(['success' => false]);
+}
+
+// register.php
+<?php
+require_once 'db.php';
+
+$username = $_POST['username'];
+$password = $_POST['password'];
+$role = $_POST['role'];
+
+$query = "INSERT INTO users (username, password, role_id) VALUES ('$username', '$password', '$role')";
+mysqli_query($conn, $query);
+
+if (mysqli_affected_rows($conn) > 0) {
+  echo json_encode(['success' => true]);
+} else {
+  echo json_encode(['success' => false]);
+}
+
+// db.php
+<?php
+$conn = mysqli_connect('localhost', 'root', '', 'access_control');
+
+if (!$conn) {
+  die('Connection failed: ' . mysqli_connect_error());
+}
+```
+
+This is a basic implementation of an access control system using HTML, CSS, JS, Core PHP, and MySQL/MariaDB. You can improve this system by adding more features, such as password hashing, email verification, and role-based access control.

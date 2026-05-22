@@ -1,4 +1,4 @@
-export const API_URL = "http://localhost:7000/api";
+export const API_URL = "http://localhost:7001/api";
 
 export const saveBlueprint = async (payload: { nodes: any[] }) => {
     const token = localStorage.getItem("token");

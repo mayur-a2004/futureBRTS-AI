@@ -1,0 +1,282 @@
+```html
+<!-- Instagram Integration Page -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instagram Integration</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>Instagram Integration</h1>
+    </header>
+    <main>
+        <section class="instagram-login">
+            <h2>Login with Instagram</h2>
+            <button id="instagram-login-btn">Login</button>
+        </section>
+        <section class="instagram-authorization">
+            <h2>Authorize Instagram Access</h2>
+            <p>Grant access to your Instagram account to integrate with our platform.</p>
+            <button id="instagram-authorization-btn">Authorize</button>
+        </section>
+        <section class="instagram-feed">
+            <h2>Instagram Feed</h2>
+            <div id="instagram-feed-container"></div>
+        </section>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+```css
+/* styles.css */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+header {
+    background-color: #333;
+    color: #fff;
+    padding: 1em;
+    text-align: center;
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2em;
+}
+
+.instagram-login {
+    background-color: #f7f7f7;
+    padding: 1em;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1em;
+}
+
+.instagram-authorization {
+    background-color: #f7f7f7;
+    padding: 1em;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1em;
+}
+
+.instagram-feed {
+    background-color: #f7f7f7;
+    padding: 1em;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+#instagram-login-btn, #instagram-authorization-btn {
+    background-color: #333;
+    color: #fff;
+    padding: 0.5em 1em;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#instagram-login-btn:hover, #instagram-authorization-btn:hover {
+    background-color: #444;
+}
+```
+
+```javascript
+// script.js
+const instagramLoginBtn = document.getElementById('instagram-login-btn');
+const instagramAuthorizationBtn = document.getElementById('instagram-authorization-btn');
+const instagramFeedContainer = document.getElementById('instagram-feed-container');
+
+// Instagram API credentials
+const clientId = 'YOUR_CLIENT_ID';
+const clientSecret = 'YOUR_CLIENT_SECRET';
+const redirectUri = 'YOUR_REDIRECT_URI';
+
+// Login with Instagram
+instagramLoginBtn.addEventListener('click', () => {
+    const loginUrl = `https://api.instagram.com/oauth/authorize/?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code`;
+    window.location.href = loginUrl;
+});
+
+// Authorize Instagram access
+instagramAuthorizationBtn.addEventListener('click', () => {
+    const authorizationUrl = `https://api.instagram.com/oauth/authorize/?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=public_content`;
+    window.location.href = authorizationUrl;
+});
+
+// Get Instagram access token
+function getAccessToken(code) {
+    const tokenUrl = 'https://api.instagram.com/oauth/access_token';
+    const tokenData = {
+        client_id: clientId,
+        client_secret: clientSecret,
+        grant_type: 'authorization_code',
+        redirect_uri: redirectUri,
+        code: code
+    };
+
+    fetch(tokenUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: Object.keys(tokenData).map(key => `${key}=${tokenData[key]}`).join('&')
+    })
+    .then(response => response.json())
+    .then(data => {
+        const accessToken = data.access_token;
+        getInstagramFeed(accessToken);
+    })
+    .catch(error => console.error(error));
+}
+
+// Get Instagram feed
+function getInstagramFeed(accessToken) {
+    const feedUrl = 'https://graph.instagram.com/me/media';
+    const feedData = {
+        access_token: accessToken,
+        fields: 'id,media_url,thumbnail_url,caption'
+    };
+
+    fetch(feedUrl, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${accessToken}`
+        },
+        params: feedData
+    })
+    .then(response => response.json())
+    .then(data => {
+        const feedHtml = data.data.map(item => `
+            <div class="instagram-feed-item">
+                <img src="${item.media_url}" alt="${item.caption}">
+                <p>${item.caption}</p>
+            </div>
+        `).join('');
+        instagramFeedContainer.innerHTML = feedHtml;
+    })
+    .catch(error => console.error(error));
+}
+
+// Handle Instagram redirect
+if (window.location.search.includes('code=')) {
+    const code = window.location.search.split('code=')[1];
+    getAccessToken(code);
+}
+```
+
+```php
+// instagram_integration.php
+<?php
+// Instagram API credentials
+$clientId = 'YOUR_CLIENT_ID';
+$clientSecret = 'YOUR_CLIENT_SECRET';
+$redirectUri = 'YOUR_REDIRECT_URI';
+
+// Login with Instagram
+if (isset($_GET['login'])) {
+    $loginUrl = "https://api.instagram.com/oauth/authorize/?client_id=$clientId&redirect_uri=$redirectUri&response_type=code";
+    header("Location: $loginUrl");
+    exit;
+}
+
+// Authorize Instagram access
+if (isset($_GET['authorize'])) {
+    $authorizationUrl = "https://api.instagram.com/oauth/authorize/?client_id=$clientId&redirect_uri=$redirectUri&response_type=code&scope=public_content";
+    header("Location: $authorizationUrl");
+    exit;
+}
+
+// Get Instagram access token
+if (isset($_GET['code'])) {
+    $code = $_GET['code'];
+    $tokenUrl = 'https://api.instagram.com/oauth/access_token';
+    $tokenData = array(
+        'client_id' => $clientId,
+        'client_secret' => $clientSecret,
+        'grant_type' => 'authorization_code',
+        'redirect_uri' => $redirectUri,
+        'code' => $code
+    );
+
+    $ch = curl_init($tokenUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($tokenData));
+    $response = curl_exec($ch);
+    curl_close($ch);
+
+    $responseData = json_decode($response, true);
+    $accessToken = $responseData['access_token'];
+
+    // Get Instagram feed
+    $feedUrl = 'https://graph.instagram.com/me/media';
+    $feedData = array(
+        'access_token' => $accessToken,
+        'fields' => 'id,media_url,thumbnail_url,caption'
+    );
+
+    $ch = curl_init($feedUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_GET, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($feedData));
+    $response = curl_exec($ch);
+    curl_close($ch);
+
+    $feedData = json_decode($response, true);
+    $feedHtml = '';
+    foreach ($feedData['data'] as $item) {
+        $feedHtml .= "
+            <div class='instagram-feed-item'>
+                <img src='{$item['media_url']}' alt='{$item['caption']}'>
+                <p>{$item['caption']}</p>
+            </div>
+        ";
+    }
+
+    echo $feedHtml;
+}
+?>
+```
+
+```sql
+-- instagram_integration.sql
+CREATE TABLE instagram_users (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(255) NOT NULL,
+    access_token VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE instagram_feed (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    media_url VARCHAR(255) NOT NULL,
+    thumbnail_url VARCHAR(255) NOT NULL,
+    caption TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES instagram_users(id)
+);
+```
+
+This code provides a basic example of how to integrate Instagram with your application. It includes the following features:
+
+1.  **Login with Instagram**: The user can log in to your application using their Instagram account.
+2.  **Authorize Instagram access**: The user is prompted to authorize your application to access their Instagram account.
+3.  **Get Instagram feed**: The application retrieves the user's Instagram feed and displays it on the page.
+4.  **Store Instagram data**: The application stores the user's Instagram data in a database for future use.
+
+Note that you will need to replace the placeholders (`YOUR_CLIENT_ID`, `YOUR_CLIENT_SECRET`, `YOUR_REDIRECT_URI`) with your actual Instagram API credentials.
+
+Also, this is just a basic example and you should consider implementing additional security measures, such as validating user input and handling errors, to ensure the security and integrity of your application.

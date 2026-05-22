@@ -1,0 +1,9 @@
+﻿src/components/layout/AdminSidebar.tsx(21,5): error TS6133: 'BarChart3' is declared but its value is never read.
+src/pages/admin/EconomyManager.tsx(12,5): error TS6133: 'Loader2' is declared but its value is never read.
+src/pages/admin/EconomyManager.tsx(20,12): error TS6133: 'newUpiId' is declared but its value is never read.
+src/pages/admin/EconomyManager.tsx(20,22): error TS6133: 'setNewUpiId' is declared but its value is never read.
+src/pages/admin/ProjectRegistry.tsx(8,5): error TS6133: 'Layers' is declared but its value is never read.
+src/pages/admin/ProjectRegistry.tsx(11,5): error TS6133: 'Clock3' is declared but its value is never read.
+src/pages/admin/SEOManager.tsx(3,5): error TS6133: 'Globe' is declared but its value is never read.
+src/pages/admin/SEOManager.tsx(7,5): error TS6133: 'Zap' is declared but its value is never read.
+src/pages/admin/SEOManager.tsx(8,5): error TS6133: 'AlertCircle' is declared but its value is never read.

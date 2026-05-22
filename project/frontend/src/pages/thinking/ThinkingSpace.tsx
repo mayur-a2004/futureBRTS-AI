@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { useAuth, Message, Session, BuilderMode } from "@/context/AuthContext";
 import UniverseBackground from "@/components/ui/UniverseBackground";
+import { MessageBubble } from "@/components/chat/MessageBubble";
 import { api } from "@/lib/api";
 
 const PLACEHOLDERS = [
@@ -91,8 +92,8 @@ export default function ThinkingSpace() {
     // Initial Session Generation & Resumption
     useEffect(() => {
         const checkLandingContext = async () => {
-            const token = localStorage.getItem('fb_auth_token');
-            const landingId = localStorage.getItem('fb_landing_session_id');
+            const token = localStorage.getItem('fbrts_auth_token');
+            const landingId = localStorage.getItem('fbrts_landing_session_id');
 
             if (token && landingId && sessions.length <= 1) {
                 try {
@@ -103,9 +104,7 @@ export default function ThinkingSpace() {
                             id: landingId,
                             title: res.initialQuestion.length > 30 ? res.initialQuestion.slice(0, 30) + '...' : res.initialQuestion,
                             messages: [
-                                { id: 'sys-1', session_id: landingId, role: 'assistant', content: res.systemMessage, timestamp: Date.now() },
                                 { id: 'query-1', session_id: landingId, role: 'user', content: res.initialQuestion, timestamp: Date.now() },
-                                { id: 'ai-1', session_id: landingId, role: 'assistant', content: `हमने आपके intent (${res.initialQuestion}) को capture कर लिया है। चलिए builder workspace में गहराई से काम शुरू करते हैं।`, timestamp: Date.now() + 100 }
                             ],
                             timestamp: Date.now(),
                             created_at: Date.now(),
@@ -116,7 +115,7 @@ export default function ThinkingSpace() {
                         };
                         addSession(newSession);
                         // Clear landing context after resumption
-                        localStorage.removeItem('fb_landing_session_id');
+                        localStorage.removeItem('fbrts_landing_session_id');
                         return;
                     }
                 } catch (err) {
@@ -153,14 +152,6 @@ export default function ThinkingSpace() {
 
         await api.builder.createSession({ id, intent: initialIntent });
 
-        const firstMessage: Message = {
-            id: 'init-' + Date.now(),
-            role: 'assistant',
-            content: `Based on your goal to "${initialIntent || 'explore new possibilities'}", I've analyzed your context. \n\nWhat is the biggest challenge on your mind right now?`,
-            timestamp: Date.now(),
-            session_id: id
-        };
-
         const newSession: Session = {
             id,
             title: "New Session",
@@ -168,7 +159,7 @@ export default function ThinkingSpace() {
             created_at: Date.now(),
             user_id: user?.id || 'guest',
             intent: initialIntent || '',
-            messages: [firstMessage],
+            messages: [],
             keywords: [],
             mode: 'Career'
         };
@@ -274,35 +265,16 @@ export default function ThinkingSpace() {
 
             {/* 2️⃣ Chat Messages (ONLY THIS SCROLLS) */}
             <div className="chat-messages flex-1 overflow-y-auto relative z-10 scrollbar-hide scroll-smooth">
-                <div className="max-w-[720px] mx-auto px-4 md:px-6 py-10 md:py-16 space-y-10 md:space-y-12 pb-10">
+                <div className="max-w-[800px] mx-auto px-4 md:px-6 py-10 md:py-16 space-y-12 pb-10">
                     {currentSession?.messages && currentSession.messages.length > 0 ? (
                         currentSession.messages.map((message) => (
-                            <motion.div
+                            <MessageBubble
                                 key={message.id}
-                                initial={{ opacity: 0, y: 12 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.5, ease: "easeOut" }}
-                                className="w-full flex flex-col"
-                            >
-                                {message.role === 'user' ? (
-                                    <div className="flex justify-end w-full">
-                                        <div className="max-w-[90%] md:max-w-[85%] bg-white/[0.03] border border-white/10 rounded-2xl px-5 py-3 text-[12.5px] md:text-[13px] text-gray-200 leading-relaxed font-medium">
-                                            {message.content}
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="flex gap-4 md:gap-6 w-full group">
-                                        <div className="w-8 h-8 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0 text-indigo-400/80 mt-1">
-                                            <Zap size={14} />
-                                        </div>
-                                        <div className="flex-1 space-y-4">
-                                            <div className="text-[12.5px] md:text-[13px] font-medium text-gray-100 leading-[1.8] tracking-tight whitespace-pre-wrap">
-                                                {message.content}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </motion.div>
+                                role={message.role as 'user' | 'assistant'}
+                                content={message.content}
+                                icon={message.role === 'assistant' ? <Zap size={16} fill="currentColor" /> : undefined}
+                                onRetry={message.role === 'assistant' && currentSession.messages[currentSession.messages.length - 1].id === message.id ? handleContinueThinking : undefined}
+                            />
                         ))
                     ) : (
                         <div className="h-full flex items-center justify-center opacity-20 py-20">

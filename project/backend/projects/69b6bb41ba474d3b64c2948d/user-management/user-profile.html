@@ -1,0 +1,277 @@
+**User Profile Page**
+=======================
+
+### Overview
+
+The user profile page is a crucial component of any web application, allowing users to view and manage their personal information. In this implementation, we will create a user profile page using HTML, CSS, and JavaScript for the frontend, and Core PHP for the backend, with a MySQL database for storing user data.
+
+### Database Schema
+
+Before we dive into the code, let's define the database schema for the user table:
+```sql
+CREATE TABLE users (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  username VARCHAR(50) NOT NULL,
+  email VARCHAR(100) NOT NULL,
+  password VARCHAR(255) NOT NULL,
+  first_name VARCHAR(50) NOT NULL,
+  last_name VARCHAR(50) NOT NULL,
+  profile_picture VARCHAR(255) DEFAULT NULL
+);
+```
+### Frontend (HTML, CSS, and JavaScript)
+
+**user-profile.html**
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Profile</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <nav>
+      <ul>
+        <li><a href="#">Home</a></li>
+        <li><a href="#">Profile</a></li>
+        <li><a href="#">Settings</a></li>
+      </ul>
+    </nav>
+  </header>
+  <main>
+    <section class="profile-container">
+      <h1>User Profile</h1>
+      <form id="profile-form">
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" readonly>
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" readonly>
+        <label for="first_name">First Name:</label>
+        <input type="text" id="first_name" name="first_name">
+        <label for="last_name">Last Name:</label>
+        <input type="text" id="last_name" name="last_name">
+        <label for="profile_picture">Profile Picture:</label>
+        <input type="file" id="profile_picture" name="profile_picture">
+        <button type="submit">Update Profile</button>
+      </form>
+      <div class="profile-picture-container">
+        <img id="profile-picture" src="" alt="Profile Picture">
+      </div>
+    </section>
+  </main>
+  <script src="script.js"></script>
+</body>
+</html>
+```
+**styles.css**
+```css
+body {
+  font-family: Arial, sans-serif;
+}
+
+header {
+  background-color: #333;
+  color: #fff;
+  padding: 1em;
+  text-align: center;
+}
+
+nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: space-between;
+}
+
+nav li {
+  margin-right: 20px;
+}
+
+nav a {
+  color: #fff;
+  text-decoration: none;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2em;
+}
+
+.profile-container {
+  background-color: #f7f7f7;
+  padding: 2em;
+  border: 1px solid #ddd;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+#profile-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#profile-form label {
+  margin-bottom: 10px;
+}
+
+#profile-form input {
+  padding: 10px;
+  margin-bottom: 20px;
+  border: 1px solid #ccc;
+}
+
+#profile-form button {
+  background-color: #333;
+  color: #fff;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.profile-picture-container {
+  margin-top: 20px;
+}
+
+#profile-picture {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+```
+**script.js**
+```javascript
+const profileForm = document.getElementById('profile-form');
+const usernameInput = document.getElementById('username');
+const emailInput = document.getElementById('email');
+const firstNameInput = document.getElementById('first_name');
+const lastNameInput = document.getElementById('last_name');
+const profilePictureInput = document.getElementById('profile_picture');
+const profilePictureContainer = document.getElementById('profile-picture-container');
+const profilePicture = document.getElementById('profile-picture');
+
+// Fetch user data from backend
+fetch('user-profile.php')
+  .then(response => response.json())
+  .then(data => {
+    usernameInput.value = data.username;
+    emailInput.value = data.email;
+    firstNameInput.value = data.first_name;
+    lastNameInput.value = data.last_name;
+    profilePicture.src = data.profile_picture;
+  });
+
+// Update profile form submission
+profileForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const formData = new FormData();
+  formData.append('first_name', firstNameInput.value);
+  formData.append('last_name', lastNameInput.value);
+  formData.append('profile_picture', profilePictureInput.files[0]);
+
+  fetch('update-profile.php', {
+    method: 'POST',
+    body: formData,
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        alert('Profile updated successfully!');
+      } else {
+        alert('Error updating profile!');
+      }
+    });
+});
+```
+### Backend (Core PHP)
+
+**user-profile.php**
+```php
+<?php
+require_once 'db.php';
+
+session_start();
+
+if (!isset($_SESSION['user_id'])) {
+  header('Location: login.php');
+  exit;
+}
+
+$user_id = $_SESSION['user_id'];
+
+$query = "SELECT * FROM users WHERE id = '$user_id'";
+$result = mysqli_query($conn, $query);
+
+if (mysqli_num_rows($result) > 0) {
+  $user_data = mysqli_fetch_assoc($result);
+  echo json_encode($user_data);
+} else {
+  echo json_encode(array('error' => 'User not found'));
+}
+
+mysqli_close($conn);
+?>
+```
+**update-profile.php**
+```php
+<?php
+require_once 'db.php';
+
+session_start();
+
+if (!isset($_SESSION['user_id'])) {
+  header('Location: login.php');
+  exit;
+}
+
+$user_id = $_SESSION['user_id'];
+
+$first_name = $_POST['first_name'];
+$last_name = $_POST['last_name'];
+$profile_picture = $_FILES['profile_picture'];
+
+$query = "UPDATE users SET first_name = '$first_name', last_name = '$last_name' WHERE id = '$user_id'";
+
+if (mysqli_query($conn, $query)) {
+  if ($profile_picture['size'] > 0) {
+    $upload_dir = 'uploads/';
+    $file_name = $profile_picture['name'];
+    $file_path = $upload_dir . $file_name;
+
+    if (move_uploaded_file($profile_picture['tmp_name'], $file_path)) {
+      $query = "UPDATE users SET profile_picture = '$file_path' WHERE id = '$user_id'";
+      mysqli_query($conn, $query);
+    }
+  }
+
+  echo json_encode(array('success' => true));
+} else {
+  echo json_encode(array('success' => false));
+}
+
+mysqli_close($conn);
+?>
+```
+**db.php**
+```php
+<?php
+$host = 'localhost';
+$username = 'root';
+$password = '';
+$db_name = 'user_management';
+
+$conn = mysqli_connect($host, $username, $password, $db_name);
+
+if (!$conn) {
+  die('Connection failed: ' . mysqli_connect_error());
+}
+?>
+```
+This implementation provides a basic user profile page with form submission handling and backend database interactions using Core PHP and MySQL. Note that this is a simplified example and you should consider implementing additional security measures, such as input validation and error handling, in a production environment.

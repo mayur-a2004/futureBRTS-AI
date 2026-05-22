@@ -27,7 +27,7 @@ export default function Checkout() {
                 <div className="p-8 bg-gray-800/50 border-r border-gray-800">
                     <div className="flex items-center gap-2 mb-6">
                         <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center font-bold">P</div>
-                        <span className="font-bold text-xl">FutureBuilder Pro</span>
+                        <span className="font-bold text-xl">FutureBRTS Pro</span>
                     </div>
 
                     <div className="space-y-4 mb-8">

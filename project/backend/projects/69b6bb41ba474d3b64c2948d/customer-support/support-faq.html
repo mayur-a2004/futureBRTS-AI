@@ -1,0 +1,280 @@
+```html
+<!-- 
+  File: support-faq.html
+  Description: Customer Support FAQ page
+  Technologies: HTML, CSS, JS, Core PHP, MySQL/MariaDB
+-->
+
+<!-- HTML Structure -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Support FAQ</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Header Section -->
+  <header>
+    <nav>
+      <ul>
+        <li><a href="#">Home</a></li>
+        <li><a href="#">Contact Us</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- Main Content Section -->
+  <main>
+    <h1>Customer Support FAQ</h1>
+    <p>Find answers to frequently asked questions about our products and services.</p>
+
+    <!-- FAQ Accordion -->
+    <div class="faq-accordion">
+      <div class="faq-question">
+        <h2>What is your return policy?</h2>
+        <button class="faq-toggle">+</button>
+        <div class="faq-answer">
+          <p>We accept returns within 30 days of purchase. Please contact our customer support team for more information.</p>
+        </div>
+      </div>
+
+      <div class="faq-question">
+        <h2>How do I track my order?</h2>
+        <button class="faq-toggle">+</button>
+        <div class="faq-answer">
+          <p>You can track your order by logging into your account and clicking on the "Order History" tab.</p>
+        </div>
+      </div>
+
+      <div class="faq-question">
+        <h2>What is your shipping policy?</h2>
+        <button class="faq-toggle">+</button>
+        <div class="faq-answer">
+          <p>We offer free standard shipping on all orders over $50. Please allow 3-5 business days for delivery.</p>
+        </div>
+      </div>
+
+      <!-- Add more FAQ questions and answers as needed -->
+    </div>
+
+    <!-- Contact Us Section -->
+    <h2>Still have questions? Contact us!</h2>
+    <form id="contact-form">
+      <label for="name">Name:</label>
+      <input type="text" id="name" name="name"><br><br>
+      <label for="email">Email:</label>
+      <input type="email" id="email" name="email"><br><br>
+      <label for="message">Message:</label>
+      <textarea id="message" name="message"></textarea><br><br>
+      <button type="submit">Send</button>
+    </form>
+  </main>
+
+  <!-- Footer Section -->
+  <footer>
+    <p>&copy; 2023 Customer Support</p>
+  </footer>
+
+  <!-- JavaScript Code -->
+  <script src="script.js"></script>
+</body>
+</html>
+```
+
+```css
+/* styles.css */
+
+/* Global Styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  line-height: 1.6;
+  color: #333;
+  background-color: #f9f9f9;
+}
+
+header {
+  background-color: #333;
+  color: #fff;
+  padding: 1em;
+  text-align: center;
+}
+
+header nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: space-between;
+}
+
+header nav ul li {
+  margin-right: 20px;
+}
+
+header nav a {
+  color: #fff;
+  text-decoration: none;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2em;
+}
+
+h1 {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+.faq-accordion {
+  width: 80%;
+  margin: 0 auto;
+}
+
+.faq-question {
+  background-color: #fff;
+  padding: 1em;
+  border: 1px solid #ddd;
+  margin-bottom: 10px;
+}
+
+.faq-question h2 {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.faq-toggle {
+  background-color: #333;
+  color: #fff;
+  border: none;
+  padding: 10px;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.faq-answer {
+  display: none;
+  padding: 1em;
+  background-color: #f9f9f9;
+}
+
+.faq-answer p {
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+
+#contact-form {
+  width: 80%;
+  margin: 0 auto;
+  padding: 1em;
+  background-color: #fff;
+  border: 1px solid #ddd;
+}
+
+#contact-form label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+#contact-form input, #contact-form textarea {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 20px;
+  border: 1px solid #ccc;
+}
+
+#contact-form button[type="submit"] {
+  background-color: #333;
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+footer {
+  background-color: #333;
+  color: #fff;
+  padding: 1em;
+  text-align: center;
+  clear: both;
+}
+```
+
+```javascript
+// script.js
+
+// FAQ Accordion Toggle
+const faqToggles = document.querySelectorAll('.faq-toggle');
+
+faqToggles.forEach((toggle) => {
+  toggle.addEventListener('click', () => {
+    const faqAnswer = toggle.nextElementSibling;
+    faqAnswer.style.display = faqAnswer.style.display === 'block' ? 'none' : 'block';
+    toggle.textContent = toggle.textContent === '+' ? '-' : '+';
+  });
+});
+
+// Contact Form Submission
+const contactForm = document.getElementById('contact-form');
+
+contactForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const formData = new FormData(contactForm);
+  fetch('/contact-form.php', {
+    method: 'POST',
+    body: formData,
+  })
+    .then((response) => response.json())
+    .then((data) => console.log(data))
+    .catch((error) => console.error(error));
+});
+```
+
+```php
+// contact-form.php
+
+// Configuration
+$dbHost = 'localhost';
+$dbUsername = 'username';
+$dbPassword = 'password';
+$dbName = 'database_name';
+
+// Connect to Database
+$conn = new mysqli($dbHost, $dbUsername, $dbPassword, $dbName);
+
+// Check Connection
+if ($conn->connect_error) {
+  die("Connection failed: " . $conn->connect_error);
+}
+
+// Process Contact Form Submission
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+  $name = $_POST['name'];
+  $email = $_POST['email'];
+  $message = $_POST['message'];
+
+  // Insert Data into Database
+  $sql = "INSERT INTO contact_form (name, email, message) VALUES ('$name', '$email', '$message')";
+  if ($conn->query($sql) === TRUE) {
+    echo "Form submitted successfully!";
+  } else {
+    echo "Error: " . $sql . "<br>" . $conn->error;
+  }
+}
+
+// Close Database Connection
+$conn->close();
+```
+
+This code creates a basic customer support FAQ page with an accordion-style FAQ section, a contact form, and a PHP script to process the contact form submission and store the data in a MySQL database. The FAQ accordion is toggled using JavaScript, and the contact form submission is handled using the Fetch API and PHP. The PHP script connects to the database, inserts the form data into the database, and returns a success message.

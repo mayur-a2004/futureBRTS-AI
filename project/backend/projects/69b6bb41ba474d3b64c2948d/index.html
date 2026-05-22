@@ -1,0 +1,276 @@
+```html
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Website Title</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="#">Home</a></li>
+                <li><a href="#">About</a></li>
+                <li><a href="#">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <section>
+            <h1>Welcome to our website</h1>
+            <p>This is a sample website built using HTML, CSS, and JavaScript.</p>
+            <button id="login-btn">Login</button>
+            <button id="register-btn">Register</button>
+        </section>
+        <section id="login-section" style="display: none;">
+            <h2>Login</h2>
+            <form id="login-form">
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username"><br><br>
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password"><br><br>
+                <input type="submit" value="Login">
+            </form>
+        </section>
+        <section id="register-section" style="display: none;">
+            <h2>Register</h2>
+            <form id="register-form">
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username"><br><br>
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email"><br><br>
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password"><br><br>
+                <label for="confirm-password">Confirm Password:</label>
+                <input type="password" id="confirm-password" name="confirm-password"><br><br>
+                <input type="submit" value="Register">
+            </form>
+        </section>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+```css
+/* styles.css */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+header {
+    background-color: #333;
+    color: #fff;
+    padding: 1em;
+    text-align: center;
+}
+
+nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: space-between;
+}
+
+nav li {
+    margin-right: 20px;
+}
+
+nav a {
+    color: #fff;
+    text-decoration: none;
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2em;
+}
+
+section {
+    background-color: #f7f7f7;
+    padding: 1em;
+    margin-bottom: 20px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+    color: #333;
+}
+
+button {
+    background-color: #333;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #444;
+}
+
+#login-section, #register-section {
+    display: none;
+}
+```
+
+```javascript
+// script.js
+document.getElementById('login-btn').addEventListener('click', () => {
+    document.getElementById('login-section').style.display = 'block';
+    document.getElementById('register-section').style.display = 'none';
+});
+
+document.getElementById('register-btn').addEventListener('click', () => {
+    document.getElementById('register-section').style.display = 'block';
+    document.getElementById('login-section').style.display = 'none';
+});
+
+document.getElementById('login-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    // Send login request to server
+    fetch('/login', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ username, password })
+    })
+    .then((response) => response.json())
+    .then((data) => {
+        if (data.success) {
+            // Login successful, redirect to dashboard
+            window.location.href = '/dashboard';
+        } else {
+            // Login failed, display error message
+            alert('Invalid username or password');
+        }
+    })
+    .catch((error) => {
+        console.error(error);
+    });
+});
+
+document.getElementById('register-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const username = document.getElementById('username').value;
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirm-password').value;
+    // Send register request to server
+    fetch('/register', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ username, email, password, confirmPassword })
+    })
+    .then((response) => response.json())
+    .then((data) => {
+        if (data.success) {
+            // Register successful, redirect to login page
+            window.location.href = '/login';
+        } else {
+            // Register failed, display error message
+            alert('Registration failed');
+        }
+    })
+    .catch((error) => {
+        console.error(error);
+    });
+});
+```
+
+```php
+// login.php
+<?php
+// Configuration
+$dbHost = 'localhost';
+$dbUsername = 'root';
+$dbPassword = '';
+$dbName = 'database';
+
+// Create connection
+$conn = new mysqli($dbHost, $dbUsername, $dbPassword, $dbName);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Login function
+function login($username, $password) {
+    global $conn;
+    $query = "SELECT * FROM users WHERE username = '$username' AND password = '$password'";
+    $result = $conn->query($query);
+    if ($result->num_rows > 0) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+// Register function
+function register($username, $email, $password, $confirmPassword) {
+    global $conn;
+    if ($password === $confirmPassword) {
+        $query = "INSERT INTO users (username, email, password) VALUES ('$username', '$email', '$password')";
+        if ($conn->query($query) === TRUE) {
+            return true;
+        } else {
+            return false;
+        }
+    } else {
+        return false;
+    }
+}
+
+// Handle login request
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $username = $_POST['username'];
+    $password = $_POST['password'];
+    if (login($username, $password)) {
+        echo json_encode(array('success' => true));
+    } else {
+        echo json_encode(array('success' => false));
+    }
+}
+
+// Handle register request
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $username = $_POST['username'];
+    $email = $_POST['email'];
+    $password = $_POST['password'];
+    $confirmPassword = $_POST['confirmPassword'];
+    if (register($username, $email, $password, $confirmPassword)) {
+        echo json_encode(array('success' => true));
+    } else {
+        echo json_encode(array('success' => false));
+    }
+}
+
+// Close connection
+$conn->close();
+?>
+```
+
+```sql
+-- database.sql
+CREATE TABLE users (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    password VARCHAR(255) NOT NULL
+);
+```

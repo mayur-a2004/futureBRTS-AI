@@ -1,0 +1,208 @@
+Here's a sample CSS file, `style1.css`, that defines a custom style:
+
+```css
+/* Global Styles */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  line-height: 1.6;
+  color: #333;
+  background-color: #f4f4f4;
+}
+
+a {
+  text-decoration: none;
+  color: #337ab7;
+}
+
+a:hover {
+  color: #23527c;
+}
+
+/* Header Styles */
+
+.header {
+  background-color: #333;
+  color: #fff;
+  padding: 1em;
+  text-align: center;
+}
+
+.header h1 {
+  margin: 0;
+}
+
+/* Navigation Styles */
+
+.nav {
+  background-color: #444;
+  padding: 0.5em;
+  text-align: center;
+}
+
+.nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nav li {
+  display: inline-block;
+  margin-right: 20px;
+}
+
+.nav a {
+  color: #fff;
+}
+
+.nav a:hover {
+  color: #ccc;
+}
+
+/* Main Content Styles */
+
+.main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2em;
+}
+
+.main h2 {
+  margin-bottom: 10px;
+}
+
+/* Footer Styles */
+
+.footer {
+  background-color: #333;
+  color: #fff;
+  padding: 1em;
+  text-align: center;
+  clear: both;
+}
+
+/* Responsive Design */
+
+@media only screen and (max-width: 768px) {
+  .main {
+    padding: 1em;
+  }
+}
+
+@media only screen and (max-width: 480px) {
+  .nav li {
+    display: block;
+    margin-right: 0;
+  }
+}
+
+/* Custom Components */
+
+.button {
+  background-color: #337ab7;
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.button:hover {
+  background-color: #23527c;
+}
+
+.card {
+  background-color: #fff;
+  padding: 20px;
+  border: 1px solid #ddd;
+  margin: 20px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.card h2 {
+  margin-top: 0;
+}
+
+/* Utility Classes */
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.text-right {
+  text-align: right;
+}
+
+/* Custom Colors */
+
+.primary-color {
+  color: #337ab7;
+}
+
+.secondary-color {
+  color: #666;
+}
+
+/* Custom Fonts */
+
+.font-large {
+  font-size: 24px;
+}
+
+.font-small {
+  font-size: 12px;
+}
+```
+
+This CSS file defines a basic layout with a header, navigation, main content area, and footer. It also includes custom components like buttons and cards, as well as utility classes for text alignment and container sizing. Additionally, it defines custom colors and fonts that can be used throughout the application.
+
+To use this CSS file, simply link it to your HTML file using the `<link>` tag:
+
+```html
+<link rel="stylesheet" type="text/css" href="css/style1.css">
+```
+
+You can then use the classes defined in the CSS file to style your HTML elements. For example:
+
+```html
+<header class="header">
+  <h1>My Website</h1>
+</header>
+
+<nav class="nav">
+  <ul>
+    <li><a href="#">Home</a></li>
+    <li><a href="#">About</a></li>
+    <li><a href="#">Contact</a></li>
+  </ul>
+</nav>
+
+<main class="main">
+  <h2>Welcome to my website</h2>
+  <p>This is a sample website.</p>
+  <button class="button">Click me</button>
+</main>
+
+<footer class="footer">
+  <p>&copy; 2023 My Website</p>
+</footer>
+```
+
+This is just a basic example, and you can customize the CSS file to fit your specific needs. You can also add more classes and styles as needed to create a more complex and customized design.

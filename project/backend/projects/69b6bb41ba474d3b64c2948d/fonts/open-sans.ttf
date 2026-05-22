@@ -1,0 +1,145 @@
+**Open Sans Font File**
+========================
+The Open Sans font file is a popular, open-source font family designed by Steve Matteson. It is a humanist sans serif typeface designed for legibility and versatility.
+
+**Font File Details**
+--------------------
+
+* Font Name: Open Sans
+* Font Type: Sans Serif
+* Font Style: Regular, Italic, Bold, Bold Italic
+* Font Size: Various sizes available
+* Font Format: TrueType (.ttf), OpenType (.otf), Web Open Font Format (.woff), Web Open Font Format 2 (.woff2)
+
+**Using Open Sans in HTML, CSS, and JS**
+------------------------------------------
+
+To use the Open Sans font in your web application, you can include the font file in your project and reference it in your CSS styles.
+
+### HTML
+
+```html
+<!-- Include the font file in your HTML head section -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap">
+```
+
+### CSS
+
+```css
+/* Define the font family in your CSS styles */
+body {
+  font-family: 'Open Sans', sans-serif;
+}
+
+/* Use the font family in your CSS classes */
+.header {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+/* Use the font family in your CSS IDs */
+#title {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 36px;
+  font-weight: bold;
+}
+```
+
+### JS
+
+```javascript
+// Use the font family in your JavaScript code
+const title = document.getElementById('title');
+title.style.fontFamily = 'Open Sans, sans-serif';
+title.style.fontSize = '36px';
+title.style.fontWeight = 'bold';
+```
+
+**Using Open Sans in Core PHP**
+------------------------------
+
+To use the Open Sans font in your Core PHP application, you can include the font file in your project and reference it in your PHP code.
+
+### PHP
+
+```php
+// Define the font family in your PHP variables
+$fontFamily = 'Open Sans, sans-serif';
+
+// Use the font family in your PHP code
+echo '<p style="font-family: ' . $fontFamily . '; font-size: 18px;">Hello World!</p>';
+```
+
+**Using Open Sans in MySQL / MariaDB**
+--------------------------------------
+
+To use the Open Sans font in your MySQL / MariaDB database, you can store the font family in a database table and retrieve it in your PHP code.
+
+### SQL
+
+```sql
+-- Create a table to store font families
+CREATE TABLE font_families (
+  id INT PRIMARY KEY,
+  font_family VARCHAR(255)
+);
+
+-- Insert the Open Sans font family into the table
+INSERT INTO font_families (id, font_family) VALUES (1, 'Open Sans, sans-serif');
+```
+
+### PHP
+
+```php
+// Connect to the database
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+// Retrieve the font family from the database
+$sql = "SELECT font_family FROM font_families WHERE id = 1";
+$result = $conn->query($sql);
+
+// Use the font family in your PHP code
+if ($result->num_rows > 0) {
+  while($row = $result->fetch_assoc()) {
+    $fontFamily = $row['font_family'];
+    echo '<p style="font-family: ' . $fontFamily . '; font-size: 18px;">Hello World!</p>';
+  }
+}
+```
+
+**Full Logic Example**
+---------------------
+
+Here is a full logic example that demonstrates how to use the Open Sans font in a web application:
+
+```php
+// Connect to the database
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+// Retrieve the font family from the database
+$sql = "SELECT font_family FROM font_families WHERE id = 1";
+$result = $conn->query($sql);
+
+// Use the font family in your PHP code
+if ($result->num_rows > 0) {
+  while($row = $result->fetch_assoc()) {
+    $fontFamily = $row['font_family'];
+
+    // Include the font file in your HTML head section
+    echo '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap">';
+
+    // Define the font family in your CSS styles
+    echo '<style>
+      body {
+        font-family: ' . $fontFamily . ';
+      }
+    </style>';
+
+    // Use the font family in your HTML content
+    echo '<p style="font-family: ' . $fontFamily . '; font-size: 18px;">Hello World!</p>';
+  }
+}
+```
+
+This example demonstrates how to retrieve the Open Sans font family from a database table and use it in your PHP code to generate HTML content with the correct font family.

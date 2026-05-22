@@ -1,0 +1,244 @@
+**Stock Levels Page**
+======================
+### Overview
+
+The stock levels page is a crucial component of an inventory management system. It allows users to view and manage the current stock levels of various products. This page will be built using HTML, CSS, and JavaScript for the frontend, Core PHP for the backend, and MySQL/MariaDB for the database.
+
+### Database Schema
+
+Before we dive into the code, let's define the database schema for the stock levels page. We will need two tables: `products` and `stock_levels`.
+
+```sql
+CREATE TABLE products (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  price DECIMAL(10, 2) NOT NULL
+);
+
+CREATE TABLE stock_levels (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  product_id INT NOT NULL,
+  quantity INT NOT NULL,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (product_id) REFERENCES products(id)
+);
+```
+
+### Frontend (HTML, CSS, and JavaScript)
+
+The frontend will be responsible for displaying the stock levels and allowing users to update them.
+
+**stock-levels.html**
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stock Levels</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <h1>Stock Levels</h1>
+  <table id="stock-levels-table">
+    <thead>
+      <tr>
+        <th>Product</th>
+        <th>Quantity</th>
+        <th>Update</th>
+      </tr>
+    </thead>
+    <tbody id="stock-levels-tbody">
+    </tbody>
+  </table>
+
+  <script src="script.js"></script>
+</body>
+</html>
+```
+
+**styles.css**
+```css
+body {
+  font-family: Arial, sans-serif;
+}
+
+#stock-levels-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+#stock-levels-table th, #stock-levels-table td {
+  border: 1px solid #ddd;
+  padding: 10px;
+  text-align: left;
+}
+
+#stock-levels-table th {
+  background-color: #f0f0f0;
+}
+```
+
+**script.js**
+```javascript
+// Get the stock levels table body
+const stockLevelsTbody = document.getElementById('stock-levels-tbody');
+
+// Function to fetch stock levels from the backend
+async function fetchStockLevels() {
+  try {
+    const response = await fetch('fetch-stock-levels.php');
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Function to render the stock levels table
+function renderStockLevelsTable(stockLevels) {
+  stockLevelsTbody.innerHTML = '';
+  stockLevels.forEach((stockLevel) => {
+    const row = document.createElement('tr');
+    const productCell = document.createElement('td');
+    const quantityCell = document.createElement('td');
+    const updateCell = document.createElement('td');
+
+    productCell.textContent = stockLevel.product_name;
+    quantityCell.textContent = stockLevel.quantity;
+    updateCell.innerHTML = `
+      <button class="update-button" data-product-id="${stockLevel.product_id}">Update</button>
+    `;
+
+    row.appendChild(productCell);
+    row.appendChild(quantityCell);
+    row.appendChild(updateCell);
+    stockLevelsTbody.appendChild(row);
+  });
+}
+
+// Function to handle update button clicks
+function handleUpdateButtonClick(event) {
+  const productId = event.target.dataset.productId;
+  const newQuantity = prompt('Enter new quantity:');
+
+  if (newQuantity !== null) {
+    updateStockLevel(productId, newQuantity);
+  }
+}
+
+// Function to update stock level
+async function updateStockLevel(productId, newQuantity) {
+  try {
+    const response = await fetch('update-stock-level.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ product_id: productId, quantity: newQuantity }),
+    });
+    const data = await response.json();
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Fetch and render stock levels on page load
+fetchStockLevels().then((stockLevels) => {
+  renderStockLevelsTable(stockLevels);
+});
+
+// Add event listener for update button clicks
+document.addEventListener('click', (event) => {
+  if (event.target.classList.contains('update-button')) {
+    handleUpdateButtonClick(event);
+  }
+});
+```
+
+### Backend (Core PHP)
+
+The backend will be responsible for handling requests from the frontend and interacting with the database.
+
+**fetch-stock-levels.php**
+```php
+<?php
+// Configuration
+$dbHost = 'localhost';
+$dbUsername = 'root';
+$dbPassword = '';
+$dbName = 'inventory_management';
+
+// Connect to database
+$conn = new mysqli($dbHost, $dbUsername, $dbPassword, $dbName);
+
+// Check connection
+if ($conn->connect_error) {
+  die("Connection failed: " . $conn->connect_error);
+}
+
+// Query to fetch stock levels
+$query = "SELECT p.name AS product_name, sl.quantity, sl.product_id FROM stock_levels sl JOIN products p ON sl.product_id = p.id";
+
+// Execute query
+$result = $conn->query($query);
+
+// Fetch data
+$data = array();
+while ($row = $result->fetch_assoc()) {
+  $data[] = $row;
+}
+
+// Close connection
+$conn->close();
+
+// Output data as JSON
+header('Content-Type: application/json');
+echo json_encode($data);
+?>
+```
+
+**update-stock-level.php**
+```php
+<?php
+// Configuration
+$dbHost = 'localhost';
+$dbUsername = 'root';
+$dbPassword = '';
+$dbName = 'inventory_management';
+
+// Connect to database
+$conn = new mysqli($dbHost, $dbUsername, $dbPassword, $dbName);
+
+// Check connection
+if ($conn->connect_error) {
+  die("Connection failed: " . $conn->connect_error);
+}
+
+// Get data from request
+$data = json_decode(file_get_contents('php://input'), true);
+
+// Query to update stock level
+$query = "UPDATE stock_levels SET quantity = ? WHERE product_id = ?";
+
+// Prepare statement
+$stmt = $conn->prepare($query);
+
+// Bind parameters
+$stmt->bind_param("ii", $data['quantity'], $data['product_id']);
+
+// Execute query
+$stmt->execute();
+
+// Close connection
+$conn->close();
+
+// Output success message
+header('Content-Type: application/json');
+echo json_encode(array('message' => 'Stock level updated successfully'));
+?>
+```
+
+This code provides a basic implementation of a stock levels page using HTML, CSS, JavaScript, Core PHP, and MySQL/MariaDB. It allows users to view and update stock levels for various products. Note that this is a simplified example and may require modifications to fit your specific use case.

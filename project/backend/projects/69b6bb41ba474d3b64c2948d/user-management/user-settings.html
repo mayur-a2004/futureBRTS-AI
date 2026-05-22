@@ -1,0 +1,258 @@
+**User Settings Page**
+=======================
+
+### Overview
+
+The user settings page allows users to manage their account settings, including updating their profile information, changing their password, and managing their account preferences.
+
+### HTML Structure
+```html
+<!-- user-settings.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Settings</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="#">Dashboard</a></li>
+                <li><a href="#">Profile</a></li>
+                <li><a href="#">Settings</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <section class="user-settings">
+            <h1>User Settings</h1>
+            <form id="user-settings-form">
+                <div class="form-group">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" name="username" value="<?php echo $username; ?>">
+                </div>
+                <div class="form-group">
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" name="email" value="<?php echo $email; ?>">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password">
+                </div>
+                <div class="form-group">
+                    <label for="confirm-password">Confirm Password:</label>
+                    <input type="password" id="confirm-password" name="confirm-password">
+                </div>
+                <button type="submit">Save Changes</button>
+            </form>
+            <div class="preferences">
+                <h2>Preferences</h2>
+                <div class="preference-group">
+                    <label for="notification-preference">Notification Preference:</label>
+                    <select id="notification-preference" name="notification-preference">
+                        <option value="email">Email</option>
+                        <option value="in-app">In-App</option>
+                    </select>
+                </div>
+                <div class="preference-group">
+                    <label for="language-preference">Language Preference:</label>
+                    <select id="language-preference" name="language-preference">
+                        <option value="en">English</option>
+                        <option value="fr">French</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+### CSS Styles
+```css
+/* styles.css */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+header {
+    background-color: #333;
+    color: #fff;
+    padding: 1em;
+    text-align: center;
+}
+
+header nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+header nav ul li {
+    display: inline-block;
+    margin-right: 20px;
+}
+
+header nav a {
+    color: #fff;
+    text-decoration: none;
+}
+
+.user-settings {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 10px;
+}
+
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group input[type="password"] {
+    width: 100%;
+    height: 40px;
+    padding: 10px;
+    border: 1px solid #ccc;
+}
+
+button[type="submit"] {
+    background-color: #4CAF50;
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button[type="submit"]:hover {
+    background-color: #3e8e41;
+}
+
+.preferences {
+    margin-top: 40px;
+}
+
+.preference-group {
+    margin-bottom: 20px;
+}
+
+.preference-group label {
+    display: block;
+    margin-bottom: 10px;
+}
+
+.preference-group select {
+    width: 100%;
+    height: 40px;
+    padding: 10px;
+    border: 1px solid #ccc;
+}
+```
+
+### JavaScript Code
+```javascript
+// script.js
+const form = document.getElementById('user-settings-form');
+
+form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const username = document.getElementById('username').value;
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirm-password').value;
+    const notificationPreference = document.getElementById('notification-preference').value;
+    const languagePreference = document.getElementById('language-preference').value;
+
+    if (password !== confirmPassword) {
+        alert('Passwords do not match');
+        return;
+    }
+
+    const userData = {
+        username,
+        email,
+        password,
+        notificationPreference,
+        languagePreference
+    };
+
+    // Send user data to server using AJAX
+    fetch('/update-user-settings', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(userData)
+    })
+    .then((response) => response.json())
+    .then((data) => {
+        if (data.success) {
+            alert('User settings updated successfully');
+        } else {
+            alert('Error updating user settings');
+        }
+    })
+    .catch((error) => {
+        console.error(error);
+    });
+});
+```
+
+### PHP Code
+```php
+// update-user-settings.php
+<?php
+require_once 'db.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $username = $_POST['username'];
+    $email = $_POST['email'];
+    $password = $_POST['password'];
+    $notificationPreference = $_POST['notificationPreference'];
+    $languagePreference = $_POST['languagePreference'];
+
+    $query = "UPDATE users SET username = '$username', email = '$email', password = '$password', notification_preference = '$notificationPreference', language_preference = '$languagePreference' WHERE id = '$userId'";
+    $result = mysqli_query($conn, $query);
+
+    if ($result) {
+        echo json_encode(['success' => true]);
+    } else {
+        echo json_encode(['success' => false]);
+    }
+} else {
+    http_response_code(405);
+    echo json_encode(['error' => 'Method not allowed']);
+}
+
+mysqli_close($conn);
+?>
+```
+
+### Database Schema
+```sql
+CREATE TABLE users (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    notification_preference VARCHAR(255) NOT NULL,
+    language_preference VARCHAR(255) NOT NULL
+);
+```
+Note: This is a basic example and you should consider security measures such as password hashing and validation, as well as proper error handling. Additionally, you may want to add more fields to the users table depending on your specific requirements.

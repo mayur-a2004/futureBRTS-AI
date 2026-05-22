@@ -1,0 +1,330 @@
+```html
+<!-- 
+  File: blog.html
+  Description: A simple blog page with a list of articles and a search bar.
+  Technologies: HTML, CSS, JS, Core PHP, MySQL / MariaDB
+-->
+
+<!-- HTML Structure -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blog Page</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Header Section -->
+  <header>
+    <nav>
+      <ul>
+        <li><a href="#">Home</a></li>
+        <li><a href="#">About</a></li>
+        <li><a href="#">Contact</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- Main Content Section -->
+  <main>
+    <section class="blog-list">
+      <h1>Latest Articles</h1>
+      <ul id="article-list">
+        <!-- Article list will be populated dynamically using JavaScript and PHP -->
+      </ul>
+    </section>
+
+    <!-- Search Bar Section -->
+    <section class="search-bar">
+      <input type="text" id="search-input" placeholder="Search articles...">
+      <button id="search-button">Search</button>
+    </section>
+  </main>
+
+  <!-- Footer Section -->
+  <footer>
+    <p>&copy; 2024 Blog Page</p>
+  </footer>
+
+  <!-- JavaScript Code -->
+  <script src="script.js"></script>
+</body>
+</html>
+```
+
+```css
+/* 
+  File: styles.css
+  Description: Styles for the blog page.
+*/
+
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+header {
+  background-color: #333;
+  color: #fff;
+  padding: 1em;
+  text-align: center;
+}
+
+header nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+header nav ul li {
+  display: inline-block;
+  margin-right: 20px;
+}
+
+header nav a {
+  color: #fff;
+  text-decoration: none;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2em;
+}
+
+.blog-list {
+  background-color: #f7f7f7;
+  padding: 1em;
+  border: 1px solid #ddd;
+  margin-bottom: 20px;
+}
+
+.blog-list h1 {
+  margin-top: 0;
+}
+
+#article-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#article-list li {
+  margin-bottom: 10px;
+}
+
+.search-bar {
+  background-color: #f7f7f7;
+  padding: 1em;
+  border: 1px solid #ddd;
+}
+
+#search-input {
+  width: 70%;
+  height: 30px;
+  padding: 10px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+}
+
+#search-button {
+  width: 20%;
+  height: 30px;
+  background-color: #333;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+
+footer {
+  background-color: #333;
+  color: #fff;
+  padding: 1em;
+  text-align: center;
+  clear: both;
+}
+```
+
+```javascript
+// 
+// File: script.js
+// Description: JavaScript code for the blog page.
+//
+
+// Get the article list element
+const articleList = document.getElementById('article-list');
+
+// Function to populate the article list
+function populateArticleList(articles) {
+  // Clear the article list
+  articleList.innerHTML = '';
+
+  // Loop through each article and add it to the list
+  articles.forEach((article) => {
+    const articleListItem = document.createElement('li');
+    articleListItem.textContent = article.title;
+    articleList.appendChild(articleListItem);
+  });
+}
+
+// Function to get articles from the database using PHP
+function getArticles() {
+  // Create a new XMLHttpRequest object
+  const xhr = new XMLHttpRequest();
+
+  // Open the request to the PHP file
+  xhr.open('GET', 'get-articles.php', true);
+
+  // Set the callback function for when the request is complete
+  xhr.onload = function() {
+    if (xhr.status === 200) {
+      // Parse the JSON response
+      const articles = JSON.parse(xhr.responseText);
+
+      // Populate the article list
+      populateArticleList(articles);
+    }
+  };
+
+  // Send the request
+  xhr.send();
+}
+
+// Get the articles when the page loads
+getArticles();
+
+// Add an event listener to the search button
+document.getElementById('search-button').addEventListener('click', function() {
+  // Get the search input value
+  const searchInput = document.getElementById('search-input').value;
+
+  // Create a new XMLHttpRequest object
+  const xhr = new XMLHttpRequest();
+
+  // Open the request to the PHP file
+  xhr.open('GET', 'search-articles.php?search=' + searchInput, true);
+
+  // Set the callback function for when the request is complete
+  xhr.onload = function() {
+    if (xhr.status === 200) {
+      // Parse the JSON response
+      const articles = JSON.parse(xhr.responseText);
+
+      // Populate the article list
+      populateArticleList(articles);
+    }
+  };
+
+  // Send the request
+  xhr.send();
+});
+```
+
+```php
+// 
+// File: get-articles.php
+// Description: PHP file to get articles from the database.
+//
+
+// Connect to the database
+$conn = new mysqli('localhost', 'username', 'password', 'database');
+
+// Check if the connection was successful
+if ($conn->connect_error) {
+  die('Connection failed: ' . $conn->connect_error);
+}
+
+// Query to get all articles
+$sql = 'SELECT * FROM articles';
+
+// Execute the query
+$result = $conn->query($sql);
+
+// Create an array to store the articles
+$articles = array();
+
+// Loop through each row in the result
+while ($row = $result->fetch_assoc()) {
+  // Add the article to the array
+  $articles[] = array(
+    'id' => $row['id'],
+    'title' => $row['title'],
+    'content' => $row['content']
+  );
+}
+
+// Close the connection
+$conn->close();
+
+// Output the articles as JSON
+echo json_encode($articles);
+```
+
+```php
+// 
+// File: search-articles.php
+// Description: PHP file to search articles in the database.
+//
+
+// Connect to the database
+$conn = new mysqli('localhost', 'username', 'password', 'database');
+
+// Check if the connection was successful
+if ($conn->connect_error) {
+  die('Connection failed: ' . $conn->connect_error);
+}
+
+// Get the search input
+$search = $_GET['search'];
+
+// Query to search for articles
+$sql = 'SELECT * FROM articles WHERE title LIKE "%' . $search . '%"';
+
+// Execute the query
+$result = $conn->query($sql);
+
+// Create an array to store the articles
+$articles = array();
+
+// Loop through each row in the result
+while ($row = $result->fetch_assoc()) {
+  // Add the article to the array
+  $articles[] = array(
+    'id' => $row['id'],
+    'title' => $row['title'],
+    'content' => $row['content']
+  );
+}
+
+// Close the connection
+$conn->close();
+
+// Output the articles as JSON
+echo json_encode($articles);
+```
+
+```sql
+-- 
+-- Table structure for articles
+--
+
+CREATE TABLE articles (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  title VARCHAR(255),
+  content TEXT
+);
+
+-- 
+-- Sample data for articles
+--
+
+INSERT INTO articles (title, content) VALUES
+('Article 1', 'This is the content of article 1'),
+('Article 2', 'This is the content of article 2'),
+('Article 3', 'This is the content of article 3');
+```
+
+This code creates a simple blog page with a list of articles and a search bar. The articles are stored in a MySQL database and are retrieved using PHP. The search bar allows users to search for articles by title. The JavaScript code is used to populate the article list and to handle the search functionality.

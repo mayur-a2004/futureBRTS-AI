@@ -1,0 +1,254 @@
+**Product 1 Image Display using HTML, CSS, and JavaScript**
+===========================================================
+
+In this example, we will create a simple web page that displays the product 1 image using HTML, CSS, and JavaScript. We will also use Core PHP to handle the backend logic and MySQL/MariaDB as our database.
+
+**Database Schema**
+-------------------
+
+First, let's create a simple database schema to store our product information.
+
+```sql
+CREATE TABLE products (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(255),
+  image_url VARCHAR(255)
+);
+```
+
+**PHP Backend Logic**
+---------------------
+
+Next, let's create a PHP script that will handle the backend logic for our application.
+
+```php
+// config.php
+<?php
+$servername = "localhost";
+$username = "root";
+$password = "";
+$dbname = "mydatabase";
+
+// Create connection
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+// Check connection
+if ($conn->connect_error) {
+  die("Connection failed: " . $conn->connect_error);
+}
+
+// Get product 1 image
+$product_id = 1;
+$sql = "SELECT image_url FROM products WHERE id = '$product_id'";
+$result = $conn->query($sql);
+
+if ($result->num_rows > 0) {
+  // Output data of each row
+  while($row = $result->fetch_assoc()) {
+    $image_url = $row["image_url"];
+  }
+} else {
+  $image_url = "";
+}
+
+$conn->close();
+?>
+```
+
+**HTML and CSS**
+----------------
+
+Now, let's create the HTML and CSS for our web page.
+
+```html
+<!-- index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Product 1 Image</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="product-image">
+    <img id="product-image" src="" alt="Product 1 Image">
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
+```
+
+```css
+/* style.css */
+.product-image {
+  width: 50%;
+  margin: 40px auto;
+  text-align: center;
+}
+
+#product-image {
+  width: 100%;
+  height: auto;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+```
+
+**JavaScript**
+--------------
+
+Finally, let's add the JavaScript code that will display the product 1 image.
+
+```javascript
+// script.js
+fetch('config.php')
+  .then(response => response.json())
+  .then(data => {
+    const productImage = document.getElementById('product-image');
+    productImage.src = data.image_url;
+  })
+  .catch(error => console.error('Error:', error));
+```
+
+However, since we are using PHP to get the image URL, we need to modify the JavaScript code to make an AJAX request to the PHP script.
+
+```javascript
+// script.js
+const xhr = new XMLHttpRequest();
+xhr.open('GET', 'config.php', true);
+xhr.onload = function() {
+  if (xhr.status === 200) {
+    const productImage = document.getElementById('product-image');
+    productImage.src = xhr.responseText;
+  }
+};
+xhr.send();
+```
+
+And we need to modify the PHP script to output the image URL.
+
+```php
+// config.php
+<?php
+$servername = "localhost";
+$username = "root";
+$password = "";
+$dbname = "mydatabase";
+
+// Create connection
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+// Check connection
+if ($conn->connect_error) {
+  die("Connection failed: " . $conn->connect_error);
+}
+
+// Get product 1 image
+$product_id = 1;
+$sql = "SELECT image_url FROM products WHERE id = '$product_id'";
+$result = $conn->query($sql);
+
+if ($result->num_rows > 0) {
+  // Output data of each row
+  while($row = $result->fetch_assoc()) {
+    $image_url = $row["image_url"];
+    echo $image_url;
+  }
+} else {
+  echo "";
+}
+
+$conn->close();
+?>
+```
+
+**Full Code**
+-------------
+
+Here is the full code for the example.
+
+### config.php
+```php
+<?php
+$servername = "localhost";
+$username = "root";
+$password = "";
+$dbname = "mydatabase";
+
+// Create connection
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+// Check connection
+if ($conn->connect_error) {
+  die("Connection failed: " . $conn->connect_error);
+}
+
+// Get product 1 image
+$product_id = 1;
+$sql = "SELECT image_url FROM products WHERE id = '$product_id'";
+$result = $conn->query($sql);
+
+if ($result->num_rows > 0) {
+  // Output data of each row
+  while($row = $result->fetch_assoc()) {
+    $image_url = $row["image_url"];
+    echo $image_url;
+  }
+} else {
+  echo "";
+}
+
+$conn->close();
+?>
+```
+
+### index.html
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Product 1 Image</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="product-image">
+    <img id="product-image" src="" alt="Product 1 Image">
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
+```
+
+### style.css
+```css
+.product-image {
+  width: 50%;
+  margin: 40px auto;
+  text-align: center;
+}
+
+#product-image {
+  width: 100%;
+  height: auto;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+```
+
+### script.js
+```javascript
+const xhr = new XMLHttpRequest();
+xhr.open('GET', 'config.php', true);
+xhr.onload = function() {
+  if (xhr.status === 200) {
+    const productImage = document.getElementById('product-image');
+    productImage.src = xhr.responseText;
+  }
+};
+xhr.send();
+```
+
+Note: Make sure to replace the database credentials and the image URL with your own values. Also, this is a basic example and you should consider security measures such as validating user input and using prepared statements to prevent SQL injection.

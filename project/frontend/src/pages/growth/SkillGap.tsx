@@ -1,141 +1,294 @@
-import { motion } from "framer-motion"
-import { Zap, ExternalLink, TrendingUp, AlertCircle } from "lucide-react"
+import { useState, useEffect } from "react"
+import { motion, useScroll, useTransform } from "framer-motion"
+import { TrendingUp, AlertCircle, Brain, ShieldCheck, Target, ArrowRight, Sparkles, Activity, Search, Zap, Cpu } from "lucide-react"
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { Button } from "@/components/ui/Button";
-
-const data = [
-    { subject: 'React', A: 90, B: 85, fullMark: 100 },
-    { subject: 'TS', A: 75, B: 90, fullMark: 100 },
-    { subject: 'Node', A: 60, B: 80, fullMark: 100 },
-    { subject: 'System Design', A: 40, B: 80, fullMark: 100 },
-    { subject: 'Testing', A: 50, B: 70, fullMark: 100 },
-    { subject: 'UI/UX', A: 85, B: 60, fullMark: 100 },
-];
+import axios from "axios";
 
 export default function SkillGap() {
-    const requiredSkills = [
-        { name: "React", current: 90, required: 85, status: "good", priority: "Low" },
-        { name: "TypeScript", current: 75, required: 90, status: "gap", priority: "Medium" },
-        { name: "Node.js", current: 60, required: 80, status: "gap", priority: "Medium" },
-        { name: "System Design", current: 40, required: 80, status: "critical", priority: "High" },
-        { name: "Testing", current: 50, required: 70, status: "critical", priority: "High" },
-    ];
+    const [loading, setLoading] = useState(true);
+    const [auditRunning, setAuditRunning] = useState(false);
+    const [data, setData] = useState<any>(null);
+    const { scrollYProgress } = useScroll();
+    const rotateValue = useTransform(scrollYProgress, [0, 1], [0, 90]);
 
-    const recommendedCourses = [
-        { platform: "Udemy", title: "Advanced System Design Patterns", duration: "18h", icon: "🏛️", link: "#" },
-        { platform: "Frontend Masters", title: "Enterprise TypeScript", duration: "6h", icon: "📘", link: "#" },
-        { platform: "YouTube", title: "Jest & Testing Library Crash Course", duration: "2h", icon: "🧪", link: "#" },
-    ];
+    const fetchAnalysis = async () => {
+        try {
+            setAuditRunning(true);
+            const token = localStorage.getItem('fbrts_token');
+            const res = await axios.get('/api/growth/skill-gap', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.data.success) {
+                // Simulate neural processing time for cool effect
+                setTimeout(() => {
+                    setData(res.data.data);
+                    setLoading(false);
+                    setAuditRunning(false);
+                }, 2000);
+            }
+        } catch (err) {
+            console.error("Audit failed", err);
+            setLoading(false);
+            setAuditRunning(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchAnalysis();
+    }, []);
+
+    if (loading || auditRunning) {
+        return (
+            <div className="h-[80vh] flex flex-col items-center justify-center space-y-12">
+                <div className="relative">
+                    <motion.div
+                        animate={{
+                            scale: [1, 1.3, 1],
+                            rotate: [0, 180, 360],
+                            opacity: [0.3, 0.6, 0.3]
+                        }}
+                        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                        className="w-40 h-40 rounded-full border-2 border-dashed border-indigo-500/30"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <Brain size={64} className="text-indigo-500 animate-pulse shadow-[0_0_30px_rgba(99,102,241,0.5)]" />
+                    </div>
+                </div>
+                <div className="text-center space-y-4">
+                    <h2 className="text-3xl font-[1000] italic tracking-tighter uppercase text-white">Neural Audit Sequence</h2>
+                    <p className="text-gray-500 font-mono text-[10px] tracking-[0.4em] uppercase animate-pulse">Scanning Profile • Comparing Market Data • Identifying Gaps</p>
+                </div>
+            </div>
+        );
+    }
+
+    const chartData = data?.competencyMap?.map((c: any) => ({
+        subject: c.subject,
+        A: c.current,
+        B: c.target,
+        fullMark: c.fullMark
+    })) || [];
 
     return (
-        <div className="text-white space-y-8 animate-in fade-in duration-500">
-            <header className="mb-8 flex justify-between items-end">
-                <div>
-                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-400 to-indigo-400">Skill Gap Analysis</h1>
-                    <p className="text-gray-400">Target Role: <span className="text-white font-medium">Senior Frontend Engineer</span></p>
+        <div className="text-white space-y-60 animate-in fade-in zoom-in duration-700 max-w-7xl mx-auto pb-40 px-4 relative overflow-hidden">
+            
+            {/* --- SECTION 1: NEURAL HERO --- */}
+            <header className="relative py-24 px-10 rounded-[3rem] bg-[#0A0A0B] border border-white/5 overflow-hidden group">
+                <div className="absolute top-0 right-0 p-10 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:rotate-12 duration-700">
+                    <Brain size={250} className="text-indigo-500" />
                 </div>
-                <div className="text-right hidden md:block">
-                    <p className="text-2xl font-bold text-indigo-400">72%</p>
-                    <p className="text-xs text-gray-500">Role Readiness</p>
+                
+                <motion.div 
+                    style={{ rotate: rotateValue }}
+                    className="absolute -top-40 -left-40 w-96 h-96 border border-indigo-500/10 rounded-full pointer-events-none"
+                />
+
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-10 relative z-10">
+                    <div className="space-y-8">
+                        <div className="flex gap-4 items-center">
+                            <div className="inline-flex px-4 py-1.5 rounded-full bg-indigo-500/10 text-indigo-400 text-[10px] font-black uppercase tracking-widest border border-indigo-500/20 italic">
+                                <Activity size={14} className="mr-2 animate-pulse" /> Neural Intelligence Report v4.0
+                            </div>
+                            <div className="inline-flex px-4 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-widest border border-emerald-500/20 italic">
+                                READINESS: {data.readinessScore}%
+                            </div>
+                        </div>
+                        <h1 className="text-5xl md:text-7xl font-[1000] italic tracking-tighter uppercase leading-none bg-gradient-to-r from-white via-indigo-200 to-indigo-500 bg-clip-text text-transparent pb-4">
+                            CORE SKILL <br />
+                            GAP ANALYSIS.
+                        </h1>
+                        <p className="text-gray-500 font-bold text-xs uppercase tracking-[0.3em] ml-1 flex items-center gap-2">
+                            <Target size={16} /> Target Role: <span className="text-indigo-400">{data.targetRole}</span>
+                        </p>
+                    </div>
+
+                    <div className="bg-white/5 backdrop-blur-2xl border border-white/10 p-8 rounded-[2.5rem] flex items-center gap-10 shadow-2xl">
+                        <div className="text-center">
+                            <div className="text-4xl font-black text-white italic tracking-tighter">{data.readinessScore}%</div>
+                            <div className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Global Sync</div>
+                        </div>
+                        <div className="w-px h-12 bg-white/10" />
+                        <Button
+                            onClick={fetchAnalysis}
+                            className="bg-indigo-600 hover:bg-white hover:text-black text-[11px] font-[1000] tracking-widest px-10 h-16 rounded-2xl transition-all shadow-[0_20px_40px_rgba(79,70,229,0.3)] border-none"
+                        >
+                            RE-SCAN CORE
+                        </Button>
+                    </div>
                 </div>
             </header>
 
-            <div className="grid lg:grid-cols-2 gap-8">
-                {/* Visual Chart Area */}
-                <div className="p-4 rounded-xl border border-gray-800 bg-gray-900/30 backdrop-blur-sm min-h-[400px] flex flex-col">
-                    <h3 className="text-sm font-bold text-gray-400 mb-4 uppercase tracking-widest flex items-center gap-2">
-                        <TrendingUp size={14} /> Competency Map
-                    </h3>
-                    <div className="flex-1 -ml-6">
+            {/* --- SECTION 2: COMPETENCY LANDSCAPE --- */}
+            <div className="grid lg:grid-cols-2 gap-12 items-center">
+                <motion.div
+                    initial={{ opacity: 0, x: -50 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    className="p-10 rounded-[3rem] border border-white/5 bg-[#0a0a0c] relative group overflow-hidden shadow-2xl"
+                >
+                    <div className="absolute -top-24 -left-24 w-64 h-64 bg-indigo-600/10 blur-[100px] rounded-full" />
+                    <div className="flex justify-between items-center mb-12">
+                        <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.3em] flex items-center gap-3 relative z-10">
+                            <TrendingUp size={16} className="text-indigo-400" /> Neural Landscape
+                        </h3>
+                        <div className="flex gap-4 items-center">
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 bg-indigo-500 rounded-full" />
+                                <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Current</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 border border-dashed border-white/40 rounded-full" />
+                                <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Market</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="h-[450px] relative z-10">
                         <ResponsiveContainer width="100%" height="100%">
-                            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={data}>
-                                <PolarGrid stroke="#374151" />
-                                <PolarAngleAxis dataKey="subject" tick={{ fill: '#9ca3af', fontSize: 12 }} />
+                            <RadarChart cx="50%" cy="50%" outerRadius="80%" data={chartData}>
+                                <PolarGrid stroke="#ffffff10" />
+                                <PolarAngleAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 10, fontWeight: 900 }} />
                                 <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                                 <Radar
-                                    name="You"
+                                    name="Current"
                                     dataKey="A"
                                     stroke="#818cf8"
-                                    fill="#818cf8"
-                                    fillOpacity={0.5}
+                                    strokeWidth={3}
+                                    fill="url(#radarGradient)"
+                                    fillOpacity={0.6}
                                 />
                                 <Radar
                                     name="Target"
                                     dataKey="B"
-                                    stroke="#4b5563"
-                                    fill="#4b5563"
-                                    fillOpacity={0.2}
+                                    stroke="#ffffff15"
+                                    strokeWidth={2}
+                                    fill="#ffffff05"
+                                    fillOpacity={0.1}
+                                    strokeDasharray="4 4"
                                 />
+                                <defs>
+                                    <linearGradient id="radarGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.9} />
+                                        <stop offset="95%" stopColor="#818cf8" stopOpacity={0.2} />
+                                    </linearGradient>
+                                </defs>
                                 <Tooltip
-                                    contentStyle={{ backgroundColor: '#111', borderColor: '#333' }}
-                                    itemStyle={{ color: '#fff' }}
+                                    contentStyle={{ backgroundColor: '#050505', borderColor: '#333', borderRadius: '16px', border: '1px solid #ffffff10', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}
+                                    itemStyle={{ color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
                                 />
                             </RadarChart>
                         </ResponsiveContainer>
                     </div>
-                    <div className="flex justify-center gap-6 pb-4">
-                        <div className="flex items-center gap-2 text-xs">
-                            <div className="w-3 h-3 bg-indigo-400/50 border border-indigo-400 rounded-full" /> You
-                        </div>
-                        <div className="flex items-center gap-2 text-xs">
-                            <div className="w-3 h-3 bg-gray-600/50 border border-gray-600 rounded-full" /> Market Spec
-                        </div>
+                </motion.div>
+
+                {/* --- SECTION 3: PRIORITY INTELLIGENCE --- */}
+                <div className="space-y-10">
+                    <div className="space-y-4">
+                        <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white flex items-center gap-4">
+                            <AlertCircle size={24} className="text-pink-500 animate-pulse" /> PRIORITY_GAPS.
+                        </h3>
+                        <p className="text-gray-500 font-bold text-[10px] uppercase tracking-[0.3em] pb-6 border-b border-white/5">Actionable Intel for Immediate Deployment</p>
+                    </div>
+
+                    <div className="grid gap-6">
+                        {data.priorityActions.map((skill: any, idx: number) => (
+                            <motion.div
+                                key={skill.name}
+                                initial={{ opacity: 0, x: 30 }}
+                                whileInView={{ opacity: 1, x: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ delay: idx * 0.1 }}
+                                className="group bg-white/[0.02] border border-white/5 p-8 rounded-[2.5rem] flex flex-col gap-6 hover:border-indigo-500/30 transition-all hover:bg-indigo-500/5 shadow-2xl"
+                            >
+                                <div className="flex justify-between items-start">
+                                    <div className="flex items-center gap-5">
+                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 group-hover:scale-110 ${skill.status === 'critical' ? 'bg-pink-500/10 text-pink-500 border border-pink-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'}`}>
+                                            <Zap size={24} />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-black text-xl italic uppercase tracking-tighter text-white">{skill.name}</h4>
+                                            <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest mt-1 italic">{skill.remediation}</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-sm font-black text-indigo-400 italic">{skill.current}% / <span className="text-gray-700">{skill.required}%</span></div>
+                                        <span className={`text-[8px] font-black px-3 py-1 rounded-full uppercase tracking-tighter mt-2 inline-block ${skill.status === 'critical' ? 'bg-pink-500 text-white shadow-[0_0_15px_rgba(236,72,153,0.3)]' : 'bg-amber-500 text-black'
+                                            }`}>
+                                            {skill.status}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="relative h-2 bg-white/5 rounded-full overflow-hidden">
+                                    <motion.div
+                                        initial={{ width: 0 }}
+                                        whileInView={{ width: `${skill.current}%` }}
+                                        viewport={{ once: true }}
+                                        transition={{ duration: 1.5, ease: "easeOut" }}
+                                        className={`h-full rounded-full ${skill.status === 'critical' ? 'bg-pink-500' : 'bg-indigo-500'}`}
+                                    />
+                                    <div className="absolute top-0 bottom-0 w-1 bg-white shadow-[0_0_10px_white] z-10" style={{ left: `${skill.required}%` }} />
+                                </div>
+                            </motion.div>
+                        ))}
                     </div>
                 </div>
+            </div>
 
-                {/* Gap List */}
-                <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-gray-400 mb-2 uppercase tracking-widest flex items-center gap-2">
-                        <AlertCircle size={14} /> Priority Actions
+            {/* --- SECTION 4: REMEDIATION DEPLOYMENT --- */}
+            <section className="space-y-24">
+                <div className="flex items-center gap-8">
+                    <h3 className="text-3xl font-[1000] italic tracking-tighter uppercase text-white flex items-center gap-5 whitespace-nowrap">
+                        <Sparkles className="text-indigo-400" /> BRIDGE LOGIC.
                     </h3>
-                    {requiredSkills.map((skill, idx) => (
+                    <div className="h-px flex-1 bg-white/5" />
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-8">
+                    {data.recommendations.map((course: any, idx: number) => (
                         <motion.div
-                            key={skill.name}
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: idx * 0.1 }}
-                            className="bg-gray-900/50 border border-gray-800 p-4 rounded-xl flex items-center gap-4 hover:border-indigo-500/30 transition-all"
+                            key={idx}
+                            whileHover={{ y: -10 }}
+                            className="bg-[#0d0d0e] border border-white/5 p-10 rounded-[3rem] hover:border-indigo-500/40 transition-all group overflow-hidden relative shadow-2xl flex flex-col justify-between h-full"
                         >
-                            <div className="flex-1">
-                                <div className="flex justify-between items-center mb-2">
-                                    <div>
-                                        <span className="font-medium mr-2">{skill.name}</span>
-                                        {skill.status === 'critical' && <span className="text-[10px] bg-red-500/10 text-red-400 px-1.5 py-0.5 rounded border border-red-500/20">CRITICAL</span>}
-                                        {skill.status === 'gap' && <span className="text-[10px] bg-yellow-500/10 text-yellow-400 px-1.5 py-0.5 rounded border border-yellow-500/20">GAP</span>}
-                                        {skill.status === 'good' && <span className="text-[10px] bg-green-500/10 text-green-400 px-1.5 py-0.5 rounded border border-green-500/20">GOOD</span>}
+                            <div className="absolute top-0 right-0 p-10 opacity-[0.02] group-hover:opacity-[0.08] transition-opacity transform group-hover:rotate-45 duration-700">
+                                <Cpu size={120} />
+                            </div>
+
+                            <div className="space-y-10 relative z-10">
+                                <div className="flex justify-between items-start">
+                                    <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform duration-500">
+                                        {course.icon}
                                     </div>
-                                    <span className="text-xs text-gray-500">Target: {skill.required}%</span>
+                                    <span className="text-[9px] font-black font-mono text-indigo-500 bg-indigo-500/5 px-4 py-2 rounded-xl border border-indigo-500/10 uppercase tracking-widest">{course.duration} SESSION</span>
                                 </div>
-                                <div className="h-2 bg-gray-800 rounded-full overflow-hidden flex relative">
-                                    <div className="bg-indigo-500 h-full rounded-full z-10" style={{ width: `${skill.current}%` }} />
-                                    {/* Target Marker */}
-                                    <div className="absolute top-0 bottom-0 w-0.5 bg-white opacity-50 z-20" style={{ left: `${skill.required}%` }} />
+
+                                <div className="space-y-4">
+                                    <h4 className="text-2xl font-black italic leading-none uppercase tracking-tighter group-hover:text-indigo-400 transition-colors">
+                                        {course.title}
+                                    </h4>
+                                    <p className="text-[10px] font-black tracking-[0.3em] text-[#00ff88] uppercase italic">{course.platform}</p>
                                 </div>
+                            </div>
+
+                            <div className="mt-12 pt-8 border-t border-white/5 relative z-10">
+                                <Button className="w-full h-20 bg-white text-black hover:bg-indigo-600 hover:text-white font-[1000] uppercase italic tracking-[0.2em] text-[10px] rounded-2xl transition-all border-none group/btn">
+                                    INITIATE_SYNC <ArrowRight size={18} className="ml-4 group-hover/btn:translate-x-3 transition-transform" />
+                                </Button>
                             </div>
                         </motion.div>
                     ))}
                 </div>
-            </div>
+            </section>
 
-            {/* Recommendations */}
-            <section className="pt-8 border-t border-gray-900">
-                <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                    <Zap className="text-yellow-400 w-5 h-5" /> Recommended Actions to Close Gaps
-                </h3>
-                <div className="grid md:grid-cols-3 gap-6">
-                    {recommendedCourses.map((course, idx) => (
-                        <div key={idx} className="bg-gray-900/30 border border-gray-800 p-5 rounded-xl hover:border-gray-700 transition-all group cursor-pointer hover:bg-gray-900/60">
-                            <div className="flex justify-between items-start mb-4">
-                                <span className="text-2xl">{course.icon}</span>
-                                <span className="text-xs bg-gray-800 px-2 py-1 rounded text-gray-400">{course.duration}</span>
-                            </div>
-                            <h4 className="font-bold mb-2 group-hover:text-indigo-400 transition-colors line-clamp-1">{course.title}</h4>
-                            <div className="flex justify-between items-center text-sm text-gray-500 mt-4">
-                                <span>{course.platform}</span>
-                                <Button size="sm" variant="ghost" className="h-6 text-xs px-0 hover:bg-transparent hover:text-white">View <ExternalLink className="w-3 h-3 ml-1" /></Button>
-                            </div>
-                        </div>
-                    ))}
+            {/* --- SECTION 5: FINAL SYSTEM STATUS --- */}
+            <section className="text-center py-20 border-t border-white/5">
+                <div className="flex flex-wrap justify-center gap-16 font-black text-[10px] uppercase tracking-[0.6em] text-gray-800">
+                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" /> NEURAL_SYNC: OK</div>
+                    <div>GATEWAY_STABLE</div>
+                    <div>INTEL_SECURE</div>
+                    <div>AUDIT_V4.0_SIGNED</div>
                 </div>
             </section>
         </div>

@@ -1,0 +1,208 @@
+```html
+<!-- support-ticket.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Support Ticket</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="#">Home</a></li>
+                <li><a href="#">About</a></li>
+                <li><a href="#">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <section class="support-ticket">
+            <h1>Support Ticket</h1>
+            <form id="support-form">
+                <label for="name">Name:</label>
+                <input type="text" id="name" name="name" required>
+
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" required>
+
+                <label for="subject">Subject:</label>
+                <input type="text" id="subject" name="subject" required>
+
+                <label for="message">Message:</label>
+                <textarea id="message" name="message" required></textarea>
+
+                <button type="submit">Submit</button>
+            </form>
+        </section>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+```css
+/* styles.css */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+header {
+    background-color: #333;
+    color: #fff;
+    padding: 1em;
+    text-align: center;
+}
+
+header nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+header nav ul li {
+    display: inline-block;
+    margin-right: 20px;
+}
+
+header nav a {
+    color: #fff;
+    text-decoration: none;
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2em;
+}
+
+.support-ticket {
+    background-color: #f7f7f7;
+    padding: 2em;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.support-ticket h1 {
+    margin-top: 0;
+}
+
+#support-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#support-form label {
+    margin-bottom: 10px;
+}
+
+#support-form input, #support-form textarea {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+}
+
+#support-form button[type="submit"] {
+    background-color: #333;
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#support-form button[type="submit"]:hover {
+    background-color: #444;
+}
+```
+
+```javascript
+// script.js
+const supportForm = document.getElementById('support-form');
+
+supportForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const formData = new FormData(supportForm);
+    const name = formData.get('name');
+    const email = formData.get('email');
+    const subject = formData.get('subject');
+    const message = formData.get('message');
+
+    // Send data to server using AJAX
+    fetch('/support-ticket', {
+        method: 'POST',
+        body: JSON.stringify({
+            name,
+            email,
+            subject,
+            message
+        }),
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then((response) => response.json())
+    .then((data) => console.log(data))
+    .catch((error) => console.error(error));
+});
+```
+
+```php
+// support-ticket.php
+<?php
+// Configuration
+$dbHost = 'localhost';
+$dbUsername = 'root';
+$dbPassword = '';
+$dbName = 'support_tickets';
+
+// Create connection
+$conn = new mysqli($dbHost, $dbUsername, $dbPassword, $dbName);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Get data from AJAX request
+$data = json_decode(file_get_contents('php://input'), true);
+
+// Insert data into database
+$sql = "INSERT INTO support_tickets (name, email, subject, message) VALUES (?, ?, ?, ?)";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("ssss", $data['name'], $data['email'], $data['subject'], $data['message']);
+$stmt->execute();
+
+// Close connection
+$conn->close();
+
+// Send response back to client
+header('Content-Type: application/json');
+echo json_encode(['message' => 'Support ticket submitted successfully']);
+?>
+```
+
+```sql
+-- support_tickets.sql
+CREATE TABLE support_tickets (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    subject VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+This code creates a simple support ticket system with a form that submits data to a PHP script, which then inserts the data into a MySQL database. The PHP script sends a response back to the client, which is then logged to the console.
+
+**Note:** This code is for demonstration purposes only and should not be used in production without proper security measures, such as validating user input and protecting against SQL injection attacks.

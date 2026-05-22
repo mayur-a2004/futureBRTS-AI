@@ -1,0 +1,145 @@
+**Review List Page**
+======================
+### Overview
+
+The review list page is a crucial component of any e-commerce or review-based website. It allows users to view and interact with reviews from other users, helping them make informed decisions about products or services. In this implementation, we will create a review list page using HTML, CSS, and JavaScript for the frontend, Core PHP for the backend, and MySQL/MariaDB for the database.
+
+### Database Schema
+
+Before we dive into the code, let's define the database schema for the reviews table:
+```sql
+CREATE TABLE reviews (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  product_id INT,
+  user_id INT,
+  rating INT,
+  review TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+### Frontend (HTML, CSS, and JavaScript)
+
+#### HTML
+```html
+<!-- review-list.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Review List</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <h1>Review List</h1>
+  <div id="review-list"></div>
+  <script src="script.js"></script>
+</body>
+</html>
+```
+#### CSS (in styles.css file)
+```css
+/* styles.css */
+#review-list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+}
+
+.review {
+  background-color: #f7f7f7;
+  padding: 20px;
+  border: 1px solid #ddd;
+  margin-bottom: 20px;
+  width: 80%;
+}
+
+.review-rating {
+  font-weight: bold;
+  color: #666;
+}
+
+.review-text {
+  font-size: 16px;
+  color: #333;
+}
+```
+#### JavaScript
+```javascript
+// script.js
+const reviewList = document.getElementById('review-list');
+
+// Function to fetch reviews from the backend
+async function fetchReviews() {
+  try {
+    const response = await fetch('fetch-reviews.php');
+    const reviews = await response.json();
+    renderReviews(reviews);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Function to render reviews
+function renderReviews(reviews) {
+  reviewList.innerHTML = '';
+  reviews.forEach((review) => {
+    const reviewHTML = `
+      <div class="review">
+        <p class="review-rating">Rating: ${review.rating}/5</p>
+        <p class="review-text">${review.review}</p>
+      </div>
+    `;
+    reviewList.insertAdjacentHTML('beforeend', reviewHTML);
+  });
+}
+
+// Fetch reviews on page load
+fetchReviews();
+```
+### Backend (Core PHP)
+
+#### Fetch Reviews (in fetch-reviews.php file)
+```php
+<?php
+// fetch-reviews.php
+require_once 'db-connection.php';
+
+// Fetch reviews from the database
+$reviews = [];
+$query = "SELECT * FROM reviews";
+$result = mysqli_query($conn, $query);
+while ($row = mysqli_fetch_assoc($result)) {
+  $reviews[] = [
+    'id' => $row['id'],
+    'product_id' => $row['product_id'],
+    'user_id' => $row['user_id'],
+    'rating' => $row['rating'],
+    'review' => $row['review'],
+  ];
+}
+
+// Send reviews as JSON response
+header('Content-Type: application/json');
+echo json_encode($reviews);
+
+// Close database connection
+mysqli_close($conn);
+```
+#### Database Connection (in db-connection.php file)
+```php
+<?php
+// db-connection.php
+$host = 'localhost';
+$username = 'your_username';
+$password = 'your_password';
+$database = 'your_database';
+
+$conn = mysqli_connect($host, $username, $password, $database);
+
+if (!$conn) {
+  die('Connection failed: ' . mysqli_connect_error());
+}
+```
+This implementation provides a basic review list page that fetches reviews from the database and displays them on the page. You can customize and extend this code to fit your specific requirements.

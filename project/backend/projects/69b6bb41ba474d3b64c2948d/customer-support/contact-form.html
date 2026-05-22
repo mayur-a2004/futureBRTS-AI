@@ -1,0 +1,201 @@
+**Contact Form Page**
+=======================
+
+### Overview
+
+This is a basic contact form page that allows users to submit their queries or feedback to the website administrator. The form data is stored in a MySQL database using Core PHP.
+
+### Database Schema
+
+The database schema for the contact form is as follows:
+
+```sql
+CREATE TABLE contact_form (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  phone VARCHAR(20),
+  message TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### HTML Code (contact-form.html)
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact Form</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Contact Form</h1>
+    <form id="contact-form" method="post" action="submit.php">
+      <label for="name">Name:</label>
+      <input type="text" id="name" name="name" required>
+
+      <label for="email">Email:</label>
+      <input type="email" id="email" name="email" required>
+
+      <label for="phone">Phone:</label>
+      <input type="tel" id="phone" name="phone">
+
+      <label for="message">Message:</label>
+      <textarea id="message" name="message" required></textarea>
+
+      <button type="submit">Submit</button>
+    </form>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
+```
+
+### CSS Code (style.css)
+
+```css
+body {
+  font-family: Arial, sans-serif;
+}
+
+.container {
+  max-width: 500px;
+  margin: 40px auto;
+  padding: 20px;
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+input, textarea {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 20px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+button[type="submit"] {
+  background-color: #4CAF50;
+  color: #fff;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button[type="submit"]:hover {
+  background-color: #3e8e41;
+}
+```
+
+### JavaScript Code (script.js)
+
+```javascript
+// Add event listener to the form submit event
+document.getElementById('contact-form').addEventListener('submit', function(event) {
+  // Prevent default form submission behavior
+  event.preventDefault();
+
+  // Get the form data
+  var formData = new FormData(this);
+
+  // Send the form data to the server using AJAX
+  fetch('submit.php', {
+    method: 'POST',
+    body: formData
+  })
+  .then(function(response) {
+    return response.json();
+  })
+  .then(function(data) {
+    console.log(data);
+    if (data.success) {
+      alert('Form submitted successfully!');
+      // Reset the form fields
+      document.getElementById('contact-form').reset();
+    } else {
+      alert('Error submitting form. Please try again.');
+    }
+  })
+  .catch(function(error) {
+    console.error(error);
+  });
+});
+```
+
+### PHP Code (submit.php)
+
+```php
+<?php
+// Configuration
+$dbHost = 'localhost';
+$dbUsername = 'your_username';
+$dbPassword = 'your_password';
+$dbName = 'your_database';
+
+// Connect to the database
+$conn = new mysqli($dbHost, $dbUsername, $dbPassword, $dbName);
+
+// Check connection
+if ($conn->connect_error) {
+  die("Connection failed: " . $conn->connect_error);
+}
+
+// Check if the form has been submitted
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+  // Get the form data
+  $name = $_POST['name'];
+  $email = $_POST['email'];
+  $phone = $_POST['phone'];
+  $message = $_POST['message'];
+
+  // Validate the form data
+  if (empty($name) || empty($email) || empty($message)) {
+    $error = 'Please fill in all required fields.';
+  } else {
+    // Insert the form data into the database
+    $sql = "INSERT INTO contact_form (name, email, phone, message) VALUES (?, ?, ?, ?)";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("ssss", $name, $email, $phone, $message);
+    if ($stmt->execute()) {
+      $success = true;
+    } else {
+      $error = 'Error submitting form. Please try again.';
+    }
+  }
+}
+
+// Close the database connection
+$conn->close();
+
+// Output the result as JSON
+header('Content-Type: application/json');
+echo json_encode(array(
+  'success' => isset($success) ? true : false,
+  'error' => isset($error) ? $error : ''
+));
+?>
+```
+
+### Example Use Case
+
+1. Create a new HTML file called `contact-form.html` and copy the HTML code into it.
+2. Create a new CSS file called `style.css` and copy the CSS code into it.
+3. Create a new JavaScript file called `script.js` and copy the JavaScript code into it.
+4. Create a new PHP file called `submit.php` and copy the PHP code into it.
+5. Update the database configuration in `submit.php` to match your own database credentials.
+6. Open `contact-form.html` in a web browser and fill in the form fields.
+7. Click the "Submit" button to send the form data to the server.
+8. The form data will be inserted into the database and a success message will be displayed.

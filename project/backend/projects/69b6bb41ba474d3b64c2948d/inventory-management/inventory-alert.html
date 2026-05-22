@@ -1,0 +1,184 @@
+**Inventory Alert Page**
+==========================
+
+### Overview
+
+The inventory alert page is a critical component of an inventory management system. It displays a list of products that are running low in stock, allowing administrators to take prompt action to replenish inventory and avoid stockouts.
+
+### Frontend (HTML, CSS, & JS)
+
+```html
+<!-- inventory-alert.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Alert</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Inventory Alert</h1>
+    <table id="inventory-table">
+        <thead>
+            <tr>
+                <th>Product ID</th>
+                <th>Product Name</th>
+                <th>Quantity</th>
+                <th>Threshold</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody id="inventory-body">
+            <!-- Table data will be populated here -->
+        </tbody>
+    </table>
+
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+```css
+/* styles.css */
+body {
+    font-family: Arial, sans-serif;
+}
+
+#inventory-table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+#inventory-table th, #inventory-table td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: left;
+}
+
+#inventory-table th {
+    background-color: #f0f0f0;
+}
+```
+
+```javascript
+// script.js
+const inventoryTable = document.getElementById('inventory-table');
+const inventoryBody = document.getElementById('inventory-body');
+
+// Function to populate the table with data
+function populateTable(data) {
+    inventoryBody.innerHTML = '';
+    data.forEach((product) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${product.product_id}</td>
+            <td>${product.product_name}</td>
+            <td>${product.quantity}</td>
+            <td>${product.threshold}</td>
+            <td>${product.status}</td>
+        `;
+        inventoryBody.appendChild(row);
+    });
+}
+
+// Function to fetch data from the server
+function fetchData() {
+    fetch('inventory-alert.php')
+        .then((response) => response.json())
+        .then((data) => populateTable(data))
+        .catch((error) => console.error('Error:', error));
+}
+
+// Fetch data on page load
+fetchData();
+```
+
+### Backend (Core PHP)
+
+```php
+// inventory-alert.php
+<?php
+// Configuration
+$dbHost = 'localhost';
+$dbUsername = 'your_username';
+$dbPassword = 'your_password';
+$dbName = 'your_database';
+
+// Connect to the database
+$conn = new mysqli($dbHost, $dbUsername, $dbPassword, $dbName);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Query to fetch low-stock products
+$query = "SELECT p.product_id, p.product_name, i.quantity, p.threshold, 
+                  CASE 
+                      WHEN i.quantity <= p.threshold THEN 'Low Stock'
+                      ELSE 'In Stock'
+                  END AS status
+          FROM products p
+          JOIN inventory i ON p.product_id = i.product_id
+          WHERE i.quantity <= p.threshold";
+
+// Execute the query
+$result = $conn->query($query);
+
+// Fetch the data
+$data = array();
+if ($result->num_rows > 0) {
+    while($row = $result->fetch_assoc()) {
+        $data[] = $row;
+    }
+}
+
+// Close the connection
+$conn->close();
+
+// Output the data in JSON format
+header('Content-Type: application/json');
+echo json_encode($data);
+?>
+```
+
+### Database (MySQL/MariaDB)
+
+```sql
+-- Create the products table
+CREATE TABLE products (
+    product_id INT PRIMARY KEY,
+    product_name VARCHAR(255),
+    threshold INT
+);
+
+-- Create the inventory table
+CREATE TABLE inventory (
+    product_id INT,
+    quantity INT,
+    FOREIGN KEY (product_id) REFERENCES products(product_id)
+);
+
+-- Insert sample data
+INSERT INTO products (product_id, product_name, threshold)
+VALUES
+(1, 'Product A', 10),
+(2, 'Product B', 20),
+(3, 'Product C', 30);
+
+INSERT INTO inventory (product_id, quantity)
+VALUES
+(1, 5),
+(2, 15),
+(3, 25);
+```
+
+### Full Logic
+
+1. The frontend (HTML, CSS, & JS) displays a table with columns for product ID, product name, quantity, threshold, and status.
+2. The JavaScript code fetches data from the server using the `fetch` API and populates the table with the received data.
+3. The backend (Core PHP) connects to the database, executes a query to fetch low-stock products, and outputs the data in JSON format.
+4. The database (MySQL/MariaDB) stores the product and inventory data, and the query joins the two tables to fetch the required data.
+5. The `CASE` statement in the query determines the status of each product based on its quantity and threshold.
+6. The frontend displays the status of each product, and administrators can take action to replenish inventory and avoid stockouts.

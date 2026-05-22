@@ -7,15 +7,32 @@ export const onboardingController = {
     async saveStep(req: any, res: Response) {
         try {
             const userId = req.user!.id;
-            const data = req.body; // Partial update
+            const data = {
+                field: req.body.field,
+                life_stage: req.body.life_stage,
+                final_goal: req.body.final_goal,
+                phase: req.body.phase,
+                problem: req.body.problem,
+                project_level: req.body.project_level,
+                target_outcome: req.body.target_outcome,
+                future_interest: req.body.future_interest
+            };
+            // Rule: Onboarding is ONE TIME ONLY.
+            const existingProfile = await OnboardingProfile.findOne({ userId });
+            if (existingProfile && existingProfile.onboardingCompleted) {
+                return res.json({ success: true, message: "Onboarding already completed. Ignoring update.", profile: existingProfile });
+            }
 
             // Update user status
             await User.findByIdAndUpdate(userId, { onboarding_status: 'IN_PROGRESS' });
 
+            // Clean data
+            const cleanData = Object.fromEntries(Object.entries(data).filter(([_, v]) => v !== undefined));
+
             // Upsert Context
             const profile = await OnboardingProfile.findOneAndUpdate(
                 { userId },
-                { userId, ...data },
+                { $set: cleanData },
                 { new: true, upsert: true }
             );
 
@@ -49,30 +66,63 @@ export const onboardingController = {
     async complete(req: any, res: Response) {
         try {
             if (!req.user || !req.user.id) {
-                console.error("Complete Onboarding: No user in request");
                 return res.status(401).json({ success: false, message: 'Unauthorized' });
+            }
+
+            const {
+                sessionId,
+                field,
+                final_goal,
+                future_interest,
+                life_stage,
+                phase,
+                problem,
+                project_level,
+                target_outcome,
+            } = req.body;
+
+            if (!field) {
+                return res.status(400).json({ success: false, message: 'Missing required fields (field)' });
             }
 
             const userId = req.user.id;
             console.log(`[Onboarding] Completing for user: ${userId}`);
 
-            // Mark User as DONE
-            const updatedUser = await User.findByIdAndUpdate(userId, {
+            // 1. Create/Update Onboarding Profile
+            const profile = await OnboardingProfile.findOneAndUpdate(
+                { userId }, // One profile per user for now (or sessionId specific if needed)
+                {
+                    userId,
+                    sessionId: sessionId || null,
+                    field,
+                    final_goal,
+                    future_interest,
+                    life_stage,
+                    phase,
+                    problem,
+                    project_level,
+                    target_outcome,
+                    onboardingCompleted: true, // MANDATORY FLAG
+                    completedAt: new Date()
+                },
+                { new: true, upsert: true }
+            );
+
+            // 2. Mark User as DONE (Legacy flag)
+            await User.findByIdAndUpdate(userId, {
                 onboarding_status: 'DONE',
                 onboardingCompleted: true
-            }, { new: true });
+            });
 
-            if (!updatedUser) {
-                console.error(`[Onboarding] User not found during completion: ${userId}`);
-                return res.status(404).json({ success: false, message: 'User not found' });
-            }
+            res.json({
+                success: true,
+                onboardingProfileId: profile._id,
+                status: "saved"
+            });
 
-            console.log(`[Onboarding] Success. User status: ${updatedUser.onboarding_status}`);
-
-            res.json({ success: true, message: 'Onboarding completed' });
         } catch (error: any) {
             console.error('[Onboarding] Complete Error:', error);
-            res.status(500).json({ success: false, message: 'Failed to complete', error: error.message, stack: error.stack });
+            res.status(500).json({ success: false, message: 'Failed to complete', error: error.message });
         }
     },
 

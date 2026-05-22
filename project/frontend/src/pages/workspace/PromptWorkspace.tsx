@@ -1,12 +1,15 @@
-import { useState } from "react"
+import React, { useState } from "react"
 import { motion } from "framer-motion"
 import { Send, Bot, Sparkles, Copy, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 
+interface Message {
+    role: 'user' | 'assistant';
+    content: string;
+}
+
 export default function PromptWorkspace() {
-    const [messages, setMessages] = useState([
-        { role: 'ai', content: "Hello! I'm your AI architect. Describe a project you want to build, and I'll generate the structure for you." }
-    ]);
+    const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isTyping, setIsTyping] = useState(false);
 
@@ -14,7 +17,7 @@ export default function PromptWorkspace() {
         e.preventDefault();
         if (!input.trim()) return;
 
-        const userMsg = { role: 'user', content: input };
+        const userMsg: Message = { role: 'user', content: input };
         setMessages(prev => [...prev, userMsg]);
         setInput("");
         setIsTyping(true);
@@ -22,7 +25,7 @@ export default function PromptWorkspace() {
         // Mock AI Response
         setTimeout(() => {
             setMessages(prev => [...prev, {
-                role: 'ai',
+                role: 'assistant',
                 content: "I've analyzed your request. Here's a suggested tech stack and project structure:\n\n**Frontend:** React + Vite + Tailwind\n**Backend:** Node.js + Express\n**Database:** PostgreSQL\n\nWould you like me to generate the initial boilerplate code?"
             }]);
             setIsTyping(false);
@@ -48,10 +51,10 @@ export default function PromptWorkspace() {
                             animate={{ opacity: 1, y: 0 }}
                             className={`flex gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
                         >
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === 'ai' ? 'bg-indigo-600' : 'bg-gray-700'}`}>
-                                {msg.role === 'ai' ? <Bot size={16} /> : <div className="text-xs font-bold">ME</div>}
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === 'assistant' ? 'bg-indigo-600' : 'bg-gray-700'}`}>
+                                {msg.role === 'assistant' ? <Bot size={16} /> : <div className="text-xs font-bold">ME</div>}
                             </div>
-                            <div className={`p-4 rounded-2xl max-w-[80%] text-sm leading-relaxed whitespace-pre-wrap ${msg.role === 'ai' ? 'bg-gray-800 text-gray-200' : 'bg-indigo-600/20 text-indigo-100 border border-indigo-500/30'
+                            <div className={`p-4 rounded-2xl max-w-[80%] text-sm leading-relaxed whitespace-pre-wrap ${msg.role === 'assistant' ? 'bg-gray-800 text-gray-200' : 'bg-indigo-600/20 text-indigo-100 border border-indigo-500/30'
                                 }`}>
                                 {msg.content}
                             </div>
@@ -76,7 +79,7 @@ export default function PromptWorkspace() {
                             value={input}
                             onChange={e => setInput(e.target.value)}
                             placeholder="Describe your idea (e.g., 'A Kanban board for designers')..."
-                            className="w-full bg-black border border-gray-700 rounded-xl pl-4 pr-12 py-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white placeholder-gray-500 transition-all"
+                            className="w-full bg-black border border-gray-700 rounded-xl pl-4 pr-12 py-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white placeholder-gray-500 transition-all font-medium"
                         />
                         <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white transition-colors">
                             <Send size={16} />

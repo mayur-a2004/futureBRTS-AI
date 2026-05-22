@@ -1,0 +1,1 @@
+exports.status = (req,res) => res.json({ status: 'active', limit: 5000 });

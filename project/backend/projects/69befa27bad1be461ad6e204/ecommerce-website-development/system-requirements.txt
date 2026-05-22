@@ -1,0 +1,6 @@
+System Requirements:
+1. Operating System: Linux or Windows
+2. Web Server: Apache or Nginx
+3. Programming Language: Python or Java
+4. Database: MySQL or PostgreSQL
+5. Payment Gateway: Stripe or PayPal

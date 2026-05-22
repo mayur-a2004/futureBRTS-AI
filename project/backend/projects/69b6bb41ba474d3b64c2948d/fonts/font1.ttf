@@ -1,0 +1,234 @@
+**Custom Font 1: Implementation and Usage**
+=====================================================
+
+In this example, we will implement a custom font, `font1.ttf`, in a web application using HTML, CSS, and JavaScript. We will also explore how to integrate this font with a PHP-based backend and a MySQL/MariaDB database.
+
+**Frontend Implementation**
+-------------------------
+
+### HTML
+
+To use the custom font in our HTML, we need to include a link to the font file in the `<head>` section of our HTML document.
+
+```html
+<head>
+    <link rel="stylesheet" href="styles.css">
+</head>
+```
+
+### CSS
+
+In our CSS file, `styles.css`, we will define the `@font-face` rule to import the custom font.
+
+```css
+@font-face {
+    font-family: 'Custom Font 1';
+    src: url('fonts/font1.ttf') format('truetype');
+}
+
+.custom-font {
+    font-family: 'Custom Font 1', sans-serif;
+}
+```
+
+### JavaScript
+
+We can use JavaScript to dynamically apply the custom font to elements on our webpage.
+
+```javascript
+// Get all elements with the class 'custom-font'
+const customFontElements = document.getElementsByClassName('custom-font');
+
+// Apply the custom font to each element
+for (const element of customFontElements) {
+    element.style.fontFamily = 'Custom Font 1, sans-serif';
+}
+```
+
+**Backend Implementation (PHP)**
+------------------------------
+
+To integrate the custom font with our PHP-based backend, we can use PHP to generate CSS stylesheets or to serve the font file directly.
+
+### Serving the Font File
+
+We can use PHP to serve the font file directly by creating a script that reads the font file and outputs its contents with the correct MIME type.
+
+```php
+// font.php
+header('Content-Type: font/ttf');
+readfile('fonts/font1.ttf');
+```
+
+### Generating CSS Stylesheets
+
+We can use PHP to generate CSS stylesheets that include the `@font-face` rule for our custom font.
+
+```php
+// styles.php
+$fontFamily = 'Custom Font 1';
+$fontSrc = 'fonts/font1.ttf';
+
+echo <<<CSS
+@font-face {
+    font-family: '$fontFamily';
+    src: url('$fontSrc') format('truetype');
+}
+
+.custom-font {
+    font-family: '$fontFamily', sans-serif;
+}
+CSS;
+```
+
+**Database Integration (MySQL/MariaDB)**
+--------------------------------------
+
+To store information about our custom font in a MySQL/MariaDB database, we can create a table to store font metadata.
+
+```sql
+CREATE TABLE fonts (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    font_family VARCHAR(255),
+    font_src VARCHAR(255)
+);
+
+INSERT INTO fonts (font_family, font_src) VALUES ('Custom Font 1', 'fonts/font1.ttf');
+```
+
+We can then use PHP to retrieve the font metadata from the database and generate the CSS stylesheet or serve the font file.
+
+```php
+// db.php
+$conn = new mysqli('localhost', 'username', 'password', 'database');
+
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+$sql = "SELECT font_family, font_src FROM fonts WHERE font_family = 'Custom Font 1'";
+$result = $conn->query($sql);
+
+if ($result->num_rows > 0) {
+    while($row = $result->fetch_assoc()) {
+        $fontFamily = $row['font_family'];
+        $fontSrc = $row['font_src'];
+
+        // Generate CSS stylesheet or serve font file
+    }
+} else {
+    echo "0 results";
+}
+
+$conn->close();
+```
+
+**Full Example**
+----------------
+
+Here is the full example code that demonstrates how to implement a custom font in a web application using HTML, CSS, JavaScript, PHP, and MySQL/MariaDB.
+
+### HTML
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1 class="custom-font">Custom Font 1</h1>
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+### CSS (styles.css)
+
+```css
+@font-face {
+    font-family: 'Custom Font 1';
+    src: url('fonts/font1.ttf') format('truetype');
+}
+
+.custom-font {
+    font-family: 'Custom Font 1', sans-serif;
+}
+```
+
+### JavaScript (script.js)
+
+```javascript
+// Get all elements with the class 'custom-font'
+const customFontElements = document.getElementsByClassName('custom-font');
+
+// Apply the custom font to each element
+for (const element of customFontElements) {
+    element.style.fontFamily = 'Custom Font 1, sans-serif';
+}
+```
+
+### PHP (font.php)
+
+```php
+header('Content-Type: font/ttf');
+readfile('fonts/font1.ttf');
+```
+
+### PHP (styles.php)
+
+```php
+$fontFamily = 'Custom Font 1';
+$fontSrc = 'fonts/font1.ttf';
+
+echo <<<CSS
+@font-face {
+    font-family: '$fontFamily';
+    src: url('$fontSrc') format('truetype');
+}
+
+.custom-font {
+    font-family: '$fontFamily', sans-serif;
+}
+CSS;
+```
+
+### PHP (db.php)
+
+```php
+$conn = new mysqli('localhost', 'username', 'password', 'database');
+
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+$sql = "SELECT font_family, font_src FROM fonts WHERE font_family = 'Custom Font 1'";
+$result = $conn->query($sql);
+
+if ($result->num_rows > 0) {
+    while($row = $result->fetch_assoc()) {
+        $fontFamily = $row['font_family'];
+        $fontSrc = $row['font_src'];
+
+        // Generate CSS stylesheet or serve font file
+    }
+} else {
+    echo "0 results";
+}
+
+$conn->close();
+```
+
+### SQL
+
+```sql
+CREATE TABLE fonts (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    font_family VARCHAR(255),
+    font_src VARCHAR(255)
+);
+
+INSERT INTO fonts (font_family, font_src) VALUES ('Custom Font 1', 'fonts/font1.ttf');
+```
+
+This example demonstrates how to implement a custom font in a web application using HTML, CSS, JavaScript, PHP, and MySQL/MariaDB. The custom font is stored in a file called `font1.ttf` and is served by a PHP script. The font metadata is stored in a MySQL/MariaDB database and is retrieved by a PHP script to generate the CSS stylesheet or serve the font file.

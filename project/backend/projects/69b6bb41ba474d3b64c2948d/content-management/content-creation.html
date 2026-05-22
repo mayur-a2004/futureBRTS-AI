@@ -1,0 +1,218 @@
+```html
+<!-- Content Creation Page -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Content Creation</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="#">Home</a></li>
+                <li><a href="#">Content Management</a></li>
+                <li><a href="#" class="active">Content Creation</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <section class="content-creation">
+            <h1>Create New Content</h1>
+            <form id="content-form">
+                <label for="title">Title:</label>
+                <input type="text" id="title" name="title" required>
+
+                <label for="description">Description:</label>
+                <textarea id="description" name="description" required></textarea>
+
+                <label for="category">Category:</label>
+                <select id="category" name="category" required>
+                    <option value="">Select Category</option>
+                    <option value="article">Article</option>
+                    <option value="video">Video</option>
+                    <option value="image">Image</option>
+                </select>
+
+                <label for="tags">Tags:</label>
+                <input type="text" id="tags" name="tags" placeholder="Separate tags with commas">
+
+                <label for="content">Content:</label>
+                <textarea id="content" name="content" required></textarea>
+
+                <button type="submit">Create Content</button>
+            </form>
+        </section>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+```css
+/* styles.css */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+header {
+    background-color: #333;
+    color: #fff;
+    padding: 1em;
+    text-align: center;
+}
+
+header nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+header nav ul li {
+    display: inline-block;
+    margin-right: 20px;
+}
+
+header nav a {
+    color: #fff;
+    text-decoration: none;
+}
+
+header nav a.active {
+    color: #ccc;
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2em;
+}
+
+.content-creation {
+    background-color: #f7f7f7;
+    padding: 2em;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.content-creation h1 {
+    margin-top: 0;
+}
+
+#content-form {
+    margin-top: 20px;
+}
+
+#content-form label {
+    display: block;
+    margin-bottom: 10px;
+}
+
+#content-form input, #content-form textarea, #content-form select {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+}
+
+#content-form button[type="submit"] {
+    background-color: #333;
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#content-form button[type="submit"]:hover {
+    background-color: #444;
+}
+```
+
+```javascript
+// script.js
+const contentForm = document.getElementById('content-form');
+
+contentForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const title = document.getElementById('title').value;
+    const description = document.getElementById('description').value;
+    const category = document.getElementById('category').value;
+    const tags = document.getElementById('tags').value;
+    const content = document.getElementById('content').value;
+
+    // Send data to server using AJAX
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', 'create-content.php', true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.send(`title=${title}&description=${description}&category=${category}&tags=${tags}&content=${content}`);
+
+    xhr.onload = () => {
+        if (xhr.status === 200) {
+            console.log('Content created successfully!');
+            contentForm.reset();
+        } else {
+            console.log('Error creating content:', xhr.statusText);
+        }
+    };
+});
+```
+
+```php
+// create-content.php
+<?php
+// Configuration
+$dbHost = 'localhost';
+$dbUsername = 'username';
+$dbPassword = 'password';
+$dbName = 'database_name';
+
+// Connect to database
+$conn = new mysqli($dbHost, $dbUsername, $dbPassword, $dbName);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Get form data
+$title = $_POST['title'];
+$description = $_POST['description'];
+$category = $_POST['category'];
+$tags = $_POST['tags'];
+$content = $_POST['content'];
+
+// Create content
+$sql = "INSERT INTO contents (title, description, category, tags, content) VALUES ('$title', '$description', '$category', '$tags', '$content')";
+
+if ($conn->query($sql) === TRUE) {
+    echo "Content created successfully!";
+} else {
+    echo "Error creating content: " . $conn->error;
+}
+
+// Close connection
+$conn->close();
+?>
+```
+
+```sql
+-- Create table
+CREATE TABLE contents (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    tags VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL
+);
+```
+
+This code creates a content creation page with a form that sends data to a PHP script, which then inserts the data into a MySQL database. The form includes fields for title, description, category, tags, and content. The PHP script connects to the database, checks for errors, and creates a new content entry if the data is valid. The SQL code creates a table to store the content data.

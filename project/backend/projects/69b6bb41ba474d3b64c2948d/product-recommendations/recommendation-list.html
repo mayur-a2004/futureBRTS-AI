@@ -1,0 +1,164 @@
+**Recommendation List Page**
+==========================
+
+### Overview
+
+The recommendation list page is a crucial component of an e-commerce website, allowing users to view and interact with personalized product suggestions. This page will be built using HTML, CSS, and JavaScript for the frontend, with Core PHP as the backend technology, and MySQL/MariaDB as the database management system.
+
+### Database Schema
+
+Before diving into the code, let's define the database schema for the recommendation list page. We'll need two tables: `products` and `recommendations`.
+
+```sql
+CREATE TABLE products (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(255) NOT NULL,
+  description TEXT NOT NULL,
+  price DECIMAL(10, 2) NOT NULL,
+  image_url VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE recommendations (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  product_id INT NOT NULL,
+  score FLOAT NOT NULL,
+  FOREIGN KEY (product_id) REFERENCES products(id)
+);
+```
+
+### Frontend (HTML, CSS, and JavaScript)
+
+#### HTML
+
+Create a new file called `recommendation-list.html` and add the following code:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recommendation List</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <h1>Recommendation List</h1>
+  <div id="recommendation-list"></div>
+  <script src="script.js"></script>
+</body>
+</html>
+```
+
+#### CSS (in styles.css file)
+
+Add the following code to style the recommendation list:
+
+```css
+#recommendation-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.product-card {
+  margin: 20px;
+  width: 200px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.product-card img {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
+
+.product-card h2 {
+  font-size: 18px;
+  margin: 10px;
+}
+
+.product-card p {
+  font-size: 14px;
+  margin: 10px;
+}
+```
+
+#### JavaScript (in script.js file)
+
+Add the following code to fetch and display the recommendation list:
+
+```javascript
+// Fetch recommendation list from API
+fetch('api/recommendations.php')
+  .then(response => response.json())
+  .then(data => {
+    const recommendationList = document.getElementById('recommendation-list');
+    data.forEach(product => {
+      const productCard = document.createElement('div');
+      productCard.classList.add('product-card');
+      productCard.innerHTML = `
+        <img src="${product.image_url}" alt="${product.name}">
+        <h2>${product.name}</h2>
+        <p>${product.description}</p>
+        <p>Price: $${product.price}</p>
+      `;
+      recommendationList.appendChild(productCard);
+    });
+  })
+  .catch(error => console.error('Error fetching recommendation list:', error));
+```
+
+### Backend (Core PHP)
+
+Create a new file called `recommendations.php` and add the following code to handle API requests:
+
+```php
+<?php
+// Configuration
+$dbHost = 'localhost';
+$dbUsername = 'your_username';
+$dbPassword = 'your_password';
+$dbName = 'your_database';
+
+// Connect to database
+$conn = new mysqli($dbHost, $dbUsername, $dbPassword, $dbName);
+
+// Check connection
+if ($conn->connect_error) {
+  die("Connection failed: " . $conn->connect_error);
+}
+
+// Fetch recommendation list
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+  $userId = $_GET['user_id'];
+  $sql = "SELECT p.* FROM products p JOIN recommendations r ON p.id = r.product_id WHERE r.user_id = '$userId'";
+  $result = $conn->query($sql);
+  $products = array();
+  while ($row = $result->fetch_assoc()) {
+    $products[] = $row;
+  }
+  echo json_encode($products);
+}
+
+// Close database connection
+$conn->close();
+?>
+```
+
+### API Endpoint
+
+To fetch the recommendation list, send a GET request to `api/recommendations.php?user_id={user_id}`, replacing `{user_id}` with the actual user ID.
+
+### Example Use Case
+
+1. User logs in to the website and is assigned a unique user ID.
+2. The website sends a GET request to `api/recommendations.php?user_id={user_id}` to fetch the recommendation list.
+3. The backend API fetches the recommendation list from the database and returns it in JSON format.
+4. The frontend JavaScript code receives the JSON data and displays the recommendation list on the webpage.
+
+Note: This is a basic example and you should consider implementing proper security measures, such as authentication and authorization, to protect your API and user data.

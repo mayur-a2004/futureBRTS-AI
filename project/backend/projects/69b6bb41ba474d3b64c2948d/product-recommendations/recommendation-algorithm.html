@@ -1,0 +1,195 @@
+```html
+<!-- recommendation-algorithm.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recommendation Algorithm</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Recommendation Algorithm</h1>
+    <p>This page demonstrates a basic recommendation algorithm using PHP and MySQL.</p>
+
+    <!-- User Input Form -->
+    <form id="user-input-form">
+        <label for="user-id">User ID:</label>
+        <input type="text" id="user-id" name="user-id"><br><br>
+        <label for="product-id">Product ID:</label>
+        <input type="text" id="product-id" name="product-id"><br><br>
+        <input type="submit" value="Get Recommendations">
+    </form>
+
+    <!-- Recommendations Container -->
+    <div id="recommendations-container"></div>
+
+    <!-- JavaScript Code -->
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+```css
+/* styles.css */
+body {
+    font-family: Arial, sans-serif;
+}
+
+#user-input-form {
+    width: 50%;
+    margin: 40px auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+#recommendations-container {
+    width: 80%;
+    margin: 40px auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+```
+
+```javascript
+// script.js
+const userInputForm = document.getElementById('user-input-form');
+const recommendationsContainer = document.getElementById('recommendations-container');
+
+userInputForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const userId = document.getElementById('user-id').value;
+    const productId = document.getElementById('product-id').value;
+
+    // Send AJAX request to PHP script
+    fetch('recommendation-algorithm.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: `user_id=${userId}&product_id=${productId}`
+    })
+    .then((response) => response.json())
+    .then((data) => {
+        // Display recommendations
+        const recommendationsHtml = data.map((recommendation) => {
+            return `
+                <div>
+                    <h2>${recommendation.product_name}</h2>
+                    <p>Rating: ${recommendation.rating}</p>
+                </div>
+            `;
+        }).join('');
+        recommendationsContainer.innerHTML = recommendationsHtml;
+    })
+    .catch((error) => console.error(error));
+});
+```
+
+```php
+// recommendation-algorithm.php
+<?php
+// Configuration
+$dbHost = 'localhost';
+$dbUsername = 'root';
+$dbPassword = '';
+$dbName = 'database_name';
+
+// Connect to database
+$conn = new mysqli($dbHost, $dbUsername, $dbPassword, $dbName);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Get user ID and product ID from request
+$userId = $_POST['user_id'];
+$productId = $_POST['product_id'];
+
+// Query to get user's ratings
+$userRatingsQuery = "SELECT * FROM user_ratings WHERE user_id = '$userId'";
+$userRatingsResult = $conn->query($userRatingsQuery);
+
+// Query to get product's features
+$productFeaturesQuery = "SELECT * FROM product_features WHERE product_id = '$productId'";
+$productFeaturesResult = $conn->query($productFeaturesQuery);
+
+// Calculate similarity between user's ratings and product's features
+$similarity = 0;
+while ($userRating = $userRatingsResult->fetch_assoc()) {
+    while ($productFeature = $productFeaturesResult->fetch_assoc()) {
+        if ($userRating['feature_id'] == $productFeature['feature_id']) {
+            $similarity += $userRating['rating'] * $productFeature['weight'];
+        }
+    }
+}
+
+// Get top 5 similar products
+$similarProductsQuery = "SELECT * FROM products ORDER BY similarity DESC LIMIT 5";
+$similarProductsResult = $conn->query($similarProductsQuery);
+
+// Create array to store recommendations
+$recommendations = array();
+
+// Loop through similar products and create recommendations array
+while ($similarProduct = $similarProductsResult->fetch_assoc()) {
+    $recommendation = array(
+        'product_name' => $similarProduct['product_name'],
+        'rating' => $similarProduct['rating']
+    );
+    array_push($recommendations, $recommendation);
+}
+
+// Close database connection
+$conn->close();
+
+// Output recommendations as JSON
+header('Content-Type: application/json');
+echo json_encode($recommendations);
+?>
+```
+
+```sql
+-- database schema
+CREATE TABLE users (
+    user_id INT PRIMARY KEY,
+    name VARCHAR(255)
+);
+
+CREATE TABLE products (
+    product_id INT PRIMARY KEY,
+    product_name VARCHAR(255),
+    rating FLOAT
+);
+
+CREATE TABLE user_ratings (
+    user_id INT,
+    product_id INT,
+    feature_id INT,
+    rating FLOAT,
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (product_id) REFERENCES products(product_id)
+);
+
+CREATE TABLE product_features (
+    product_id INT,
+    feature_id INT,
+    weight FLOAT,
+    FOREIGN KEY (product_id) REFERENCES products(product_id)
+);
+
+CREATE TABLE similarities (
+    user_id INT,
+    product_id INT,
+    similarity FLOAT,
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (product_id) REFERENCES products(product_id)
+);
+```
+
+This code demonstrates a basic recommendation algorithm using PHP and MySQL. The algorithm calculates the similarity between a user's ratings and a product's features, and then recommends the top 5 similar products to the user. The code includes a user input form, a recommendations container, and a PHP script that queries the database and calculates the recommendations. The database schema includes tables for users, products, user ratings, product features, and similarities.

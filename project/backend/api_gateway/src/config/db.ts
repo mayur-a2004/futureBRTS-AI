@@ -1,21 +1,68 @@
 // 👉 Ye file MongoDB database ke saath connection establish karti hai
 // 👉 Mongoose library ka use karke hum clustering aur models connect karte hain
+// 🛡️ RESILIENT DB LAYER: Auto-reconnect instead of crashing the server
 
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 dotenv.config();
 
+let isConnected = false;
+
 export const connectDB = async () => {
-    let uri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/futurebilder';
-    // Fix for Node >= 17 using IPv6 for localhost by default
-    if (uri.includes('localhost')) {
-        uri = uri.replace('localhost', '127.0.0.1');
+    let uri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/fueture_db';
+
+    // 👉 COMPULSORY: Ensure the database is always 'fueture_db'
+    if (!uri.includes('/fueture_db')) {
+        const baseUrl = uri.includes('?') ? uri.split('?')[0] : uri;
+        const options = uri.includes('?') ? `?${uri.split('?')[1]}` : '';
+        const cleanBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+        uri = `${cleanBase}fueture_db${options}`;
     }
-    try {
-        await mongoose.connect(uri, {});
-        console.log('MongoDB Connected:', uri);
-    } catch (error) {
-        console.error('MongoDB Connection Error:', error);
-        process.exit(1);
+
+    mongoose.set('strictQuery', false);
+
+    // Auto-reconnect settings
+    const mongooseOptions = {
+        serverSelectionTimeoutMS: 10000, // 10s to find a server
+        heartbeatFrequencyMS: 30000,     // Check connection every 30s
+        maxPoolSize: 10,
+        retryWrites: true,
+    };
+
+    // 🧠 Register DB event listeners ONCE
+    if (!isConnected) {
+        mongoose.connection.on('connected', () => {
+            console.log('✅ [DB] MongoDB Connected:', uri);
+            isConnected = true;
+        });
+
+        mongoose.connection.on('disconnected', () => {
+            console.warn('⚠️ [DB] MongoDB Disconnected. Attempting to reconnect...');
+            isConnected = false;
+        });
+
+        mongoose.connection.on('reconnected', () => {
+            console.log('✅ [DB] MongoDB Reconnected Successfully.');
+            isConnected = true;
+        });
+
+        mongoose.connection.on('error', (err) => {
+            console.error('❌ [DB] MongoDB Connection Error:', err.message);
+        });
     }
+
+    // 🔄 Attempt connection with retry loop (does NOT crash server on failure)
+    const tryConnect = async (attempt = 1) => {
+        try {
+            await mongoose.connect(uri, mongooseOptions);
+            console.log('✅ MongoDB initial connection successful.');
+        } catch (error: any) {
+            const retryDelay = Math.min(5000 * attempt, 60000); // Backoff: 5s, 10s, 15s... max 60s
+            console.error(`❌ [DB] MongoDB Connection Failed (Attempt ${attempt}): ${error.message}`);
+            console.warn(`🔄 [DB] Retrying in ${retryDelay / 1000}s... (Server remains ACTIVE)`);
+            setTimeout(() => tryConnect(attempt + 1), retryDelay);
+        }
+    };
+
+    await tryConnect();
 };

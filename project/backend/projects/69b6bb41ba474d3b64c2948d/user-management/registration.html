@@ -1,0 +1,229 @@
+**User Registration Page**
+==========================
+
+### HTML Structure
+
+```html
+<!-- user-management/registration.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Registration</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h2>User Registration</h2>
+        <form id="registration-form">
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <div class="form-group">
+                <label for="confirm-password">Confirm Password:</label>
+                <input type="password" id="confirm-password" name="confirm-password" required>
+            </div>
+            <button type="submit">Register</button>
+        </form>
+        <div id="error-message"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+### CSS Styles
+
+```css
+/* styles.css */
+body {
+    font-family: Arial, sans-serif;
+}
+
+.container {
+    width: 50%;
+    margin: 40px auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    margin-bottom: 10px;
+}
+
+input[type="text"], input[type="email"], input[type="password"] {
+    width: 100%;
+    height: 40px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+button[type="submit"] {
+    width: 100%;
+    height: 40px;
+    background-color: #4CAF50;
+    color: #fff;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button[type="submit"]:hover {
+    background-color: #3e8e41;
+}
+
+#error-message {
+    color: #f00;
+    font-size: 14px;
+    margin-top: 10px;
+}
+```
+
+### JavaScript Code
+
+```javascript
+// script.js
+const registrationForm = document.getElementById('registration-form');
+const errorMessage = document.getElementById('error-message');
+
+registrationForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const username = document.getElementById('username').value;
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirm-password').value;
+
+    if (password !== confirmPassword) {
+        errorMessage.textContent = 'Passwords do not match';
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('username', username);
+    formData.append('email', email);
+    formData.append('password', password);
+
+    fetch('register.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then((response) => response.json())
+    .then((data) => {
+        if (data.success) {
+            window.location.href = 'login.html';
+        } else {
+            errorMessage.textContent = data.message;
+        }
+    })
+    .catch((error) => {
+        console.error(error);
+    });
+});
+```
+
+### PHP Code (register.php)
+
+```php
+// register.php
+<?php
+// Configuration
+$dbHost = 'localhost';
+$dbUsername = 'your_username';
+$dbPassword = 'your_password';
+$dbName = 'your_database';
+
+// Connect to database
+$conn = new mysqli($dbHost, $dbUsername, $dbPassword, $dbName);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Get form data
+$username = $_POST['username'];
+$email = $_POST['email'];
+$password = $_POST['password'];
+
+// Validate form data
+if (empty($username) || empty($email) || empty($password)) {
+    $response = array('success' => false, 'message' => 'Please fill in all fields');
+    echo json_encode($response);
+    exit;
+}
+
+// Check if username already exists
+$query = "SELECT * FROM users WHERE username = '$username'";
+$result = $conn->query($query);
+
+if ($result->num_rows > 0) {
+    $response = array('success' => false, 'message' => 'Username already exists');
+    echo json_encode($response);
+    exit;
+}
+
+// Check if email already exists
+$query = "SELECT * FROM users WHERE email = '$email'";
+$result = $conn->query($query);
+
+if ($result->num_rows > 0) {
+    $response = array('success' => false, 'message' => 'Email already exists');
+    echo json_encode($response);
+    exit;
+}
+
+// Hash password
+$passwordHash = password_hash($password, PASSWORD_DEFAULT);
+
+// Insert user into database
+$query = "INSERT INTO users (username, email, password) VALUES ('$username', '$email', '$passwordHash')";
+$conn->query($query);
+
+// Check if user was inserted successfully
+if ($conn->affected_rows === 1) {
+    $response = array('success' => true, 'message' => 'User registered successfully');
+} else {
+    $response = array('success' => false, 'message' => 'Failed to register user');
+}
+
+echo json_encode($response);
+
+// Close database connection
+$conn->close();
+?>
+```
+
+### Database Schema
+
+```sql
+-- users table
+CREATE TABLE users (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(50) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    password VARCHAR(255) NOT NULL
+);
+```
+
+This code provides a basic user registration system with validation, password hashing, and database storage. Please note that this is a simplified example and you should consider implementing additional security measures such as CSRF protection and email verification in a production environment.

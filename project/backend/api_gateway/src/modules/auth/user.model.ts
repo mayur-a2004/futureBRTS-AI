@@ -16,15 +16,33 @@ export interface IUser extends Document {
     resetPasswordExpiry?: Date;
     onboardingCompleted: boolean;
     profile?: {
-        type: string;
+        type?: string;
+        bio?: string;
+        location?: string;
+        skills?: string[];
+        socialLinks?: {
+            github?: string;
+            linkedin?: string;
+            twitter?: string;
+            website?: string;
+        };
     };
+    role: 'user' | 'admin';
+    status: 'active' | 'inactive';
+    tokenBalance: number;
+    isPremium: boolean;
+    subscriptionTier: 'free' | 'day' | 'week' | 'monthly' | '3_month' | '6_month' | 'yearly';
+    subscriptionExpiresAt?: Date;
+    lastTokenRefreshedAt: Date;
+    adConsumptionCount: number;
+    lastActiveAt: Date;
     createdAt: Date;
 }
 
 const UserSchema: Schema = new Schema({
     firstName: { type: String, required: true },
     lastName: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
+    email: { type: String, required: true, unique: true, lowercase: true },
     passwordHash: { type: String },
     dateOfBirth: { type: Date },
     age: { type: Number },
@@ -32,8 +50,26 @@ const UserSchema: Schema = new Schema({
     onboarding_status: { type: String, enum: ['NOT_STARTED', 'IN_PROGRESS', 'DONE'], default: 'NOT_STARTED' },
     onboardingCompleted: { type: Boolean, default: false },
     profile: {
-        type: { type: String } // e.g. Student, Exam, etc.
+        type: { type: String },
+        bio: { type: String, default: '' },
+        location: { type: String, default: '' },
+        skills: { type: [String], default: [] },
+        socialLinks: {
+            github: { type: String },
+            linkedin: { type: String },
+            twitter: { type: String },
+            website: { type: String }
+        }
     },
+    role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    status: { type: String, enum: ['active', 'inactive'], default: 'active' },
+    tokenBalance: { type: Number, default: 1000 }, // 1000 for new users as requested
+    isPremium: { type: Boolean, default: false },
+    subscriptionTier: { type: String, enum: ['free', 'day', 'week', 'monthly', '3_month', '6_month', 'yearly'], default: 'free' },
+    subscriptionExpiresAt: { type: Date },
+    lastTokenRefreshedAt: { type: Date, default: Date.now },
+    adConsumptionCount: { type: Number, default: 0 },
+    lastActiveAt: { type: Date, default: Date.now },
     resetPasswordToken: { type: String },
     resetPasswordExpiry: { type: Date },
     createdAt: { type: Date, default: Date.now }

@@ -1,0 +1,13 @@
+-- SQL Migration Script
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  username VARCHAR(50) NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS records (
+  id SERIAL PRIMARY KEY,
+  user_id INT REFERENCES users(id),
+  data JSONB
+);

@@ -1,0 +1,185 @@
+**Inventory Report Page**
+==========================
+
+### Overview
+
+The inventory report page is a crucial component of the inventory management system. It provides a comprehensive overview of the current stock levels, allowing administrators to make informed decisions about inventory management.
+
+### Technologies Used
+
+* Frontend: HTML, CSS, and JavaScript
+* Backend: Core PHP
+* Database: MySQL/MariaDB
+
+### Database Schema
+
+The database schema for the inventory management system consists of the following tables:
+
+* **products**: stores information about each product, including product ID, name, description, and price.
+* **inventory**: stores information about the current stock levels of each product, including product ID, quantity, and last updated date.
+
+### PHP Code
+
+```php
+// Connect to the database
+$conn = new mysqli("localhost", "username", "password", "database");
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Query to retrieve all products
+$query = "SELECT * FROM products";
+$result = $conn->query($query);
+
+// Query to retrieve current stock levels
+$inventory_query = "SELECT * FROM inventory";
+$inventory_result = $conn->query($inventory_query);
+
+// Close the database connection
+$conn->close();
+```
+
+### HTML Code
+
+```html
+<!-- Inventory Report Page -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Inventory Report</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Inventory Report</h1>
+    <table id="inventory-table">
+        <thead>
+            <tr>
+                <th>Product ID</th>
+                <th>Product Name</th>
+                <th>Quantity</th>
+                <th>Last Updated</th>
+            </tr>
+        </thead>
+        <tbody id="inventory-body">
+            <!-- JavaScript will populate this table -->
+        </tbody>
+    </table>
+
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+### JavaScript Code
+
+```javascript
+// Get the table body element
+const tableBody = document.getElementById("inventory-body");
+
+// Function to populate the table with data
+function populateTable(data) {
+    // Loop through each product
+    data.forEach(product => {
+        // Create a new table row
+        const row = document.createElement("tr");
+
+        // Create table cells for each column
+        const productIdCell = document.createElement("td");
+        const productNameCell = document.createElement("td");
+        const quantityCell = document.createElement("td");
+        const lastUpdatedCell = document.createElement("td");
+
+        // Populate the table cells with data
+        productIdCell.textContent = product.product_id;
+        productNameCell.textContent = product.product_name;
+        quantityCell.textContent = product.quantity;
+        lastUpdatedCell.textContent = product.last_updated;
+
+        // Add the table cells to the row
+        row.appendChild(productIdCell);
+        row.appendChild(productNameCell);
+        row.appendChild(quantityCell);
+        row.appendChild(lastUpdatedCell);
+
+        // Add the row to the table body
+        tableBody.appendChild(row);
+    });
+}
+
+// Fetch the data from the PHP script
+fetch("data.php")
+    .then(response => response.json())
+    .then(data => populateTable(data))
+    .catch(error => console.error("Error:", error));
+```
+
+### CSS Code
+
+```css
+/* Styles for the inventory report page */
+body {
+    font-family: Arial, sans-serif;
+}
+
+#inventory-table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+#inventory-table th, #inventory-table td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: left;
+}
+
+#inventory-table th {
+    background-color: #f0f0f0;
+}
+```
+
+### PHP Data Script
+
+```php
+// data.php
+// Connect to the database
+$conn = new mysqli("localhost", "username", "password", "database");
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Query to retrieve all products
+$query = "SELECT p.product_id, p.product_name, i.quantity, i.last_updated 
+           FROM products p 
+           JOIN inventory i ON p.product_id = i.product_id";
+$result = $conn->query($query);
+
+// Create an array to store the data
+$data = array();
+
+// Loop through each row
+while ($row = $result->fetch_assoc()) {
+    $data[] = $row;
+}
+
+// Close the database connection
+$conn->close();
+
+// Output the data as JSON
+header("Content-Type: application/json");
+echo json_encode($data);
+```
+
+### Full Logic
+
+1. The PHP script connects to the database and retrieves all products and their current stock levels.
+2. The PHP script outputs the data as JSON.
+3. The JavaScript code fetches the data from the PHP script and populates the table with the data.
+4. The CSS code styles the table and page.
+5. The HTML code creates the basic structure of the page, including the table.
+6. The user views the inventory report page, which displays the current stock levels of all products.
+
+Note: This is a basic example and may need to be modified to fit your specific use case. Additionally, you should ensure that your database credentials are secure and not hardcoded into your scripts.

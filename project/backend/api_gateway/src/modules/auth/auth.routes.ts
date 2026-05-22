@@ -14,6 +14,8 @@ router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', authController.resetPassword);
 
 router.get('/me', authMiddleware, authController.getMe);
+router.put('/update-profile', authMiddleware, authController.updateProfile);
+router.post('/update-onboarding', authMiddleware, authController.updateOnboardingStatus);
 router.get('/ui-content', authController.getUIContent);
 
 router.get('/google', authController.googleRedirect);

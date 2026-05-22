@@ -11,7 +11,7 @@ export default function AuthLayout() {
         if (initialIntent) {
             setIntentText(initialIntent);
         } else {
-            const storedIntent = localStorage.getItem("fb_initial_prompt");
+            const storedIntent = localStorage.getItem("fbrts_initial_prompt");
             if (storedIntent) {
                 setIntentText(storedIntent);
             }
@@ -25,7 +25,7 @@ export default function AuthLayout() {
     return (
         <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2 bg-transparent text-white relative font-sans">
             {/* Left Side - Visual Continuity */}
-            <div className="hidden lg:flex flex-col justify-between p-12 bg-black/10 backdrop-blur-sm relative overflow-hidden border-r border-white/5">
+            <div className="hidden lg:flex flex-col justify-between p-12 bg-transparent relative overflow-hidden border-r border-white/5">
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/10 via-transparent to-transparent"></div>
 
                 <div className="relative z-10">
@@ -34,7 +34,7 @@ export default function AuthLayout() {
                     </Link>
                     <div className="flex items-center gap-2">
                         <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center font-bold shadow-[0_0_20px_rgba(79,70,229,0.4)]">F</div>
-                        <h1 className="text-xl font-bold text-white tracking-tight">FutureBuilder</h1>
+                        <h1 className="text-xl font-bold text-white tracking-tight">FutureBRTS</h1>
                     </div>
                 </div>
 
@@ -69,12 +69,19 @@ export default function AuthLayout() {
             </div>
 
             {/* Right Side - Form */}
-            <div className="flex flex-col items-center justify-center p-8 bg-black/40 backdrop-blur-md">
-                <div className="w-full max-w-sm space-y-8 flex-1 flex flex-col justify-center">
+            <div className="flex flex-col items-center justify-center p-6 md:p-12 bg-black/10 backdrop-blur-[2px] relative">
+                {/* Mobile Back Button */}
+                <div className="lg:hidden absolute top-6 left-6">
+                    <Link to="/" className="text-gray-500 hover:text-white transition-colors">
+                        <ArrowLeft size={20} />
+                    </Link>
+                </div>
+
+                <div className="w-full max-w-md space-y-8 flex-1 flex flex-col justify-center">
                     <Outlet />
                 </div>
-                <footer className="mt-8 py-4 text-center text-[10px] text-gray-700 uppercase tracking-widest font-bold">
-                    <p>Conceptualized by Mayur Savaliya</p>
+                <footer className="mt-8 py-4 text-center text-[8px] md:text-[10px] text-gray-700 uppercase tracking-widest font-black">
+                    <p>© FUTURE_BRTS // MAYUR_SAVALIYA</p>
                 </footer>
             </div>
         </div>

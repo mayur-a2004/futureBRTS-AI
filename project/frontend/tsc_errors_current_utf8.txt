@@ -1,0 +1,18 @@
+﻿src/pages/careers/Careers.tsx(2,37): error TS6133: 'DollarSign' is declared but its value is never read.
+src/pages/careers/Careers.tsx(2,70): error TS6133: 'ChevronRight' is declared but its value is never read.
+src/pages/careers/Careers.tsx(2,84): error TS6133: 'Globe' is declared but its value is never read.
+src/pages/careers/Careers.tsx(2,91): error TS6133: 'Layers' is declared but its value is never read.
+src/pages/careers/Careers.tsx(2,99): error TS6133: 'Filter' is declared but its value is never read.
+src/pages/careers/Careers.tsx(2,126): error TS6133: 'BadgeCheck' is declared but its value is never read.
+src/pages/careers/Careers.tsx(2,138): error TS6133: 'Zap' is declared but its value is never read.
+src/pages/profile/Profile.tsx(1,26): error TS6133: 'LinkIcon' is declared but its value is never read.
+src/pages/profile/Profile.tsx(1,108): error TS6133: 'X' is declared but its value is never read.
+src/pages/profile/Profile.tsx(1,111): error TS6133: 'Twitter' is declared but its value is never read.
+src/pages/profile/Profile.tsx(8,19): error TS2339: Property 'setUser' does not exist on type 'AuthContextType'.
+src/pages/profile/Profile.tsx(40,72): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/pages/profile/Profile.tsx(40,94): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/pages/profile/Profile.tsx(187,159): error TS7006: Parameter 'skill' implicitly has an 'any' type.
+src/pages/projects/Projects.tsx(2,30): error TS6133: 'Globe' is declared but its value is never read.
+src/pages/projects/Projects.tsx(2,106): error TS6133: 'Filter' is declared but its value is never read.
+src/pages/projects/Projects.tsx(2,133): error TS6133: 'Trash2' is declared but its value is never read.
+src/pages/projects/Projects.tsx(7,1): error TS6133: 'toast' is declared but its value is never read.

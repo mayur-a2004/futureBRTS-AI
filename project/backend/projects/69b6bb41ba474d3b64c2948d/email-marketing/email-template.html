@@ -1,0 +1,174 @@
+```html
+<!-- Email Template Page -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Template</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Email Template</h1>
+        </header>
+        <main>
+            <section class="email-template">
+                <h2>Email Template</h2>
+                <form id="email-template-form">
+                    <label for="subject">Subject:</label>
+                    <input type="text" id="subject" name="subject"><br><br>
+                    <label for="body">Body:</label>
+                    <textarea id="body" name="body"></textarea><br><br>
+                    <label for="sender">Sender:</label>
+                    <input type="email" id="sender" name="sender"><br><br>
+                    <label for="receiver">Receiver:</label>
+                    <input type="email" id="receiver" name="receiver"><br><br>
+                    <input type="submit" value="Send Email">
+                </form>
+            </section>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+```css
+/* styles.css */
+body {
+    font-family: Arial, sans-serif;
+}
+
+.container {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+header {
+    background-color: #333;
+    color: #fff;
+    padding: 20px;
+    text-align: center;
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+}
+
+.email-template {
+    background-color: #f7f7f7;
+    padding: 20px;
+    border: 1px solid #ddd;
+}
+
+label {
+    display: block;
+    margin-bottom: 10px;
+}
+
+input, textarea {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+}
+
+input[type="submit"] {
+    background-color: #333;
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+input[type="submit"]:hover {
+    background-color: #444;
+}
+```
+
+```javascript
+// script.js
+const form = document.getElementById('email-template-form');
+
+form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const subject = document.getElementById('subject').value;
+    const body = document.getElementById('body').value;
+    const sender = document.getElementById('sender').value;
+    const receiver = document.getElementById('receiver').value;
+
+    // Send email using PHP
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', 'send-email.php', true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.send(`subject=${subject}&body=${body}&sender=${sender}&receiver=${receiver}`);
+
+    xhr.onload = () => {
+        if (xhr.status === 200) {
+            console.log('Email sent successfully!');
+        } else {
+            console.log('Error sending email:', xhr.statusText);
+        }
+    };
+});
+```
+
+```php
+// send-email.php
+<?php
+$subject = $_POST['subject'];
+$body = $_POST['body'];
+$sender = $_POST['sender'];
+$receiver = $_POST['receiver'];
+
+// Database connection
+$servername = "localhost";
+$username = "root";
+$password = "";
+$dbname = "email_template";
+
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Insert email into database
+$sql = "INSERT INTO emails (subject, body, sender, receiver) VALUES ('$subject', '$body', '$sender', '$receiver')";
+
+if ($conn->query($sql) === TRUE) {
+    echo "Email sent successfully!";
+} else {
+    echo "Error sending email: " . $conn->error;
+}
+
+$conn->close();
+?>
+```
+
+```sql
+-- Create emails table
+CREATE TABLE emails (
+    id INT AUTO_INCREMENT,
+    subject VARCHAR(255),
+    body TEXT,
+    sender VARCHAR(255),
+    receiver VARCHAR(255),
+    PRIMARY KEY (id)
+);
+```
+
+This code creates an email template page with a form that allows users to input the subject, body, sender, and receiver of an email. When the form is submitted, it sends a POST request to the `send-email.php` file, which inserts the email into a database using MySQL. The `send-email.php` file also sends an email using PHP's built-in mail function.
+
+Note: This code is for demonstration purposes only and should not be used in production without proper security measures, such as validating user input and sanitizing database queries.

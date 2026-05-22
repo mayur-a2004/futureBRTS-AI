@@ -1,7 +1,0 @@
-{
-    "name": "ml-engine",
-    "version": "0.0.0",
-    "scripts": {
-        "start": "echo 'IDLE MODE: Execution not allowed yet' && exit 0"
-    }
-}

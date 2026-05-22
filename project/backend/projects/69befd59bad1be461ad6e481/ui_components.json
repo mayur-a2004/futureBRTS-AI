@@ -1,0 +1,36 @@
+{
+  "designSystem": {
+    "colors": {
+      "primary": "#2563eb",
+      "secondary": "#7c3aed",
+      "accent": "#f59e0b",
+      "dark": "#1e293b",
+      "light": "#f8fafc"
+    },
+    "typography": {
+      "fontFamily": "'Inter', sans-serif",
+      "h1": "3.052rem",
+      "h2": "2.441rem",
+      "h3": "1.953rem"
+    },
+    "effects": {
+      "shadows": "0 4px 6px -1px rgba(0,0,0,0.1)",
+      "glassEffect": "backdrop-filter: blur(16px); background-color: rgba(255,255,255,0.4)"
+    }
+  },
+  "components": [
+    {
+      "name": "ProductCard",
+      "props": ["product", "onAddToCart"],
+      "styles": {
+        "base": "rounded-xl border-2 border-black bg-white p-4",
+        "hover": "transform -translate-y-1 shadow-lg"
+      }
+    },
+    {
+      "name": "CartDrawer",
+      "props": ["isOpen", "onClose", "items"],
+      "features": ["slide-in animation", "real-time price calculation"]
+    }
+  ]
+}

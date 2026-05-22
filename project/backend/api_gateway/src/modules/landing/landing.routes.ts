@@ -11,6 +11,7 @@ router.get('/page', landingController.getPageData);
 
 // 👉 Intent aur Tracking APIs
 router.post('/intent', landingController.saveIntent);
+router.get('/config/:key', landingController.getConfig); // Public Config Fetch
 router.post('/visit', landingController.trackVisit);
 
 export default router;

@@ -1,0 +1,157 @@
+**Website Banner**
+================
+
+In this example, we will create a simple website banner using HTML, CSS, and JavaScript. The banner will display a background image, a heading, and a call-to-action button.
+
+**HTML**
+--------
+
+```html
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Website Banner</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="banner">
+        <img src="images/banner.jpg" alt="Banner Image">
+        <div class="banner-content">
+            <h1>Welcome to our website</h1>
+            <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed sit amet nulla auctor, vestibulum magna sed, convallis ex.</p>
+            <button>Learn More</button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+**CSS**
+------
+
+```css
+/* styles.css */
+.banner {
+    position: relative;
+    width: 100%;
+    height: 500px;
+    background-size: cover;
+    background-position: center;
+}
+
+.banner img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.banner-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: #fff;
+}
+
+.banner-content h1 {
+    font-size: 48px;
+    margin-bottom: 20px;
+}
+
+.banner-content p {
+    font-size: 18px;
+    margin-bottom: 30px;
+}
+
+.banner-content button {
+    background-color: #4CAF50;
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.banner-content button:hover {
+    background-color: #3e8e41;
+}
+```
+
+**JavaScript**
+-------------
+
+```javascript
+// script.js
+// Add event listener to the button
+document.querySelector('.banner-content button').addEventListener('click', function() {
+    // Add your button click logic here
+    console.log('Button clicked!');
+});
+```
+
+**PHP (Optional)**
+-----------------
+
+If you want to display dynamic content in your banner, you can use PHP to fetch data from your database. Here's an example:
+
+```php
+// banner.php
+<?php
+// Connect to database
+$conn = new mysqli('localhost', 'username', 'password', 'database');
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Fetch data from database
+$sql = "SELECT * FROM banner";
+$result = $conn->query($sql);
+
+// Display data
+if ($result->num_rows > 0) {
+    while($row = $result->fetch_assoc()) {
+        echo '<h1>' . $row['heading'] . '</h1>';
+        echo '<p>' . $row['description'] . '</p>';
+    }
+} else {
+    echo 'No data found.';
+}
+
+// Close connection
+$conn->close();
+?>
+```
+
+**Database (Optional)**
+----------------------
+
+If you want to store your banner data in a database, you can create a table with the following structure:
+
+```sql
+-- banner.sql
+CREATE TABLE banner (
+    id INT PRIMARY KEY,
+    heading VARCHAR(255),
+    description TEXT
+);
+```
+
+**Full Logic**
+-------------
+
+Here's the full logic of the website banner:
+
+1. The HTML file (`index.html`) contains the basic structure of the banner, including the background image, heading, and call-to-action button.
+2. The CSS file (`styles.css`) styles the banner, including the background image, text color, and button design.
+3. The JavaScript file (`script.js`) adds an event listener to the button, which can be used to trigger any action when the button is clicked.
+4. The PHP file (`banner.php`) fetches data from the database and displays it in the banner. This is optional and can be used if you want to display dynamic content in your banner.
+5. The database (`banner.sql`) stores the banner data, including the heading and description. This is optional and can be used if you want to store your banner data in a database.
+
+Note: This is a basic example and can be modified to suit your specific needs. You can add more features, such as animation, responsive design, and accessibility, to make your website banner more engaging and user-friendly.

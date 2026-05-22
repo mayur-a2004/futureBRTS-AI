@@ -1,4 +1,4 @@
-// 👉 Global Auth Context for FutureBuilder
+// 👉 Global Auth Context for Future BRTS
 // 👉 Isme user status, onboarding status aur primary intent management hai
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
@@ -24,7 +24,9 @@ interface AuthContextType {
     login: (user: any, token: string) => void;
     logout: () => void;
     setIntent: (text: string) => void;
+    setUser: (user: any) => void;
     completeOnboardingState: () => void;
+    setTokenBalance: (balance: number) => void;
     loading: boolean;
 }
 
@@ -34,13 +36,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [user, setUser] = useState<any>(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [onboardingCompleted, setOnboardingCompleted] = useState(false);
-    const [initialIntent, setInitialIntent] = useState(localStorage.getItem('fb_intent') || '');
+    const [initialIntent, setInitialIntent] = useState(localStorage.getItem('fbrts_intent') || '');
 
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const initAuth = async () => {
-            const token = localStorage.getItem('fb_token');
+            const token = localStorage.getItem('fbrts_token');
             if (token) {
                 try {
                     const res = await authApi.getMe(token);
@@ -49,7 +51,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         setIsAuthenticated(true);
                         setOnboardingCompleted(res.user.onboardingCompleted);
                     } else {
-                        localStorage.removeItem('fb_token');
+                        localStorage.removeItem('fbrts_token');
                     }
                 } catch (err) {
                     console.error("Auth init failed", err);
@@ -64,22 +66,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(userData);
         setIsAuthenticated(true);
         setOnboardingCompleted(userData.onboardingCompleted);
-        localStorage.setItem('fb_token', token);
+        localStorage.setItem('fbrts_token', token);
     };
 
     const logout = () => {
         setUser(null);
         setIsAuthenticated(false);
-        localStorage.removeItem('fb_token');
+        localStorage.removeItem('fbrts_token');
     };
 
     const setIntent = (text: string) => {
         setInitialIntent(text);
-        localStorage.setItem('fb_intent', text);
+        localStorage.setItem('fbrts_intent', text);
     };
 
     const completeOnboardingState = () => {
         setOnboardingCompleted(true);
+    };
+
+    const setTokenBalance = (balance: number) => {
+        setUser((prev: any) => prev ? { ...prev, tokenBalance: balance } : prev);
     };
 
 
@@ -93,7 +99,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             login,
             logout,
             setIntent,
+            setUser,
             completeOnboardingState,
+            setTokenBalance,
             loading
         }}>
             {children}

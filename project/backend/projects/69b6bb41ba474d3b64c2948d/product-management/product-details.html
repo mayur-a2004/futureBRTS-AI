@@ -1,0 +1,257 @@
+**Product Details Page**
+==========================
+
+### Overview
+
+The product details page is a crucial component of an e-commerce website, providing users with detailed information about a specific product. This page should include product images, descriptions, pricing, and customer reviews.
+
+### HTML Structure
+```html
+<!-- product-details.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Details</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="#">Home</a></li>
+                <li><a href="#">Products</a></li>
+                <li><a href="#">About</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <section class="product-details">
+            <h1 id="product-name"></h1>
+            <img id="product-image" src="" alt="">
+            <p id="product-description"></p>
+            <p id="product-price"></p>
+            <button id="add-to-cart">Add to Cart</button>
+            <section class="customer-reviews">
+                <h2>Customer Reviews</h2>
+                <ul id="review-list">
+                    <!-- review list will be populated dynamically -->
+                </ul>
+            </section>
+        </section>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+### CSS Styles
+```css
+/* styles.css */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+header {
+    background-color: #333;
+    color: #fff;
+    padding: 1em;
+    text-align: center;
+}
+
+nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+nav li {
+    display: inline-block;
+    margin-right: 20px;
+}
+
+nav a {
+    color: #fff;
+    text-decoration: none;
+}
+
+.product-details {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+#product-image {
+    width: 100%;
+    height: 300px;
+    object-fit: cover;
+    border-radius: 10px;
+}
+
+#product-description {
+    margin-bottom: 20px;
+}
+
+#product-price {
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+}
+
+#add-to-cart {
+    background-color: #4CAF50;
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#add-to-cart:hover {
+    background-color: #3e8e41;
+}
+
+.customer-reviews {
+    margin-top: 40px;
+}
+
+#review-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+#review-list li {
+    margin-bottom: 20px;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+}
+
+#review-list li:last-child {
+    margin-bottom: 0;
+}
+```
+
+### JavaScript Code
+```javascript
+// script.js
+const productName = document.getElementById('product-name');
+const productImage = document.getElementById('product-image');
+const productDescription = document.getElementById('product-description');
+const productPrice = document.getElementById('product-price');
+const addToCartButton = document.getElementById('add-to-cart');
+const reviewList = document.getElementById('review-list');
+
+// sample product data
+const product = {
+    id: 1,
+    name: 'Sample Product',
+    image: 'https://via.placeholder.com/300',
+    description: 'This is a sample product description.',
+    price: 19.99,
+    reviews: [
+        {
+            id: 1,
+            rating: 5,
+            comment: 'This product is amazing!'
+        },
+        {
+            id: 2,
+            rating: 4,
+            comment: 'Good product, but could be better.'
+        }
+    ]
+};
+
+// populate product details
+productName.textContent = product.name;
+productImage.src = product.image;
+productDescription.textContent = product.description;
+productPrice.textContent = `$${product.price}`;
+
+// populate review list
+product.reviews.forEach(review => {
+    const reviewListItem = document.createElement('li');
+    reviewListItem.innerHTML = `
+        <p>Rating: ${review.rating}/5</p>
+        <p>${review.comment}</p>
+    `;
+    reviewList.appendChild(reviewListItem);
+});
+
+// add event listener to add to cart button
+addToCartButton.addEventListener('click', () => {
+    // add product to cart logic here
+    console.log('Add to cart button clicked!');
+});
+```
+
+### PHP Code (using Core PHP)
+```php
+// product.php
+<?php
+// connect to database
+$conn = new mysqli('localhost', 'username', 'password', 'database');
+
+// check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// retrieve product data from database
+$product_id = $_GET['id'];
+$sql = "SELECT * FROM products WHERE id = '$product_id'";
+$result = $conn->query($sql);
+
+if ($result->num_rows > 0) {
+    while($row = $result->fetch_assoc()) {
+        $product = array(
+            'id' => $row['id'],
+            'name' => $row['name'],
+            'image' => $row['image'],
+            'description' => $row['description'],
+            'price' => $row['price']
+        );
+    }
+} else {
+    $product = array();
+}
+
+// close connection
+$conn->close();
+
+// output product data as JSON
+header('Content-Type: application/json');
+echo json_encode($product);
+?>
+```
+
+### MySQL Database Schema
+```sql
+-- create products table
+CREATE TABLE products (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255),
+    image VARCHAR(255),
+    description TEXT,
+    price DECIMAL(10, 2)
+);
+
+-- create reviews table
+CREATE TABLE reviews (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    product_id INT,
+    rating INT,
+    comment TEXT,
+    FOREIGN KEY (product_id) REFERENCES products(id)
+);
+```
+This code provides a basic structure for a product details page, including HTML, CSS, JavaScript, PHP, and MySQL database schema. The PHP code retrieves product data from the database and outputs it as JSON, which can be consumed by the JavaScript code to populate the product details page. The MySQL database schema includes two tables: `products` and `reviews`, which store product information and customer reviews, respectively.

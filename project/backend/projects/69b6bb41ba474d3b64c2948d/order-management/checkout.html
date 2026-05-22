@@ -1,0 +1,284 @@
+**Checkout Page**
+================
+
+### Overview
+
+The checkout page is the final step in the ordering process. It allows customers to review their order, enter payment and shipping information, and complete the purchase.
+
+### HTML Structure
+```html
+<!-- checkout.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="#">Home</a></li>
+                <li><a href="#">Cart</a></li>
+                <li><a href="#">Checkout</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <section class="order-summary">
+            <h2>Order Summary</h2>
+            <ul>
+                <?php foreach ($cartItems as $item) { ?>
+                <li>
+                    <span><?= $item['name'] ?></span>
+                    <span><?= $item['quantity'] ?></span>
+                    <span><?= $item['price'] ?></span>
+                </li>
+                <?php } ?>
+            </ul>
+            <p>Total: <?= $total ?></p>
+        </section>
+        <section class="shipping-info">
+            <h2>Shipping Information</h2>
+            <form id="shipping-form">
+                <label for="name">Name:</label>
+                <input type="text" id="name" name="name"><br><br>
+                <label for="address">Address:</label>
+                <input type="text" id="address" name="address"><br><br>
+                <label for="city">City:</label>
+                <input type="text" id="city" name="city"><br><br>
+                <label for="state">State:</label>
+                <input type="text" id="state" name="state"><br><br>
+                <label for="zip">Zip:</label>
+                <input type="text" id="zip" name="zip"><br><br>
+                <button type="submit">Save Shipping Info</button>
+            </form>
+        </section>
+        <section class="payment-info">
+            <h2>Payment Information</h2>
+            <form id="payment-form">
+                <label for="card-type">Card Type:</label>
+                <select id="card-type" name="card-type">
+                    <option value="visa">Visa</option>
+                    <option value="mastercard">Mastercard</option>
+                    <option value="amex">American Express</option>
+                </select><br><br>
+                <label for="card-number">Card Number:</label>
+                <input type="text" id="card-number" name="card-number"><br><br>
+                <label for="expiration">Expiration:</label>
+                <input type="text" id="expiration" name="expiration"><br><br>
+                <label for="cvv">CVV:</label>
+                <input type="text" id="cvv" name="cvv"><br><br>
+                <button type="submit">Pay Now</button>
+            </form>
+        </section>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+### CSS Styles
+```css
+/* styles.css */
+body {
+    font-family: Arial, sans-serif;
+}
+
+header {
+    background-color: #333;
+    color: #fff;
+    padding: 1em;
+    text-align: center;
+}
+
+nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+nav li {
+    display: inline-block;
+    margin-right: 20px;
+}
+
+nav a {
+    color: #fff;
+    text-decoration: none;
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2em;
+}
+
+.order-summary {
+    background-color: #f7f7f7;
+    padding: 1em;
+    border: 1px solid #ddd;
+}
+
+.order-summary ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.order-summary li {
+    margin-bottom: 10px;
+}
+
+.order-summary span {
+    display: inline-block;
+    width: 20%;
+}
+
+.shipping-info {
+    background-color: #f7f7f7;
+    padding: 1em;
+    border: 1px solid #ddd;
+    margin-top: 20px;
+}
+
+.shipping-info form {
+    margin-top: 20px;
+}
+
+.payment-info {
+    background-color: #f7f7f7;
+    padding: 1em;
+    border: 1px solid #ddd;
+    margin-top: 20px;
+}
+
+.payment-info form {
+    margin-top: 20px;
+}
+```
+
+### JavaScript Code
+```javascript
+// script.js
+const shippingForm = document.getElementById('shipping-form');
+const paymentForm = document.getElementById('payment-form');
+
+shippingForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const formData = new FormData(shippingForm);
+    fetch('save-shipping-info.php', {
+        method: 'POST',
+        body: formData,
+    })
+    .then((response) => response.json())
+    .then((data) => console.log(data))
+    .catch((error) => console.error(error));
+});
+
+paymentForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const formData = new FormData(paymentForm);
+    fetch('process-payment.php', {
+        method: 'POST',
+        body: formData,
+    })
+    .then((response) => response.json())
+    .then((data) => console.log(data))
+    .catch((error) => console.error(error));
+});
+```
+
+### PHP Code
+```php
+// save-shipping-info.php
+<?php
+require_once 'db.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $name = $_POST['name'];
+    $address = $_POST['address'];
+    $city = $_POST['city'];
+    $state = $_POST['state'];
+    $zip = $_POST['zip'];
+
+    $query = "INSERT INTO shipping_info (name, address, city, state, zip) VALUES ('$name', '$address', '$city', '$state', '$zip')";
+    $result = mysqli_query($conn, $query);
+
+    if ($result) {
+        echo json_encode(['message' => 'Shipping info saved successfully']);
+    } else {
+        echo json_encode(['message' => 'Error saving shipping info']);
+    }
+}
+
+// process-payment.php
+<?php
+require_once 'db.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $cardType = $_POST['card-type'];
+    $cardNumber = $_POST['card-number'];
+    $expiration = $_POST['expiration'];
+    $cvv = $_POST['cvv'];
+
+    $query = "INSERT INTO payment_info (card_type, card_number, expiration, cvv) VALUES ('$cardType', '$cardNumber', '$expiration', '$cvv')";
+    $result = mysqli_query($conn, $query);
+
+    if ($result) {
+        echo json_encode(['message' => 'Payment processed successfully']);
+    } else {
+        echo json_encode(['message' => 'Error processing payment']);
+    }
+}
+```
+
+### Database Schema
+```sql
+CREATE TABLE shipping_info (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255),
+    address VARCHAR(255),
+    city VARCHAR(255),
+    state VARCHAR(255),
+    zip VARCHAR(255)
+);
+
+CREATE TABLE payment_info (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    card_type VARCHAR(255),
+    card_number VARCHAR(255),
+    expiration VARCHAR(255),
+    cvv VARCHAR(255)
+);
+
+CREATE TABLE orders (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    customer_id INT,
+    order_date DATE,
+    total DECIMAL(10, 2),
+    status VARCHAR(255)
+);
+
+CREATE TABLE order_items (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    order_id INT,
+    product_id INT,
+    quantity INT,
+    price DECIMAL(10, 2)
+);
+```
+
+### Example Use Case
+
+1. The customer adds products to their cart and proceeds to the checkout page.
+2. The customer reviews their order summary and enters their shipping information.
+3. The customer submits their shipping information and it is saved to the database.
+4. The customer enters their payment information and submits it.
+5. The payment information is processed and saved to the database.
+6. The order is created and the customer is redirected to a confirmation page.
+
+Note: This is a basic example and you should consider implementing additional security measures such as validating user input, using prepared statements to prevent SQL injection, and encrypting sensitive data.

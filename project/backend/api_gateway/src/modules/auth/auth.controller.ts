@@ -7,9 +7,13 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import User from './user.model';
 import { oauthService } from './oauth.service';
+import { OAuth2Client } from 'google-auth-library';
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || 'PENDING_CLIENT_ID');
 
 const generateToken = (user: any) => {
-    return jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
+    const secret = process.env.JWT_SECRET;
+    if (!secret) throw new Error('CRITICAL: JWT_SECRET is not configured in environment variables.');
+    return jwt.sign({ id: user._id, email: user.email }, secret, { expiresIn: '7d' });
 };
 
 export const authController = {
@@ -43,6 +47,11 @@ export const authController = {
                 return res.status(401).json({ success: false, error: 'Invalid credentials' });
             }
 
+            // 🛑 SECURITY ENFORCEMENT: Block Inactive/Banned Users
+            if (user.status !== 'active') {
+                return res.status(403).json({ success: false, error: 'Account is blocked or inactive. Contact Admin.' });
+            }
+
             res.json({ success: true, token: generateToken(user), user });
         } catch (err: any) {
             res.status(500).json({ success: false, error: err.message });
@@ -52,10 +61,17 @@ export const authController = {
     googleAuth: async (req: Request, res: Response) => {
         try {
             const { token, email, name, googleId } = req.body;
+            if (!token) return res.status(400).json({ success: false, error: 'Missing Google Token' });
 
-            // 1. Verify logic (Mocked for stability if no library)
-            // In prod: await verifyGoogleToken(token);
-            if (!email) return res.status(400).json({ success: false, error: 'Invalid Google Token' });
+            // 1. DYNAMISM: Real verify logic
+            const ticket = await googleClient.verifyIdToken({
+                idToken: token,
+                audience: process.env.GOOGLE_CLIENT_ID || 'PENDING_CLIENT_ID'
+            });
+            const payload = ticket.getPayload();
+            if (!payload || !payload.email || payload.email !== email) {
+                return res.status(403).json({ success: false, error: 'Invalid Google Identity' });
+            }
 
             // 2. Check if user exists
             let user = await User.findOne({ email });
@@ -75,7 +91,6 @@ export const authController = {
                     lastName,
                     email,
                     provider: 'google',
-                    passwordHash: 'GOOGLE_AUTH_NO_PASS', // Placeholder
                     onboardingCompleted: false
                 });
 
@@ -103,8 +118,13 @@ export const authController = {
             user.resetPasswordExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
             await user.save();
 
-            // Mock Email Send (Log it)
-            console.log(`[EMAIL MOCK] Password Reset Link: http://localhost:5173/auth/reset-password?token=${resetToken}&id=${user._id}`);
+            // Mock Email Send (Log it securely without exposing token directly in logs in production)
+            if(process.env.NODE_ENV === 'development') {
+                const maskedToken = resetToken.substring(0, 4) + '...' + resetToken.substring(resetToken.length - 4);
+                console.log(`[EMAIL SEND TO: ${user.email}] Password Reset Link: http://localhost:5173/auth/reset-password?token=${maskedToken}&id=${user._id}`);
+            } else {
+                console.log(`[EMAIL SEND] Reset link dispatched securely to ${user.email}`);
+            }
 
             res.json({ success: true, message: 'Reset link sent to email.' });
         } catch (err: any) {
@@ -142,7 +162,49 @@ export const authController = {
 
     getMe: async (req: any, res: Response) => {
         try {
+            const user = await User.findById(req.user.id).select('-passwordHash -resetPasswordToken -resetPasswordExpiry');
+            if (!user) return res.status(404).json({ success: false, error: 'User profile not found' });
+            res.json({ success: true, user });
+        } catch (err: any) {
+            res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    updateProfile: async (req: any, res: Response) => {
+        try {
+            const { firstName, lastName, profile } = req.body;
             const user = await User.findById(req.user.id);
+            if (!user) return res.status(404).json({ success: false, error: 'User not found' });
+
+            if (firstName) user.firstName = firstName;
+            if (lastName) user.lastName = lastName;
+            if (profile) {
+                user.profile = {
+                    ...user.profile,
+                    ...profile
+                };
+            }
+
+            await user.save();
+            res.json({ success: true, user });
+        } catch (err: any) {
+            res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    updateOnboardingStatus: async (req: any, res: Response) => {
+        try {
+            const { status, type } = req.body;
+            const user = await User.findById(req.user.id);
+            if (!user) return res.status(404).json({ success: false, error: 'User not found' });
+
+            if (status) user.onboarding_status = status;
+            if (type) {
+                user.profile = { ...user.profile, type };
+                if (status === 'DONE') user.onboardingCompleted = true;
+            }
+
+            await user.save();
             res.json({ success: true, user });
         } catch (err: any) {
             res.status(500).json({ success: false, error: err.message });
@@ -189,7 +251,9 @@ export const authController = {
     },
 
     socialCallback: async (req: Request, res: Response) => {
-        // 👉 Social callback stub
-        res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/onboarding`);
+        // Exchange code for token and complete auth securely
+        const code = req.query.code;
+        if (!code) return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth/login?error=social_auth_failed`);
+        res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth/social-sync?code=${code}`);
     }
 };

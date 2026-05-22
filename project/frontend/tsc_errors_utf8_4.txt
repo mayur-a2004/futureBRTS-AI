@@ -1,0 +1,6 @@
+﻿src/components/layout/AdminLayout.tsx(1,20): error TS6133: 'useEffect' is declared but its value is never read.
+src/pages/admin/NotificationsManager.tsx(5,5): error TS6133: 'MessageSquare' is declared but its value is never read.
+src/pages/admin/PermissionsManager.tsx(5,5): error TS6133: 'User' is declared but its value is never read.
+src/pages/admin/PermissionsManager.tsx(11,5): error TS6133: 'CheckCircle2' is declared but its value is never read.
+src/pages/builder/Builder.tsx(45,12): error TS6133: 'userRank' is declared but its value is never read.
+src/pages/builder/Builder.tsx(123,12): error TS6133: 'titanLogs' is declared but its value is never read.

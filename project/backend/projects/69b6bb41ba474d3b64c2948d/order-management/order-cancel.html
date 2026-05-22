@@ -1,0 +1,230 @@
+**Order Cancel Page**
+=======================
+
+### Overview
+
+The order cancel page is a crucial component of an e-commerce website, allowing customers to cancel their orders before they are processed. This page will provide a secure and user-friendly interface for customers to initiate the cancellation process.
+
+### Frontend (HTML, CSS, and JS)
+
+```html
+<!-- order-cancel.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Cancel</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="#">Home</a></li>
+                <li><a href="#">Orders</a></li>
+                <li><a href="#">Account</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <section class="order-cancel">
+            <h1>Cancel Order</h1>
+            <p>Please enter your order number and reason for cancellation.</p>
+            <form id="cancel-order-form">
+                <label for="order-number">Order Number:</label>
+                <input type="text" id="order-number" name="order-number" required>
+                <label for="cancellation-reason">Reason for Cancellation:</label>
+                <textarea id="cancellation-reason" name="cancellation-reason" required></textarea>
+                <button type="submit">Cancel Order</button>
+            </form>
+        </section>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+```css
+/* styles.css */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+header {
+    background-color: #333;
+    color: #fff;
+    padding: 1em;
+    text-align: center;
+}
+
+nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: space-between;
+}
+
+nav li {
+    margin-right: 20px;
+}
+
+nav a {
+    color: #fff;
+    text-decoration: none;
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2em;
+}
+
+.order-cancel {
+    background-color: #f7f7f7;
+    padding: 2em;
+    border: 1px solid #ddd;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.order-cancel h1 {
+    margin-top: 0;
+}
+
+.order-cancel p {
+    margin-bottom: 1em;
+}
+
+#cancel-order-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#cancel-order-form label {
+    margin-bottom: 0.5em;
+}
+
+#cancel-order-form input, #cancel-order-form textarea {
+    width: 100%;
+    padding: 0.5em;
+    margin-bottom: 1em;
+    border: 1px solid #ccc;
+}
+
+#cancel-order-form button[type="submit"] {
+    background-color: #333;
+    color: #fff;
+    padding: 0.5em 1em;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#cancel-order-form button[type="submit"]:hover {
+    background-color: #444;
+}
+```
+
+```javascript
+// script.js
+const cancelOrderForm = document.getElementById('cancel-order-form');
+
+cancelOrderForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const orderNumber = document.getElementById('order-number').value;
+    const cancellationReason = document.getElementById('cancellation-reason').value;
+
+    // Send request to server to cancel order
+    fetch('/cancel-order', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            orderNumber,
+            cancellationReason
+        })
+    })
+    .then((response) => response.json())
+    .then((data) => {
+        if (data.success) {
+            alert('Order cancelled successfully!');
+            window.location.href = '/orders';
+        } else {
+            alert('Error cancelling order. Please try again.');
+        }
+    })
+    .catch((error) => {
+        console.error(error);
+    });
+});
+```
+
+### Backend (Core PHP)
+
+```php
+// cancel-order.php
+<?php
+require_once 'db.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $orderNumber = $_POST['orderNumber'];
+    $cancellationReason = $_POST['cancellationReason'];
+
+    // Validate order number and cancellation reason
+    if (empty($orderNumber) || empty($cancellationReason)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Order number and cancellation reason are required.']);
+        exit;
+    }
+
+    // Check if order exists
+    $query = "SELECT * FROM orders WHERE order_number = '$orderNumber'";
+    $result = mysqli_query($conn, $query);
+
+    if (mysqli_num_rows($result) === 0) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Order not found.']);
+        exit;
+    }
+
+    // Cancel order
+    $query = "UPDATE orders SET status = 'cancelled', cancellation_reason = '$cancellationReason' WHERE order_number = '$orderNumber'";
+    $result = mysqli_query($conn, $query);
+
+    if ($result) {
+        http_response_code(200);
+        echo json_encode(['success' => true]);
+    } else {
+        http_response_code(500);
+        echo json_encode(['error' => 'Error cancelling order.']);
+    }
+} else {
+    http_response_code(405);
+    echo json_encode(['error' => 'Method not allowed.']);
+}
+```
+
+### Database (MySQL/MariaDB)
+
+```sql
+-- orders table
+CREATE TABLE orders (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    order_number VARCHAR(255) NOT NULL,
+    customer_id INT NOT NULL,
+    order_date DATE NOT NULL,
+    status VARCHAR(255) NOT NULL DEFAULT 'pending',
+    cancellation_reason TEXT
+);
+
+-- example data
+INSERT INTO orders (order_number, customer_id, order_date, status) VALUES ('ORD-123', 1, '2022-01-01', 'pending');
+```
+
+This code provides a basic implementation of an order cancel page. The frontend uses HTML, CSS, and JavaScript to create a user-friendly interface, while the backend uses Core PHP to handle the cancellation request and update the order status in the database. The database schema includes an `orders` table with relevant columns to store order information.

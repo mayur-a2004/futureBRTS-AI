@@ -1,0 +1,251 @@
+```html
+<!-- product-catalog.html -->
+
+<!-- Header Section -->
+<header>
+    <nav>
+        <ul>
+            <li><a href="#">Home</a></li>
+            <li><a href="#">About</a></li>
+            <li><a href="#">Contact</a></li>
+        </ul>
+    </nav>
+</header>
+
+<!-- Main Content Section -->
+<main>
+    <h1>Product Catalog</h1>
+    <section class="product-catalog">
+        <!-- Product Grid -->
+        <div class="product-grid">
+            <!-- Product Item -->
+            <div class="product-item">
+                <img src="product1.jpg" alt="Product 1">
+                <h2>Product 1</h2>
+                <p>Price: $10.99</p>
+                <button>Add to Cart</button>
+            </div>
+            <!-- Product Item -->
+            <div class="product-item">
+                <img src="product2.jpg" alt="Product 2">
+                <h2>Product 2</h2>
+                <p>Price: $9.99</p>
+                <button>Add to Cart</button>
+            </div>
+            <!-- Product Item -->
+            <div class="product-item">
+                <img src="product3.jpg" alt="Product 3">
+                <h2>Product 3</h2>
+                <p>Price: $12.99</p>
+                <button>Add to Cart</button>
+            </div>
+            <!-- Product Item -->
+            <div class="product-item">
+                <img src="product4.jpg" alt="Product 4">
+                <h2>Product 4</h2>
+                <p>Price: $8.99</p>
+                <button>Add to Cart</button>
+            </div>
+            <!-- Product Item -->
+            <div class="product-item">
+                <img src="product5.jpg" alt="Product 5">
+                <h2>Product 5</h2>
+                <p>Price: $11.99</p>
+                <button>Add to Cart</button>
+            </div>
+        </div>
+    </section>
+</main>
+
+<!-- Footer Section -->
+<footer>
+    <p>&copy; 2024 Product Catalog</p>
+</footer>
+
+<!-- JavaScript Code -->
+<script>
+    // Get all product items
+    const productItems = document.querySelectorAll('.product-item');
+
+    // Add event listener to each product item
+    productItems.forEach((productItem) => {
+        // Get the add to cart button
+        const addToCartButton = productItem.querySelector('button');
+
+        // Add event listener to the add to cart button
+        addToCartButton.addEventListener('click', () => {
+            // Get the product details
+            const productDetails = {
+                productName: productItem.querySelector('h2').textContent,
+                productPrice: productItem.querySelector('p').textContent,
+            };
+
+            // Send the product details to the server using AJAX
+            fetch('add-to-cart.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(productDetails),
+            })
+            .then((response) => response.json())
+            .then((data) => console.log(data))
+            .catch((error) => console.error(error));
+        });
+    });
+</script>
+
+<!-- CSS Code -->
+<style>
+    /* Global Styles */
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
+    body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background-color: #f9f9f9;
+    }
+
+    header {
+        background-color: #333;
+        color: #fff;
+        padding: 1em;
+        text-align: center;
+    }
+
+    nav ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    nav li {
+        margin-right: 20px;
+    }
+
+    nav a {
+        color: #fff;
+        text-decoration: none;
+    }
+
+    main {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2em;
+    }
+
+    .product-catalog {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .product-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        grid-gap: 20px;
+    }
+
+    .product-item {
+        background-color: #fff;
+        padding: 1em;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .product-item img {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        border-radius: 10px 10px 0 0;
+    }
+
+    .product-item h2 {
+        font-size: 18px;
+        margin-bottom: 10px;
+    }
+
+    .product-item p {
+        font-size: 16px;
+        margin-bottom: 20px;
+    }
+
+    .product-item button {
+        background-color: #333;
+        color: #fff;
+        border: none;
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+    }
+
+    .product-item button:hover {
+        background-color: #444;
+    }
+
+    footer {
+        background-color: #333;
+        color: #fff;
+        padding: 1em;
+        text-align: center;
+        clear: both;
+    }
+</style>
+```
+
+```php
+// add-to-cart.php
+
+// Configuration
+$dbHost = 'localhost';
+$dbUsername = 'root';
+$dbPassword = '';
+$dbName = 'product_catalog';
+
+// Create connection
+$conn = new mysqli($dbHost, $dbUsername, $dbPassword, $dbName);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Get the product details from the request
+$productName = $_POST['productName'];
+$productPrice = $_POST['productPrice'];
+
+// Add the product to the cart
+$sql = "INSERT INTO cart (product_name, product_price) VALUES ('$productName', '$productPrice')";
+if ($conn->query($sql) === TRUE) {
+    echo "Product added to cart successfully";
+} else {
+    echo "Error: " . $sql . "<br>" . $conn->error;
+}
+
+// Close connection
+$conn->close();
+```
+
+```sql
+-- Create the cart table
+
+CREATE TABLE cart (
+    id INT AUTO_INCREMENT,
+    product_name VARCHAR(255),
+    product_price DECIMAL(10, 2),
+    PRIMARY KEY (id)
+);
+```
+
+This code creates a product catalog page with a grid of product items. Each product item has an image, name, price, and an "Add to Cart" button. When the "Add to Cart" button is clicked, the product details are sent to the server using AJAX, and the product is added to the cart. The cart is stored in a MySQL database.
+
+Note: This code is just a basic example and should not be used in production without proper security measures, such as validating user input and protecting against SQL injection attacks.

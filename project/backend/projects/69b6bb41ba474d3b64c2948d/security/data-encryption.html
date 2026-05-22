@@ -1,0 +1,212 @@
+**Data Encryption Page**
+==========================
+
+### Introduction
+
+Data encryption is the process of converting plaintext data into unreadable ciphertext to protect it from unauthorized access. In this page, we will explore the concept of data encryption, its importance, and how to implement it using PHP and MySQL.
+
+### Importance of Data Encryption
+
+Data encryption is crucial in today's digital world, where sensitive information is transmitted and stored online. Encryption helps to:
+
+* Protect sensitive data from unauthorized access
+* Prevent data breaches and cyber attacks
+* Ensure confidentiality, integrity, and authenticity of data
+* Comply with regulatory requirements and industry standards
+
+### Types of Data Encryption
+
+There are two main types of data encryption:
+
+1. **Symmetric Encryption**: Uses the same key for encryption and decryption.
+2. **Asymmetric Encryption**: Uses a pair of keys, one for encryption and another for decryption.
+
+### PHP Implementation
+
+We will use PHP to implement symmetric encryption using the AES algorithm.
+
+```php
+// encryption.php
+
+class Encryption {
+    private $key;
+    private $method;
+
+    public function __construct($key, $method = 'aes-256-cbc') {
+        $this->key = $key;
+        $this->method = $method;
+    }
+
+    public function encrypt($data) {
+        $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length($this->method));
+        $encrypted = openssl_encrypt($data, $this->method, $this->key, 0, $iv);
+        return base64_encode($iv . $encrypted);
+    }
+
+    public function decrypt($data) {
+        $data = base64_decode($data);
+        $iv = substr($data, 0, openssl_cipher_iv_length($this->method));
+        $encrypted = substr($data, openssl_cipher_iv_length($this->method));
+        return openssl_decrypt($encrypted, $this->method, $this->key, 0, $iv);
+    }
+}
+```
+
+### MySQL Implementation
+
+We will use MySQL to store the encrypted data.
+
+```sql
+-- create table
+CREATE TABLE encrypted_data (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    data VARCHAR(255)
+);
+
+-- insert encrypted data
+INSERT INTO encrypted_data (data) VALUES ('encrypted_data');
+```
+
+### Frontend Implementation
+
+We will use HTML, CSS, and JavaScript to create a simple form to encrypt and decrypt data.
+
+```html
+<!-- index.html -->
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Data Encryption</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Data Encryption</h1>
+    <form id="encryption-form">
+        <label for="data">Data:</label>
+        <input type="text" id="data" name="data"><br><br>
+        <label for="key">Key:</label>
+        <input type="text" id="key" name="key"><br><br>
+        <button id="encrypt-btn">Encrypt</button>
+        <button id="decrypt-btn">Decrypt</button>
+    </form>
+    <div id="result"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+```css
+/* style.css */
+
+body {
+    font-family: Arial, sans-serif;
+}
+
+#encryption-form {
+    width: 50%;
+    margin: 40px auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+#result {
+    margin: 20px auto;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+```
+
+```javascript
+// script.js
+
+const encryptionForm = document.getElementById('encryption-form');
+const encryptBtn = document.getElementById('encrypt-btn');
+const decryptBtn = document.getElementById('decrypt-btn');
+const resultDiv = document.getElementById('result');
+
+encryptBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const data = document.getElementById('data').value;
+    const key = document.getElementById('key').value;
+    const encryption = new Encryption(key);
+    const encryptedData = encryption.encrypt(data);
+    resultDiv.innerText = `Encrypted Data: ${encryptedData}`;
+});
+
+decryptBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const data = document.getElementById('data').value;
+    const key = document.getElementById('key').value;
+    const encryption = new Encryption(key);
+    const decryptedData = encryption.decrypt(data);
+    resultDiv.innerText = `Decrypted Data: ${decryptedData}`;
+});
+
+class Encryption {
+    constructor(key) {
+        this.key = key;
+    }
+
+    async encrypt(data) {
+        const response = await fetch('encryption.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ data, key: this.key })
+        });
+        const encryptedData = await response.text();
+        return encryptedData;
+    }
+
+    async decrypt(data) {
+        const response = await fetch('decryption.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ data, key: this.key })
+        });
+        const decryptedData = await response.text();
+        return decryptedData;
+    }
+}
+```
+
+### PHP API
+
+We will create a PHP API to handle encryption and decryption requests.
+
+```php
+// encryption.php
+
+require_once 'Encryption.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $data = json_decode(file_get_contents('php://input'), true);
+    $key = $data['key'];
+    $encryption = new Encryption($key);
+    $encryptedData = $encryption->encrypt($data['data']);
+    echo $encryptedData;
+}
+
+// decryption.php
+
+require_once 'Encryption.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $data = json_decode(file_get_contents('php://input'), true);
+    $key = $data['key'];
+    $encryption = new Encryption($key);
+    $decryptedData = $encryption->decrypt($data['data']);
+    echo $decryptedData;
+}
+```
+
+This is a basic implementation of data encryption using PHP, MySQL, and JavaScript. You can improve it by adding more features, such as user authentication and authorization, data validation, and error handling.

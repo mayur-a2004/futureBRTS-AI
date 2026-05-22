@@ -1,0 +1,205 @@
+```html
+<!-- payment-processing.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Processing</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Payment Processing</h1>
+    <form id="payment-form">
+        <label for="card-number">Card Number:</label>
+        <input type="text" id="card-number" name="card-number" required>
+
+        <label for="expiration-date">Expiration Date:</label>
+        <input type="date" id="expiration-date" name="expiration-date" required>
+
+        <label for="cvv">CVV:</label>
+        <input type="text" id="cvv" name="cvv" required>
+
+        <label for="amount">Amount:</label>
+        <input type="number" id="amount" name="amount" required>
+
+        <button type="submit">Process Payment</button>
+    </form>
+
+    <div id="payment-status"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+```css
+/* styles.css */
+body {
+    font-family: Arial, sans-serif;
+}
+
+form {
+    width: 50%;
+    margin: 40px auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+label {
+    display: block;
+    margin-bottom: 10px;
+}
+
+input[type="text"], input[type="date"], input[type="number"] {
+    width: 100%;
+    height: 40px;
+    margin-bottom: 20px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+button[type="submit"] {
+    width: 100%;
+    height: 40px;
+    background-color: #4CAF50;
+    color: #fff;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button[type="submit"]:hover {
+    background-color: #3e8e41;
+}
+
+#payment-status {
+    width: 50%;
+    margin: 40px auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+```
+
+```javascript
+// script.js
+const form = document.getElementById('payment-form');
+const paymentStatus = document.getElementById('payment-status');
+
+form.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const cardNumber = document.getElementById('card-number').value;
+    const expirationDate = document.getElementById('expiration-date').value;
+    const cvv = document.getElementById('cvv').value;
+    const amount = document.getElementById('amount').value;
+
+    // Send payment data to server for processing
+    fetch('payment-processing.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: `cardNumber=${cardNumber}&expirationDate=${expirationDate}&cvv=${cvv}&amount=${amount}`
+    })
+    .then((response) => response.json())
+    .then((data) => {
+        if (data.status === 'success') {
+            paymentStatus.innerHTML = `Payment processed successfully! Transaction ID: ${data.transactionId}`;
+        } else {
+            paymentStatus.innerHTML = `Error processing payment: ${data.error}`;
+        }
+    })
+    .catch((error) => {
+        paymentStatus.innerHTML = `Error processing payment: ${error}`;
+    });
+});
+```
+
+```php
+// payment-processing.php
+<?php
+// Configuration
+$dbHost = 'localhost';
+$dbUsername = 'your_username';
+$dbPassword = 'your_password';
+$dbName = 'your_database';
+
+// Connect to database
+$conn = new mysqli($dbHost, $dbUsername, $dbPassword, $dbName);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Get payment data from request
+$cardNumber = $_POST['cardNumber'];
+$expirationDate = $_POST['expirationDate'];
+$cvv = $_POST['cvv'];
+$amount = $_POST['amount'];
+
+// Process payment
+$transactionId = uniqid();
+$paymentStatus = 'success';
+$error = '';
+
+// Validate payment data
+if (empty($cardNumber) || empty($expirationDate) || empty($cvv) || empty($amount)) {
+    $paymentStatus = 'error';
+    $error = 'Invalid payment data';
+} else {
+    // Simulate payment processing (replace with actual payment gateway API)
+    $paymentGatewayResponse = array(
+        'status' => 'success',
+        'transactionId' => $transactionId
+    );
+
+    if ($paymentGatewayResponse['status'] !== 'success') {
+        $paymentStatus = 'error';
+        $error = $paymentGatewayResponse['error'];
+    }
+}
+
+// Save payment data to database
+if ($paymentStatus === 'success') {
+    $sql = "INSERT INTO payments (transaction_id, card_number, expiration_date, cvv, amount) VALUES ('$transactionId', '$cardNumber', '$expirationDate', '$cvv', '$amount')";
+    if (!$conn->query($sql)) {
+        $paymentStatus = 'error';
+        $error = $conn->error;
+    }
+}
+
+// Close database connection
+$conn->close();
+
+// Return payment status
+header('Content-Type: application/json');
+echo json_encode(array(
+    'status' => $paymentStatus,
+    'transactionId' => $transactionId,
+    'error' => $error
+));
+?>
+```
+
+```sql
+-- Create payments table
+CREATE TABLE payments (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    transaction_id VARCHAR(255) NOT NULL,
+    card_number VARCHAR(255) NOT NULL,
+    expiration_date DATE NOT NULL,
+    cvv VARCHAR(255) NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+This code provides a basic payment processing system using HTML, CSS, JavaScript, PHP, and MySQL. The payment form is submitted to a PHP script, which validates the payment data and simulates a payment gateway API response. If the payment is successful, the payment data is saved to a MySQL database. The payment status is then returned to the client as a JSON response. Note that this is a simplified example and should not be used in production without proper security measures and payment gateway integration.

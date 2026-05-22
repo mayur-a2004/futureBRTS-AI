@@ -1,0 +1,266 @@
+```html
+<!-- sales-reports.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Reports</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="#">Home</a></li>
+                <li><a href="#">Sales</a></li>
+                <li><a href="#">Reports</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <section class="sales-reports">
+            <h1>Sales Reports</h1>
+            <form id="sales-report-form">
+                <label for="date-from">Date From:</label>
+                <input type="date" id="date-from" name="date-from">
+                <label for="date-to">Date To:</label>
+                <input type="date" id="date-to" name="date-to">
+                <button type="submit">Generate Report</button>
+            </form>
+            <div id="sales-report-table"></div>
+        </section>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+```css
+/* styles.css */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+header {
+    background-color: #333;
+    color: #fff;
+    padding: 1em;
+    text-align: center;
+}
+
+nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: space-between;
+}
+
+nav li {
+    margin-right: 20px;
+}
+
+nav a {
+    color: #fff;
+    text-decoration: none;
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2em;
+}
+
+.sales-reports {
+    background-color: #f7f7f7;
+    padding: 1em;
+    border: 1px solid #ddd;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+#sales-report-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#sales-report-form label {
+    margin-bottom: 10px;
+}
+
+#sales-report-form input {
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+}
+
+#sales-report-form button {
+    background-color: #4CAF50;
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#sales-report-form button:hover {
+    background-color: #3e8e41;
+}
+
+#sales-report-table {
+    margin-top: 20px;
+}
+```
+
+```javascript
+// script.js
+const salesReportForm = document.getElementById('sales-report-form');
+const salesReportTable = document.getElementById('sales-report-table');
+
+salesReportForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const dateFrom = document.getElementById('date-from').value;
+    const dateTo = document.getElementById('date-to').value;
+
+    // Send request to PHP script to generate sales report
+    fetch('generate-sales-report.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            dateFrom: dateFrom,
+            dateTo: dateTo
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Generate sales report table
+        const table = document.createElement('table');
+        const thead = document.createElement('thead');
+        const tbody = document.createElement('tbody');
+
+        table.appendChild(thead);
+        table.appendChild(tbody);
+
+        // Add table headers
+        const headers = ['Date', 'Product', 'Quantity', 'Total'];
+        headers.forEach(header => {
+            const th = document.createElement('th');
+            th.textContent = header;
+            thead.appendChild(th);
+        });
+
+        // Add table rows
+        data.forEach(row => {
+            const tr = document.createElement('tr');
+            const dateTd = document.createElement('td');
+            const productTd = document.createElement('td');
+            const quantityTd = document.createElement('td');
+            const totalTd = document.createElement('td');
+
+            dateTd.textContent = row.date;
+            productTd.textContent = row.product;
+            quantityTd.textContent = row.quantity;
+            totalTd.textContent = row.total;
+
+            tr.appendChild(dateTd);
+            tr.appendChild(productTd);
+            tr.appendChild(quantityTd);
+            tr.appendChild(totalTd);
+
+            tbody.appendChild(tr);
+        });
+
+        salesReportTable.appendChild(table);
+    })
+    .catch(error => console.error(error));
+});
+```
+
+```php
+// generate-sales-report.php
+<?php
+// Configuration
+$dbHost = 'localhost';
+$dbUsername = 'root';
+$dbPassword = '';
+$dbName = 'sales_database';
+
+// Connect to database
+$conn = new mysqli($dbHost, $dbUsername, $dbPassword, $dbName);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Get date range from request
+$dateFrom = $_POST['dateFrom'];
+$dateTo = $_POST['dateTo'];
+
+// Generate sales report
+$sql = "SELECT date, product, quantity, total FROM sales WHERE date BETWEEN '$dateFrom' AND '$dateTo'";
+$result = $conn->query($sql);
+
+// Create array to store sales report data
+$salesReportData = array();
+
+// Fetch sales report data
+if ($result->num_rows > 0) {
+    while($row = $result->fetch_assoc()) {
+        $salesReportData[] = array(
+            'date' => $row['date'],
+            'product' => $row['product'],
+            'quantity' => $row['quantity'],
+            'total' => $row['total']
+        );
+    }
+}
+
+// Close database connection
+$conn->close();
+
+// Output sales report data as JSON
+header('Content-Type: application/json');
+echo json_encode($salesReportData);
+?>
+```
+
+```sql
+-- sales_database.sql
+CREATE DATABASE sales_database;
+
+USE sales_database;
+
+CREATE TABLE sales (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    date DATE NOT NULL,
+    product VARCHAR(255) NOT NULL,
+    quantity INT NOT NULL,
+    total DECIMAL(10, 2) NOT NULL
+);
+
+INSERT INTO sales (date, product, quantity, total) VALUES
+('2022-01-01', 'Product A', 10, 100.00),
+('2022-01-02', 'Product B', 20, 200.00),
+('2022-01-03', 'Product C', 30, 300.00),
+('2022-01-04', 'Product A', 40, 400.00),
+('2022-01-05', 'Product B', 50, 500.00);
+```
+
+This code creates a sales reports page that allows users to select a date range and generate a sales report. The report is generated by sending a request to a PHP script, which queries a MySQL database for sales data within the selected date range. The sales data is then returned as JSON and used to generate a table on the sales reports page.
+
+The code consists of the following files:
+
+* `sales-reports.html`: The HTML file for the sales reports page.
+* `styles.css`: The CSS file for styling the sales reports page.
+* `script.js`: The JavaScript file for handling form submission and generating the sales report table.
+* `generate-sales-report.php`: The PHP script for generating the sales report data.
+* `sales_database.sql`: The SQL file for creating the sales database and inserting sample data.
+
+To use this code, you will need to create a MySQL database and import the `sales_database.sql` file. You will also need to update the database connection settings in the `generate-sales-report.php` file to match your database credentials.

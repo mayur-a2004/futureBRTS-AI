@@ -1,0 +1,185 @@
+**Email Status Page**
+======================
+### Overview
+
+The email status page is a web page that displays the status of emails sent by a user. The page will show the email's subject, sender, recipient, date sent, and status (e.g., sent, delivered, opened, clicked).
+
+### Technologies Used
+
+* Frontend: HTML, CSS, and JavaScript
+* Backend: Core PHP
+* Database: MySQL/MariaDB
+
+### Database Schema
+
+The database schema for the email status page will consist of two tables: `emails` and `email_status`.
+
+```sql
+CREATE TABLE emails (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  subject VARCHAR(255),
+  sender VARCHAR(255),
+  recipient VARCHAR(255),
+  date_sent DATETIME,
+  status VARCHAR(50)
+);
+
+CREATE TABLE email_status (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  email_id INT,
+  status VARCHAR(50),
+  date_updated DATETIME,
+  FOREIGN KEY (email_id) REFERENCES emails(id)
+);
+```
+
+### Frontend Code (HTML, CSS, and JavaScript)
+
+#### HTML
+
+```html
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email Status</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <h1>Email Status</h1>
+  <table id="email-table">
+    <thead>
+      <tr>
+        <th>Subject</th>
+        <th>Sender</th>
+        <th>Recipient</th>
+        <th>Date Sent</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="email-body">
+    </tbody>
+  </table>
+
+  <script src="script.js"></script>
+</body>
+</html>
+```
+
+#### CSS
+
+```css
+/* styles.css */
+body {
+  font-family: Arial, sans-serif;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th, td {
+  border: 1px solid #ddd;
+  padding: 10px;
+  text-align: left;
+}
+
+th {
+  background-color: #f0f0f0;
+}
+```
+
+#### JavaScript
+
+```javascript
+// script.js
+const emailTable = document.getElementById('email-table');
+const emailBody = document.getElementById('email-body');
+
+// Function to fetch email data from the server
+async function fetchEmailData() {
+  try {
+    const response = await fetch('email-status.php');
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Function to render email data in the table
+function renderEmailData(data) {
+  emailBody.innerHTML = '';
+  data.forEach((email) => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${email.subject}</td>
+      <td>${email.sender}</td>
+      <td>${email.recipient}</td>
+      <td>${email.date_sent}</td>
+      <td>${email.status}</td>
+    `;
+    emailBody.appendChild(row);
+  });
+}
+
+// Fetch and render email data on page load
+fetchEmailData().then((data) => renderEmailData(data));
+```
+
+### Backend Code (Core PHP)
+
+```php
+// email-status.php
+<?php
+// Configuration
+$dbHost = 'localhost';
+$dbUsername = 'username';
+$dbPassword = 'password';
+$dbName = 'database';
+
+// Connect to the database
+$conn = new mysqli($dbHost, $dbUsername, $dbPassword, $dbName);
+
+// Check connection
+if ($conn->connect_error) {
+  die("Connection failed: " . $conn->connect_error);
+}
+
+// Query to fetch email data
+$query = "SELECT e.subject, e.sender, e.recipient, e.date_sent, es.status
+           FROM emails e
+           JOIN email_status es ON e.id = es.email_id
+           ORDER BY e.date_sent DESC";
+
+// Execute the query
+$result = $conn->query($query);
+
+// Fetch and return the data as JSON
+$data = array();
+if ($result->num_rows > 0) {
+  while($row = $result->fetch_assoc()) {
+    $data[] = $row;
+  }
+}
+echo json_encode($data);
+
+// Close the database connection
+$conn->close();
+?>
+```
+
+### Example Use Case
+
+1. A user sends an email using the email client.
+2. The email client sends a request to the server to update the email status.
+3. The server updates the email status in the database.
+4. The user visits the email status page.
+5. The email status page fetches the email data from the server using JavaScript.
+6. The server returns the email data as JSON.
+7. The email status page renders the email data in the table.
+
+Note: This is a basic example and may need to be modified to fit your specific use case. Additionally, you should ensure that your database credentials are secure and not exposed in your code.

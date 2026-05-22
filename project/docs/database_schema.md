@@ -1,4 +1,4 @@
-# FutureBuilder Database Schema (MongoDB)
+# FutureBRTS Database Schema (MongoDB)
 
 ## Collections
 

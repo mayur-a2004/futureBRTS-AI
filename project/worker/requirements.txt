@@ -1,0 +1,77 @@
+# FUTURE-BRTS TITAN SUPREME LEGEND REQS V8 (ULTIMATE TIER)
+
+# CORE & ASYNC PERFORMANCE
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+python-dotenv>=1.0.1
+requests>=2.31.0
+httpx>=0.27.0
+pymongo>=4.6.2
+aiofiles>=23.2.1
+python-multipart>=0.0.9
+
+# TITAN BRAIN - ADVANCED AI & ORCHESTRATION
+google-generativeai>=0.4.1
+groq>=0.5.0
+openai>=1.14.0
+langchain>=0.1.12
+langchain-community>=0.0.28
+langchain-openai>=0.1.0
+
+# TITAN SCIENCE - ML / DL / MATH / DATA
+numpy>=1.26.4
+pandas>=2.2.1
+scikit-learn>=1.4.1.post1
+scipy>=1.12.0
+statsmodels>=0.14.1
+sympy>=1.12
+torch>=2.2.1
+torchvision>=0.17.1
+transformers>=4.38.2
+sentence-transformers>=2.5.1
+diffusers>=0.26.3
+accelerate>=0.27.2
+matplotlib>=3.8.3
+seaborn>=0.13.2
+
+# TITAN EYES - COMPUTER VISION & OCR
+opencv-python-headless>=4.9.0.80
+pillow>=10.2.0
+paddlepaddle>=2.6.0
+paddleocr>=2.7.3
+
+# TITAN ARTIFACTS - DOCUMENT GEN & PROCESSING
+python-docx>=1.1.0
+python-pptx>=0.6.23
+reportlab>=4.1.0
+fpdf>=1.7.2
+pdfplumber>=0.10.4
+pypdf>=4.1.0
+openpyxl>=3.1.2
+markdown>=3.5.2
+weasyprint>=61.1
+
+# TITAN MEDIA - VIDEO & AUDIO
+moviepy>=1.0.3
+imageio>=2.34.0
+ffmpeg-python>=0.2.0
+pydub>=0.25.1
+soundfile>=0.12.1
+
+# TITAN RESEARCH - GLOBAL ENGINES
+duckduckgo-search>=5.0.0
+beautifulsoup4>=4.12.3
+lxml>=5.1.0
+fuzzywuzzy>=0.18.0
+python-Levenshtein>=0.23.0
+
+# FILE HANDLING & COMPRESSION
+zipfile36>=0.1.3
+py7zr>=0.20.8
+rarfile>=4.1
+
+# UTILS & LOGGING
+rich>=13.7.1
+tqdm>=4.66.2
+pydantic>=2.6.3
+pydantic-settings>=2.2.1

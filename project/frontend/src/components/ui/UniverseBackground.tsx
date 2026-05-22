@@ -45,7 +45,7 @@ const UniverseBackground = ({ morph = false, intensity = 1 }: UniverseBackground
 
             tCtx.fillStyle = 'white';
             const fontSize = Math.min(width / 6, 120);
-            tCtx.font = `black ${fontSize}px Inter, system-ui`;
+            tCtx.font = `900 ${fontSize}px Inter, system-ui`;
             tCtx.textAlign = 'center';
             tCtx.textBaseline = 'middle';
             tCtx.fillText(text, width / 2, height / 2);
@@ -67,30 +67,29 @@ const UniverseBackground = ({ morph = false, intensity = 1 }: UniverseBackground
 
         const init = () => {
             particles.length = 0;
-            const points = getPointsFromText("FutureBilder");
+            const points = morph ? getPointsFromText("ANTIGRAVITY") : [];
 
             for (let i = 0; i < particleCount; i++) {
                 const x = Math.random() * width;
                 const y = Math.random() * height;
 
-                const colors = ['#3b82f6', '#8b5cf6', '#06b6d4']; // Blue, Purple, Cyan
+                const colors = ['#4f46e5', '#818cf8', '#312e81']; // Indigo variants
 
                 particles.push({
                     x,
                     y,
                     baseX: x,
                     baseY: y,
-                    vx: (Math.random() - 0.5) * 0.5,
-                    vy: (Math.random() - 0.5) * 0.5,
-                    size: Math.random() * 2 + 0.5,
+                    vx: (Math.random() - 0.5) * 0.3,
+                    vy: (Math.random() - 0.5) * 0.3,
+                    size: Math.random() * 1.5 + 0.5,
                     color: colors[Math.floor(Math.random() * colors.length)],
                     targetX: null,
                     targetY: null
                 });
             }
 
-            // Assign targets if points available
-            if (points.length > 0) {
+            if (points.length > 0 && morph) {
                 particles.forEach((p, i) => {
                     const target = points[i % points.length];
                     p.targetX = target.x;
@@ -103,27 +102,32 @@ const UniverseBackground = ({ morph = false, intensity = 1 }: UniverseBackground
             if (!ctx) return;
             ctx.clearRect(0, 0, width, height);
 
+            // Draw Subtle Grid
+            ctx.strokeStyle = 'rgba(79, 70, 229, 0.03)';
+            ctx.lineWidth = 1;
+            const gridSize = 100;
+            for (let x = 0; x < width; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+
             particles.forEach(p => {
-                if (morph) {
-                    // Pull towards target text points
-                    const dx = (p.targetX || p.baseX) - p.x;
-                    const dy = (p.targetY || p.baseY) - p.y;
-                    p.x += dx * 0.08;
-                    p.y += dy * 0.08;
+                if (morph && p.targetX !== null && p.targetY !== null) {
+                    const dx = p.targetX - p.x;
+                    const dy = p.targetY - p.y;
+                    p.x += dx * 0.05;
+                    p.y += dy * 0.05;
                 } else {
-                    // Natural slow movement
                     p.x += p.vx;
                     p.y += p.vy;
-
-                    // Mouse reaction
-                    const mdx = mouseRef.current.x - p.x;
-                    const mdy = mouseRef.current.y - p.y;
-                    const distance = Math.sqrt(mdx * mdx + mdy * mdy);
-                    if (distance < 150) {
-                        const force = (150 - distance) / 150;
-                        p.x -= mdx * force * 0.05;
-                        p.y -= mdy * force * 0.05;
-                    }
 
                     // Bounds
                     if (p.x < 0) p.x = width;
@@ -133,29 +137,39 @@ const UniverseBackground = ({ morph = false, intensity = 1 }: UniverseBackground
                 }
 
                 ctx.fillStyle = p.color;
-                ctx.globalAlpha = morph ? 0.8 : 0.4;
+                ctx.globalAlpha = 0.3;
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
                 ctx.fill();
+
+                // Mouse force
+                const dx = mouseRef.current.x - p.x;
+                const dy = mouseRef.current.y - p.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 200) {
+                    const force = (200 - dist) / 200;
+                    p.x -= dx * force * 0.02;
+                    p.y -= dy * force * 0.02;
+                }
             });
 
-            // Draw connections only when not morphing or at lower intensity
-            if (!morph) {
-                particles.forEach((a, i) => {
-                    for (let j = i + 1; j < particles.length; j++) {
-                        const b = particles[j];
-                        const dx = a.x - b.x;
-                        const dy = a.y - b.y;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-                        if (dist < 100) {
-                            ctx.beginPath();
-                            ctx.strokeStyle = `rgba(139, 92, 246, ${(1 - dist / 100) * 0.1})`;
-                            ctx.moveTo(a.x, a.y);
-                            ctx.lineTo(b.x, b.y);
-                            ctx.stroke();
-                        }
+            // Draw neural connections
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const a = particles[i];
+                    const b = particles[j];
+                    const dx = a.x - b.x;
+                    const dy = a.y - b.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 120) {
+                        ctx.strokeStyle = `rgba(79, 70, 229, ${(1 - dist / 120) * 0.15})`;
+                        ctx.beginPath();
+                        ctx.moveTo(a.x, a.y);
+                        ctx.lineTo(b.x, b.y);
+                        ctx.stroke();
                     }
-                });
+                }
             }
 
             requestAnimationFrame(animate);
@@ -188,7 +202,7 @@ const UniverseBackground = ({ morph = false, intensity = 1 }: UniverseBackground
             className="fixed inset-0 z-0 pointer-events-none transition-opacity duration-1000"
             style={{
                 background: 'transparent',
-                opacity: morph ? 1 : 0.4
+                opacity: morph ? 1 : 0.7
             }}
         />
     );

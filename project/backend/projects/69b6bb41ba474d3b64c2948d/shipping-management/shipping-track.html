@@ -1,0 +1,209 @@
+**Shipping Track Page**
+=======================
+
+### Overview
+
+The shipping track page is a crucial component of the shipping management system, allowing users to track the status of their shipments in real-time. This page will display the current status of the shipment, including the location, estimated delivery date, and any relevant tracking information.
+
+### HTML Structure
+```html
+<!-- shipping-track.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shipping Track</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="#">Home</a></li>
+                <li><a href="#">Track Shipment</a></li>
+                <li><a href="#">Contact Us</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <section class="track-section">
+            <h1>Track Your Shipment</h1>
+            <form id="track-form">
+                <label for="tracking-number">Tracking Number:</label>
+                <input type="text" id="tracking-number" name="tracking-number">
+                <button type="submit">Track</button>
+            </form>
+            <div id="track-result"></div>
+        </section>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+### CSS Styles
+```css
+/* styles.css */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+header {
+    background-color: #333;
+    color: #fff;
+    padding: 1em;
+    text-align: center;
+}
+
+nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: space-between;
+}
+
+nav li {
+    margin-right: 20px;
+}
+
+nav a {
+    color: #fff;
+    text-decoration: none;
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2em;
+}
+
+.track-section {
+    background-color: #f7f7f7;
+    padding: 2em;
+    border: 1px solid #ddd;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+#track-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#track-form label {
+    margin-bottom: 10px;
+}
+
+#track-form input {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    width: 100%;
+}
+
+#track-form button {
+    background-color: #4CAF50;
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#track-form button:hover {
+    background-color: #3e8e41;
+}
+
+#track-result {
+    margin-top: 20px;
+    padding: 20px;
+    background-color: #f7f7f7;
+    border: 1px solid #ddd;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+```
+
+### JavaScript Code
+```javascript
+// script.js
+const trackForm = document.getElementById('track-form');
+const trackResult = document.getElementById('track-result');
+
+trackForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const trackingNumber = document.getElementById('tracking-number').value;
+    fetch(`track-shipment.php?tracking_number=${trackingNumber}`)
+        .then((response) => response.json())
+        .then((data) => {
+            if (data.status === 'success') {
+                const shipmentStatus = data.shipment_status;
+                const estimatedDeliveryDate = data.estimated_delivery_date;
+                const trackingInformation = data.tracking_information;
+                trackResult.innerHTML = `
+                    <h2>Shipment Status:</h2>
+                    <p>${shipmentStatus}</p>
+                    <h2>Estimated Delivery Date:</h2>
+                    <p>${estimatedDeliveryDate}</p>
+                    <h2>Tracking Information:</h2>
+                    <p>${trackingInformation}</p>
+                `;
+            } else {
+                trackResult.innerHTML = `<p>Error: ${data.error_message}</p>`;
+            }
+        })
+        .catch((error) => {
+            trackResult.innerHTML = `<p>Error: ${error.message}</p>`;
+        });
+});
+```
+
+### PHP Code (track-shipment.php)
+```php
+<?php
+// track-shipment.php
+$trackingNumber = $_GET['tracking_number'];
+
+// Connect to database
+$conn = new mysqli('localhost', 'username', 'password', 'database_name');
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Query database for shipment status
+$sql = "SELECT * FROM shipments WHERE tracking_number = '$trackingNumber'";
+$result = $conn->query($sql);
+
+if ($result->num_rows > 0) {
+    while($row = $result->fetch_assoc()) {
+        $shipmentStatus = $row['shipment_status'];
+        $estimatedDeliveryDate = $row['estimated_delivery_date'];
+        $trackingInformation = $row['tracking_information'];
+    }
+    $conn->close();
+    echo json_encode(array('status' => 'success', 'shipment_status' => $shipmentStatus, 'estimated_delivery_date' => $estimatedDeliveryDate, 'tracking_information' => $trackingInformation));
+} else {
+    $conn->close();
+    echo json_encode(array('status' => 'error', 'error_message' => 'Shipment not found'));
+}
+?>
+```
+
+### Database Schema (MySQL/MariaDB)
+```sql
+CREATE TABLE shipments (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    tracking_number VARCHAR(255) NOT NULL,
+    shipment_status VARCHAR(255) NOT NULL,
+    estimated_delivery_date DATE NOT NULL,
+    tracking_information TEXT NOT NULL
+);
+```
+
+This code provides a basic shipping track page that allows users to enter their tracking number and view the current status of their shipment. The page uses HTML, CSS, and JavaScript to create a user-friendly interface, and PHP to connect to a MySQL/MariaDB database and retrieve the shipment status. The database schema is also provided to create the necessary table for storing shipment information.

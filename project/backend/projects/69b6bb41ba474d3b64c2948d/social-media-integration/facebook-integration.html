@@ -1,0 +1,146 @@
+```html
+<!-- Facebook Integration Page -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facebook Integration</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Facebook Integration</h1>
+    <button id="login-btn">Login with Facebook</button>
+    <button id="logout-btn" style="display: none;">Logout</button>
+    <div id="user-info"></div>
+
+    <script>
+        // Facebook App ID
+        const appId = 'YOUR_APP_ID';
+
+        // Facebook App Secret
+        const appSecret = 'YOUR_APP_SECRET';
+
+        // Redirect URI
+        const redirectUri = 'YOUR_REDIRECT_URI';
+
+        // Login button click event
+        document.getElementById('login-btn').addEventListener('click', () => {
+            // Redirect to Facebook login page
+            window.location.href = `https://www.facebook.com/v13.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&response_type=code&scope=public_profile,email`;
+        });
+
+        // Logout button click event
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            // Remove access token and user info
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('userInfo');
+            document.getElementById('user-info').innerHTML = '';
+            document.getElementById('login-btn').style.display = 'block';
+            document.getElementById('logout-btn').style.display = 'none';
+        });
+
+        // Check if access token is available
+        if (localStorage.getItem('accessToken')) {
+            // Get user info from Facebook API
+            fetch(`https://graph.facebook.com/v13.0/me?access_token=${localStorage.getItem('accessToken')}&fields=id,name,email,picture`)
+                .then(response => response.json())
+                .then(data => {
+                    // Display user info
+                    document.getElementById('user-info').innerHTML = `
+                        <img src="${data.picture.data.url}" alt="${data.name}">
+                        <p>Name: ${data.name}</p>
+                        <p>Email: ${data.email}</p>
+                    `;
+                    document.getElementById('login-btn').style.display = 'none';
+                    document.getElementById('logout-btn').style.display = 'block';
+                })
+                .catch(error => console.error(error));
+        }
+
+        // Handle Facebook login redirect
+        if (window.location.search.includes('code=')) {
+            // Get access token from Facebook API
+            fetch(`https://graph.facebook.com/v13.0/oauth/access_token?client_id=${appId}&redirect_uri=${redirectUri}&client_secret=${appSecret}&code=${window.location.search.split('code=')[1]}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Store access token in local storage
+                    localStorage.setItem('accessToken', data.access_token);
+                    // Redirect to current page
+                    window.location.href = window.location.pathname;
+                })
+                .catch(error => console.error(error));
+        }
+    </script>
+</body>
+</html>
+```
+
+**Server-side Code (Core PHP)**
+```php
+<?php
+// Configuration
+$appId = 'YOUR_APP_ID';
+$appSecret = 'YOUR_APP_SECRET';
+$redirectUri = 'YOUR_REDIRECT_URI';
+
+// Handle Facebook login redirect
+if (isset($_GET['code'])) {
+    // Get access token from Facebook API
+    $accessToken = json_decode(file_get_contents("https://graph.facebook.com/v13.0/oauth/access_token?client_id=$appId&redirect_uri=$redirectUri&client_secret=$appSecret&code=" . $_GET['code']), true);
+    // Store access token in session
+    $_SESSION['accessToken'] = $accessToken['access_token'];
+    // Redirect to current page
+    header('Location: ' . $_SERVER['PHP_SELF']);
+    exit;
+}
+
+// Get user info from Facebook API
+if (isset($_SESSION['accessToken'])) {
+    $userInfo = json_decode(file_get_contents("https://graph.facebook.com/v13.0/me?access_token=" . $_SESSION['accessToken'] . "&fields=id,name,email,picture"), true);
+    // Display user info
+    echo "<img src=\"$userInfo[picture][data][url]\" alt=\"$userInfo[name]\">";
+    echo "<p>Name: $userInfo[name]</p>";
+    echo "<p>Email: $userInfo[email]</p>";
+} else {
+    // Display login button
+    echo "<a href=\"https://www.facebook.com/v13.0/dialog/oauth?client_id=$appId&redirect_uri=$redirectUri&response_type=code&scope=public_profile,email\">Login with Facebook</a>";
+}
+?>
+```
+
+**Database Schema (MySQL/MariaDB)**
+```sql
+CREATE TABLE users (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    facebook_id VARCHAR(255),
+    name VARCHAR(255),
+    email VARCHAR(255),
+    picture_url VARCHAR(255)
+);
+
+CREATE TABLE access_tokens (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT,
+    access_token VARCHAR(255),
+    expires_at TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+```
+
+**API Endpoints**
+
+* `GET /login`: Redirect to Facebook login page
+* `GET /callback`: Handle Facebook login redirect and store access token in session
+* `GET /user`: Get user info from Facebook API and display it
+* `POST /logout`: Remove access token and user info from session
+
+**Security Considerations**
+
+* Use HTTPS to encrypt communication between client and server
+* Validate user input and sanitize output to prevent XSS attacks
+* Use secure storage for access tokens and user info
+* Implement rate limiting and IP blocking to prevent abuse
+* Use Facebook's official SDKs and APIs to ensure security and compliance
+
+Note: This is a basic example and you should consider implementing additional security measures and error handling to ensure a secure and reliable Facebook integration.

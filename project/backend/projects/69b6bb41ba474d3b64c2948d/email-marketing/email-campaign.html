@@ -1,0 +1,308 @@
+```html
+<!-- Email Campaign Page -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Campaign</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="#">Home</a></li>
+                <li><a href="#">Email Campaigns</a></li>
+                <li><a href="#">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <section class="email-campaign">
+            <h1>Email Campaign</h1>
+            <form id="email-campaign-form">
+                <label for="subject">Subject:</label>
+                <input type="text" id="subject" name="subject"><br><br>
+                <label for="message">Message:</label>
+                <textarea id="message" name="message"></textarea><br><br>
+                <label for="recipients">Recipients:</label>
+                <select id="recipients" name="recipients" multiple>
+                    <option value="all">All Subscribers</option>
+                    <option value="group1">Group 1</option>
+                    <option value="group2">Group 2</option>
+                </select><br><br>
+                <input type="submit" value="Send Email Campaign">
+            </form>
+        </section>
+        <section class="email-campaign-history">
+            <h1>Email Campaign History</h1>
+            <table id="email-campaign-history-table">
+                <thead>
+                    <tr>
+                        <th>Subject</th>
+                        <th>Message</th>
+                        <th>Recipients</th>
+                        <th>Date Sent</th>
+                    </tr>
+                </thead>
+                <tbody id="email-campaign-history-tbody">
+                    <!-- Table data will be populated here -->
+                </tbody>
+            </table>
+        </section>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+```css
+/* styles.css */
+body {
+    font-family: Arial, sans-serif;
+}
+
+header {
+    background-color: #333;
+    color: #fff;
+    padding: 1em;
+    text-align: center;
+}
+
+nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+nav li {
+    display: inline-block;
+    margin-right: 20px;
+}
+
+nav a {
+    color: #fff;
+    text-decoration: none;
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2em;
+}
+
+.email-campaign {
+    background-color: #f7f7f7;
+    padding: 1em;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.email-campaign form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.email-campaign label {
+    margin-bottom: 10px;
+}
+
+.email-campaign input, .email-campaign textarea {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+}
+
+.email-campaign select {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+}
+
+.email-campaign-history {
+    margin-top: 20px;
+    background-color: #f7f7f7;
+    padding: 1em;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+#email-campaign-history-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#email-campaign-history-table th, #email-campaign-history-table td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: left;
+}
+
+#email-campaign-history-table th {
+    background-color: #f0f0f0;
+}
+```
+
+```javascript
+// script.js
+const emailCampaignForm = document.getElementById('email-campaign-form');
+const emailCampaignHistoryTable = document.getElementById('email-campaign-history-table');
+const emailCampaignHistoryTbody = document.getElementById('email-campaign-history-tbody');
+
+// Function to send email campaign
+function sendEmailCampaign(subject, message, recipients) {
+    // Send email campaign using PHP and MySQL
+    fetch('send-email-campaign.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            subject: subject,
+            message: message,
+            recipients: recipients
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log(data);
+        // Update email campaign history table
+        updateEmailCampaignHistoryTable();
+    })
+    .catch(error => console.error(error));
+}
+
+// Function to update email campaign history table
+function updateEmailCampaignHistoryTable() {
+    // Get email campaign history from PHP and MySQL
+    fetch('get-email-campaign-history.php')
+    .then(response => response.json())
+    .then(data => {
+        console.log(data);
+        // Populate email campaign history table
+        emailCampaignHistoryTbody.innerHTML = '';
+        data.forEach(campaign => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${campaign.subject}</td>
+                <td>${campaign.message}</td>
+                <td>${campaign.recipients}</td>
+                <td>${campaign.date_sent}</td>
+            `;
+            emailCampaignHistoryTbody.appendChild(row);
+        });
+    })
+    .catch(error => console.error(error));
+}
+
+// Event listener for email campaign form submission
+emailCampaignForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const subject = document.getElementById('subject').value;
+    const message = document.getElementById('message').value;
+    const recipients = document.getElementById('recipients').value;
+    sendEmailCampaign(subject, message, recipients);
+});
+
+// Initialize email campaign history table
+updateEmailCampaignHistoryTable();
+```
+
+```php
+// send-email-campaign.php
+<?php
+// Configuration
+$host = 'localhost';
+$username = 'root';
+$password = '';
+$database = 'email_campaigns';
+
+// Connect to database
+$conn = new mysqli($host, $username, $password, $database);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Get email campaign data from request
+$subject = $_POST['subject'];
+$message = $_POST['message'];
+$recipients = $_POST['recipients'];
+
+// Insert email campaign data into database
+$sql = "INSERT INTO email_campaigns (subject, message, recipients) VALUES ('$subject', '$message', '$recipients')";
+if ($conn->query($sql) === TRUE) {
+    echo "Email campaign sent successfully!";
+} else {
+    echo "Error sending email campaign: " . $conn->error;
+}
+
+// Close database connection
+$conn->close();
+?>
+
+// get-email-campaign-history.php
+<?php
+// Configuration
+$host = 'localhost';
+$username = 'root';
+$password = '';
+$database = 'email_campaigns';
+
+// Connect to database
+$conn = new mysqli($host, $username, $password, $database);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Get email campaign history from database
+$sql = "SELECT * FROM email_campaigns";
+$result = $conn->query($sql);
+
+// Create array to store email campaign history
+$campaigns = array();
+
+// Loop through each row in result
+if ($result->num_rows > 0) {
+    while($row = $result->fetch_assoc()) {
+        $campaign = array(
+            'subject' => $row['subject'],
+            'message' => $row['message'],
+            'recipients' => $row['recipients'],
+            'date_sent' => $row['date_sent']
+        );
+        array_push($campaigns, $campaign);
+    }
+}
+
+// Close database connection
+$conn->close();
+
+// Output email campaign history as JSON
+header('Content-Type: application/json');
+echo json_encode($campaigns);
+?>
+```
+
+```sql
+-- email_campaigns.sql
+CREATE TABLE email_campaigns (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    subject VARCHAR(255),
+    message TEXT,
+    recipients VARCHAR(255),
+    date_sent TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+This code creates an email campaign page with a form to send email campaigns and a table to display email campaign history. The form data is sent to a PHP script using AJAX, which inserts the data into a MySQL database. The email campaign history is retrieved from the database using another PHP script and displayed in the table. The code uses HTML, CSS, JavaScript, PHP, and MySQL to create a functional email campaign system.

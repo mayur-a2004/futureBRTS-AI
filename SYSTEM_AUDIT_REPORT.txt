@@ -1,0 +1,37 @@
+🔥 FUTUREBILDER – CORE PAIN & WORKING PLAN (Single Source of Truth)
+... (Previous Content) ...
+
+---
+🛑 SYSTEM AUDIT LOG (LATEST) - 2026-01-05
+-----------------------------------------------
+
+✅ 1. USER INTERFACE (Frontend)
+   - [x] Landing Page: Full starry universe background (Transparent).
+   - [x] Auth Pages (Login/Register): Fully transparent, matching Landing Page aesthetic.
+   - [x] Builder Interface: Session Persistence, Dropdown Menus.
+   - [x] Sidebar: History Renaming, Active State.
+
+✅ 2. BUSINESS LOGIC (Backend - v2 ARCHITECTURE)
+   - [x] **Summary-First Roadmap**:
+     - `POST /roadmap/generate` now internally handles `Summary -> Auto-Approve -> Generate`.
+     - Ensures context is derived from AI-generated summary of chat history, not just raw prompts.
+   - [x] **Task Engine**:
+     - `POST /roadmap/convert-tasks` now breaks steps into **Day-based Tasks**.
+     - locking Logic: 
+       - Step 1 -> Day 1 Unlocked, Day 2+ Locked.
+       - Step 2+ -> All Locked.
+   - [x] **Analytics**: 
+     - `getTaskAnalytics` updated to count "Today's Tasks" based on Unlocked & Pending status.
+
+✅ 3. DATABASE SCHEMA (MongoDB)
+   - [x] `ChatSummary`: New collection for storing session intents `_id, sessionId, summaryText...`.
+   - [x] `Roadmap`: Added `parentRoadmapId` support.
+   - [x] `Task`: Added `dayNumber`, `verificationRequired`, `isLocked`.
+   - [x] `TaskLog`: New collection for tracking completions/verifications.
+
+⚠️ 4. PENDING / WARNINGS
+   - [!] UI Integration for "Summary Confirmation": Currently backend auto-approves summary to support legacy UI. Future UI update should call `/api/builder/summary/generate` -> Display -> `/api/builder/summary/confirm`.
+   - [!] Task "Deep Dive": Frontend currently shows "How to do it" from `description`. New backend provides `detailedGuidance` (mapped to `why` or separate AI field). Ensure UI maps this correctly.
+
+-----------------------------------------------
+END OF AUDIT

@@ -1,0 +1,210 @@
+```html
+<!-- payment-methods.html -->
+
+<!-- Header Section -->
+<header>
+    <nav>
+        <ul>
+            <li><a href="#">Home</a></li>
+            <li><a href="#">Payment Methods</a></li>
+            <li><a href="#">Contact Us</a></li>
+        </ul>
+    </nav>
+</header>
+
+<!-- Main Content Section -->
+<main>
+    <h1>Payment Methods</h1>
+    <p>We accept the following payment methods:</p>
+    <ul>
+        <li>Credit/Debit Card</li>
+        <li>PayPal</li>
+        <li>Bank Transfer</li>
+    </ul>
+
+    <!-- Payment Method Selection Form -->
+    <form id="payment-method-form">
+        <label for="payment-method">Select Payment Method:</label>
+        <select id="payment-method" name="payment-method">
+            <option value="credit-debit-card">Credit/Debit Card</option>
+            <option value="paypal">PayPal</option>
+            <option value="bank-transfer">Bank Transfer</option>
+        </select>
+        <button type="submit">Proceed to Payment</button>
+    </form>
+
+    <!-- Payment Method Details Section -->
+    <div id="payment-method-details">
+        <!-- Credit/Debit Card Details -->
+        <div id="credit-debit-card-details" style="display: none;">
+            <h2>Credit/Debit Card Details</h2>
+            <form id="credit-debit-card-form">
+                <label for="card-number">Card Number:</label>
+                <input type="text" id="card-number" name="card-number"><br><br>
+                <label for="expiration-date">Expiration Date:</label>
+                <input type="date" id="expiration-date" name="expiration-date"><br><br>
+                <label for="cvv">CVV:</label>
+                <input type="text" id="cvv" name="cvv"><br><br>
+                <button type="submit">Pay Now</button>
+            </form>
+        </div>
+
+        <!-- PayPal Details -->
+        <div id="paypal-details" style="display: none;">
+            <h2>PayPal Details</h2>
+            <p>You will be redirected to PayPal website to complete the payment.</p>
+            <button id="paypal-button">Pay with PayPal</button>
+        </div>
+
+        <!-- Bank Transfer Details -->
+        <div id="bank-transfer-details" style="display: none;">
+            <h2>Bank Transfer Details</h2>
+            <p>Please transfer the amount to the following bank account:</p>
+            <p>Account Number: 1234567890</p>
+            <p>Account Name: Example Bank</p>
+            <p>IFSC Code: EXMP0001234</p>
+        </div>
+    </div>
+</main>
+
+<!-- Footer Section -->
+<footer>
+    <p>&copy; 2024 Payment Gateway</p>
+</footer>
+
+<!-- JavaScript Code -->
+<script>
+    // Get the payment method form
+    const paymentMethodForm = document.getElementById('payment-method-form');
+
+    // Add event listener to the form submission
+    paymentMethodForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        // Get the selected payment method
+        const paymentMethod = document.getElementById('payment-method').value;
+
+        // Hide all payment method details sections
+        document.getElementById('credit-debit-card-details').style.display = 'none';
+        document.getElementById('paypal-details').style.display = 'none';
+        document.getElementById('bank-transfer-details').style.display = 'none';
+
+        // Show the selected payment method details section
+        if (paymentMethod === 'credit-debit-card') {
+            document.getElementById('credit-debit-card-details').style.display = 'block';
+        } else if (paymentMethod === 'paypal') {
+            document.getElementById('paypal-details').style.display = 'block';
+        } else if (paymentMethod === 'bank-transfer') {
+            document.getElementById('bank-transfer-details').style.display = 'block';
+        }
+    });
+
+    // Add event listener to the PayPal button click
+    document.getElementById('paypal-button').addEventListener('click', () => {
+        // Redirect to PayPal website
+        window.location.href = 'https://www.paypal.com';
+    });
+
+    // Add event listener to the credit/debit card form submission
+    document.getElementById('credit-debit-card-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        // Get the credit/debit card details
+        const cardNumber = document.getElementById('card-number').value;
+        const expirationDate = document.getElementById('expiration-date').value;
+        const cvv = document.getElementById('cvv').value;
+
+        // Validate the credit/debit card details
+        if (cardNumber && expirationDate && cvv) {
+            // Send the credit/debit card details to the server for payment processing
+            fetch('/payment-process', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    paymentMethod: 'credit-debit-card',
+                    cardNumber: cardNumber,
+                    expirationDate: expirationDate,
+                    cvv: cvv
+                })
+            })
+            .then((response) => response.json())
+            .then((data) => {
+                if (data.success) {
+                    // Payment successful, redirect to success page
+                    window.location.href = '/payment-success';
+                } else {
+                    // Payment failed, display error message
+                    alert('Payment failed. Please try again.');
+                }
+            })
+            .catch((error) => {
+                console.error(error);
+            });
+        } else {
+            // Display error message for invalid credit/debit card details
+            alert('Please enter valid credit/debit card details.');
+        }
+    });
+</script>
+```
+
+```php
+// payment-process.php
+
+// Include the database connection file
+include 'db-connection.php';
+
+// Check if the request method is POST
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Get the payment method and credit/debit card details from the request body
+    $paymentMethod = $_POST['paymentMethod'];
+    $cardNumber = $_POST['cardNumber'];
+    $expirationDate = $_POST['expirationDate'];
+    $cvv = $_POST['cvv'];
+
+    // Validate the credit/debit card details
+    if ($cardNumber && $expirationDate && $cvv) {
+        // Process the payment using the credit/debit card details
+        // This is a sample code and you should replace it with your actual payment processing logic
+        $paymentStatus = true;
+
+        // Insert the payment details into the database
+        $query = "INSERT INTO payments (payment_method, card_number, expiration_date, cvv) VALUES ('$paymentMethod', '$cardNumber', '$expirationDate', '$cvv')";
+        $result = mysqli_query($conn, $query);
+
+        // Check if the payment was successful
+        if ($paymentStatus && $result) {
+            // Return a success response
+            echo json_encode(array('success' => true));
+        } else {
+            // Return a failure response
+            echo json_encode(array('success' => false));
+        }
+    } else {
+        // Return a failure response for invalid credit/debit card details
+        echo json_encode(array('success' => false));
+    }
+} else {
+    // Return a failure response for invalid request method
+    echo json_encode(array('success' => false));
+}
+
+// Close the database connection
+mysqli_close($conn);
+```
+
+```sql
+-- Create the payments table
+
+CREATE TABLE payments (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    payment_method VARCHAR(255),
+    card_number VARCHAR(255),
+    expiration_date DATE,
+    cvv VARCHAR(255)
+);
+```
+
+This code creates a payment methods page with a form that allows users to select a payment method and enter their credit/debit card details. The form submission is handled by a JavaScript event listener that sends the credit/debit card details to the server for payment processing using the Fetch API. The server-side code uses PHP to process the payment and insert the payment details into a MySQL database. The payment status is then returned to the client-side as a JSON response.

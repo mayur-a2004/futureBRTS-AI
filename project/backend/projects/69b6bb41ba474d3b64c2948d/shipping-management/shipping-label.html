@@ -1,0 +1,255 @@
+```html
+<!-- shipping-label.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shipping Label</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Shipping Label</h1>
+        <form id="shipping-label-form">
+            <label for="order-id">Order ID:</label>
+            <input type="text" id="order-id" name="order-id" required>
+
+            <label for="customer-name">Customer Name:</label>
+            <input type="text" id="customer-name" name="customer-name" required>
+
+            <label for="shipping-address">Shipping Address:</label>
+            <textarea id="shipping-address" name="shipping-address" required></textarea>
+
+            <label for="package-weight">Package Weight (kg):</label>
+            <input type="number" id="package-weight" name="package-weight" required>
+
+            <label for="package-length">Package Length (cm):</label>
+            <input type="number" id="package-length" name="package-length" required>
+
+            <label for="package-width">Package Width (cm):</label>
+            <input type="number" id="package-width" name="package-width" required>
+
+            <label for="package-height">Package Height (cm):</label>
+            <input type="number" id="package-height" name="package-height" required>
+
+            <button type="submit" id="generate-label-btn">Generate Label</button>
+        </form>
+
+        <div id="label-container" style="display: none;">
+            <h2>Shipping Label</h2>
+            <p>Order ID: <span id="order-id-label"></span></p>
+            <p>Customer Name: <span id="customer-name-label"></span></p>
+            <p>Shipping Address: <span id="shipping-address-label"></span></p>
+            <p>Package Details:</p>
+            <ul>
+                <li>Weight: <span id="package-weight-label"></span> kg</li>
+                <li>Length: <span id="package-length-label"></span> cm</li>
+                <li>Width: <span id="package-width-label"></span> cm</li>
+                <li>Height: <span id="package-height-label"></span> cm</li>
+            </ul>
+            <button id="print-label-btn">Print Label</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+```css
+/* styles.css */
+
+body {
+    font-family: Arial, sans-serif;
+}
+
+.container {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+label {
+    display: block;
+    margin-bottom: 10px;
+}
+
+input[type="text"], input[type="number"], textarea {
+    width: 100%;
+    height: 40px;
+    margin-bottom: 20px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+textarea {
+    height: 100px;
+    resize: vertical;
+}
+
+button[type="submit"] {
+    width: 100%;
+    height: 40px;
+    background-color: #4CAF50;
+    color: #fff;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button[type="submit"]:hover {
+    background-color: #3e8e41;
+}
+
+#label-container {
+    margin-top: 20px;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+#label-container h2 {
+    margin-top: 0;
+}
+
+#label-container ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+#label-container li {
+    margin-bottom: 10px;
+}
+
+#label-container button {
+    width: 100%;
+    height: 40px;
+    background-color: #4CAF50;
+    color: #fff;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#label-container button:hover {
+    background-color: #3e8e41;
+}
+```
+
+```javascript
+// script.js
+
+const form = document.getElementById('shipping-label-form');
+const labelContainer = document.getElementById('label-container');
+const orderIdInput = document.getElementById('order-id');
+const customerNameInput = document.getElementById('customer-name');
+const shippingAddressInput = document.getElementById('shipping-address');
+const packageWeightInput = document.getElementById('package-weight');
+const packageLengthInput = document.getElementById('package-length');
+const packageWidthInput = document.getElementById('package-width');
+const packageHeightInput = document.getElementById('package-height');
+const generateLabelBtn = document.getElementById('generate-label-btn');
+const printLabelBtn = document.getElementById('print-label-btn');
+
+generateLabelBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+
+    const orderId = orderIdInput.value;
+    const customerName = customerNameInput.value;
+    const shippingAddress = shippingAddressInput.value;
+    const packageWeight = packageWeightInput.value;
+    const packageLength = packageLengthInput.value;
+    const packageWidth = packageWidthInput.value;
+    const packageHeight = packageHeightInput.value;
+
+    if (orderId && customerName && shippingAddress && packageWeight && packageLength && packageWidth && packageHeight) {
+        labelContainer.style.display = 'block';
+
+        document.getElementById('order-id-label').textContent = orderId;
+        document.getElementById('customer-name-label').textContent = customerName;
+        document.getElementById('shipping-address-label').textContent = shippingAddress;
+        document.getElementById('package-weight-label').textContent = packageWeight;
+        document.getElementById('package-length-label').textContent = packageLength;
+        document.getElementById('package-width-label').textContent = packageWidth;
+        document.getElementById('package-height-label').textContent = packageHeight;
+    } else {
+        alert('Please fill in all fields');
+    }
+});
+
+printLabelBtn.addEventListener('click', () => {
+    window.print();
+});
+```
+
+```php
+// shipping-label.php
+
+<?php
+// Configuration
+$dbHost = 'localhost';
+$dbUsername = 'username';
+$dbPassword = 'password';
+$dbName = 'database_name';
+
+// Create connection
+$conn = new mysqli($dbHost, $dbUsername, $dbPassword, $dbName);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Insert data into database
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $orderId = $_POST['order-id'];
+    $customerName = $_POST['customer-name'];
+    $shippingAddress = $_POST['shipping-address'];
+    $packageWeight = $_POST['package-weight'];
+    $packageLength = $_POST['package-length'];
+    $packageWidth = $_POST['package-width'];
+    $packageHeight = $_POST['package-height'];
+
+    $sql = "INSERT INTO shipping_labels (order_id, customer_name, shipping_address, package_weight, package_length, package_width, package_height) VALUES ('$orderId', '$customerName', '$shippingAddress', '$packageWeight', '$packageLength', '$packageWidth', '$packageHeight')";
+
+    if ($conn->query($sql) === TRUE) {
+        echo "New record created successfully";
+    } else {
+        echo "Error: " . $sql . "<br>" . $conn->error;
+    }
+}
+
+// Close connection
+$conn->close();
+?>
+```
+
+```sql
+-- Create table for shipping labels
+
+CREATE TABLE shipping_labels (
+    id INT AUTO_INCREMENT,
+    order_id VARCHAR(255),
+    customer_name VARCHAR(255),
+    shipping_address TEXT,
+    package_weight DECIMAL(10, 2),
+    package_length DECIMAL(10, 2),
+    package_width DECIMAL(10, 2),
+    package_height DECIMAL(10, 2),
+    PRIMARY KEY (id)
+);
+```
+
+This code creates a shipping label page with a form to input order details and package dimensions. When the form is submitted, it generates a shipping label with the input data and displays it on the page. The label can be printed using the print button. The data is also inserted into a database using PHP and MySQL.

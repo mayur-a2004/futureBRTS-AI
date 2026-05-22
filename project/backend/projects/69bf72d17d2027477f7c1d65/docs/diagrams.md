@@ -1,0 +1,4 @@
+[MERMAID_START]
+graph LR
+    A --> B
+[MERMAID_END]

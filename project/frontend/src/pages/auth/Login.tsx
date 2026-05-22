@@ -4,6 +4,8 @@ import { Github, ArrowRight } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { useState, useEffect } from "react"
 import { authApi } from "../../api/auth.api"
+import { toast } from "react-toastify";
+
 
 const DEFAULT_UI = {
     heading: "Welcome Back",
@@ -24,7 +26,7 @@ export default function Login() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
+    const [error] = useState("");
 
     // 👉 Backend se UI content fetch karne ke liye useEffect
     useEffect(() => {
@@ -45,32 +47,31 @@ export default function Login() {
         loadUI();
     }, []);
 
+
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        setError("");
 
-        try {
-            // 👉 Backend me user login request
-            const res = await authApi.login({ email, password });
-            if (res.success) {
-                login(res.user, res.token);
+        const res = await authApi.login({ email, password });
 
-                // 👉 Login ke baad user status check karke redirect karna
-                if (res.user.onboardingCompleted) {
-                    navigate("/builder");
-                } else {
-                    navigate("/onboarding");
-                }
+        if (res.success) {
+            login(res.user, res.token);
+
+            if (res.user.onboardingCompleted) {
+                navigate("/builder");
             } else {
-                setError(res.error || "Login failed");
+                navigate("/onboarding");
             }
-        } catch (err) {
-            setError("Connection error");
-        } finally {
-            setLoading(false);
+        } else {
+            // 👇 EXACT requirement
+            toast.dismiss(); // 👈 avoid stacking
+            toast.error("Invalid Credentials. Please register first");
         }
+
+        setLoading(false);
     };
+
+
 
     // 👉 Social Authentication Handlers
     const handleGoogleLogin = () => authApi.googleLogin();
@@ -80,27 +81,27 @@ export default function Login() {
 
     return (
         <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="space-y-3 mb-10 text-center md:text-left">
+            <div className="space-y-3 mb-8 md:mb-10 text-center md:text-left">
                 <h2 className="text-3xl md:text-5xl font-black text-white tracking-tighter leading-tight">{content.heading}</h2>
-                <p className="text-gray-500 font-medium text-lg">{content.subtext}</p>
+                <p className="text-gray-500 font-medium text-base md:text-lg">{content.subtext}</p>
             </div>
 
-            <form onSubmit={handleLogin} className="space-y-6">
+            <form onSubmit={handleLogin} className="space-y-4 md:space-y-6">
                 <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 ml-1">{content.labels.email}</label>
+                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 ml-1">{content.labels.email}</label>
                     <input
                         type="email"
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder={content.placeholders.email}
-                        className="w-full px-6 py-5 bg-white/[0.03] border border-white/10 rounded-2xl text-white focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-gray-800 font-medium"
+                        className="w-full px-5 py-4 md:px-6 md:py-5 bg-white/[0.03] border border-white/10 rounded-2xl text-white focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-gray-800 font-medium text-sm md:text-base"
                     />
                 </div>
 
                 <div className="space-y-2">
                     <div className="flex justify-between items-center ml-1">
-                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">{content.labels.password}</label>
+                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">{content.labels.password}</label>
                         <Link to="#" className="text-[10px] font-black text-indigo-400 hover:text-indigo-300 transition-colors uppercase tracking-widest">Forgot?</Link>
                     </div>
                     <input
@@ -109,34 +110,35 @@ export default function Login() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder={content.placeholders.password}
-                        className="w-full px-6 py-5 bg-white/[0.03] border border-white/10 rounded-2xl text-white focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-gray-800 font-medium"
+                        className="w-full px-5 py-4 md:px-6 md:py-5 bg-white/[0.03] border border-white/10 rounded-2xl text-white focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-gray-800 font-medium text-sm md:text-base"
                     />
                 </div>
 
                 {error && <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-500 text-xs font-bold text-center animate-pulse">{error}</div>}
 
-                <div className="pt-4">
+                <div className="pt-2 md:pt-4">
                     <Button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-9 text-lg bg-white text-black hover:bg-indigo-50 rounded-2xl font-black transition-all shadow-2xl shadow-white/5 active:scale-[0.98] group disabled:opacity-50"
+                        className="w-full py-7 md:py-9 text-base md:text-lg bg-white text-black hover:bg-indigo-50 rounded-2xl font-black transition-all shadow-2xl shadow-white/5 active:scale-[0.98] group disabled:opacity-50"
                     >
-                        {loading ? "Verifying..." : content.ctaText} <ArrowRight className="ml-2 w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                        {loading ? "Verifying..." : content.ctaText} <ArrowRight className="ml-2 w-5 h-5 md:w-6 md:h-6 group-hover:translate-x-1 transition-transform" />
                     </Button>
                 </div>
             </form>
 
-            <div className="relative my-12">
-                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/[0.05]"></div></div>
-                <div className="relative flex justify-center text-[9px] uppercase tracking-[0.5em] font-black"><span className="bg-black px-6 text-gray-700">Encrypted Transition</span></div>
+            <div className="relative my-8 md:my-12 flex items-center gap-4">
+                <div className="h-px bg-white/[0.05] flex-1"></div>
+                <span className="text-[8px] md:text-[9px] uppercase tracking-[0.3em] md:tracking-[0.5em] font-black text-gray-700">Encrypted Transition</span>
+                <div className="h-px bg-white/[0.05] flex-1"></div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-                <Button variant="outline" onClick={handleGithubLogin} className="w-full py-8 rounded-2xl border-white/10 bg-white/[0.01] hover:bg-white/[0.05] transition-all text-[9px] font-black uppercase tracking-[0.2em]"><Github className="mr-2 h-4 w-4" /> {content.socialText.github}</Button>
-                <Button variant="outline" onClick={handleGoogleLogin} className="w-full py-8 rounded-2xl border-white/10 bg-white/[0.01] hover:bg-white/[0.05] transition-all text-[9px] font-black uppercase tracking-[0.2em]"><div className="mr-2 h-4 w-4 rounded-full bg-white flex items-center justify-center text-black font-black text-[8px]">G</div> {content.socialText.google}</Button>
+            <div className="grid grid-cols-2 gap-3 md:gap-4">
+                <Button variant="outline" onClick={handleGithubLogin} className="w-full py-6 md:py-8 rounded-2xl border-white/10 bg-white/[0.01] hover:bg-white/[0.05] transition-all text-[8px] md:text-[9px] font-black uppercase tracking-[0.2em]"><Github className="mr-2 h-4 w-4" /> {content.socialText.github}</Button>
+                <Button variant="outline" onClick={handleGoogleLogin} className="w-full py-6 md:py-8 rounded-2xl border-white/10 bg-white/[0.01] hover:bg-white/[0.05] transition-all text-[8px] md:text-[9px] font-black uppercase tracking-[0.2em]"><div className="mr-2 h-3 w-3 md:h-4 md:w-4 rounded-full bg-white flex items-center justify-center text-black font-black text-[7px] md:text-[8px]">G</div> {content.socialText.google}</Button>
             </div>
 
-            <div className="mt-12 text-center text-sm text-gray-600 font-medium">
+            <div className="mt-8 md:mt-12 text-center text-xs md:text-sm text-gray-600 font-medium">
                 {content.footerActionText} <Link to={content.footerLinkPath} className="text-indigo-400 hover:text-indigo-300 font-bold transition-colors">{content.footerLinkText}</Link>
             </div>
         </div>

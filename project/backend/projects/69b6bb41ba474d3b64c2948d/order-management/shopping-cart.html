@@ -1,0 +1,246 @@
+```html
+<!-- shopping-cart.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopping Cart</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="#">Home</a></li>
+                <li><a href="#">Products</a></li>
+                <li><a href="#">Cart</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <h1>Shopping Cart</h1>
+        <table id="cart-table">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Price</th>
+                    <th>Quantity</th>
+                    <th>Total</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="cart-body">
+                <!-- Cart items will be displayed here -->
+            </tbody>
+        </table>
+        <p id="total-cost"></p>
+        <button id="checkout-btn">Checkout</button>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+```css
+/* styles.css */
+body {
+    font-family: Arial, sans-serif;
+}
+
+header {
+    background-color: #333;
+    color: #fff;
+    padding: 1em;
+    text-align: center;
+}
+
+nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: space-between;
+}
+
+nav li {
+    margin-right: 20px;
+}
+
+nav a {
+    color: #fff;
+    text-decoration: none;
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2em;
+}
+
+#cart-table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+#cart-table th, #cart-table td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: left;
+}
+
+#cart-table th {
+    background-color: #f0f0f0;
+}
+
+#total-cost {
+    font-weight: bold;
+    font-size: 18px;
+    margin-top: 10px;
+}
+
+#checkout-btn {
+    background-color: #4CAF50;
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#checkout-btn:hover {
+    background-color: #3e8e41;
+}
+```
+
+```javascript
+// script.js
+let cart = [];
+let totalCost = 0;
+
+// Function to update cart table
+function updateCartTable() {
+    const cartBody = document.getElementById('cart-body');
+    cartBody.innerHTML = '';
+    cart.forEach((item, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${item.product}</td>
+            <td>$${item.price}</td>
+            <td>${item.quantity}</td>
+            <td>$${item.total}</td>
+            <td><button class="remove-btn" data-index="${index}">Remove</button></td>
+        `;
+        cartBody.appendChild(row);
+    });
+}
+
+// Function to update total cost
+function updateTotalCost() {
+    totalCost = 0;
+    cart.forEach(item => {
+        totalCost += item.total;
+    });
+    document.getElementById('total-cost').innerHTML = `Total: $${totalCost}`;
+}
+
+// Function to handle remove button click
+function handleRemoveButtonClick(event) {
+    if (event.target.classList.contains('remove-btn')) {
+        const index = event.target.dataset.index;
+        cart.splice(index, 1);
+        updateCartTable();
+        updateTotalCost();
+    }
+}
+
+// Function to handle checkout button click
+function handleCheckoutButtonClick() {
+    // Send cart data to server for processing
+    fetch('/checkout', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(cart)
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log(data);
+        // Redirect to payment page or display payment form
+    })
+    .catch(error => {
+        console.error(error);
+    });
+}
+
+// Add event listeners
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize cart data from local storage or server
+    cart = JSON.parse(localStorage.getItem('cart')) || [];
+    updateCartTable();
+    updateTotalCost();
+});
+
+document.getElementById('cart-body').addEventListener('click', handleRemoveButtonClick);
+document.getElementById('checkout-btn').addEventListener('click', handleCheckoutButtonClick);
+```
+
+```php
+// checkout.php
+<?php
+// Include database connection file
+require_once 'db.php';
+
+// Check if cart data is sent
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $cartData = json_decode(file_get_contents('php://input'), true);
+    // Process cart data and create order
+    $orderId = createOrder($cartData);
+    // Send order ID to client for payment processing
+    echo json_encode(['orderId' => $orderId]);
+} else {
+    http_response_code(405);
+    echo 'Method not allowed';
+}
+
+// Function to create order
+function createOrder($cartData) {
+    global $db;
+    $orderId = uniqid();
+    $query = "INSERT INTO orders (id, total) VALUES ('$orderId', '$totalCost')";
+    $db->query($query);
+    foreach ($cartData as $item) {
+        $query = "INSERT INTO order_items (order_id, product_id, quantity) VALUES ('$orderId', '$item[product_id]', '$item[quantity]')";
+        $db->query($query);
+    }
+    return $orderId;
+}
+```
+
+```sql
+-- orders table
+CREATE TABLE orders (
+    id VARCHAR(23) PRIMARY KEY,
+    total DECIMAL(10, 2) NOT NULL
+);
+
+-- order_items table
+CREATE TABLE order_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id VARCHAR(23) NOT NULL,
+    product_id INT NOT NULL,
+    quantity INT NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+```
+
+This code provides a basic shopping cart functionality with the following features:
+
+1.  **Cart Table**: The cart table displays the products added to the cart, along with their prices, quantities, and totals.
+2.  **Remove Button**: Each cart item has a remove button that allows users to remove the item from the cart.
+3.  **Checkout Button**: The checkout button sends the cart data to the server for processing and redirects the user to the payment page.
+4.  **Server-Side Processing**: The server-side code processes the cart data, creates an order, and sends the order ID back to the client for payment processing.
+
+Note that this is a simplified example and may require modifications to fit your specific use case. Additionally, you should ensure that your code follows best practices for security, error handling, and performance.

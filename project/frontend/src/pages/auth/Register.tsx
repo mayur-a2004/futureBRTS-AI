@@ -77,7 +77,7 @@ export default function Register() {
                 dateOfBirth: dob,
                 email,
                 password,
-                intent: initialIntent // 'fb_intent' from context
+                intent: initialIntent // 'fbrts_intent' from context
             });
 
             if (res.success) {
@@ -102,104 +102,105 @@ export default function Register() {
 
     return (
         <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="space-y-3 mb-10 text-center md:text-left">
+            <div className="space-y-3 mb-8 md:mb-10 text-center md:text-left pt-10 md:pt-0">
                 <h2 className="text-3xl md:text-5xl font-black text-white tracking-tighter leading-tight">{content.heading}</h2>
-                <p className="text-gray-500 font-medium text-lg">{content.subtext}</p>
+                <p className="text-gray-500 font-medium text-base md:text-lg">{content.subtext}</p>
             </div>
 
-            <form onSubmit={handleRegister} className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={handleRegister} className="space-y-4 md:space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 ml-1">{content.labels.firstName}</label>
+                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 ml-1">{content.labels.firstName}</label>
                         <input
                             required
                             type="text"
                             placeholder={content.placeholders.firstName}
                             value={firstName}
                             onChange={(e) => setFirstName(e.target.value)}
-                            className="w-full px-6 py-5 bg-white/[0.03] border border-white/10 rounded-2xl text-white focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-gray-800 font-medium"
+                            className="w-full px-5 py-4 md:px-6 md:py-5 bg-white/[0.03] border border-white/10 rounded-2xl text-white focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-gray-800 font-medium text-sm md:text-base"
                         />
                     </div>
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 ml-1">{content.labels.lastName}</label>
+                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 ml-1">{content.labels.lastName}</label>
                         <input
                             required
                             type="text"
                             placeholder={content.placeholders.lastName}
                             value={lastName}
                             onChange={(e) => setLastName(e.target.value)}
-                            className="w-full px-6 py-5 bg-white/[0.03] border border-white/10 rounded-2xl text-white focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-gray-800 font-medium"
+                            className="w-full px-5 py-4 md:px-6 md:py-5 bg-white/[0.03] border border-white/10 rounded-2xl text-white focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-gray-800 font-medium text-sm md:text-base"
                         />
                     </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 ml-1">{content.labels.dob}</label>
+                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 ml-1">{content.labels.dob}</label>
                         <input
                             required
                             type="date"
                             value={dob}
                             onChange={(e) => setDob(e.target.value)}
-                            className="w-full px-6 py-5 bg-white/[0.03] border border-white/10 rounded-2xl text-white focus:outline-none focus:border-indigo-500/50 transition-all [color-scheme:dark] font-medium"
+                            className="w-full px-5 py-4 md:px-6 md:py-5 bg-white/[0.03] border border-white/10 rounded-2xl text-white focus:outline-none focus:border-indigo-500/50 transition-all [color-scheme:dark] font-medium text-sm md:text-base"
                         />
                     </div>
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 ml-1">Current Age</label>
-                        <div className="w-full px-6 py-5 bg-white/[0.01] border border-white/5 rounded-2xl text-indigo-400 font-black flex items-center">
+                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 ml-1">Current Age</label>
+                        <div className="w-full px-5 py-4 md:px-6 md:py-5 bg-white/[0.01] border border-white/5 rounded-2xl text-indigo-400 font-black flex items-center text-sm md:text-base">
                             {age !== null ? `${age} yrs` : '--'}
                         </div>
                     </div>
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 ml-1">{content.labels.email}</label>
+                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 ml-1">{content.labels.email}</label>
                     <input
                         required
                         type="email"
                         placeholder={content.placeholders.email}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full px-6 py-5 bg-white/[0.03] border border-white/10 rounded-2xl text-white focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-gray-800 font-medium"
+                        className="w-full px-5 py-4 md:px-6 md:py-5 bg-white/[0.03] border border-white/10 rounded-2xl text-white focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-gray-800 font-medium text-sm md:text-base"
                     />
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 ml-1">{content.labels.password}</label>
+                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 ml-1">{content.labels.password}</label>
                     <input
                         required
                         type="password"
                         placeholder={content.placeholders.password}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="w-full px-6 py-5 bg-white/[0.03] border border-white/10 rounded-2xl text-white focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-gray-800 font-medium"
+                        className="w-full px-5 py-4 md:px-6 md:py-5 bg-white/[0.03] border border-white/10 rounded-2xl text-white focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-gray-800 font-medium text-sm md:text-base"
                     />
                 </div>
 
                 {error && <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-500 text-xs font-bold text-center animate-pulse">{error}</div>}
 
-                <div className="pt-4">
+                <div className="pt-2 md:pt-4">
                     <Button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-9 text-lg bg-white text-black hover:bg-indigo-50 rounded-2xl font-black transition-all shadow-2xl shadow-white/5 active:scale-[0.98] group disabled:opacity-50"
+                        className="w-full py-7 md:py-9 text-base md:text-lg bg-white text-black hover:bg-indigo-50 rounded-2xl font-black transition-all shadow-2xl shadow-white/5 active:scale-[0.98] group disabled:opacity-50"
                     >
-                        {loading ? "Creating Roadmap..." : content.ctaText} <ArrowRight className="ml-2 w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                        {loading ? "Initializing..." : content.ctaText} <ArrowRight className="ml-2 w-5 h-5 md:w-6 md:h-6 group-hover:translate-x-1 transition-transform" />
                     </Button>
                 </div>
             </form>
 
-            <div className="relative my-10">
-                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/[0.05]"></div></div>
-                <div className="relative flex justify-center text-[9px] uppercase tracking-[0.5em] font-black"><span className="bg-black px-6 text-gray-700">Unified Access</span></div>
+            <div className="relative my-8 md:my-10 flex items-center gap-4">
+                <div className="h-px bg-white/[0.05] flex-1"></div>
+                <span className="text-[8px] md:text-[9px] uppercase tracking-[0.3em] md:tracking-[0.5em] font-black text-gray-700">Unified Access</span>
+                <div className="h-px bg-white/[0.05] flex-1"></div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-                <Button variant="outline" onClick={handleGithubLogin} className="w-full py-8 rounded-2xl border-white/10 bg-white/[0.01] hover:bg-white/[0.05] transition-all text-[9px] font-black uppercase tracking-[0.2em]"><Github className="mr-2 h-4 w-4" /> {content.socialText?.github || 'GitHub'}</Button>
-                <Button variant="outline" onClick={handleGoogleLogin} className="w-full py-8 rounded-2xl border-white/10 bg-white/[0.01] hover:bg-white/[0.05] transition-all text-[9px] font-black uppercase tracking-[0.2em]"><div className="mr-2 h-4 w-4 rounded-full bg-white flex items-center justify-center text-black font-black text-[8px]">G</div> {content.socialText?.google || 'Google'}</Button>
+            <div className="grid grid-cols-2 gap-3 md:gap-4">
+                <Button variant="outline" onClick={handleGithubLogin} className="w-full py-6 md:py-8 rounded-2xl border-white/10 bg-white/[0.01] hover:bg-white/[0.05] transition-all text-[8px] md:text-[9px] font-black uppercase tracking-[0.2em]"><Github className="mr-2 h-4 w-4" /> {content.socialText?.github || 'GitHub'}</Button>
+                <Button variant="outline" onClick={handleGoogleLogin} className="w-full py-6 md:py-8 rounded-2xl border-white/10 bg-white/[0.01] hover:bg-white/[0.05] transition-all text-[8px] md:text-[9px] font-black uppercase tracking-[0.2em]"><div className="mr-2 h-3 w-3 md:h-4 md:w-4 rounded-full bg-white flex items-center justify-center text-black font-black text-[7px] md:text-[8px]">G</div> {content.socialText?.google || 'Google'}</Button>
             </div>
 
-            <div className="mt-10 text-center text-sm text-gray-600 font-medium">
+            <div className="mt-8 md:mt-10 text-center text-xs md:text-sm text-gray-600 font-medium">
                 {content.footerActionText} <Link to={content.footerLinkPath} className="text-indigo-400 hover:text-indigo-300 font-bold transition-colors">{content.footerLinkText}</Link>
             </div>
         </div>

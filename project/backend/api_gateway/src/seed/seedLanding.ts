@@ -46,7 +46,7 @@ export const seedLandingData = async () => {
                     }
                 ],
                 seo: {
-                    metaTitle: 'FutureBuilder | Predictive Intelligence',
+                    metaTitle: 'Future BRTS | Predictive Intelligence',
                     metaDescription: 'The worlds first specialized roadmap engine.',
                     keywords: ['future', 'career', 'intelligence']
                 }

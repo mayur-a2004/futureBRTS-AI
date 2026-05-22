@@ -23,7 +23,7 @@ export default function Resume() {
                         <h1 className="text-4xl font-bold uppercase tracking-wide text-gray-900">Alex Johnson</h1>
                         <p className="text-xl text-indigo-600 font-medium mt-1">Frontend Engineer</p>
                         <div className="flex gap-4 mt-4 text-sm text-gray-600">
-                            <span className="flex items-center gap-1"><Mail size={14} /> alex@futurebuilder.com</span>
+                            <span className="flex items-center gap-1"><Mail size={14} /> alex@FutureBRTS.com</span>
                             <span className="flex items-center gap-1"><Phone size={14} /> +1 (555) 012-3456</span>
                             <span className="flex items-center gap-1"><MapPin size={14} /> San Francisco, CA</span>
                         </div>

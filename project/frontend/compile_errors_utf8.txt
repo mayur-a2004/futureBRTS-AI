@@ -1,0 +1,29 @@
+﻿src/components/chat/MessageBubble.tsx(7,18): error TS6133: 'AnimatePresence' is declared but its value is never read.
+src/pages/auth/Login.tsx(29,19): error TS6133: 'setError' is declared but its value is never read.
+src/pages/dashboard/Dashboard.tsx(12,12): error TS6133: 'loading' is declared but its value is never read.
+src/pages/dashboard/Dashboard.tsx(191,70): error TS6133: 'i' is declared but its value is never read.
+src/pages/economy/pricing/Pricing.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/pages/economy/pricing/Pricing.tsx(2,17): error TS6133: 'ShieldCheck' is declared but its value is never read.
+src/pages/economy/pricing/Pricing.tsx(2,30): error TS6133: 'Zap' is declared but its value is never read.
+src/pages/economy/pricing/Pricing.tsx(2,35): error TS6133: 'Globe' is declared but its value is never read.
+src/pages/economy/pricing/Pricing.tsx(27,36): error TS6133: 'tier' is declared but its value is never read.
+src/pages/prediction/Prediction.tsx(3,10): error TS6133: 'DollarSign' is declared but its value is never read.
+src/pages/prediction/Prediction.tsx(3,22): error TS6133: 'Briefcase' is declared but its value is never read.
+src/pages/prediction/Prediction.tsx(3,33): error TS6133: 'Sliders' is declared but its value is never read.
+src/pages/prediction/Prediction.tsx(4,41): error TS6133: 'CartesianGrid' is declared but its value is never read.
+src/pages/prediction/Prediction.tsx(6,1): error TS6133: 'LoadingScreen' is declared but its value is never read.
+src/pages/prediction/Prediction.tsx(252,59): error TS6133: 'i' is declared but its value is never read.
+src/pages/pricing/Pricing.tsx(8,30): error TS6133: 'user' is declared but its value is never read.
+src/pages/roadmap/Roadmap.tsx(2,18): error TS6133: 'AnimatePresence' is declared but its value is never read.
+src/pages/roadmap/Roadmap.tsx(406,102): error TS6133: 'props' is declared but its value is never read.
+src/pages/roadmap/Roadmap.tsx(450,122): error TS6133: 'props' is declared but its value is never read.
+src/pages/settings/Settings.tsx(3,16): error TS6133: 'Bell' is declared but its value is never read.
+src/pages/settings/Settings.tsx(3,38): error TS6133: 'Lock' is declared but its value is never read.
+src/pages/settings/Settings.tsx(3,61): error TS6133: 'Clock' is declared but its value is never read.
+src/pages/settings/Settings.tsx(3,159): error TS6133: 'Printer' is declared but its value is never read.
+src/pages/settings/Settings.tsx(3,182): error TS6133: 'FileText' is declared but its value is never read.
+src/pages/settings/Settings.tsx(3,206): error TS6133: 'Star' is declared but its value is never read.
+src/pages/settings/Settings.tsx(140,34): error TS2345: Argument of type '{ margin: number; filename: string; image: { type: string; quality: number; }; html2canvas: { scale: number; useCORS: boolean; logging: boolean; }; jsPDF: { unit: string; format: string; orientation: string; }; }' is not assignable to parameter of type 'Html2PdfOptions'.
+  The types of 'image.type' are incompatible between these types.
+    Type 'string' is not assignable to type '"jpeg" | "png" | "webp" | undefined'.
+src/pages/tasks/TodayTask.tsx(72,21): error TS6133: 'targetRoadmapId' is declared but its value is never read.

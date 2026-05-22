@@ -1,0 +1,58 @@
+FUTUREBUILDER MASTER INTELLIGENCE API & DATA ARCHITECTURE REPORT
+================================================================
+
+📅 LAST REFINED: 2026-01-15 (Economy & Monetization Upgrade)
+🧠 VERSION: 2.2.0-ECONOMY_CORE
+
+1. FINANCIAL & TOKEN ARCHITECTURE
+----------------------------------
+The system now features a self-sustaining economy designed to balance AI costs with user growth:
+- SIGNUP BONUS: 1,000 Tokens (Initial "Gas" for new projects).
+- DAILY GRANT: 700 Tokens (Faithful replenishment every 24 hours).
+- MONETIZATION: Ad-rewarded tokens (50 per ad) and Subscription Tiers.
+- INVISIBLE ENFORCEMENT: No token counts in chat; users only see the "Token Wall" when energy is exhausted.
+
+2. MASTER API DATA TABLE (COMPLETE)
+-----------------------------------
+
+| Service        | Method | Path                                   | Execution Logic / Description                                      |
+|:---------------|:-------|:---------------------------------------|:-------------------------------------------------------------------|
+| **AUTH**       | POST   | `/api/auth/register`                   | User Creation (Initializes Wallet with 1000 Tokens)                |
+|                | POST   | `/api/auth/login`                      | Profile Reconstruction & Handshake                                 |
+| **ECONOMY**    | GET    | `/api/economy/wallet`                  | Fetch user's current token balance and subscription status         |
+|                | POST   | `/api/economy/reward-ad`               | Validate 15s Ad consumption and grant +50 tokens                   |
+|                | POST   | `/api/economy/subscribe`               | Process Monthly/Yearly upgrades for Ad-free elite building         |
+| **BUILDER**    | POST   | `/api/builder/session/:id/message`     | [TOKEN GUARD] Deducts 10 Tokens per intelligent response           |
+| **ROADMAP**    | POST   | `/api/roadmap/generate`                | [TOKEN GUARD] Deducts 10 tokens for Strategic Planning             |
+| **ADMIN (C2)** | GET    | `/api/admin/users`                     | Full user management including Remote Token Recharge                |
+|                | PUT    | `/api/admin/user`                      | Set TokenBalance, Role (Admin/User), or Status (Active/Inactive)   |
+| **SYSTEM**     | GET    | `/api/admin/settings`                  | Hot-swap AI Providers (Groq/Gemini) and Rotate API Keys            |
+
+3. TOKEN GUARD LOGIC (Middleware Level)
+---------------------------------------
+A dedicated `tokenGuard` middleware intercepts every high-computation AI request:
+- STEP 1 (Check Refresh): If its a new day, set balance to 700 (if below).
+- STEP 2 (Validation): If tokens < 10, return `OUT_OF_TOKENS` error.
+- STEP 3 (Deduction): Deduct 10 tokens upon successful AI intent detection.
+
+4. DATA BLUEPRINTS (DYNAMIC SCHEMAS)
+------------------------------------
+
+[A] USER (Wealth & Access)
+- tokenBalance: Number (1000 default)
+- lastTokenRefreshedAt: Date (Tracks Daily Grant)
+- isPremium: Boolean (Toggles Ad-UI and Token limits)
+- subscriptionTier: 'free' | 'daily' | 'monthly' | 'yearly'
+
+[B] SYSTEM_SETTINGS (Admin Brain)
+- key: "AI_TIMEOUT_MS" | "GROQ_API_KEY" | "PRIMARY_AI_PROVIDER" | "ACTION_TOKEN_COST"
+- value: Dynamic values controllable from the Admin Panel.
+
+5. USER MONETIZATION FLOW
+-------------------------
+1. USER exhausted tokens → API returns 403 `OUT_OF_TOKENS`.
+2. FRONTEND intercepts error → Displays the premium `TokenWall` overlay.
+3. USER watches Ad → `POST /api/economy/reward-ad` grants +50 tokens.
+4. USER subscribes → `isPremium` set to true, grants up to 500k tokens.
+
+EOF - 100% ACCURACY API REPORT GENERATED

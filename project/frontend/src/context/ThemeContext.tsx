@@ -11,7 +11,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const [theme, setTheme] = useState<Theme>(() => {
-        const saved = localStorage.getItem('futurebuilder_theme');
+        const saved = localStorage.getItem('FutureBRTS_theme');
         return (saved as Theme) || 'future';
     });
 
@@ -25,7 +25,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
             root.classList.add(`theme-${theme}`);
         }
 
-        localStorage.setItem('futurebuilder_theme', theme);
+        localStorage.setItem('FutureBRTS_theme', theme);
     }, [theme]);
 
     return (

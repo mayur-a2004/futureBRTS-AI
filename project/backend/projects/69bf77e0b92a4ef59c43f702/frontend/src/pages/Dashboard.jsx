@@ -1,0 +1,2 @@
+import React from 'react';
+export default function Dashboard() { return <div className="p-8"><h1>Analytics Dashboard</h1><div className="stats grid grid-cols-3 gap-6">Active Users: 1,240</div></div>; }

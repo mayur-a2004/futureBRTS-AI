@@ -1,0 +1,14 @@
+# Requirements
+
+## Overview
+This file contains the required packages for the project.
+
+## Packages
+- python 3.8 or higher
+- pip
+- git
+
+## Installation
+1. Install the required packages using pip
+2. Clone the repository using Git
+3. Run the project using Python

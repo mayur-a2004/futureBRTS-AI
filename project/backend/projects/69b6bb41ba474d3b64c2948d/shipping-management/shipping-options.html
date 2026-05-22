@@ -1,0 +1,175 @@
+```html
+<!-- shipping-options.html -->
+
+<!-- Header Section -->
+<header>
+    <nav>
+        <ul>
+            <li><a href="#">Home</a></li>
+            <li><a href="#">About</a></li>
+            <li><a href="#">Contact</a></li>
+        </ul>
+    </nav>
+</header>
+
+<!-- Main Content Section -->
+<main>
+    <h1>Shipping Options</h1>
+    <p>Please select a shipping option for your order.</p>
+
+    <!-- Shipping Options Form -->
+    <form id="shipping-options-form">
+        <label for="shipping-option">Select a shipping option:</label>
+        <select id="shipping-option" name="shipping-option">
+            <option value="ground">Ground Shipping (3-7 business days)</option>
+            <option value="air">Air Shipping (2-3 business days)</option>
+            <option value="express">Express Shipping (1-2 business days)</option>
+        </select>
+
+        <label for="shipping-address">Shipping Address:</label>
+        <input type="text" id="shipping-address" name="shipping-address" placeholder="Enter shipping address">
+
+        <label for="shipping-city">City:</label>
+        <input type="text" id="shipping-city" name="shipping-city" placeholder="Enter city">
+
+        <label for="shipping-state">State:</label>
+        <input type="text" id="shipping-state" name="shipping-state" placeholder="Enter state">
+
+        <label for="shipping-zip">Zip:</label>
+        <input type="text" id="shipping-zip" name="shipping-zip" placeholder="Enter zip code">
+
+        <button type="submit">Submit</button>
+    </form>
+
+    <!-- Shipping Options Table -->
+    <table id="shipping-options-table">
+        <thead>
+            <tr>
+                <th>Shipping Option</th>
+                <th>Estimated Delivery Time</th>
+                <th>Cost</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Ground Shipping</td>
+                <td>3-7 business days</td>
+                <td>$10.00</td>
+            </tr>
+            <tr>
+                <td>Air Shipping</td>
+                <td>2-3 business days</td>
+                <td>$20.00</td>
+            </tr>
+            <tr>
+                <td>Express Shipping</td>
+                <td>1-2 business days</td>
+                <td>$30.00</td>
+            </tr>
+        </tbody>
+    </table>
+</main>
+
+<!-- Footer Section -->
+<footer>
+    <p>&copy; 2024 Shipping Management</p>
+</footer>
+
+<!-- JavaScript Code -->
+<script>
+    // Get the shipping options form
+    const shippingOptionsForm = document.getElementById('shipping-options-form');
+
+    // Add an event listener to the form submit event
+    shippingOptionsForm.addEventListener('submit', (e) => {
+        // Prevent the default form submission behavior
+        e.preventDefault();
+
+        // Get the selected shipping option
+        const shippingOption = document.getElementById('shipping-option').value;
+
+        // Get the shipping address, city, state, and zip
+        const shippingAddress = document.getElementById('shipping-address').value;
+        const shippingCity = document.getElementById('shipping-city').value;
+        const shippingState = document.getElementById('shipping-state').value;
+        const shippingZip = document.getElementById('shipping-zip').value;
+
+        // Validate the form data
+        if (shippingOption === '' || shippingAddress === '' || shippingCity === '' || shippingState === '' || shippingZip === '') {
+            alert('Please fill out all fields.');
+            return;
+        }
+
+        // Send the form data to the server using AJAX
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', 'shipping-options.php', true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.send(`shipping-option=${shippingOption}&shipping-address=${shippingAddress}&shipping-city=${shippingCity}&shipping-state=${shippingState}&shipping-zip=${shippingZip}`);
+
+        // Handle the server response
+        xhr.onload = () => {
+            if (xhr.status === 200) {
+                console.log(xhr.responseText);
+            } else {
+                console.error(xhr.statusText);
+            }
+        };
+    });
+</script>
+```
+
+```php
+// shipping-options.php
+
+// Configuration
+$dbHost = 'localhost';
+$dbUsername = 'username';
+$dbPassword = 'password';
+$dbName = 'shipping_management';
+
+// Connect to the database
+$conn = new mysqli($dbHost, $dbUsername, $dbPassword, $dbName);
+
+// Check the connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Get the form data
+$shippingOption = $_POST['shipping-option'];
+$shippingAddress = $_POST['shipping-address'];
+$shippingCity = $_POST['shipping-city'];
+$shippingState = $_POST['shipping-state'];
+$shippingZip = $_POST['shipping-zip'];
+
+// Validate the form data
+if ($shippingOption === '' || $shippingAddress === '' || $shippingCity === '' || $shippingState === '' || $shippingZip === '') {
+    echo 'Please fill out all fields.';
+    exit;
+}
+
+// Insert the form data into the database
+$sql = "INSERT INTO shipping_options (shipping_option, shipping_address, shipping_city, shipping_state, shipping_zip) VALUES ('$shippingOption', '$shippingAddress', '$shippingCity', '$shippingState', '$shippingZip')";
+if ($conn->query($sql) === TRUE) {
+    echo 'Shipping option saved successfully.';
+} else {
+    echo 'Error: ' . $sql . '<br>' . $conn->error;
+}
+
+// Close the database connection
+$conn->close();
+```
+
+```sql
+-- Create the shipping options table
+CREATE TABLE shipping_options (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    shipping_option VARCHAR(255),
+    shipping_address VARCHAR(255),
+    shipping_city VARCHAR(255),
+    shipping_state VARCHAR(255),
+    shipping_zip VARCHAR(255)
+);
+```
+
+This code creates a shipping options page with a form that allows users to select a shipping option and enter their shipping address, city, state, and zip. The form data is sent to the server using AJAX and inserted into a database table. The server-side code is written in PHP and uses MySQL to interact with the database. The database schema is also provided.

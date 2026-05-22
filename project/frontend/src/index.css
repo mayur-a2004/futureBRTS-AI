@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,15 +6,21 @@
 
 @layer base {
     :root {
-        --background: #050505;
+        --background: #020203;
         --foreground: #ffffff;
+        --titan-indigo: #6366f1;
+        --titan-blue: #3b82f6;
+        --titan-cyan: #06b6d4;
+        --titan-border: rgba(255, 255, 255, 0.08);
+        --titan-glass: rgba(5, 5, 8, 0.85);
 
         /* Font Scale - Refined for readability */
         --h-xl: clamp(40px, 7vw, 52px);
         --h-l: clamp(28px, 5vw, 36px);
         --h-m: clamp(20px, 3vw, 24px);
-        --body: 13px;
-        --small: 11px;
+        --body: 16px;
+        /* Increased from 13px */
+        --small: 13px;
 
         --glass-bg: rgba(255, 255, 255, 0.05);
         --glass-border: rgba(255, 255, 255, 0.1);
@@ -100,6 +106,124 @@
 
     .neon-border {
         box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.1), 0 0 20px rgba(99, 102, 241, 0.05);
+    }
+
+    /* Custom Animations */
+    .animate-gradient {
+        background-size: 200% auto;
+        animation: gradient 3s linear infinite;
+    }
+
+    .animate-tilt {
+        animation: tilt 5s infinite linear;
+    }
+
+    @keyframes gradient {
+        0% {
+            background-position: 0% 50%;
+        }
+
+        50% {
+            background-position: 100% 50%;
+        }
+
+        100% {
+            background-position: 0% 50%;
+        }
+    }
+
+    @keyframes tilt {
+
+        0%,
+        50%,
+        100% {
+            transform: rotate(0deg);
+        }
+
+        25% {
+            transform: rotate(0.5deg);
+        }
+
+        75% {
+            transform: rotate(-0.5deg);
+        }
+    }
+
+    .font-display {
+        font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .glass-panel {
+        @apply bg-black/60 backdrop-blur-xl border border-white/5 shadow-2xl;
+    }
+
+    .neon-glow {
+        box-shadow: 0 0 40px rgba(79, 70, 229, 0.1);
+    }
+
+    @keyframes scan {
+        0% {
+            transform: translateY(-100%);
+            opacity: 0;
+        }
+
+        50% {
+            opacity: 1;
+        }
+
+        100% {
+            transform: translateY(100%);
+            opacity: 0;
+        }
+    }
+
+    .animate-titan-scan {
+        animation: scan 4s linear infinite;
+    }
+
+    @keyframes pulse-ring {
+        0% {
+            transform: scale(0.8);
+            opacity: 0.5;
+        }
+
+        100% {
+            transform: scale(1.5);
+            opacity: 0;
+        }
+    }
+
+    .animate-neural-pulse {
+        animation: pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+    }
+
+    .cyber-border {
+        border: 1px solid var(--titan-border);
+        box-shadow: inset 0 0 20px rgba(99, 102, 241, 0.02), 0 0 15px rgba(0, 0, 0, 0.5);
+    }
+
+    .neural-mesh {
+        background-image:
+            radial-gradient(circle at 2px 2px, rgba(99, 102, 241, 0.05) 1px, transparent 0);
+        background-size: 40px 40px;
+    }
+
+    .titan-glow {
+        filter: drop-shadow(0 0 8px rgba(99, 102, 241, 0.4));
+    }
+
+    @keyframes rotate-slow {
+        from {
+            transform: rotate(0deg);
+        }
+
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .animate-spin-slow {
+        animation: rotate-slow 20s linear infinite;
     }
 }
 

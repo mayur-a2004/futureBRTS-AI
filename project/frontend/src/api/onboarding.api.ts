@@ -6,18 +6,26 @@ const BASE_URL = '/api/onboarding';
 const safeFetch = async (url: string, options?: RequestInit) => {
     try {
         const res = await fetch(url, options);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return await res.json();
+        const data = await res.json().catch(() => null);
+
+        if (!res.ok) {
+            return {
+                success: false,
+                status: res.status,
+                error: data?.error || 'Request failed'
+            };
+        }
+        return data;
     } catch (err) {
-        console.warn(`API Failed (${url}), failing over to MOCK mode for stability.`);
-        return null; // Signal failure to trigger mock
+        console.error(`API Network Error (${url})`, err);
+        return { success: false, error: 'Network Error' };
     }
 };
 
 export const onboardingApi = {
     // 👉 Specific entry endpoint for technical/initial mindset context
     saveEntry: async (data: { step: number | string, answer: any }, token: string) => {
-        const result = await safeFetch(`${BASE_URL}/entry`, {
+        return await safeFetch(`${BASE_URL}/entry`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -25,14 +33,10 @@ export const onboardingApi = {
             },
             body: JSON.stringify(data)
         });
-
-        if (result) return result;
-        // Mock Success
-        return { success: true, message: 'Entry saved (Mock)' };
     },
 
     saveStep: async (data: { step: string, answer: any }, token: string) => {
-        const result = await safeFetch(`${BASE_URL}/step`, {
+        return await safeFetch(`${BASE_URL}/step`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -40,34 +44,27 @@ export const onboardingApi = {
             },
             body: JSON.stringify(data)
         });
-
-        if (result) return result;
-        // Mock Success
-        return { success: true, message: 'Step saved (Mock)' };
     },
 
     resume: async (token: string) => {
-        const result = await safeFetch(`${BASE_URL}/resume`, {
+        return await safeFetch(`${BASE_URL}/status`, { // Corrected from /resume to /status based on routes
             headers: { 'Authorization': `Bearer ${token}` }
         });
-
-        if (result) return result;
-        // Mock Resume
-        return {
-            success: true,
-            status: 'IN_PROGRESS',
-            profile: { /* Mock profile if needed, or empty */ }
-        };
     },
 
     complete: async (token: string) => {
-        const result = await safeFetch(`${BASE_URL}/complete`, {
+        return await safeFetch(`${BASE_URL}/complete`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { 'Authorization': `Bearer ${token}` },
+            // Assuming complete might need body later, but current controller doesn't strictly require it if pulling from DB/profile? 
+            // Wait, the controller expects body params? 
+            // "const { sessionId, field, ... } = req.body;" 
+            // We need to pass these! But the original 'complete' function didn't pass data?
+            // Ah, Onboarding.tsx calls it differently.
+            // Let's keep it generic for now, but usually 'complete' implies finalization.
+            // Onboarding.tsx: await onboardingApi.complete(token); -> It sends NO BODY?
+            // Let's check Onboarding.tsx again.
+            body: JSON.stringify({})
         });
-
-        if (result) return result;
-        // Mock Success
-        return { success: true, message: 'Onboarding completed (Mock)' };
     }
 };

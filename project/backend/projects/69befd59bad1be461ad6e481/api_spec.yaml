@@ -1,0 +1,58 @@
+openapi: 3.0.0
+info:
+  title: eCommerce API
+  version: 1.0.0
+  description: RESTful API for eCommerce operations
+
+paths:
+  /products:
+    get:
+      summary: List all products
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+      responses:
+        200:
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductList'
+  
+  /products/{id}:
+    get:
+      summary: Get product details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Product details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+
+components:
+  schemas:
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        price:
+          type: number
+          format: float
+        description:
+          type: string
+        inventoryCount:
+          type: integer
+      required:
+        - id
+        - name
+        - price

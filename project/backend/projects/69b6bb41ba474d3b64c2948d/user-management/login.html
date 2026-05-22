@@ -1,0 +1,185 @@
+**User Login Page**
+======================
+
+### HTML (login.html)
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Login</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="login-container">
+        <h2>User Login</h2>
+        <form id="login-form">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required>
+
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+
+            <button type="submit">Login</button>
+        </form>
+        <p id="error-message"></p>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+### CSS (styles.css)
+
+```css
+.login-container {
+    width: 300px;
+    margin: 50px auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.login-container h2 {
+    text-align: center;
+}
+
+#login-form {
+    margin-top: 20px;
+}
+
+#login-form label {
+    display: block;
+    margin-bottom: 10px;
+}
+
+#login-form input {
+    width: 100%;
+    height: 40px;
+    margin-bottom: 20px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+#login-form button {
+    width: 100%;
+    height: 40px;
+    background-color: #4CAF50;
+    color: #fff;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#login-form button:hover {
+    background-color: #3e8e41;
+}
+
+#error-message {
+    color: #f00;
+    font-size: 14px;
+    margin-top: 10px;
+}
+```
+
+### JavaScript (script.js)
+
+```javascript
+const loginForm = document.getElementById('login-form');
+const errorMessage = document.getElementById('error-message');
+
+loginForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+
+    // Send request to server
+    fetch('login.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: `username=${username}&password=${password}`
+    })
+    .then((response) => response.json())
+    .then((data) => {
+        if (data.success) {
+            // Login successful, redirect to dashboard
+            window.location.href = 'dashboard.php';
+        } else {
+            // Login failed, display error message
+            errorMessage.textContent = data.message;
+        }
+    })
+    .catch((error) => {
+        console.error(error);
+    });
+});
+```
+
+### PHP (login.php)
+
+```php
+<?php
+// Configuration
+$dbHost = 'localhost';
+$dbUsername = 'your_username';
+$dbPassword = 'your_password';
+$dbName = 'your_database';
+
+// Connect to database
+$conn = new mysqli($dbHost, $dbUsername, $dbPassword, $dbName);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Get username and password from request
+$username = $_POST['username'];
+$password = $_POST['password'];
+
+// Query to check if user exists
+$query = "SELECT * FROM users WHERE username = '$username' AND password = '$password'";
+
+// Execute query
+$result = $conn->query($query);
+
+// Check if user exists
+if ($result->num_rows > 0) {
+    // User exists, login successful
+    $response = array('success' => true, 'message' => 'Login successful');
+} else {
+    // User does not exist, login failed
+    $response = array('success' => false, 'message' => 'Invalid username or password');
+}
+
+// Close connection
+$conn->close();
+
+// Send response back to client
+header('Content-Type: application/json');
+echo json_encode($response);
+?>
+```
+
+### Database Schema (MySQL)
+
+```sql
+CREATE TABLE users (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(50) NOT NULL,
+    password VARCHAR(255) NOT NULL
+);
+
+INSERT INTO users (username, password) VALUES ('admin', 'password123');
+```
+
+Note: This is a basic example and should not be used in production without proper security measures, such as password hashing and salting, and protection against SQL injection attacks.

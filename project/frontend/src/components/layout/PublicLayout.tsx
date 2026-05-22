@@ -21,7 +21,7 @@ export default function PublicLayout() {
                     <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
                         <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
                             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-black">F</div>
-                            <span className="text-xl font-black tracking-tighter">FutureBuilder</span>
+                            <span className="text-xl font-black tracking-tighter">FutureBRTS</span>
                         </div>
 
                         <nav className="hidden lg:flex items-center gap-8">
@@ -43,47 +43,6 @@ export default function PublicLayout() {
                 <main className="relative z-10">
                     <Outlet />
                 </main>
-
-                {/* --- SHARED FOOTER --- */}
-                <footer className="py-20 px-6 border-t border-white/5 bg-[#080808] relative z-10">
-                    <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12">
-                        <div className="space-y-6">
-                            <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded bg-indigo-500" />
-                                <span className="text-lg font-black tracking-tighter">FutureBuilder</span>
-                            </div>
-                            <p className="text-gray-500 text-sm font-medium">Building the future, today.</p>
-                        </div>
-
-                        <div className="space-y-6">
-                            <h4 className="text-xs font-black uppercase tracking-widest text-gray-500">Company</h4>
-                            <ul className="space-y-3 font-medium text-gray-400 text-left text-sm">
-                                <li><Link to="/about" className="hover:text-white transition-colors">About Us</Link></li>
-                                <li><Link to="/careers-public" className="hover:text-white transition-colors">Careers</Link></li>
-                                <li><Link to="/contact" className="hover:text-white transition-colors">Contact</Link></li>
-                            </ul>
-                        </div>
-
-                        <div className="space-y-6">
-                            <h4 className="text-xs font-black uppercase tracking-widest text-gray-500">Legal</h4>
-                            <ul className="space-y-3 font-medium text-gray-400 text-left text-sm">
-                                <li><Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
-                                <li><Link to="/terms" className="hover:text-white transition-colors">Terms & Conditions</Link></li>
-                            </ul>
-                        </div>
-
-                        <div className="space-y-6">
-                            <h4 className="text-xs font-black uppercase tracking-widest text-gray-500">Stay Updated</h4>
-                            <div className="flex gap-2">
-                                <input type="email" placeholder="Enter email" className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-indigo-500 transition-all" />
-                                <Button className="bg-indigo-600 text-[10px] uppercase font-black px-4 py-2 hover:bg-indigo-700">Join</Button>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="max-w-7xl mx-auto mt-20 pt-10 border-t border-white/5 text-center text-gray-600 text-xs font-bold uppercase tracking-[0.5em]">
-                        © 2025 FutureBuilder Inc.
-                    </div>
-                </footer>
             </div>
         </ErrorBoundary>
     )

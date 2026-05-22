@@ -1,0 +1,158 @@
+**Custom Font 2**
+====================
+### Introduction
+
+In this example, we will be using the `font2.ttf` custom font in our web application. We will cover how to include the font in our HTML, CSS, and JavaScript files, as well as how to use it in our PHP backend with a MySQL database.
+
+### Frontend (HTML, CSS, and JS)
+
+#### HTML
+
+To use the custom font in our HTML, we need to include it in our CSS file. However, we can specify the font family in our HTML elements.
+
+```html
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Font 2</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1 class="custom-font">Custom Font 2</h1>
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+#### CSS
+
+To include the custom font in our CSS, we use the `@font-face` rule.
+
+```css
+/* styles.css */
+@font-face {
+    font-family: 'Custom Font 2';
+    src: url('fonts/font2.ttf') format('truetype');
+}
+
+.custom-font {
+    font-family: 'Custom Font 2', sans-serif;
+    font-size: 36px;
+}
+```
+
+#### JavaScript
+
+We can also use JavaScript to dynamically change the font family of an element.
+
+```javascript
+// script.js
+const customFontElement = document.querySelector('.custom-font');
+
+// Change font family on button click
+document.addEventListener('click', () => {
+    customFontElement.style.fontFamily = 'Custom Font 2, sans-serif';
+});
+```
+
+### Backend (Core PHP)
+
+To use the custom font in our PHP backend, we can use the `imagettftext` function to generate images with the custom font.
+
+```php
+// font.php
+function generateImageWithCustomFont($text, $fontSize, $fontColor) {
+    $fontPath = 'fonts/font2.ttf';
+    $image = imagecreatetruecolor(200, 50);
+    $white = imagecolorallocate($image, 255, 255, 255);
+    $fontColor = imagecolorallocate($image, $fontColor[0], $fontColor[1], $fontColor[2]);
+    imagettftext($image, $fontSize, 0, 10, 30, $fontColor, $fontPath, $text);
+    header('Content-Type: image/png');
+    imagepng($image);
+    imagedestroy($image);
+}
+
+// Example usage
+generateImageWithCustomFont('Custom Font 2', 24, array(0, 0, 0));
+```
+
+### Database (MySQL / MariaDB)
+
+To store the custom font in our database, we can create a table to store font metadata.
+
+```sql
+-- Create font table
+CREATE TABLE fonts (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    font_name VARCHAR(255),
+    font_path VARCHAR(255)
+);
+
+-- Insert custom font
+INSERT INTO fonts (font_name, font_path) VALUES ('Custom Font 2', 'fonts/font2.ttf');
+```
+
+### PHP Ecosystem
+
+To interact with the database and generate images with the custom font, we can use the following PHP code.
+
+```php
+// db.php
+class Database {
+    private $host;
+    private $username;
+    private $password;
+    private $database;
+
+    public function __construct($host, $username, $password, $database) {
+        $this->host = $host;
+        $this->username = $username;
+        $this->password = $password;
+        $this->database = $database;
+    }
+
+    public function connect() {
+        $conn = new mysqli($this->host, $this->username, $this->password, $this->database);
+        return $conn;
+    }
+}
+
+// font_generator.php
+class FontGenerator {
+    private $db;
+
+    public function __construct($db) {
+        $this->db = $db;
+    }
+
+    public function generateImageWithCustomFont($text, $fontSize, $fontColor) {
+        $fontPath = 'fonts/font2.ttf';
+        $image = imagecreatetruecolor(200, 50);
+        $white = imagecolorallocate($image, 255, 255, 255);
+        $fontColor = imagecolorallocate($image, $fontColor[0], $fontColor[1], $fontColor[2]);
+        imagettftext($image, $fontSize, 0, 10, 30, $fontColor, $fontPath, $text);
+        header('Content-Type: image/png');
+        imagepng($image);
+        imagedestroy($image);
+    }
+
+    public function getFontPath($fontId) {
+        $conn = $this->db->connect();
+        $query = "SELECT font_path FROM fonts WHERE id = '$fontId'";
+        $result = $conn->query($query);
+        $fontPath = $result->fetch_assoc()['font_path'];
+        $conn->close();
+        return $fontPath;
+    }
+}
+
+// Example usage
+$db = new Database('localhost', 'username', 'password', 'database');
+$fontGenerator = new FontGenerator($db);
+$fontGenerator->generateImageWithCustomFont('Custom Font 2', 24, array(0, 0, 0));
+```
+
+This code demonstrates how to use the custom font in a web application with a PHP backend and a MySQL database. It covers how to include the font in HTML, CSS, and JavaScript files, as well as how to use it in PHP to generate images and interact with the database.

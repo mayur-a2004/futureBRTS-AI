@@ -13,9 +13,16 @@ export default defineConfig({
     server: {
         proxy: {
             '/api': {
-                target: 'http://localhost:7000',
+                target: 'http://127.0.0.1:7001',
+                changeOrigin: true,
+            },
+            '/downloads': {
+                target: 'http://127.0.0.1:7001',
                 changeOrigin: true,
             }
         }
+    },
+    optimizeDeps: {
+        include: ['mermaid', 'prismjs', 'framer-motion', 'lucide-react']
     }
 })

@@ -1,109 +1,305 @@
-import { MapPin, Link as LinkIcon, Github, Linkedin, Mail, BadgeCheck, Globe, Code, Activity } from "lucide-react"
+import { MapPin, Github, Linkedin, Mail, BadgeCheck, Globe, Code, Activity, Edit3, Save } from "lucide-react"
 import { Button } from "@/components/ui/Button"
+import { useAuth } from "@/context/AuthContext"
+import { useState, useEffect } from "react"
+import { toast } from "react-toastify"
+import { useNavigate } from "react-router-dom"
 
 export default function Profile() {
+    const { user, setUser } = useAuth();
+    const navigate = useNavigate();
+    const [isEditing, setIsEditing] = useState(false);
+    const [stats, setStats] = useState<any>(null);
+    const [projects, setProjects] = useState<any[]>([]);
+
+    const [formData, setFormData] = useState({
+        firstName: user?.firstName || '',
+        lastName: user?.lastName || '',
+        profile: {
+            bio: user?.profile?.bio || '',
+            location: user?.profile?.location || '',
+            skills: user?.profile?.skills?.join(', ') || '',
+            socialLinks: {
+                github: user?.profile?.socialLinks?.github || '',
+                linkedin: user?.profile?.socialLinks?.linkedin || '',
+                twitter: user?.profile?.socialLinks?.twitter || '',
+                website: user?.profile?.socialLinks?.website || ''
+            }
+        }
+    });
+
+    useEffect(() => {
+        const fetchProfileData = async () => {
+            try {
+                const token = localStorage.getItem('fbrts_token');
+                if (!token) return;
+                
+                const [statsRes, projRes] = await Promise.all([
+                    fetch('/api/builder/dashboard', { headers: { 'Authorization': `Bearer ${token}` } }),
+                    fetch('/api/collage-project/list', { headers: { 'Authorization': `Bearer ${token}` } })
+                ]);
+                
+                const statsData = await statsRes.json();
+                const projData = await projRes.json();
+
+                if (statsData.success) setStats(statsData.stats);
+                if (projData.success) setProjects(projData.projects.slice(0, 4));
+            } catch (e) {
+                console.error("Profile data fetch error", e);
+            }
+        };
+        fetchProfileData();
+    }, []);
+
+    const handleSave = async () => {
+        try {
+            const token = localStorage.getItem('fbrts_token');
+            const res = await fetch('/api/auth/update-profile', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    firstName: formData.firstName,
+                    lastName: formData.lastName,
+                    profile: {
+                        ...formData.profile,
+                        skills: formData.profile.skills.split(',').map((s: string) => s.trim()).filter((s: string) => s !== '')
+                    }
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setUser(data.user);
+                setIsEditing(false);
+                toast.success("Identity Matrix Updated Successfully! 🚀");
+            } else {
+                toast.error(data.error || "Update Failed");
+            }
+        } catch (e) {
+            console.error(e);
+            toast.error("Critical System Error during Sync");
+        }
+    };
+
     return (
-        <div className="text-white space-y-8">
+        <div className="text-white space-y-8 animate-in fade-in duration-700 pb-20">
             {/* Header / Cover */}
             <div className="relative">
-                <div className="h-48 bg-gradient-to-r from-indigo-900 to-purple-900 rounded-2xl overflow-hidden relative">
-                    <div className="absolute inset-0 bg-black/20" />
-                    <div className="absolute top-4 right-4">
-                        <Button size="sm" variant="secondary" className="bg-black/50 hover:bg-black/70 backdrop-blur-md border border-white/10 text-white">Edit Cover</Button>
-                    </div>
+                <div className="h-56 bg-gradient-to-r from-indigo-900/40 via-purple-900/40 to-indigo-900/40 rounded-[40px] overflow-hidden relative border border-white/5 shadow-2xl">
+                    <div className="absolute inset-0 bg-white/[0.02]" style={{ backgroundImage: "radial-gradient(circle at center, rgba(255,255,255,0.05) 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] to-transparent" />
                 </div>
 
-                <div className="px-8 flex flex-col md:flex-row items-end -mt-12 gap-6 relative z-10">
-                    <div className="w-32 h-32 rounded-full border-4 border-black bg-gray-800 flex items-center justify-center overflow-hidden">
-                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" alt="Avatar" className="w-full h-full" />
-                    </div>
-                    <div className="flex-1 pb-2">
-                        <div className="flex items-center gap-2 mb-1">
-                            <h1 className="text-3xl font-bold">Alex Johnson</h1>
-                            <BadgeCheck className="text-blue-500 w-6 h-6" fill="currentColor" />
+                <div className="px-8 flex flex-col md:flex-row items-end -mt-20 gap-8 relative z-10">
+                    <div className="group relative">
+                        <div className="w-40 h-40 rounded-[40px] border-8 border-[#0A0A0A] bg-gray-900 flex items-center justify-center overflow-hidden shadow-3xl transform transition-transform group-hover:scale-105">
+                            <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.firstName || 'Builder'}`} alt="Avatar" className="w-full h-full" />
                         </div>
-                        <p className="text-gray-400">Frontend Engineer • React Enthusiast • Building FutureBuilder</p>
-                    </div>
-                    <div className="pb-2 flex gap-3">
-                        <div className="flex gap-2">
-                            <Button size="icon" variant="ghost" className="rounded-full bg-gray-900/50 border border-gray-700 hover:bg-gray-800"><Github size={18} /></Button>
-                            <Button size="icon" variant="ghost" className="rounded-full bg-gray-900/50 border border-gray-700 hover:bg-gray-800"><Linkedin size={18} /></Button>
-                            <Button size="icon" variant="ghost" className="rounded-full bg-gray-900/50 border border-gray-700 hover:bg-gray-800"><Globe size={18} /></Button>
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-[40px] cursor-pointer">
+                            <Edit3 className="text-white" size={24} />
                         </div>
-                        <Button>Share Profile</Button>
+                    </div>
+
+                    <div className="flex-1 pb-4">
+                        <div className="flex items-center gap-4 mb-2">
+                            <h1 className="text-5xl font-black italic tracking-tighter uppercase leading-none drop-shadow-2xl">
+                                {user?.firstName} {user?.lastName}
+                            </h1>
+                            <div className="p-1 px-3 bg-indigo-500/10 border border-indigo-500/20 rounded-full flex items-center gap-2">
+                                <BadgeCheck className="text-indigo-400 w-4 h-4" />
+                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400">Verified Identity</span>
+                            </div>
+                        </div>
+                        <p className="text-gray-500 font-bold text-[11px] uppercase tracking-[0.4em] italic">
+                            {user?.subscriptionTier ? `${user.subscriptionStatus || 'Tier-1'} Access` : 'General Node'} • Future Architect_01
+                        </p>
+                    </div>
+
+                    <div className="pb-6 flex gap-4">
+                        {!isEditing ? (
+                            <Button
+                                onClick={() => setIsEditing(true)}
+                                className="bg-indigo-600 hover:bg-indigo-500 px-8 rounded-2xl h-14 font-black uppercase italic tracking-widest gap-2 shadow-xl shadow-indigo-600/20"
+                            >
+                                <Edit3 size={18} /> Edit DNA
+                            </Button>
+                        ) : (
+                            <div className="flex gap-3">
+                                <Button onClick={() => setIsEditing(false)} variant="ghost" className="bg-white/5 hover:bg-white/10 px-6 rounded-2xl h-14 font-black uppercase italic tracking-widest text-gray-400">Cancel</Button>
+                                <Button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-500 px-8 rounded-2xl h-14 font-black uppercase italic tracking-widest gap-2 shadow-xl shadow-emerald-600/20">
+                                    <Save size={18} /> Save Sync
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
 
-            <div className="grid lg:grid-cols-3 gap-8 px-4">
-                {/* Left Column */}
-                <div className="space-y-6">
-                    <div className="bg-gray-900/50 border border-gray-800 p-6 rounded-xl">
-                        <h3 className="font-bold mb-4">About</h3>
-                        <p className="text-sm text-gray-400 leading-relaxed max-w-sm">
-                            Passionate developer aimed at creating intuitive and dynamic user experiences. Currently mastering Advanced React patterns and System Design.
-                        </p>
-                        <div className="mt-6 flex flex-col gap-3 text-sm text-gray-400">
-                            <div className="flex items-center gap-2"><MapPin size={16} /> San Francisco, CA</div>
-                            <div className="flex items-center gap-2"><Mail size={16} /> alex@futurebuilder.com</div>
-                            <div className="flex items-center gap-2"><LinkIcon size={16} /> alex.dev</div>
-                        </div>
+            <div className="grid lg:grid-cols-3 gap-10 px-4">
+                {/* Left Column - Meta Data */}
+                <div className="space-y-8">
+                    <div className="bg-black/40 backdrop-blur-3xl border border-white/5 p-8 rounded-[40px] shadow-3xl space-y-6">
+                        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-gray-500 border-b border-white/5 pb-4 italic">Neural Biography</h3>
+
+                        {isEditing ? (
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Core Identity</label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            value={formData.firstName}
+                                            onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none"
+                                            placeholder="First Name"
+                                        />
+                                        <input
+                                            value={formData.lastName}
+                                            onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none"
+                                            placeholder="Last Name"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Bio Blueprint</label>
+                                    <textarea
+                                        value={formData.profile.bio}
+                                        onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, bio: e.target.value } })}
+                                        className="w-full h-32 bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-sm focus:border-indigo-500 outline-none resize-none"
+                                        placeholder="Explain your architectural purpose..."
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Node Location</label>
+                                    <input
+                                        value={formData.profile.location}
+                                        onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, location: e.target.value } })}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none"
+                                        placeholder="e.g. Earth_Sector_01"
+                                    />
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-6">
+                                <p className="text-md text-gray-300 leading-relaxed font-medium italic">"{user?.profile?.bio || 'Future Architect & Innovation Specialist.'}"</p>
+                                <div className="pt-6 border-t border-white/5 flex flex-col gap-4">
+                                    <div className="flex items-center gap-3 text-sm text-gray-400 font-bold">
+                                        <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400"><MapPin size={16} /></div>
+                                        {user?.profile?.location || 'Digital Nomad'}
+                                    </div>
+                                    <div className="flex items-center gap-3 text-sm text-gray-400 font-bold">
+                                        <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400"><Mail size={16} /></div>
+                                        {user?.email}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
-                    <div className="bg-gray-900/50 border border-gray-800 p-6 rounded-xl">
-                        <h3 className="font-bold mb-4">Skills</h3>
-                        <div className="flex flex-wrap gap-2">
-                            {["React", "TypeScript", "Node.js", "TailwindCSS", "PostgreSQL", "Figma", "AWS"].map(skill => (
-                                <span key={skill} className="text-xs bg-gray-800 border border-gray-700 px-3 py-1 rounded-full text-gray-300 hover:bg-gray-700 transition-colors cursor-default">{skill}</span>
-                            ))}
-                        </div>
+                    <div className="bg-black/40 backdrop-blur-3xl border border-white/5 p-8 rounded-[40px] shadow-3xl space-y-6">
+                        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-gray-500 border-b border-white/5 pb-4 italic">Skill Inventory</h3>
+                        {isEditing ? (
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Comma Separated Skills</label>
+                                <input
+                                    value={formData.profile.skills}
+                                    onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, skills: e.target.value } })}
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none"
+                                    placeholder="React, ML, Strategy..."
+                                />
+                            </div>
+                        ) : (
+                            <div className="flex flex-wrap gap-2">
+                                {(user?.profile?.skills?.length ? user.profile.skills : ["Strategic Planning", "Problem Solving", "Growth Architecture"]).map((skill: string) => (
+                                    <span key={skill} className="text-[10px] font-black uppercase tracking-widest bg-white/[0.03] border border-white/10 px-4 py-2 rounded-xl text-gray-300 hover:bg-indigo-500/20 hover:border-indigo-500/40 transition-all cursor-default">{skill}</span>
+                                ))}
+                            </div>
+                        )}
                     </div>
+
+                    {isEditing && (
+                        <div className="bg-black/40 backdrop-blur-3xl border border-white/5 p-8 rounded-[40px] shadow-3xl space-y-6">
+                            <h3 className="text-xs font-black uppercase tracking-[0.3em] text-gray-500 border-b border-white/5 pb-4 italic">Neural Links</h3>
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-3 bg-white/5 rounded-xl text-gray-400"><Github size={18} /></div>
+                                    <input
+                                        value={formData.profile.socialLinks.github}
+                                        onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, socialLinks: { ...formData.profile.socialLinks, github: e.target.value } } })}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs focus:border-indigo-500 outline-none"
+                                        placeholder="GitHub Handle"
+                                    />
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="p-3 bg-white/5 rounded-xl text-gray-400"><Linkedin size={18} /></div>
+                                    <input
+                                        value={formData.profile.socialLinks.linkedin}
+                                        onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, socialLinks: { ...formData.profile.socialLinks, linkedin: e.target.value } } })}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs focus:border-indigo-500 outline-none"
+                                        placeholder="LinkedIn URL"
+                                    />
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="p-3 bg-white/5 rounded-xl text-gray-400"><Globe size={18} /></div>
+                                    <input
+                                        value={formData.profile.socialLinks.website}
+                                        onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, socialLinks: { ...formData.profile.socialLinks, website: e.target.value } } })}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs focus:border-indigo-500 outline-none"
+                                        placeholder="Portfolio URL"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
-                {/* Main Content */}
-                <div className="lg:col-span-2 space-y-8">
-                    {/* Portfolio Grid */}
-                    <section>
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold flex items-center gap-2"><Code className="text-indigo-400" /> Featured Projects</h2>
-                            <span className="text-sm text-indigo-400 cursor-pointer">View All</span>
-                        </div>
-                        <div className="grid md:grid-cols-2 gap-4">
-                            {[1, 2].map(i => (
-                                <div key={i} className="group overflow-hidden rounded-xl border border-gray-800 bg-gray-900 relative">
-                                    <div className="h-40 bg-gray-800 relative">
-                                        <div className="absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent opacity-60" />
-                                    </div>
-                                    <div className="p-4 relative">
-                                        <h3 className="font-bold text-lg group-hover:text-indigo-400 transition-colors">E-Commerce Platform</h3>
-                                        <p className="text-xs text-gray-500 mt-1 mb-3">Next.js, Stripe, Tailwind</p>
-                                        <div className="flex gap-2">
-                                            <span className="w-2 h-2 rounded-full bg-green-500" />
-                                            <span className="text-xs text-gray-400">Live</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </section>
+                {/* Main Content - Activity & Showcase */}
+                <div className="lg:col-span-2 space-y-10">
+                    {/* Social Stats Strip */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {[
+                            { label: 'Artifacts', value: projects.length.toString().padStart(2, '0') || '00', icon: <Code size={16} /> },
+                            { label: 'Roadmaps', value: stats?.activeRoadmaps?.toString().padStart(2, '0') || '00', icon: <MapPin size={16} /> },
+                            { label: 'Credits', value: user?.tokenBalance?.toLocaleString() || '1,000', icon: <Activity size={16} /> },
+                            { label: 'Level', value: user?.subscriptionTier === 'monthly' || user?.subscriptionTier === 'yearly' ? 'Pro' : 'Core', icon: <BadgeCheck size={16} /> },
+                        ].map((stat, i) => (
+                            <div key={i} className="bg-white/[0.02] border border-white/5 p-6 rounded-[32px] text-center space-y-2 group hover:bg-indigo-500/5 hover:border-indigo-500/20 transition-all">
+                                <div className="flex justify-center text-gray-600 group-hover:text-indigo-400 transition-colors">{stat.icon}</div>
+                                <div className="text-2xl font-black italic tracking-tighter uppercase leading-none">{stat.value}</div>
+                                <div className="text-[9px] font-black uppercase tracking-widest text-gray-500">{stat.label}</div>
+                            </div>
+                        ))}
+                    </div>
 
-                    {/* Activity Feed */}
-                    <section>
-                        <h2 className="text-xl font-bold flex items-center gap-2 mb-6"><Activity className="text-green-400" /> Recent Activity</h2>
-                        <div className="space-y-6 pl-4 border-l-2 border-gray-800">
-                            {[
-                                { title: "Completed 'Advanced React' Course", time: "2 days ago", type: "Course" },
-                                { title: "Deployed 'Portfolio V2'", time: "4 days ago", type: "Project" },
-                                { title: "Earned 'Bug Hunter' Badge", time: "1 week ago", type: "Award" },
-                            ].map((act, i) => (
-                                <div key={i} className="relative">
-                                    <div className="absolute -left-[21px] top-1 w-3 h-3 rounded-full bg-gray-700 border-2 border-gray-900" />
-                                    <h4 className="text-sm font-bold text-gray-200">{act.title}</h4>
-                                    <div className="flex gap-2 text-xs text-gray-500 mt-1">
-                                        <span>{act.type}</span> • <span>{act.time}</span>
+                    <section className="space-y-6">
+                        <div className="flex justify-between items-center px-4">
+                            <h2 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-3">
+                                <Code className="text-indigo-400" /> System Showcase
+                            </h2>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400 cursor-pointer hover:underline">Sync All Deployment</span>
+                        </div>
+                        <div className="grid md:grid-cols-2 gap-6">
+                            {projects.length > 0 ? projects.map((proj, i) => (
+                                <div key={i} onClick={() => navigate(`/projects/live/${proj._id}`)} className="group cursor-pointer overflow-hidden rounded-[40px] border border-white/5 bg-black/40 backdrop-blur-3xl relative p-8 hover:border-indigo-500/30 transition-all shadow-3xl">
+                                    <div className="flex justify-between items-start mb-6">
+                                        <div className="p-4 bg-indigo-500/10 rounded-2xl text-indigo-400"><Code size={24} /></div>
+                                        <span className="text-[9px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20">{proj.status === 'COMPLETED' ? 'Active' : 'Deploying'}</span>
+                                    </div>
+                                    <h3 className="text-2xl font-black italic uppercase tracking-tighter group-hover:text-indigo-400 transition-colors line-clamp-1" title={proj.title}>{proj.title || "Experimental Node"}</h3>
+                                    <p className="text-[10px] text-gray-500 mt-2 font-black uppercase tracking-[0.2em]">{proj.category?.replace(/_/g, ' ') || 'Architecture'}</p>
+                                    <div className="mt-8 pt-6 border-t border-white/5 flex justify-between items-center">
+                                        <span className="text-[9px] font-black text-gray-600 uppercase tracking-widest italic">{new Date(proj.createdAt).toLocaleDateString()}</span>
                                     </div>
                                 </div>
-                            ))}
+                            )) : (
+                                <div className="col-span-2 text-center py-20 bg-white/[0.02] border border-white/5 p-6 rounded-[32px]">
+                                    <Code size={40} className="mx-auto text-gray-600 mb-4" />
+                                    <div className="text-lg font-black uppercase text-gray-500 tracking-widest">No Projects Found</div>
+                                    <div className="text-[10px] uppercase text-gray-600 mt-2 tracking-widest">Launch Builder to create your first architecture</div>
+                                </div>
+                            )}
                         </div>
                     </section>
                 </div>

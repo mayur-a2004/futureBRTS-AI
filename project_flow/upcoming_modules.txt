@@ -1,4 +1,0 @@
-# Upcoming Modules
-- Module 2: Skill Engine
-- Module 3: Marketplace
-- Module 4: Gamification

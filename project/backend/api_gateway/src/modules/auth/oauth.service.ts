@@ -9,7 +9,7 @@ export const oauthService = {
 
         // 👉 Architect Requirement: Ensure response_type=code and client_id are valid
         const options = {
-            redirect_uri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:7000/api/auth/google/callback',
+            redirect_uri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:7001/api/auth/google/callback',
             client_id: process.env.GOOGLE_CLIENT_ID || 'PENDING_CLIENT_ID',
             access_type: 'offline',
             response_type: 'code',
@@ -30,7 +30,7 @@ export const oauthService = {
         const rootUrl = 'https://github.com/login/oauth/authorize';
         const options = {
             client_id: process.env.GITHUB_CLIENT_ID || 'PENDING_CLIENT_ID',
-            redirect_uri: process.env.GITHUB_REDIRECT_URI || 'http://localhost:7000/api/auth/github/callback',
+            redirect_uri: process.env.GITHUB_REDIRECT_URI || 'http://localhost:7001/api/auth/github/callback',
             scope: 'read:user user:email',
             response_type: 'code', // Optional for GitHub but good for consistency
         };

@@ -1,4 +1,0 @@
-TASK: Maintenance 
-1. Horizontal Scaling: Kubernetes HPA config.
-2. DB Maintenance: Automated backups 
-3. Monitoring: Prometheus metrics endpoint.
