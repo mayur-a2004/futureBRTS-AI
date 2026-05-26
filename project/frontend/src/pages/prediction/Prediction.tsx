@@ -104,7 +104,7 @@ export default function Prediction() {
         <div className="text-white space-y-60 animate-in fade-in zoom-in duration-700 max-w-7xl mx-auto pb-40 px-4 relative overflow-hidden">
             
             {/* --- SECTION 1: PREDICTION HERO --- */}
-            <header className="relative py-24 px-10 rounded-[3rem] bg-[#080809] border border-white/5 overflow-hidden group">
+            <header className="relative py-12 md:py-24 px-6 md:px-10 rounded-[2rem] md:rounded-[3rem] bg-[#080809] border border-white/5 overflow-hidden group">
                 <div className="absolute top-0 right-0 p-10 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:rotate-12 duration-700">
                     <Zap size={250} className="text-cyan-500" />
                 </div>
@@ -116,7 +116,7 @@ export default function Prediction() {
 
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-10 relative z-10">
                     <div className="space-y-8">
-                        <div className="flex gap-4 items-center">
+                        <div className="flex gap-4 items-center flex-wrap">
                             <div className="inline-flex px-4 py-1.5 rounded-full bg-cyan-500/10 text-cyan-400 text-[10px] font-black uppercase tracking-widest border border-cyan-500/20 italic">
                                 <Activity size={14} className="mr-2 animate-pulse" /> Probability Engine v9.2
                             </div>
@@ -124,7 +124,7 @@ export default function Prediction() {
                                 CONFIDENCE: 95.4%
                             </div>
                         </div>
-                        <h1 className="text-5xl md:text-7xl font-[1000] italic tracking-tighter uppercase leading-none bg-gradient-to-r from-white via-cyan-100 to-indigo-500 bg-clip-text text-transparent pb-4">
+                        <h1 className="text-3xl sm:text-5xl md:text-7xl font-[1000] italic tracking-tighter uppercase leading-none bg-gradient-to-r from-white via-cyan-100 to-indigo-500 bg-clip-text text-transparent pb-4">
                             FUTURE <br />
                             FORECASTING.
                         </h1>
@@ -133,13 +133,13 @@ export default function Prediction() {
                         </p>
                     </div>
 
-                    <div className="flex gap-6 w-full md:w-auto">
-                        <div className="flex-1 bg-white/5 backdrop-blur-2xl border border-white/10 p-8 rounded-[2.5rem] flex flex-col justify-center items-center text-center shadow-2xl">
-                            <div className="text-3xl font-black text-emerald-400 italic font-mono tracking-tighter">78MS</div>
+                    <div className="flex gap-4 md:gap-6 w-full md:w-auto">
+                        <div className="flex-1 bg-white/5 backdrop-blur-2xl border border-white/10 p-5 md:p-8 rounded-2xl md:rounded-[2.5rem] flex flex-col justify-center items-center text-center shadow-2xl">
+                            <div className="text-2xl md:text-3xl font-black text-emerald-400 italic font-mono tracking-tighter">78MS</div>
                             <p className="text-[9px] font-black uppercase tracking-widest text-gray-600 mt-1">Latency</p>
                         </div>
-                        <div className="flex-1 bg-white/5 backdrop-blur-2xl border border-white/10 p-8 rounded-[2.5rem] flex flex-col justify-center items-center text-center shadow-2xl">
-                            <div className="text-3xl font-black text-cyan-400 italic font-mono tracking-tighter">9.2X</div>
+                        <div className="flex-1 bg-white/5 backdrop-blur-2xl border border-white/10 p-5 md:p-8 rounded-2xl md:rounded-[2.5rem] flex flex-col justify-center items-center text-center shadow-2xl">
+                            <div className="text-2xl md:text-3xl font-black text-cyan-400 italic font-mono tracking-tighter">9.2X</div>
                             <p className="text-[9px] font-black uppercase tracking-widest text-gray-600 mt-1">Depth</p>
                         </div>
                     </div>
@@ -185,7 +185,7 @@ export default function Prediction() {
                     initial={{ opacity: 0, scale: 0.95 }}
                     whileInView={{ opacity: 1, scale: 1 }}
                     viewport={{ once: true }}
-                    className="lg:col-span-8 bg-[#0a0a0c] border border-white/5 rounded-[3rem] p-12 relative overflow-hidden group shadow-2xl"
+                    className="lg:col-span-8 bg-[#0a0a0c] border border-white/5 rounded-3xl md:rounded-[3rem] p-6 md:p-12 relative overflow-hidden group shadow-2xl"
                 >
                     <div className="absolute -top-24 -right-24 w-64 h-64 bg-cyan-600/10 blur-[100px] rounded-full group-hover:scale-150 transition-transform duration-1000" />
                     <div className="flex justify-between items-center mb-16 relative z-10">
@@ -201,7 +201,7 @@ export default function Prediction() {
                         </div>
                     </div>
 
-                    <div className="h-[450px] w-full relative z-10">
+                    <div className="h-[300px] md:h-[450px] w-full relative z-10">
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={prediction?.forecast_data?.length > 0 ? prediction.forecast_data : defaultData}>
                                 <defs>
@@ -246,7 +246,7 @@ export default function Prediction() {
                                 key="prediction-card"
                                 initial={{ opacity: 0, x: 50 }}
                                 animate={{ opacity: 1, x: 0 }}
-                                className="bg-white/5 border border-cyan-500/20 p-10 rounded-[3rem] shadow-3xl space-y-8 relative overflow-hidden group/card"
+                                className="bg-white/5 border border-cyan-500/20 p-6 md:p-10 rounded-3xl md:rounded-[3rem] shadow-3xl space-y-8 relative overflow-hidden group/card"
                             >
                                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-cyan-400 to-transparent" />
                                 <div className="flex items-center gap-4">
@@ -257,7 +257,7 @@ export default function Prediction() {
                                 </div>
                                 <div className="space-y-6">
                                     {prediction.forecast?.map((item: string, i: number) => (
-                                        <div key={i} className="flex gap-5 items-start p-6 bg-white/[0.03] border border-white/5 rounded-[2rem] group/item hover:border-cyan-500/40 transition-all cursor-default">
+                                        <div key={i} className="flex gap-4 md:gap-5 items-start p-5 md:p-6 bg-white/[0.03] border border-white/5 rounded-2xl md:rounded-[2rem] group/item hover:border-cyan-500/40 transition-all cursor-default">
                                             <div className="w-2 h-2 rounded-full bg-cyan-500 mt-2.5 shrink-0 group-hover/item:scale-150 transition-all shadow-[0_0_10px_#06b6d4]" />
                                             <p className="text-sm font-medium text-gray-500 leading-relaxed group-hover/item:text-white transition-colors italic">{item}</p>
                                         </div>
@@ -265,9 +265,9 @@ export default function Prediction() {
                                 </div>
                             </motion.div>
                         ) : (
-                            <div className="h-full bg-[#0a0a0c] border border-dashed border-white/10 rounded-[3rem] flex flex-col items-center justify-center p-12 text-center min-h-[500px] shadow-inner group/empty">
-                                <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-8 shadow-2xl transition-all group-hover/empty:scale-110">
-                                    <Search className="text-gray-700" size={32} />
+                            <div className="h-full bg-[#0a0a0c] border border-dashed border-white/10 rounded-3xl md:rounded-[3rem] flex flex-col items-center justify-center p-6 md:p-12 text-center min-h-[400px] md:min-h-[500px] shadow-inner group/empty">
+                                <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white/5 flex items-center justify-center mb-6 md:mb-8 shadow-2xl transition-all group-hover/empty:scale-110">
+                                    <Search className="text-gray-700" size={28} md-size={32} />
                                 </div>
                                 <h4 className="text-gray-500 font-[1000] uppercase tracking-[0.4em] text-xs mb-4">No Active Search</h4>
                                 <p className="text-xs text-gray-700 leading-relaxed italic max-w-[200px] uppercase font-bold tracking-widest opacity-50">Transmit a signal to initialize the predictive engine.</p>
@@ -276,7 +276,7 @@ export default function Prediction() {
                     </AnimatePresence>
 
                     {/* System Evolution Metrics */}
-                    <div className="bg-[#0a0a0c] border border-white/5 p-10 rounded-[3rem] space-y-10 group/mon shadow-2xl">
+                    <div className="bg-[#0a0a0c] border border-white/5 p-6 md:p-10 rounded-3xl md:rounded-[3rem] space-y-10 group/mon shadow-2xl">
                         <h5 className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-600 mb-8 border-b border-white/5 pb-4">NPU Monitor v4.0</h5>
                         <div className="space-y-8">
                             <MetricRow label="Confidence" value="95.4%" color="cyan" />
@@ -296,7 +296,7 @@ export default function Prediction() {
                     <div className="h-px flex-1 bg-white/5" />
                 </div>
 
-                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
                     {history.length > 0 ? history.map((h) => (
                         <motion.div
                             key={h._id}
@@ -305,7 +305,7 @@ export default function Prediction() {
                                 setPrediction(h);
                                 window.scrollTo({ top: 300, behavior: 'smooth' });
                             }}
-                            className="bg-[#0a0a0c] border border-white/5 p-8 rounded-[2.5rem] group hover:border-cyan-500/40 transition-all cursor-pointer relative overflow-hidden shadow-2xl"
+                            className="bg-[#0a0a0c] border border-white/5 p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] group hover:border-cyan-500/40 transition-all cursor-pointer relative overflow-hidden shadow-2xl"
                         >
                             <div className="absolute inset-0 bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                             <div className="flex justify-between items-start mb-6">
@@ -319,7 +319,7 @@ export default function Prediction() {
                             </div>
                         </motion.div>
                     )) : (
-                        <div className="col-span-full py-24 border-2 border-dashed border-white/5 rounded-[3rem] text-center bg-white/[0.01]">
+                        <div className="col-span-full py-16 md:py-24 border-2 border-dashed border-white/5 rounded-3xl md:rounded-[3rem] text-center bg-white/[0.01]">
                             <h5 className="text-gray-800 text-sm font-black uppercase tracking-[0.5em] italic">Registry Empty</h5>
                             <p className="text-[10px] text-gray-900 mt-4 uppercase font-bold tracking-[0.3em]">Awaiting first neural transmission.</p>
                         </div>

@@ -53,12 +53,22 @@ const generateKrokiUrl = (diagramType: string, content: string) => {
 // ============================================================
 const ANTIGRAVITY_GOD_MODE = (title: string, tech: string, filePath?: string) => {
     let linesLimit = "400+ lines per file";
+    const lowerPath = filePath ? filePath.toLowerCase() : "";
+    const isReact = lowerPath.endsWith('.tsx') || lowerPath.endsWith('.jsx') || lowerPath.endsWith('.ts') || lowerPath.endsWith('.js');
     if (filePath) {
-        const lowerPath = filePath.toLowerCase();
         if (lowerPath.includes('config') || lowerPath.includes('context') || lowerPath.includes('hook') || lowerPath.includes('helper') || lowerPath.includes('mockdata') || lowerPath.includes('util') || lowerPath.includes('theme') || lowerPath.endsWith('main.jsx') || lowerPath.endsWith('main.tsx')) {
             linesLimit = "50+ lines per file";
         }
     }
+    const reactConstraint = isReact 
+        ? `\nCRITICAL REACT CONSTRAINT:
+- Output clean ESM React component code ONLY.
+- DO NOT include HTML wrapper tags (e.g. <!DOCTYPE html>, <html>, <head>, <body>) or <style> blocks.
+- Use Tailwind CSS classes for styles and animations. DO NOT link or import external Google font files inside React components.
+- IMPORT only universally available Lucide icons from 'lucide-react' (safe list: Plus, Trash2, Edit, Save, X, Search, Filter, ChevronLeft, ChevronRight, Settings, User, LogOut, LayoutDashboard, BarChart3, ListTodo, Activity, AlertCircle, CheckCircle2, Shield, ArrowUpRight, Calendar, Info).
+- NO PLACEHOLDERS: DO NOT write comments like '// TODO', '// implement later', '// rest of the code', '// add logic here' or '...'. You must write 100% complete, functional code for every function, form handler, page section, and list item. No lorem ipsum text.
+- DYNAMIC STATE & LINKS: Use React useState/useEffect for functional search, sorting, filtering, adding/editing items in lists, and pagination controls. Use '<Link to="...">' from 'react-router-dom' for sidebars, navbars, and buttons to connect pages properly.`
+        : "";
     return `DESIGN MANDATE FOR "${title}" (${tech}):
 1. BACKGROUND: Dark #0F172A. Gradient accents indigo→purple→cyan. NEVER plain white/grey.
 2. GLASS CARDS: backdrop-filter:blur(20px) + rgba(255,255,255,0.05) borders + glow shadows.
@@ -66,7 +76,7 @@ const ANTIGRAVITY_GOD_MODE = (title: string, tech: string, filePath?: string) =>
 4. TYPOGRAPHY: Google Fonts Inter/Poppins. Min 3 font-size scales. Font-weight 400/600/800.
 5. MOCK DATA: Realistic hardcoded arrays/objects. ZERO real API calls, ZERO fetch/axios.
 6. LAYOUT: CSS Grid + Flexbox. Sticky glassmorphic Navbar.
-7. MINIMUM: ${linesLimit}. All sections with real data and working interactions.
+7. MINIMUM: ${linesLimit}. All sections with real data and working interactions.${reactConstraint}
 OUTPUT: Raw ${tech} code ONLY. Zero markdown. Zero explanations.`;
 };
 
@@ -241,7 +251,7 @@ const awaitTokenBudget = async (promptText: string, pId: string) => {
 };
 
 const extractSymbols = (code: string, filePath: string) => {
-    const symbols: any = { exports: [], importPath: '' };
+    const symbols: any = { exports: [], importPath: '', originalPath: filePath };
     try {
         const baseNameMatch = filePath.match(/([^\/]+)\.[a-zA-Z]+$/);
         const baseName = baseNameMatch ? baseNameMatch[1].replace('.controller', '').replace('.model', '').replace('.routes', '') : 'Module';
@@ -305,11 +315,13 @@ const validateGeneratedCode = (code: string, filePath: string): void => {
     // 1. Check for placeholder comments
     const placeholders = [
         /\/\/\s*\.\.\./,
-        /\/\/\s*rest\s+of\s+the\s+code/i,
-        /\/\/\s*implement\s+here/i,
-        /\/\/\s*add\s+your\s+logic/i,
-        /\/\/\s*todo:\s*implement/i,
-        /HTML\s+comment\s+placeholder/i
+        /\/\/\s*rest\s+of\s+(?:the\s+)?code/i,
+        /\/\/\s*implement\s+(?:here|this)/i,
+        /\/\/\s*add\s+(?:your\s+)?logic/i,
+        /\/\/\s*(?:TODO|todo|Todo):\s*implement/i,
+        /HTML\s+comment\s+placeholder/i,
+        /\/\*\s*\.\.\.\s*\*\//,
+        /\b(?:lorem\s+ipsum|Lorem\s+Ipsum)\b/
     ];
     for (const pattern of placeholders) {
         if (pattern.test(trimmed)) {
@@ -317,11 +329,22 @@ const validateGeneratedCode = (code: string, filePath: string): void => {
         }
     }
 
-    // 2. Check for syntax truncation (ends with unclosed structures or operators)
-    const trailingChars = trimmed.slice(-20); // inspect the very end of code
-    const openBracesPattern = /[\{\[\(\+\-\=\,\&\|\?]$/;
-    if (openBracesPattern.test(trailingChars.trim())) {
-        throw new Error(`Code appears to be truncated at the end (ends with an open brace or operator: "${trailingChars.trim().slice(-1)}").`);
+    // 2. Syntax truncation checks are now handled via Auto-Stitch protocol in the execution loop.
+
+    // 3. Prevent raw HTML wrappers in TSX/JSX/JS/TS component files
+    const lowerPath = filePath.toLowerCase();
+    if (lowerPath.endsWith('.tsx') || lowerPath.endsWith('.jsx') || lowerPath.endsWith('.ts') || lowerPath.endsWith('.js')) {
+        const htmlWrappers = [
+            /<!DOCTYPE\s+html/i,
+            /<html/i,
+            /<head/i,
+            /<body/i
+        ];
+        for (const pattern of htmlWrappers) {
+            if (pattern.test(trimmed)) {
+                throw new Error(`FILE_QUALITY_FAIL: HTML page wrapper tag (${pattern.toString()}) found in React/JS/TS component file.`);
+            }
+        }
     }
 };
 
@@ -331,10 +354,35 @@ const updateSymbolTable = async (projectId: string, filePath: string, code: stri
     await CollageProject.findByIdAndUpdate(projectId, { $set: { [`symbolTable.${safeKey}`]: sig } });
 };
 
-const buildSymbolContext = (registry: any): string => {
+const getRelativeImportPath = (fromFile: string, toFile: string): string => {
+    const fromDir = path.dirname(fromFile);
+    let relPath = path.relative(fromDir, toFile);
+    relPath = relPath.replace(/\\/g, '/');
+    relPath = relPath.replace(/\.[a-zA-Z0-9]+$/, '');
+    if (!relPath.startsWith('.') && !relPath.startsWith('/')) {
+        relPath = './' + relPath;
+    }
+    return relPath;
+};
+
+const buildSymbolContext = (registry: any, importsFrom?: string | null): string => {
     if (!registry || Object.keys(registry).length === 0) return "No prior dependencies mapped yet.";
-    return Object.entries(registry).map(([path, sym]: any) => {
-        const lines = [`📁 ${path.replace(/__/g, '/').replace(/_/g, '.')}:`];
+    
+    // Filter registry based on where we are importing from
+    const isFrontendTarget = importsFrom ? (importsFrom.includes('frontend/') || importsFrom.includes('admin/') || importsFrom.includes('public/')) : false;
+    
+    const relevantRegistry = Object.entries(registry).filter(([key, sym]: any) => {
+        const path = sym.originalPath || key;
+        if (!importsFrom) return true;
+        const isFrontendSym = path.includes('frontend/') || path.includes('admin/') || path.includes('public/');
+        return isFrontendTarget ? isFrontendSym : (!isFrontendSym || path.includes('models'));
+    });
+
+    if (relevantRegistry.length === 0) return "No relevant dependencies mapped yet.";
+
+    return relevantRegistry.map(([key, sym]: any) => {
+        const filePath = sym.originalPath || key.replace(/__/g, '/').replace(/_/g, '.');
+        const lines = [`📁 ${filePath}:`];
         if (sym.modelName) lines.push(`  Model: ${sym.modelName}`);
         if (sym.schemaFields && Object.keys(sym.schemaFields).length > 0) {
             lines.push('  Fields (MUST USE EXACT MATCH):');
@@ -342,13 +390,18 @@ const buildSymbolContext = (registry: any): string => {
         }
         if (sym.exports && sym.exports.length > 0) lines.push(`  Exports: ${sym.exports.join(', ')}`);
         if (sym.apiEndpoints && sym.apiEndpoints.length > 0) lines.push(`  APIs: ${sym.apiEndpoints.join(', ')}`);
-        if (sym.importPath) lines.push(`  Import Path: ${sym.importPath}`);
+        
+        let importPath = sym.importPath;
+        if (importsFrom) {
+            importPath = getRelativeImportPath(importsFrom, filePath);
+        }
+        if (importPath) lines.push(`  Import Path: ${importPath}`);
         return lines.join('\n');
     }).join('\n\n');
 };
 
 const resolveImports = (importsFrom: any, registry: any): string => {
-    return buildSymbolContext(registry);
+    return buildSymbolContext(registry, importsFrom);
 };
 
 const isCodeQualityHigh = (code: string, filePath?: string, rule: string = ""): boolean => {
@@ -400,7 +453,6 @@ const buildFrontendOnlyPlan = (title: string, fe: string, feExt: string, entity:
     const C = `Project:"${title}". Stack:${fe}. Req:${requirements.substring(0, 150)}.`;
     const domain = detectDomain(title, requirements);
 
-
     const staticFiles = [
         {
             path: 'frontend/index.html',
@@ -431,20 +483,11 @@ const buildFrontendOnlyPlan = (title: string, fe: string, feExt: string, entity:
     const coreUiFiles = [
         // Foundation & Mock Data
         { path: `frontend/src/data/mockData.${feExt}`, prompt: `${C}\nCreate comprehensive mock data module for "${title}" (${domain} domain).\nMUST EXPORT: realistic entities, users, activities, stats relevant to this specific domain.\n${D}` },
-        { path: `frontend/src/context/AuthContext.${feExt}`, prompt: `${C}\nCreate React Auth Context + Provider.\nInclude login, logout, register, session persistence in localStorage.\n${D}` },
-        { path: `frontend/src/hooks/useLocalStorage.${feExt}`, prompt: `${C}\nCreate useLocalStorage, useDebounce, useMediaQuery hooks.\n${D}` },
+        { path: `frontend/src/context/AppContext.${feExt}`, prompt: `${C}\nCreate React App Context + Provider (combining Auth, Toast notifications, and global state for CRUD operations).\nImplement session persistence in localStorage for auth and database items.\n${D}` },
         
-        // Layouts
-        { path: `frontend/src/components/layout/Navbar.${feExt}`, prompt: `${C}\nCreate premium glassmorphic sticky Navbar relevant to ${domain}.\n${D}` },
-        { path: `frontend/src/components/layout/Sidebar.${feExt}`, prompt: `${C}\nCreate premium dashboard sidebar relevant to ${domain}.\n${D}` },
-        { path: `frontend/src/components/layout/DashboardLayout.${feExt}`, prompt: `${C}\nCreate dashboard layout wrapper with Sidebar and Header.\n${D}` },
-        
-        // Reusable UI Components
-        { path: `frontend/src/components/ui/StatCard.${feExt}`, prompt: `${C}\nCreate animated stat card component with trends.\n${D}` },
-        { path: `frontend/src/components/ui/DataTable.${feExt}`, prompt: `${C}\nCreate premium data table component with sort, search, pagination.\n${D}` },
-        { path: `frontend/src/components/ui/Modal.${feExt}`, prompt: `${C}\nCreate premium Modal component with backdrop blur.\n${D}` },
-        { path: `frontend/src/components/ui/Button.${feExt}`, prompt: `${C}\nCreate premium Button component (variants, loading state).\n${D}` },
-        { path: `frontend/src/components/ui/Toast.${feExt}`, prompt: `${C}\nCreate complete toast notification system & context.\n${D}` },
+        // Layouts & UI Components
+        { path: `frontend/src/components/Navigation.${feExt}`, prompt: `${C}\nCreate unified responsive Navigation system (combining Navbar, Sidebar, and DashboardLayout with sticky glassmorphism and active link indicators).\n${D}` },
+        { path: `frontend/src/components/UIComponents.${feExt}`, prompt: `${C}\nCreate a premium UI Kit file exporting reusable components: StatCard (with trends), DataTable (with sorting, filtering, and functional pagination), Modal (with backdrop blur), Button (with variants), and Toast notifications.\n${D}` },
         
         // Base Pages
         { path: `frontend/src/pages/LandingPage.${feExt}`, prompt: `${C}\nCreate stunning landing page for ${domain} application. Include Hero, Features, Stats.\n${D}` },
@@ -459,67 +502,61 @@ const buildFrontendOnlyPlan = (title: string, fe: string, feExt: string, entity:
     switch(domain) {
         case 'library':
             domainFiles = [
-                { path: `frontend/src/pages/CatalogPage.${feExt}`, prompt: `${C}\nCreate Library Catalog Page. Grid of books, search, category filters.\n${D}` },
-                { path: `frontend/src/pages/BookDetailPage.${feExt}`, prompt: `${C}\nCreate Book Detail Page. Show availability, reviews, Borrow action.\n${D}` },
-                { path: `frontend/src/pages/BorrowingsPage.${feExt}`, prompt: `${C}\nCreate Active Borrowings & History Page for user. DataTable of due dates.\n${D}` }
+                { path: `frontend/src/pages/CatalogPage.${feExt}`, prompt: `${C}\nCreate Library Catalog Page. Include search filters, category selectors, and a detailed overlay modal to borrow/return books.\n${D}` },
+                { path: `frontend/src/pages/BorrowingsPage.${feExt}`, prompt: `${C}\nCreate Borrowings Management Page. Shows list of checked-out books, active due dates, fine metrics, and history logs.\n${D}` }
             ];
             break;
         case 'ecommerce':
             domainFiles = [
-                { path: `frontend/src/pages/ProductsPage.${feExt}`, prompt: `${C}\nCreate Products Catalog Page. Grid view, price filters, Add to Cart.\n${D}` },
-                { path: `frontend/src/pages/ProductDetailPage.${feExt}`, prompt: `${C}\nCreate Product Detail Page. Image gallery, size/color options, reviews, purchase actions.\n${D}` },
-                { path: `frontend/src/pages/CartCheckoutPage.${feExt}`, prompt: `${C}\nCreate Shopping Cart and Multi-step Checkout Flow Page.\n${D}` },
-                { path: `frontend/src/pages/OrdersPage.${feExt}`, prompt: `${C}\nCreate Order History and Status Tracking Page.\n${D}` }
+                { path: `frontend/src/pages/ProductsPage.${feExt}`, prompt: `${C}\nCreate Products Catalog Page. Grid view, search filters, interactive cart drawer, and checkout stepper modal.\n${D}` },
+                { path: `frontend/src/pages/OrdersPage.${feExt}`, prompt: `${C}\nCreate Order History and tracking timeline status Page.\n${D}` }
             ];
             break;
         case 'hospital':
             domainFiles = [
-                { path: `frontend/src/pages/PatientsPage.${feExt}`, prompt: `${C}\nCreate Patients Management Page. DataTable of patient records.\n${D}` },
-                { path: `frontend/src/pages/AppointmentsPage.${feExt}`, prompt: `${C}\nCreate Appointments Calendar and Scheduling Page. Daily/Weekly view.\n${D}` },
-                { path: `frontend/src/pages/MedicalRecordsPage.${feExt}`, prompt: `${C}\nCreate Medical Records and Prescriptions tracking Page.\n${D}` }
+                { path: `frontend/src/pages/PatientsPage.${feExt}`, prompt: `${C}\nCreate Patients Records Page. Directory list, detailed diagnostic records, vital metrics charts, and prescription drawer.\n${D}` },
+                { path: `frontend/src/pages/AppointmentsPage.${feExt}`, prompt: `${C}\nCreate Doctor Appointments Scheduling Page. Complete scheduling modal and slot trackers.\n${D}` }
             ];
             break;
         case 'school':
             domainFiles = [
-                { path: `frontend/src/pages/CoursesPage.${feExt}`, prompt: `${C}\nCreate Courses/Classes Catalog Page.\n${D}` },
-                { path: `frontend/src/pages/AssignmentsPage.${feExt}`, prompt: `${C}\nCreate Student Assignments and Grades Page.\n${D}` },
-                { path: `frontend/src/pages/AttendancePage.${feExt}`, prompt: `${C}\nCreate Attendance Tracking Page.\n${D}` }
+                { path: `frontend/src/pages/CoursesPage.${feExt}`, prompt: `${C}\nCreate Courses and syllabus progress board Page.\n${D}` },
+                { path: `frontend/src/pages/AssignmentsPage.${feExt}`, prompt: `${C}\nCreate Student Assignments grading sheet and attendance logs dashboard.\n${D}` }
             ];
             break;
         case 'restaurant':
             domainFiles = [
-                { path: `frontend/src/pages/MenuPage.${feExt}`, prompt: `${C}\nCreate Interactive Digital Menu Page with categories.\n${D}` },
-                { path: `frontend/src/pages/ReservationsPage.${feExt}`, prompt: `${C}\nCreate Table Reservation Booking Page.\n${D}` },
-                { path: `frontend/src/pages/KitchenOrdersPage.${feExt}`, prompt: `${C}\nCreate Kitchen Display System (KDS) / Active Orders Page.\n${D}` }
+                { path: `frontend/src/pages/MenuPage.${feExt}`, prompt: `${C}\nCreate Interactive Food Menu Page with categories, checkout summary list, and table booking reference.\n${D}` },
+                { path: `frontend/src/pages/ReservationsPage.${feExt}`, prompt: `${C}\nCreate Table Reservation Booking Page. Includes graphical restaurant floor plan layout.\n${D}` }
             ];
             break;
         case 'hr':
             domainFiles = [
-                { path: `frontend/src/pages/EmployeesDirectory.${feExt}`, prompt: `${C}\nCreate Employee Directory and Management Page.\n${D}` },
-                { path: `frontend/src/pages/PayrollPage.${feExt}`, prompt: `${C}\nCreate Payroll, Salary, and Payslips Page.\n${D}` },
-                { path: `frontend/src/pages/LeaveRequestsPage.${feExt}`, prompt: `${C}\nCreate Leave/PTO Requests and Approval Workflow Page.\n${D}` }
+                { path: `frontend/src/pages/EmployeesPage.${feExt}`, prompt: `${C}\nCreate Employee Directory Page. Includes salary payroll details, payslips generator, and active leave records.\n${D}` },
+                { path: `frontend/src/pages/LeaveRequestsPage.${feExt}`, prompt: `${C}\nCreate Leave/PTO Request Forms and HR Approvals workflow dashboard Page.\n${D}` }
             ];
             break;
         case 'realestate':
             domainFiles = [
-                { path: `frontend/src/pages/PropertiesPage.${feExt}`, prompt: `${C}\nCreate Real Estate Property Listings Page with map view and filters.\n${D}` },
-                { path: `frontend/src/pages/PropertyDetailPage.${feExt}`, prompt: `${C}\nCreate Property Detail Page. High-res gallery, virtual tour mock, agent contact.\n${D}` },
-                { path: `frontend/src/pages/AgentDashboard.${feExt}`, prompt: `${C}\nCreate Dashboard specifically for Agents to manage listings and leads.\n${D}` }
+                { path: `frontend/src/pages/PropertiesPage.${feExt}`, prompt: `${C}\nCreate Real Estate Listings Page with search filters, virtual tour mocks, agent directories, and CRM leads board.\n${D}` }
+            ];
+            break;
+        case 'banking':
+            domainFiles = [
+                { path: `frontend/src/pages/AccountsPage.${feExt}`, prompt: `${C}\nCreate Bank Accounts Dashboard. Shows cards list, ledger log table, and transfer funds wizard modal.\n${D}` }
             ];
             break;
         default:
-            // SaaS, Generic, etc.
             domainFiles = [
-                { path: `frontend/src/pages/${entity}ListPage.${feExt}`, prompt: `${C}\nCreate ${entity} list/management page. DataTable with CRUD actions.\n${D}` },
-                { path: `frontend/src/pages/${entity}DetailPage.${feExt}`, prompt: `${C}\nCreate ${entity} detail/view page. In-depth metrics and related entities.\n${D}` },
-                { path: `frontend/src/pages/AnalyticsPage.${feExt}`, prompt: `${C}\nCreate extensive Analytics and Reports Page with multiple charts.\n${D}` }
+                { path: `frontend/src/pages/WorkspacePage.${feExt}`, prompt: `${C}\nCreate ${entity} list/workspace page. Complete CRUD table with search filters, paginated list, and edit details drawer.\n${D}` },
+                { path: `frontend/src/pages/AnalyticsPage.${feExt}`, prompt: `${C}\nCreate extensive Analytics and Reports Page with Recharts charts (area/bar/line), trend indicators, and data export buttons.\n${D}` }
             ];
             break;
     }
 
     const routingFiles = [
         // Routing & Entry
-        { path: `frontend/src/App.${feExt}`, prompt: `${C}\nCreate root App component with React Router v6.\nDefine all necessary routes for a ${domain} application (Landing, Auth, Dashboard, Domain Pages).\n${D}` },
+        { path: `frontend/src/App.${feExt}`, prompt: `${C}\nCreate root App component with React Router v6.\nDefine all necessary routes for a ${domain} application (Landing, Auth, Dashboard, Domain Pages) wrapped in the AppProvider.\n${D}` },
         { path: `frontend/src/main.${feExt}`, prompt: `${C}\nCreate React app entry point. Import styles and App.\n${D}` }
     ];
 
@@ -1298,10 +1335,10 @@ Output strictly JSON only with keys: "database", "api_endpoints", "frontend_stru
     const phaseTrack: Record<string, { s: number, f: number }> = { api: { s: 0, f: 0 }, backend_module: { s: 0, f: 0 }, frontend_module: { s: 0, f: 0 } };
     
     // 🧠 Project Memory Source: Compact Symbol Table Context
-    const fetchRecentContext = async () => {
+    const fetchRecentContext = async (targetFilePath: string) => {
         try {
             const pDoc = await CollageProject.findById(objectId).lean();
-            return resolveImports(null, pDoc?.symbolTable || {});
+            return resolveImports(targetFilePath, pDoc?.symbolTable || {});
         } catch(e) { return "No prior context map."; }
     };
 
@@ -1318,7 +1355,7 @@ Output strictly JSON only with keys: "database", "api_endpoints", "frontend_stru
       
       while (!fileSuccess && repairAttempts < 3) {
           try {
-              const structuralContext = await fetchRecentContext();
+              const structuralContext = await fetchRecentContext(aiFile.path);
               const fe = techStack?.frontend || techStack?.mobile || techStack?.desktop || 'React';
               
               // Phase B: Layer-Aware Quality Prompt Injection
@@ -1326,9 +1363,12 @@ Output strictly JSON only with keys: "database", "api_endpoints", "frontend_stru
               const isFrontend = aiFile.path.includes('frontend/') || aiFile.path.includes('admin/') || aiFile.path.includes('public/');
               
               if (aiFile.path.includes('admin/')) {
-                  layerRules = `\nLAYER OVERRIDE — ADMIN PANEL:\nBuild a high-fidelity Admin Dashboard. DARK HUD style. Include stats widgets, activity monitors, and command logs. ${ANTIGRAVITY_GOD_MODE(title, fe)}`;
+                  layerRules = `\nLAYER OVERRIDE — ADMIN PANEL:\nBuild a high-fidelity React Admin Dashboard component. DARK HUD style. Include stats widgets, activity monitors, and command logs. ${ANTIGRAVITY_GOD_MODE(title, fe, aiFile.path)}`;
               } else if (isFrontend && (aiFile.path.endsWith('.jsx') || aiFile.path.endsWith('.tsx') || aiFile.path.endsWith('.vue') || aiFile.path.endsWith('.html') || aiFile.path.endsWith('.css'))) {
-                  layerRules = `\nLAYER OVERRIDE — DIVINE FRONTEND:\nSpend 100% of tokens on a SYSTEM-SCALE, 100+ PAGE enterprise SaaS UI. Ensure all links work. Use Industrial Datasets. ${ANTIGRAVITY_GOD_MODE(title, fe)}`;
+                  const compRule = (aiFile.path.endsWith('.tsx') || aiFile.path.endsWith('.jsx')) 
+                      ? "Spend 100% of tokens on a clean, complete React ESM component. DO NOT write HTML wrappers (<html>, <body>, etc.)." 
+                      : "Spend 100% of tokens on a premium UI interface layout.";
+                  layerRules = `\nLAYER OVERRIDE — DIVINE FRONTEND:\n${compRule} Ensure all links and routing inside this component work correctly. Use Industrial Datasets. ${ANTIGRAVITY_GOD_MODE(title, fe, aiFile.path)}`;
               }
 
               // STRICT PROTOTYPE MODE ENFORCEMENT
@@ -1342,8 +1382,8 @@ Output strictly JSON only with keys: "database", "api_endpoints", "frontend_stru
                   }
               }
 
-              // Trim context — keep it small to save tokens for actual code output
-              const maxContextLen = 300;
+              // Provide generous context for dependencies without blowing up the token limit
+              const maxContextLen = 2500;
               const safeStructContext = structuralContext.length > maxContextLen 
                   ? structuralContext.substring(0, maxContextLen) + "\n...(truncated)"
                   : structuralContext;
@@ -1360,6 +1400,27 @@ Output strictly JSON only with keys: "database", "api_endpoints", "frontend_stru
               
               await awaitTokenBudget(enrichedPrompt, pId);
               let realCode = await callSwarmAI(enrichedPrompt, pId, aiFile.path);
+              
+              // AUTO-STITCH PROTOCOL
+              let stitchAttempts = 0;
+              while (stitchAttempts < 3) {
+                  let tempTrimmed = realCode.trim();
+                  const trailingChars = tempTrimmed.slice(-40);
+                  const isTruncated = /[\{\[\(\+\-\=\,\&\|\?]$/.test(trailingChars.trim()) || 
+                      (!tempTrimmed.endsWith('}') && !tempTrimmed.endsWith('>') && !tempTrimmed.endsWith(';') && !tempTrimmed.endsWith(']'));
+                  
+                  if (isTruncated && stitchAttempts < 2) {
+                      await SystemLogger.log(pId, 'AUTO_STITCH', `🧵 Truncation detected for ${aiFile.path}. Auto-stitching code...`);
+                      await awaitTokenBudget("stitch", pId);
+                      const stitchPrompt = `The previous code response was cut off. Continue writing the code EXACTLY from this snippet (DO NOT repeat the snippet, just continue it): "${trailingChars.replace(/"/g, "'")}"\nOutput raw code only.`;
+                      let stitchedPart = await callSwarmAI(stitchPrompt, pId, aiFile.path);
+                      stitchedPart = stitchedPart.replace(/```[a-z]*\n?/g, '').replace(/```/g, ''); // strip markdown immediately
+                      realCode += "\n" + stitchedPart;
+                      stitchAttempts++;
+                  } else {
+                      break;
+                  }
+              }
               
               let safeCode = realCode;
               const markdownMatch = safeCode.match(/```[a-zA-Z]*\n([\s\S]*?)```/);

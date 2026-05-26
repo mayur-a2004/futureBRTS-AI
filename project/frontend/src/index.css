@@ -26,6 +26,42 @@
         --glass-border: rgba(255, 255, 255, 0.1);
     }
 
+    .theme-light {
+        --background: #f8fafc;
+        --foreground: #0f172a;
+        --titan-indigo: #4f46e5;
+        --titan-blue: #2563eb;
+        --titan-cyan: #0891b2;
+        --titan-border: rgba(15, 23, 42, 0.08);
+        --titan-glass: rgba(248, 250, 252, 0.85);
+        --glass-bg: rgba(255, 255, 255, 0.7);
+        --glass-border: rgba(15, 23, 42, 0.08);
+    }
+
+    .theme-blue {
+        --background: #090e17;
+        --foreground: #e2e8f0;
+        --titan-indigo: #3b82f6;
+        --titan-blue: #60a5fa;
+        --titan-cyan: #38bdf8;
+        --titan-border: rgba(59, 130, 246, 0.15);
+        --titan-glass: rgba(9, 14, 23, 0.85);
+        --glass-bg: rgba(59, 130, 246, 0.05);
+        --glass-border: rgba(59, 130, 246, 0.15);
+    }
+
+    .theme-violet {
+        --background: #0b0714;
+        --foreground: #f1f5f9;
+        --titan-indigo: #8b5cf6;
+        --titan-blue: #a78bfa;
+        --titan-cyan: #c084fc;
+        --titan-border: rgba(139, 92, 246, 0.15);
+        --titan-glass: rgba(11, 7, 20, 0.85);
+        --glass-bg: rgba(139, 92, 246, 0.05);
+        --glass-border: rgba(139, 92, 246, 0.15);
+    }
+
     * {
         border-color: rgba(255, 255, 255, 0.05);
     }
@@ -244,4 +280,198 @@
 
 ::-webkit-scrollbar-thumb:hover {
     background: #3f3f46;
+}
+
+/* LIGHT THEME HIGH-FIDELITY OVERRIDES */
+.theme-light {
+    color-scheme: light;
+}
+
+.theme-light body {
+    background-color: #f8fafc !important;
+    color: #0f172a !important;
+}
+
+.theme-light * {
+    border-color: rgba(15, 23, 42, 0.08);
+}
+
+.theme-light select,
+.theme-light option {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+}
+
+/* Override glassmorphic backgrounds for light theme */
+.theme-light .glass,
+.theme-light .glass-card,
+.theme-light .glass-panel,
+.theme-light .bg-black\/80,
+.theme-light .bg-black\/60,
+.theme-light .bg-black\/40,
+.theme-light .bg-black\/30,
+.theme-light .bg-black\/20,
+.theme-light .bg-white\/5,
+.theme-light .bg-white\/10,
+.theme-light .bg-white\/\[0\.02\],
+.theme-light .bg-white\/\[0\.03\],
+.theme-light .bg-white\/\[0\.05\],
+.theme-light .bg-\[\#0A0A0A\],
+.theme-light .bg-\[\#080808\],
+.theme-light .bg-\[\#0a0a0c\],
+.theme-light .bg-\[\#080809\],
+.theme-light .bg-\[\#0d0d0e\],
+.theme-light .bg-\[\#0f0f11\]\/80,
+.theme-light .bg-\[\#0c0c0e\]\/90,
+.theme-light .bg-\[\#111114\]\/60,
+.theme-light .bg-\[\#111114\]\/40,
+.theme-light .bg-zinc-950,
+.theme-light .bg-gray-950,
+.theme-light .bg-[#0A0A0A],
+.theme-light .bg-[#080808],
+.theme-light .bg-[#0a0a0c],
+.theme-light .bg-[#080809],
+.theme-light .bg-[#0d0d0e],
+.theme-light .bg-[#0f0f11]/80,
+.theme-light .bg-[#0c0c0e]/90,
+.theme-light .bg-[#111114]/60,
+.theme-light .bg-[#111114]/40,
+.theme-light .bg-zinc-950,
+.theme-light .bg-gray-950 {
+    background-color: rgba(255, 255, 255, 0.75) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-color: rgba(15, 23, 42, 0.08) !important;
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+}
+
+/* Force light text overrides inside cards and panels */
+.theme-light .text-white,
+.theme-light .text-gray-100,
+.theme-light .text-zinc-100 {
+    color: #0f172a !important;
+}
+
+.theme-light .text-gray-300,
+.theme-light .text-gray-400,
+.theme-light .text-zinc-300,
+.theme-light .text-zinc-400,
+.theme-light .text-indigo-100\/60,
+.theme-light .text-gray-500 {
+    color: #334155 !important;
+}
+
+.theme-light .text-indigo-400 {
+    color: #4f46e5 !important;
+}
+
+.theme-light .text-cyan-400 {
+    color: #0284c7 !important;
+}
+
+.theme-light .text-pink-500 {
+    color: #db2777 !important;
+}
+
+.theme-light .text-gray-600,
+.theme-light .text-zinc-600 {
+    color: #475569 !important;
+}
+
+.theme-light .text-gray-700,
+.theme-light .text-zinc-700 {
+    color: #64748b !important;
+}
+
+.theme-light .text-gray-800,
+.theme-light .text-zinc-800 {
+    color: #1e293b !important;
+}
+
+/* For inputs */
+.theme-light input,
+.theme-light textarea {
+    background-color: rgba(255, 255, 255, 0.9) !important;
+    color: #0f172a !important;
+    border-color: rgba(15, 23, 42, 0.15) !important;
+}
+
+.theme-light input::placeholder,
+.theme-light textarea::placeholder {
+    color: #94a3b8 !important;
+}
+
+/* For tables */
+.theme-light table th {
+    color: #0f172a !important;
+    border-bottom-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+.theme-light table td {
+    color: #334155 !important;
+    border-bottom-color: rgba(15, 23, 42, 0.06) !important;
+}
+
+/* Charts tooltips */
+.theme-light .recharts-default-tooltip {
+    background-color: rgba(255, 255, 255, 0.95) !important;
+    border-color: rgba(15, 23, 42, 0.1) !important;
+    color: #0f172a !important;
+}
+
+/* Keep brand gradients readable */
+.theme-light .brand-gradient {
+    background: linear-gradient(to right, #2563eb, #7c3aed, #0891b2);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+/* Button style adjustments for contrast */
+.theme-light .bg-white {
+    background-color: #0f172a !important;
+    color: #ffffff !important;
+}
+.theme-light .bg-white:hover {
+    background-color: #1e293b !important;
+}
+
+.theme-light .text-black {
+    color: #ffffff !important;
+}
+
+.theme-light .bg-white\/5 {
+    background-color: rgba(15, 23, 42, 0.05) !important;
+}
+.theme-light .bg-white\/10 {
+    background-color: rgba(15, 23, 42, 0.1) !important;
+}
+
+.theme-light .border-white\/10 {
+    border-color: rgba(15, 23, 42, 0.1) !important;
+}
+.theme-light .border-white\/5 {
+    border-color: rgba(15, 23, 42, 0.05) !important;
+}
+
+/* Master Briefing card adjustments */
+.theme-light .bg-\[\#4f46e5\] {
+    background-color: #4f46e5 !important;
+}
+.theme-light .bg-\[\#4f46e5\] .text-black {
+    color: #0f172a !important;
+}
+.theme-light .bg-\[\#4f46e5\] .text-white {
+    color: #ffffff !important;
+}
+
+/* Scrollbar adjustment for light theme */
+.theme-light ::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+.theme-light ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+}
+.theme-light ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }

@@ -74,7 +74,7 @@ export default function SkillGap() {
         <div className="text-white space-y-60 animate-in fade-in zoom-in duration-700 max-w-7xl mx-auto pb-40 px-4 relative overflow-hidden">
             
             {/* --- SECTION 1: NEURAL HERO --- */}
-            <header className="relative py-24 px-10 rounded-[3rem] bg-[#0A0A0B] border border-white/5 overflow-hidden group">
+            <header className="relative py-12 md:py-24 px-6 md:px-10 rounded-[2rem] md:rounded-[3rem] bg-[#0A0A0B] border border-white/5 overflow-hidden group">
                 <div className="absolute top-0 right-0 p-10 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:rotate-12 duration-700">
                     <Brain size={250} className="text-indigo-500" />
                 </div>
@@ -86,7 +86,7 @@ export default function SkillGap() {
 
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-10 relative z-10">
                     <div className="space-y-8">
-                        <div className="flex gap-4 items-center">
+                        <div className="flex gap-4 items-center flex-wrap">
                             <div className="inline-flex px-4 py-1.5 rounded-full bg-indigo-500/10 text-indigo-400 text-[10px] font-black uppercase tracking-widest border border-indigo-500/20 italic">
                                 <Activity size={14} className="mr-2 animate-pulse" /> Neural Intelligence Report v4.0
                             </div>
@@ -94,7 +94,7 @@ export default function SkillGap() {
                                 READINESS: {data.readinessScore}%
                             </div>
                         </div>
-                        <h1 className="text-5xl md:text-7xl font-[1000] italic tracking-tighter uppercase leading-none bg-gradient-to-r from-white via-indigo-200 to-indigo-500 bg-clip-text text-transparent pb-4">
+                        <h1 className="text-3xl sm:text-5xl md:text-7xl font-[1000] italic tracking-tighter uppercase leading-none bg-gradient-to-r from-white via-indigo-200 to-indigo-500 bg-clip-text text-transparent pb-4">
                             CORE SKILL <br />
                             GAP ANALYSIS.
                         </h1>
@@ -103,15 +103,15 @@ export default function SkillGap() {
                         </p>
                     </div>
 
-                    <div className="bg-white/5 backdrop-blur-2xl border border-white/10 p-8 rounded-[2.5rem] flex items-center gap-10 shadow-2xl">
+                    <div className="bg-white/5 backdrop-blur-2xl border border-white/10 p-5 md:p-8 rounded-2xl md:rounded-[2.5rem] flex items-center gap-6 md:gap-10 shadow-2xl w-full md:w-auto">
                         <div className="text-center">
-                            <div className="text-4xl font-black text-white italic tracking-tighter">{data.readinessScore}%</div>
+                            <div className="text-3xl md:text-4xl font-black text-white italic tracking-tighter">{data.readinessScore}%</div>
                             <div className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Global Sync</div>
                         </div>
                         <div className="w-px h-12 bg-white/10" />
                         <Button
                             onClick={fetchAnalysis}
-                            className="bg-indigo-600 hover:bg-white hover:text-black text-[11px] font-[1000] tracking-widest px-10 h-16 rounded-2xl transition-all shadow-[0_20px_40px_rgba(79,70,229,0.3)] border-none"
+                            className="flex-1 md:flex-none bg-indigo-600 hover:bg-white hover:text-black text-[11px] font-[1000] tracking-widest px-6 md:px-10 h-16 rounded-2xl transition-all shadow-[0_20px_40px_rgba(79,70,229,0.3)] border-none"
                         >
                             RE-SCAN CORE
                         </Button>
@@ -125,7 +125,7 @@ export default function SkillGap() {
                     initial={{ opacity: 0, x: -50 }}
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true }}
-                    className="p-10 rounded-[3rem] border border-white/5 bg-[#0a0a0c] relative group overflow-hidden shadow-2xl"
+                    className="p-6 md:p-10 rounded-3xl md:rounded-[3rem] border border-white/5 bg-[#0a0a0c] relative group overflow-hidden shadow-2xl"
                 >
                     <div className="absolute -top-24 -left-24 w-64 h-64 bg-indigo-600/10 blur-[100px] rounded-full" />
                     <div className="flex justify-between items-center mb-12">
@@ -144,7 +144,7 @@ export default function SkillGap() {
                         </div>
                     </div>
 
-                    <div className="h-[450px] relative z-10">
+                    <div className="h-[300px] md:h-[450px] relative z-10">
                         <ResponsiveContainer width="100%" height="100%">
                             <RadarChart cx="50%" cy="50%" outerRadius="80%" data={chartData}>
                                 <PolarGrid stroke="#ffffff10" />
@@ -199,7 +199,7 @@ export default function SkillGap() {
                                 whileInView={{ opacity: 1, x: 0 }}
                                 viewport={{ once: true }}
                                 transition={{ delay: idx * 0.1 }}
-                                className="group bg-white/[0.02] border border-white/5 p-8 rounded-[2.5rem] flex flex-col gap-6 hover:border-indigo-500/30 transition-all hover:bg-indigo-500/5 shadow-2xl"
+                                className="group bg-white/[0.02] border border-white/5 p-5 md:p-8 rounded-2xl md:rounded-[2.5rem] flex flex-col gap-6 hover:border-indigo-500/30 transition-all hover:bg-indigo-500/5 shadow-2xl"
                             >
                                 <div className="flex justify-between items-start">
                                     <div className="flex items-center gap-5">
@@ -250,7 +250,7 @@ export default function SkillGap() {
                         <motion.div
                             key={idx}
                             whileHover={{ y: -10 }}
-                            className="bg-[#0d0d0e] border border-white/5 p-10 rounded-[3rem] hover:border-indigo-500/40 transition-all group overflow-hidden relative shadow-2xl flex flex-col justify-between h-full"
+                            className="bg-[#0d0d0e] border border-white/5 p-6 md:p-10 rounded-3xl md:rounded-[3rem] hover:border-indigo-500/40 transition-all group overflow-hidden relative shadow-2xl flex flex-col justify-between h-full"
                         >
                             <div className="absolute top-0 right-0 p-10 opacity-[0.02] group-hover:opacity-[0.08] transition-opacity transform group-hover:rotate-45 duration-700">
                                 <Cpu size={120} />

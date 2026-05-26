@@ -41,6 +41,17 @@ export const runSanityCheck = async (projectId: string, fsPath: string, symbolTa
                 content = `import React from 'react';\n${content}`;
             }
 
+            // 5. Catch HTML wrappers in React components and log warnings
+            if ((file.filePath.endsWith('.jsx') || file.filePath.endsWith('.tsx') || file.filePath.endsWith('.js') || file.filePath.endsWith('.ts')) && 
+                (/<!DOCTYPE\s+html/i.test(content) || /<html/i.test(content) || /<body/i.test(content))) {
+                await SystemLog.create({
+                    projectId: pId,
+                    logType: 'SANITY_SCANNER',
+                    message: `⚠️ WARNING: Frontend component ${file.filePath} contains HTML page wrapper. This will break Vite build!`
+                });
+            }
+
+
             if (content !== originalContent) {
                 fixCount++;
                 file.fileContent = content;
