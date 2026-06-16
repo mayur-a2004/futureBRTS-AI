@@ -124,9 +124,9 @@ export default function Prediction() {
                                 CONFIDENCE: 95.4%
                             </div>
                         </div>
-                        <h1 className="text-3xl sm:text-5xl md:text-7xl font-[1000] italic tracking-tighter uppercase leading-none bg-gradient-to-r from-white via-cyan-100 to-indigo-500 bg-clip-text text-transparent pb-4">
-                            FUTURE <br />
-                            FORECASTING.
+                        <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight uppercase leading-tight bg-gradient-to-r from-white via-cyan-100 to-indigo-400 bg-clip-text text-transparent pb-2">
+                            Future <br />
+                            Forecasting
                         </h1>
                         <p className="text-gray-500 font-bold text-xs uppercase tracking-[0.3em] ml-1 flex items-center gap-2">
                             <Shield size={16} /> Data Sovereignty Protected • Neural Link Active
@@ -149,23 +149,26 @@ export default function Prediction() {
             {/* --- SECTION 2: COMMAND INPUT --- */}
             <div className="max-w-4xl mx-auto space-y-12">
                 <div className="relative group">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-cyan-600 to-indigo-600 rounded-[30px] blur opacity-20 group-hover:opacity-40 transition duration-1000" />
-                    <div className="relative bg-[#09090b]/90 backdrop-blur-3xl border border-white/10 p-3 pl-8 rounded-[30px] shadow-2xl flex items-center h-24">
-                        <Search className="text-gray-600 mr-4" size={24} />
-                        <input
-                            value={topic}
-                            onChange={(e) => setTopic(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && generatePrediction()}
-                            placeholder="Initialize Deep Research Topic (e.g. AI Career Trajectory in 2026)..."
-                            className="flex-1 bg-transparent border-none py-5 text-xl text-white font-medium focus:ring-0 outline-none placeholder:text-gray-800 italic"
-                        />
+                    <div className="absolute -inset-1 bg-gradient-to-r from-cyan-600 to-indigo-600 rounded-[30px] md:rounded-[30px] rounded-3xl blur opacity-20 group-hover:opacity-40 transition duration-1000" />
+                    <div className="relative bg-[#09090b]/90 backdrop-blur-3xl border border-white/10 p-2 px-4 md:pl-6 rounded-2xl shadow-2xl flex flex-col md:flex-row items-center min-h-[3.5rem] md:h-16">
+                        <div className="flex w-full items-center">
+                            <Search className="text-gray-600 mr-2 md:mr-3 shrink-0" size={18} />
+                            <input
+                                value={topic}
+                                onChange={(e) => setTopic(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && generatePrediction()}
+                                placeholder="Initialize Deep Research Topic..."
+                                className="flex-1 w-full bg-transparent border-none py-2 md:py-3 text-sm md:text-base text-white font-medium focus:ring-0 outline-none placeholder:text-gray-800"
+                            />
+                        </div>
                         <Button
                             onClick={generatePrediction}
                             disabled={loading || !topic.trim()}
-                            className="bg-white text-black hover:bg-cyan-500 hover:text-white font-[1000] px-12 rounded-2xl h-16 gap-3 transition-all active:scale-95 shadow-xl ml-4 border-none"
+                            className="w-full md:w-auto mt-2 md:mt-0 bg-white text-black hover:bg-cyan-500 hover:text-white font-bold px-6 md:px-8 rounded-xl h-10 md:h-12 gap-2 transition-all active:scale-95 shadow-xl md:ml-3 border-none shrink-0"
                         >
-                            {loading ? <Loader2 className="animate-spin" size={20} /> : <Zap size={20} />}
-                            EXECUTE_SYNTHESIS
+                            {loading ? <Loader2 className="animate-spin" size={18} /> : <Zap size={18} />}
+                            <span className="hidden md:inline">EXECUTE_SYNTHESIS</span>
+                            <span className="md:hidden">EXECUTE</span>
                         </Button>
                     </div>
                 </div>
@@ -290,8 +293,8 @@ export default function Prediction() {
             {/* --- SECTION 5: NEURAL HISTORY REGISTRY --- */}
             <section className="space-y-16">
                 <div className="flex items-center gap-8">
-                    <h3 className="text-2xl font-[1000] italic tracking-tighter uppercase flex items-center gap-5 whitespace-nowrap">
-                        <Clock className="text-cyan-500" /> SYNC REGISTRY.
+                    <h3 className="text-xl font-bold tracking-tight uppercase flex items-center gap-4 whitespace-nowrap">
+                        <Clock className="text-cyan-500" size={20} /> Sync Registry
                     </h3>
                     <div className="h-px flex-1 bg-white/5" />
                 </div>

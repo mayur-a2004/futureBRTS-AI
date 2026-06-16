@@ -165,7 +165,7 @@ export default function BusinessWarRoom() {
                                     <Brain className="text-white" size={28} md-size={36} />
                                 </div>
                                 <div className="space-y-1">
-                                    <h3 className="text-2xl md:text-3xl font-black text-white italic uppercase tracking-tight">Intelligence Node</h3>
+                                    <h3 className="text-xl md:text-2xl font-black text-white uppercase tracking-tight">Intelligence Node</h3>
                                     <p className="text-indigo-400 font-bold uppercase text-[10px] md:text-xs tracking-[0.3em]">{activePillar.replace('_', ' ')}</p>
                                 </div>
                             </div>
@@ -247,7 +247,7 @@ export default function BusinessWarRoom() {
                         <span className="text-[9px] md:text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em]">Titan Neural Network :: ACTIVE_OVERSIGHT</span>
                     </div>
                     <div className="space-y-2">
-                        <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black text-white italic tracking-tighter uppercase leading-[0.85] flex flex-col">
+                        <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight uppercase leading-[0.9] flex flex-col">
                             <span>Command</span>
                             <span className="text-indigo-400 font-outline-2 drop-shadow-[0_0_30px_rgba(79,70,229,0.4)]">Room</span>
                         </h1>
@@ -289,7 +289,7 @@ export default function BusinessWarRoom() {
                                 <Search className="text-white" size={20} md-size={24} />
                             </div>
                             <div className="space-y-1">
-                                <h2 className="text-2xl md:text-4xl font-black text-white italic uppercase tracking-tighter">Forensic Entry</h2>
+                                <h2 className="text-xl md:text-2xl font-bold text-white uppercase tracking-tight">Forensic Entry</h2>
                                 <p className="text-[9px] md:text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em]">SYNC NEURAL MATRIX :: STANDBY</p>
                             </div>
                         </div>
@@ -299,7 +299,7 @@ export default function BusinessWarRoom() {
                                 <input
                                     type="text"
                                     placeholder="Target Brand Name or URL"
-                                    className="w-full h-16 md:h-20 bg-white/[0.03] border-2 border-white/5 rounded-2xl md:rounded-[24px] px-6 md:px-8 text-white focus:border-indigo-600 focus:bg-white/[0.05] outline-none transition-all font-bold text-base md:text-xl placeholder:text-gray-700 italic"
+                                    className="w-full h-12 md:h-14 bg-white/[0.03] border-2 border-white/5 rounded-xl md:rounded-2xl px-4 md:px-6 text-white focus:border-indigo-600 focus:bg-white/[0.05] outline-none transition-all font-bold text-sm md:text-base placeholder:text-gray-700"
                                     value={url}
                                     onChange={(e) => setUrl(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleAudit()}
@@ -312,7 +312,7 @@ export default function BusinessWarRoom() {
                             <Button
                                 onClick={handleAudit}
                                 disabled={isAuditing}
-                                className="h-16 md:h-20 px-8 md:px-12 rounded-2xl md:rounded-[24px] bg-indigo-600 hover:bg-indigo-500 font-black uppercase tracking-[0.2em] text-[9px] md:text-[10px] shadow-[0_15px_40px_-5px_rgba(79,70,229,0.4)] flex items-center justify-center gap-3.5 transition-all border-none"
+                                className="h-12 md:h-14 px-6 md:px-8 rounded-xl md:rounded-2xl bg-indigo-600 hover:bg-indigo-500 font-black uppercase tracking-[0.2em] text-[9px] md:text-[10px] shadow-[0_15px_40px_-5px_rgba(79,70,229,0.4)] flex items-center justify-center gap-3.5 transition-all border-none"
                             >
                                 {isAuditing ? <Activity className="animate-spin text-white" size={18} md-size={20} /> : <Zap size={18} md-size={20} className="fill-current" />}
                                 <span>{isAuditing ? 'ENGAGING...' : 'INITIALIZE'}</span>
@@ -359,7 +359,7 @@ export default function BusinessWarRoom() {
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <h4 className="text-lg md:text-xl font-black text-white italic uppercase tracking-tighter group-hover:text-indigo-400 transition-colors">{pillar.title}</h4>
+                                        <h4 className="text-base md:text-lg font-bold text-white uppercase tracking-tight group-hover:text-indigo-400 transition-colors">{pillar.title}</h4>
                                         <p className="text-[10px] md:text-[11px] text-gray-500 font-bold leading-relaxed line-clamp-2 uppercase tracking-tight">
                                             {data.details || "Awaiting target acquisition..."}
                                         </p>
@@ -378,8 +378,8 @@ export default function BusinessWarRoom() {
                 <div className="bg-[#111114]/60 border border-white/5 rounded-3xl md:rounded-[48px] overflow-hidden backdrop-blur-2xl shadow-2xl">
                     <div className="p-6 md:p-12 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-6 md:gap-8">
                         <div className="space-y-2">
-                            <h3 className="text-2xl md:text-3xl font-black text-white italic uppercase tracking-tighter flex items-center gap-3 md:gap-4">
-                                <ShieldCheck className="text-indigo-500" size={28} md-size={32} />
+                            <h3 className="text-xl md:text-2xl font-bold text-white uppercase tracking-tight flex items-center gap-3 md:gap-4">
+                                <ShieldCheck className="text-indigo-500" size={24} />
                                 Override Protocols
                             </h3>
                             <p className="text-[9px] md:text-[10px] font-black text-gray-600 uppercase tracking-[0.5em]">MARKET_GAP_ANALYSIS :: VECTORS</p>
@@ -388,43 +388,35 @@ export default function BusinessWarRoom() {
                             EXPORT_BATTLE_PLAN
                         </Button>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse min-w-[600px]">
-                            <thead>
-                                <tr className="bg-white/[0.01]">
-                                    <th className="px-6 md:px-12 py-4 md:py-6 text-[8px] md:text-[9px] font-black text-gray-500 uppercase tracking-[0.4em]">Strategic Rival</th>
-                                    <th className="px-6 md:px-12 py-4 md:py-6 text-[8px] md:text-[9px] font-black text-gray-500 uppercase tracking-[0.4em]">Forensic Gap</th>
-                                    <th className="px-6 md:px-12 py-4 md:py-6 text-[8px] md:text-[9px] font-black text-gray-500 uppercase tracking-[0.4em] text-right">Penetration Alpha</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-white/5">
-                                {(auditData?.competitors || []).map((comp: any, idx: number) => (
-                                    <tr key={idx} className="hover:bg-white/[0.02] transition-colors group">
-                                        <td className="px-6 md:px-12 py-6 md:py-8">
-                                            <div className="flex items-center gap-3 md:gap-4">
-                                                <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-white/5 flex items-center justify-center text-[10px] font-black text-gray-400 group-hover:text-white transition-colors shrink-0">
-                                                    {idx + 1}
-                                                </div>
-                                                <p className="font-black text-white italic uppercase tracking-tighter text-sm md:text-base">{comp.name}</p>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 md:px-12 py-6 md:py-8">
-                                            <div className="space-y-2">
-                                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight line-clamp-1">{comp.gap}</p>
-                                                <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                                                    <div className="h-full bg-indigo-500/40 rounded-full" style={{ width: '65%' }} />
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 md:px-12 py-6 md:py-8 text-right">
-                                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black text-emerald-400 uppercase tracking-widest">
-                                                +{comp.opportunity || '0.0'}%
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                    <div className="flex flex-col">
+                        <div className="hidden md:flex items-center justify-between px-12 py-6 bg-white/[0.01] border-b border-white/5">
+                            <div className="flex-1 text-[9px] font-black text-gray-500 uppercase tracking-[0.4em]">Strategic Rival</div>
+                            <div className="flex-1 text-[9px] font-black text-gray-500 uppercase tracking-[0.4em]">Forensic Gap</div>
+                            <div className="w-40 text-right text-[9px] font-black text-gray-500 uppercase tracking-[0.4em]">Penetration Alpha</div>
+                        </div>
+                        <div className="divide-y divide-white/5">
+                            {(auditData?.competitors || []).map((comp: any, idx: number) => (
+                                <div key={idx} className="flex flex-col md:flex-row md:items-center p-6 md:px-12 md:py-8 hover:bg-white/[0.02] transition-colors group gap-4 md:gap-0">
+                                    <div className="flex-1 flex items-center gap-3 md:gap-4">
+                                        <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-white/5 flex items-center justify-center text-[10px] font-black text-gray-400 group-hover:text-white transition-colors shrink-0">
+                                            {idx + 1}
+                                        </div>
+                                        <p className="font-black text-white italic uppercase tracking-tighter text-sm md:text-base">{comp.name}</p>
+                                    </div>
+                                    <div className="flex-1 space-y-2">
+                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight line-clamp-1">{comp.gap}</p>
+                                        <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                                            <div className="h-full bg-indigo-500/40 rounded-full" style={{ width: '65%' }} />
+                                        </div>
+                                    </div>
+                                    <div className="md:w-40 md:text-right self-start md:self-auto">
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                                            +{comp.opportunity || '0.0'}%
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
@@ -459,7 +451,7 @@ export default function BusinessWarRoom() {
                                     <Sparkles className="text-white" size={24} />
                                 </div>
                                 <div className="space-y-1">
-                                    <h3 className="text-4xl font-black text-white italic uppercase tracking-tighter leading-none">Master Briefing</h3>
+                                    <h3 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tight leading-none">Master Briefing</h3>
                                     <p className="text-indigo-100/60 font-black uppercase text-[9px] tracking-[0.4em]">TITAN_PROTOCOL_ALPHA</p>
                                 </div>
                             </div>

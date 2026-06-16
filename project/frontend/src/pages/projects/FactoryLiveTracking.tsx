@@ -353,12 +353,12 @@ export default function ProjectStudio() {
                         <ArrowLeft size={14} />
                     </button>
 
-                    <div className="flex items-center gap-3 border-l border-[#ffffff]/10 pl-4 h-6">
-                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-[#6366f1]/10 rounded border border-[#6366f1]/20">
+                    <div className="flex items-center gap-2 sm:gap-3 border-l border-[#ffffff]/10 pl-2 sm:pl-4 h-6 min-w-0">
+                        <div className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 bg-[#6366f1]/10 rounded border border-[#6366f1]/20 shrink-0">
                             <div className="w-1.5 h-1.5 rounded-full bg-[#6366f1] animate-pulse" />
                             <span className="text-[8px] font-[900] uppercase tracking-widest text-[#818cf8]">EXT SYS 9.0</span>
                         </div>
-                        <h1 className="text-[11px] font-[900] italic tracking-tight uppercase text-[#ffffff]">
+                        <h1 className="text-[10px] sm:text-[11px] font-[900] italic tracking-tight uppercase text-[#ffffff] truncate max-w-[100px] sm:max-w-[200px] md:max-w-xs">
                             {project.title || 'UNTITLED_MISSION'}
                         </h1>
                     </div>
@@ -392,17 +392,18 @@ export default function ProjectStudio() {
                         </div>
                     )}
                     {!isComplete && !isAwaiting && (
-                        <div className="flex items-center gap-1.5 px-3 py-1 bg-[#6366f1]/10 border border-[#6366f1]/20 rounded shadow-[0_0_15px_rgba(99,102,241,0.1)]">
+                        <div className="flex items-center gap-1.5 px-2 py-1 sm:px-3 bg-[#6366f1]/10 border border-[#6366f1]/20 rounded shadow-[0_0_15px_rgba(99,102,241,0.1)] shrink-0">
                             <Activity size={10} className="text-[#6366f1] animate-spin" />
-                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[#818cf8] pt-[1px]">NEURAL_SYNTHESIS_LIVE</span>
+                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[#818cf8] pt-[1px] hidden sm:inline">NEURAL_SYNTHESIS_LIVE</span>
+                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[#818cf8] pt-[1px] sm:hidden">LIVE</span>
                         </div>
                     )}
                 </div>
             </header>
 
             {/* 🎛️ SUB NAV / TABS */}
-            <div className="h-9 border-b border-[#ffffff]/5 flex items-center px-4 shrink-0 bg-[#040406]/60 z-10 backdrop-blur-xl">
-                <nav className="flex gap-1.5">
+            <div className="h-9 border-b border-[#ffffff]/5 flex items-center px-4 shrink-0 bg-[#040406]/60 z-10 backdrop-blur-xl overflow-x-auto scrollbar-hide">
+                <nav className="flex gap-1.5 min-w-max">
                     {TABS.map(tab => {
                         const isActive = activeTab === tab.id;
                         return (
@@ -432,9 +433,9 @@ export default function ProjectStudio() {
                     >
                         {/* OVERVIEW TAB */}
                         {activeTab === 'OVERVIEW' && (
-                            <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] lg:grid-cols-[320px_1fr] gap-3 flex-1 min-h-0">
+                            <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] lg:grid-cols-[320px_1fr] gap-3 flex-1 min-h-0 overflow-y-auto md:overflow-visible pr-1 md:pr-0">
                                 {/* AGENT STACK (Left) */}
-                                <div className="bg-[#0b0b10]/60 backdrop-blur-xl border border-[#ffffff]/10 rounded-xl p-3 flex flex-col shadow-lg overflow-hidden relative">
+                                <div className="bg-[#0b0b10]/60 backdrop-blur-xl border border-[#ffffff]/10 rounded-xl p-3 flex flex-col shadow-lg overflow-hidden relative min-h-[340px] md:min-h-0">
                                     <div className="flex items-center justify-between border-b border-[#ffffff]/5 pb-2 mb-2 shrink-0">
                                         <h2 className="text-[9px] font-[900] text-[#ffffff] uppercase tracking-widest flex items-center gap-1.5">
                                             <Cpu className="text-[#6366f1]" size={12} /> NEURAL NODES
@@ -485,7 +486,7 @@ export default function ProjectStudio() {
                                 </div>
 
                                 {/* TERMINAL STREAM (Right) */}
-                                <div className="bg-[#040406] border border-[#ffffff]/10 rounded-xl p-3 flex flex-col font-mono shadow-[inset_0_0_20px_rgba(0,0,0,0.5)] relative min-h-0">
+                                <div className="bg-[#040406] border border-[#ffffff]/10 rounded-xl p-3 flex flex-col font-mono shadow-[inset_0_0_20px_rgba(0,0,0,0.5)] relative min-h-[300px] md:min-h-0">
                                     <div className="flex items-center justify-between border-b border-[#ffffff]/5 pb-2 mb-2 shrink-0">
                                         <h2 className="text-[9px] font-[900] text-[#ffffff]/60 uppercase tracking-widest flex items-center gap-1.5">
                                             <Terminal className="text-[#10b981]" size={12} /> DISCOVERY STREAM
@@ -528,8 +529,8 @@ export default function ProjectStudio() {
 
                         {/* FILES TAB */}
                         {activeTab === 'FILES' && (
-                            <div className="flex-1 flex flex-col md:flex-row gap-0 border border-[#ffffff]/10 rounded-xl bg-[#0b0b10] overflow-hidden min-h-0">
-                                <div className="w-full md:w-[240px] shrink-0 border-r border-[#ffffff]/10 flex flex-col bg-[#ffffff]/[0.01]">
+                            <div className="flex-1 flex flex-col md:flex-row gap-0 border border-[#ffffff]/10 rounded-xl bg-[#0b0b10] overflow-hidden min-h-0 overflow-y-auto md:overflow-visible">
+                                <div className="w-full md:w-[240px] shrink-0 border-b md:border-b-0 md:border-r border-[#ffffff]/10 flex flex-col bg-[#ffffff]/[0.01] max-h-[160px] md:max-h-none">
                                     <div className="p-3 border-b border-[#ffffff]/5 shrink-0">
                                         <h3 className="text-[9px] font-[900] text-[#ffffff]/70 uppercase tracking-widest flex items-center gap-1.5">
                                             <Folder className="text-[#6366f1]" size={12} /> NEXUS BROWSER

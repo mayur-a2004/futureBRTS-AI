@@ -463,13 +463,32 @@ export default function Layout() {
                 </div>
             </aside >
 
-            <main className={`flex-1 ${['/builder', '/roadmap', '/today-task'].includes(location.pathname) ? 'overflow-hidden' : 'overflow-y-auto'} relative w-full`}>
-                <div className={`relative ${['/builder', '/roadmap', '/today-task'].includes(location.pathname) ? 'h-full' : 'min-h-full'} flex flex-col ${['/builder', '/roadmap', '/today-task'].includes(location.pathname) ? 'p-0 pt-14 md:pt-0' : 'p-4 md:p-8 pt-20 md:pt-8'}`}>
+            <main className={`flex-1 ${['/builder', '/roadmap', '/today-task'].includes(location.pathname) ? 'overflow-hidden' : 'overflow-y-auto'} relative w-full pb-16 md:pb-0`}>
+                <div className={`relative ${['/builder', '/roadmap', '/today-task'].includes(location.pathname) ? 'h-full' : 'min-h-full'} flex flex-col ${['/builder', '/roadmap', '/today-task'].includes(location.pathname) ? 'p-0 pt-14 md:pt-0 pb-16 md:pb-0' : 'p-4 md:p-8 pt-20 md:pt-8 pb-20 md:pb-8'}`}>
                     <div className="flex-1 flex flex-col overflow-hidden">
                         <Outlet />
                     </div>
                 </div>
             </main>
+
+            {/* Mobile Bottom Navigation Bar */}
+            <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#09090b]/90 backdrop-blur-2xl border-t border-white/10 z-[60] flex items-center justify-around px-2 pb-1 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+                {navItems.map(item => {
+                    const isActive = location.pathname.startsWith(item.path);
+                    return (
+                        <Link
+                            key={item.path}
+                            to={item.path}
+                            className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-all ${isActive ? 'text-indigo-400' : 'text-gray-500 active:text-gray-300'}`}
+                        >
+                            <div className={`${isActive ? 'scale-110 drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]' : 'scale-95'} transition-transform duration-300`}>
+                                {item.icon}
+                            </div>
+                            <span className={`text-[9px] font-bold tracking-wide ${isActive ? 'text-indigo-300' : ''}`}>{item.name === 'Business War Room' ? 'War Room' : item.name === 'Genesis Admin' ? 'Admin' : item.name === 'Today Task' ? 'Tasks' : item.name}</span>
+                        </Link>
+                    )
+                })}
+            </div>
 
             {/* 📺 Manual Ad Trigger (TokenWall) */}
             <TokenWall

@@ -63,6 +63,24 @@ export default function SkillGap() {
         );
     }
 
+    if (!data || data.message) {
+        return (
+            <div className="h-[80vh] flex flex-col items-center justify-center space-y-6 max-w-md mx-auto text-center px-4">
+                <Brain size={64} className="text-indigo-500 animate-pulse" />
+                <h2 className="text-2xl font-black uppercase tracking-widest text-white">No Roadmap Found</h2>
+                <p className="text-gray-400 text-sm">
+                    {data?.message || "Please complete onboarding and initialize a roadmap to analyze your skill gaps."}
+                </p>
+                <Button 
+                    onClick={() => window.location.href = '/roadmap'}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-xs font-bold tracking-widest px-8 h-12 rounded-xl border-none shadow-lg"
+                >
+                    CREATE ROADMAP
+                </Button>
+            </div>
+        );
+    }
+
     const chartData = data?.competencyMap?.map((c: any) => ({
         subject: c.subject,
         A: c.current,
@@ -91,21 +109,21 @@ export default function SkillGap() {
                                 <Activity size={14} className="mr-2 animate-pulse" /> Neural Intelligence Report v4.0
                             </div>
                             <div className="inline-flex px-4 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-widest border border-emerald-500/20 italic">
-                                READINESS: {data.readinessScore}%
+                                READINESS: {data?.readinessScore || 0}%
                             </div>
                         </div>
-                        <h1 className="text-3xl sm:text-5xl md:text-7xl font-[1000] italic tracking-tighter uppercase leading-none bg-gradient-to-r from-white via-indigo-200 to-indigo-500 bg-clip-text text-transparent pb-4">
-                            CORE SKILL <br />
-                            GAP ANALYSIS.
+                        <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight uppercase leading-tight bg-gradient-to-r from-white via-indigo-200 to-indigo-500 bg-clip-text text-transparent pb-2">
+                            Core Skill <br />
+                            Gap Analysis
                         </h1>
                         <p className="text-gray-500 font-bold text-xs uppercase tracking-[0.3em] ml-1 flex items-center gap-2">
-                            <Target size={16} /> Target Role: <span className="text-indigo-400">{data.targetRole}</span>
+                            <Target size={16} /> Target Role: <span className="text-indigo-400">{data?.targetRole || "N/A"}</span>
                         </p>
                     </div>
 
                     <div className="bg-white/5 backdrop-blur-2xl border border-white/10 p-5 md:p-8 rounded-2xl md:rounded-[2.5rem] flex items-center gap-6 md:gap-10 shadow-2xl w-full md:w-auto">
                         <div className="text-center">
-                            <div className="text-3xl md:text-4xl font-black text-white italic tracking-tighter">{data.readinessScore}%</div>
+                            <div className="text-3xl md:text-4xl font-black text-white italic tracking-tighter">{data?.readinessScore || 0}%</div>
                             <div className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Global Sync</div>
                         </div>
                         <div className="w-px h-12 bg-white/10" />
@@ -192,7 +210,7 @@ export default function SkillGap() {
                     </div>
 
                     <div className="grid gap-6">
-                        {data.priorityActions.map((skill: any, idx: number) => (
+                        {(data?.priorityActions || []).map((skill: any, idx: number) => (
                             <motion.div
                                 key={skill.name}
                                 initial={{ opacity: 0, x: 30 }}
@@ -246,7 +264,7 @@ export default function SkillGap() {
                 </div>
 
                 <div className="grid md:grid-cols-3 gap-8">
-                    {data.recommendations.map((course: any, idx: number) => (
+                    {(data?.recommendations || []).map((course: any, idx: number) => (
                         <motion.div
                             key={idx}
                             whileHover={{ y: -10 }}

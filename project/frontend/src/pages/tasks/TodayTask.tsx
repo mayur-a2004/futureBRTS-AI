@@ -365,9 +365,9 @@ export default function TodayTask() {
                 </header>
             )}
 
-            <div className="flex-1 overflow-y-auto p-6 md:p-8 scroll-smooth scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+            <div className="flex-1 overflow-y-auto p-4 md:p-8 pb-32 md:pb-8 scroll-smooth scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                 {!selectedRoadmap ? (
-                    <div className="h-full flex flex-col pt-10 px-4 max-w-7xl mx-auto space-y-12 animate-in fade-in duration-500">
+                    <div className="h-full flex flex-col pt-6 md:pt-10 px-2 md:px-4 max-w-7xl mx-auto space-y-12 animate-in fade-in duration-500">
                         {roadmaps.length > 0 ? (
                             <>
                                 <div className="space-y-4">

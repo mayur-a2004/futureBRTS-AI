@@ -36,34 +36,32 @@ const StatCard = ({ title, value, change, trend, icon: Icon, color }: any) => (
 
 export default function AdminDashboard() {
     const [stats, setStats] = useState<any>(null);
-    const [, setIsLoading] = useState(true);
+    const [recentActivities, setRecentActivities] = useState<any[]>([]);
 
     useEffect(() => {
-        const fetchStats = async () => {
+        const fetchData = async () => {
             try {
                 const token = localStorage.getItem('fbrts_token');
-                const res = await fetch('/api/admin/stats', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const data = await res.json();
-                if (data.success) {
-                    setStats(data.stats);
+                const [statsRes, trackingRes] = await Promise.all([
+                    fetch('/api/admin/stats', { headers: { 'Authorization': `Bearer ${token}` } }),
+                    fetch('/api/admin/tracking', { headers: { 'Authorization': `Bearer ${token}` } })
+                ]);
+                
+                const statsData = await statsRes.json();
+                const trackingData = await trackingRes.json();
+                
+                if (statsData.success) {
+                    setStats(statsData.stats);
+                }
+                if (trackingData.success) {
+                    setRecentActivities(trackingData.logs || []);
                 }
             } catch (err) {
                 console.error(err);
-            } finally {
-                setIsLoading(false);
             }
         };
-        fetchStats();
+        fetchData();
     }, []);
-
-    const recentActivities = [
-        { id: 1, user: "Alex Rivers", action: "Generated a new Roadmap", time: "2 mins ago", type: "roadmap" },
-        { id: 2, user: "Sam Smith", action: "Completed Task 4", time: "15 mins ago", type: "task" },
-        { id: 3, user: "Jordan Lee", action: "Upgraded to Master Plan", time: "1 hour ago", type: "payment" },
-        { id: 4, user: "Chris Chen", action: "New User Registered", time: "3 hours ago", type: "user" },
-    ];
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -140,18 +138,18 @@ export default function AdminDashboard() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
-                                    {recentActivities.map((act) => (
+                                    {recentActivities.map((act: any) => (
                                         <tr key={act.id} className="group hover:bg-white/[0.02] transition-colors">
                                             <td className="px-6 py-5">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center font-black text-[10px]">
-                                                        {act.user.split(' ').map(n => n[0]).join('')}
+                                                        {act.user ? act.user.split(' ').map((n: string) => n[0]).join('') : 'SYS'}
                                                     </div>
-                                                    <span className="text-sm font-bold text-white">{act.user}</span>
+                                                    <span className="text-sm font-bold text-white">{act.user || 'System'}</span>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-5">
-                                                <span className="text-sm text-gray-400">{act.action}</span>
+                                                <span className="text-sm text-gray-400">{act.event || act.action}</span>
                                             </td>
                                             <td className="px-6 py-5 whitespace-nowrap">
                                                 <div className="flex items-center gap-2 text-xs text-gray-500">
@@ -159,8 +157,8 @@ export default function AdminDashboard() {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-5">
-                                                <span className="px-3 py-1 rounded-full text-[10px] font-black bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-widest">
-                                                    Success
+                                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${act.type === 'success' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : act.type === 'warn' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
+                                                    {act.type === 'success' ? 'Success' : act.type === 'warn' ? 'Warning' : 'Info'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-5 text-right">
