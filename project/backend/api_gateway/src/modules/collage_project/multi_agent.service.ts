@@ -148,6 +148,12 @@ const ANTIGRAVITY_GOD_MODE = (title: string, tech: string, filePath?: string, pr
 ${isComponent ? `- Output clean ESM React component code ONLY.` : `- Output clean, complete ESM code. If this is a data module (e.g. mockData), export the raw data arrays/objects directly. If this is a context provider, export the Context and AppProvider properly. If this is UIComponents, export multiple independent reusable component functions (like StatCard, DataTable, RecentActivity, ProductCard, Modal, Button).`}
 - DO NOT include HTML wrapper tags (e.g. <!DOCTYPE html>, <html>, <head>, <body>) or <style> blocks.
 - Use Tailwind CSS classes for styles and animations. DO NOT link or import external Google font files inside React components.
+- MODERN NATIVE WEB APIs: Use modern native browser APIs for maximum performance:
+  * For dialogs and modal screens, use the native HTML <dialog> element.
+  * For dropdown menus, toast overlays, or popups, use the native HTML popover attribute to enable native light-dismiss without complex state trackers.
+  * For textareas, apply CSS 'field-sizing: content' for native auto-resizing text fields.
+  * For form validations, style inputs using the CSS ':user-invalid' pseudo-class to show feedback only after user interaction (blur).
+  * For animation entry/exit, leverage CSS '@starting-style' transitions.
 - IMPORT only universally available Lucide icons from 'lucide-react' (safe list: Plus, Trash2, Edit, Save, X, Search, Filter, ChevronLeft, ChevronRight, Settings, User, LogOut, LayoutDashboard, BarChart3, ListTodo, Activity, AlertCircle, CheckCircle2, Shield, ArrowUpRight, Calendar, Info, Star, ShoppingCart, Heart, Eye, LogIn, UserPlus, Menu, Bell, Trash, Check, Lock, CreditCard, ArrowLeft, ArrowRight).
 - Any Lucide icon component used in the JSX (e.g. <Star />, <ShoppingCart />) MUST be explicitly imported from 'lucide-react' at the top of the file.
 - NO PLACEHOLDERS: DO NOT write comments like '// TODO', '// implement later', '// rest of the code', '// add logic here' or '...'. You must write 100% complete, functional code for every function, form handler, page section, and list item. No lorem ipsum text.
@@ -1145,6 +1151,115 @@ const CommandExecutor = {
 };
 
 // ============================================================
+// COMPILATION GATE & AUTO-REPAIR AGENT
+// ============================================================
+const verifyAndRepairBuild = async (
+    pId: string, 
+    fsPath: string, 
+    techStack: any, 
+    updateTaskStatus?: (taskType: string, status: string) => Promise<void>
+): Promise<boolean> => {
+    const frontendPath = path.join(fsPath, 'frontend');
+    const hasFrontend = fs.existsSync(path.join(frontendPath, 'package.json'));
+    if (!hasFrontend) {
+        await SystemLogger.log(pId, 'COMPILER', `ℹ️ No frontend package.json found. Skipping compile check.`);
+        if (updateTaskStatus) await updateTaskStatus('compilation', 'completed');
+        return true;
+    }
+
+    if (updateTaskStatus) await updateTaskStatus('compilation', 'running');
+    await SystemLogger.log(pId, 'COMPILER', `⚙️ Initializing Sandboxed Compilation Gate...`);
+
+    // Step 1: Link node_modules
+    const targetNodeModules = path.join(frontendPath, 'node_modules');
+    const sourceNodeModules = path.resolve(__dirname, '../../../../frontend/node_modules');
+    
+    if (!fs.existsSync(targetNodeModules)) {
+        try {
+            await SystemLogger.log(pId, 'COMPILER', `🔗 Linking shared node_modules to sandbox...`);
+            const { execSync } = require('child_process');
+            execSync(`cmd /c mklink /j "${targetNodeModules}" "${sourceNodeModules}"`, { stdio: 'ignore' });
+        } catch (linkErr: any) {
+            console.error("Failed to link node_modules:", linkErr.message);
+            await SystemLogger.log(pId, 'COMPILER', `⚠️ Junction link failed: ${linkErr.message}. Running fallback...`);
+        }
+    }
+
+    // Step 2: Build & Auto-Repair loop
+    let compileSuccess = false;
+    let repairAttempts = 0;
+    const { execSync } = require('child_process');
+
+    while (!compileSuccess && repairAttempts < 3) {
+        try {
+            await SystemLogger.log(pId, 'COMPILER', `🔨 Running TypeScript/Vite compiler check (Attempt ${repairAttempts + 1})...`);
+            // Run build command
+            execSync('npm run build', { cwd: frontendPath, stdio: 'pipe' });
+            compileSuccess = true;
+            await SystemLogger.log(pId, 'COMPILER', `✅ Sandboxed build passed with 0 errors!`);
+            if (updateTaskStatus) await updateTaskStatus('compilation', 'completed');
+        } catch (buildErr: any) {
+            repairAttempts++;
+            const stdout = buildErr.stdout ? buildErr.stdout.toString() : '';
+            const stderr = buildErr.stderr ? buildErr.stderr.toString() : '';
+            const logs = stdout + '\n' + stderr;
+            
+            console.error("SANDBOX BUILD FAILED:\n", logs);
+            await SystemLogger.log(pId, 'COMPILER', `❌ Compilation failed (Attempt ${repairAttempts}/3)`);
+
+            // Parse logs to find offending file
+            const fileMatch = logs.match(/(?:src\/[a-zA-Z0-9_\-\/]+\.(?:tsx|jsx|ts|js))/);
+            if (fileMatch) {
+                const matchedFile = fileMatch[0];
+                const relativePath = 'frontend/' + matchedFile;
+                const fullFilePath = path.join(fsPath, relativePath);
+
+                if (fs.existsSync(fullFilePath)) {
+                    await SystemLogger.log(pId, 'COMPILER', `🔍 Identified failing file: ${matchedFile}. Deploying repair agent...`);
+                    
+                    const fileContent = fs.readFileSync(fullFilePath, 'utf8');
+                    const repairPrompt = `You are a Senior TypeScript compiler repair agent. The generated file "${relativePath}" failed compilation.
+Build Output Error Logs:
+${logs.substring(0, 1000)}
+
+Here is the current code of "${relativePath}":
+\`\`\`
+${fileContent}
+\`\`\`
+
+Analyze the build errors (e.g., missing imports, name collisions, or invalid types) and return the fully corrected, compile-safe code. 
+CRITICAL: Output ONLY raw code, do NOT include markdown block wrappers, explanations, or comments. Write 100% complete logic.`;
+
+                    await awaitTokenBudget(repairPrompt, pId);
+                    let repairedCode = await callSwarmAI(repairPrompt, pId, relativePath);
+                    
+                    // Strip markdown formatting if any
+                    repairedCode = repairedCode.replace(/```[a-z]*\n?/g, '').replace(/```/g, '').trim();
+
+                    if (repairedCode && repairedCode.length > 50) {
+                        fs.writeFileSync(fullFilePath, repairedCode, 'utf8');
+                        await updateSymbolTable(pId, relativePath, repairedCode);
+                        await SystemLogger.log(pId, 'COMPILER', `🩹 Applied repair patch to ${matchedFile}. Re-verifying...`);
+                    }
+                } else {
+                    await SystemLogger.log(pId, 'COMPILER', `⚠️ Could not locate matching file ${matchedFile} on disk.`);
+                }
+            } else {
+                await SystemLogger.log(pId, 'COMPILER', `⚠️ Could not parse file path from error logs. Here is the log snippet: ${logs.substring(0, 300)}`);
+                break; // Escape if we can't find the file
+            }
+        }
+    }
+
+    if (!compileSuccess) {
+        await SystemLogger.log(pId, 'COMPILER', `❌ Sandboxed compilation failed after 3 repair attempts. Packaging with warnings.`);
+        if (updateTaskStatus) await updateTaskStatus('compilation', 'failed');
+        return false;
+    }
+    return true;
+};
+
+// ============================================================
 // MULTI-AGENT SERVICE — Main build orchestrator
 // ============================================================
 export const multiAgentService = {
@@ -1153,39 +1268,136 @@ export const multiAgentService = {
   handleChatUpdate: async (project: any, message: string) => {
     const pId = project._id.toString();
     await SystemLogger.log(pId, 'FEATURE_INJECTOR', `Processing: ${message}`);
-    SocketService.emitToSession(pId, 'agent_pulse', { agent: 'FEATURE_INJECTOR', state: 'active', message: `Integrating instruction: ${message}` });
+    SocketService.emitToSession(pId, 'agent_pulse', { agent: 'FEATURE_INJECTOR', state: 'active', message: `Analyzing requirements: ${message}` });
     
     try {
       const ProjectMessage = (await import('./project_message.model')).default;
       const dbMsg = new ProjectMessage({ projectId: new mongoose.Types.ObjectId(pId), userMessage: message, status: 'PROCESSING' });
       await dbMsg.save();
       
-      const response = await callSwarmAI(`User instruction: "${message}". Project: "${project.title}". You are a Neural Assistant capable of application expansion. 1) Acknowledge the logic technically (1 short sentence). 2) Provide the EXACT filename path that will be created or updated for this. Format exactly as: Response Text | filename.ext`, pId);
+      const techStack = project.technologyStack || { frontend: 'React' };
+      const fe = techStack.frontend || 'React';
       
-      const parts = response.split('|');
-      const chatText = parts[0]?.trim() || "Instruction intercepted and compiled.";
-      const rawTargetFile = parts[1]?.replace(/`/g, '').trim();
-      const targetFile = rawTargetFile && rawTargetFile.includes('.') ? rawTargetFile : `frontend/src/extensions/latest_feature.js`;
+      // Fetch symbol table for context
+      const projDoc = await CollageProject.findById(pId).lean();
+      const liveSymbolTable = (projDoc as any)?.symbolTable || {};
+      const contextMap = Object.entries(liveSymbolTable).map(([file, sym]: any) => `📁 ${file}: Exports=${sym.exports?.join(', ')}`).join('\n');
+
+      const plannerPrompt = `You are a Senior Multi-Agent System Architect.
+Project: "${project.title}"
+Instruction: "${message}"
+
+Existing Workspace Context:
+${contextMap}
+
+Plan exactly which files should be added or updated to implement this change completely. 
+Output ONLY a valid parseable JSON object with keys:
+{
+  "chatResponse": "Short explanation of changes that will be rendered in the chat bubble.",
+  "changes": [
+    { "path": "frontend/src/pages/CustomPage.tsx", "action": "add", "instruction": "Goal/specification for this new file." },
+    { "path": "frontend/src/App.tsx", "action": "modify", "instruction": "Detailed instruction on how to edit this existing file to integrate the new page/logic." }
+  ]
+}
+JSON ONLY. No markdown wrappers.`;
+
+      const plannerRes = await callSwarmAI(plannerPrompt, pId);
+      const jsonStr = plannerRes.substring(plannerRes.indexOf('{'), plannerRes.lastIndexOf('}') + 1);
       
-      dbMsg.aiResponse = chatText;
+      let chatResponse = "Feature integration started.";
+      let changes: any[] = [];
+      
+      if (jsonStr) {
+          try {
+              const plan = JSON.parse(jsonStr);
+              chatResponse = plan.chatResponse || chatResponse;
+              changes = plan.changes || [];
+          } catch (e) {
+              console.error("Failed to parse planner JSON:", e);
+              chatResponse = "Failed to plan changes. Falling back to single-file generation.";
+              changes = [{ path: `frontend/src/extensions/latest_feature.tsx`, action: 'add', instruction: message }];
+          }
+      }
+
+      dbMsg.aiResponse = chatResponse;
       dbMsg.status = 'COMPLETED';
       await dbMsg.save();
       
-      await SystemLogger.log(pId, 'NEURAL_CHAT', chatText);
-      SocketService.emitToSession(pId, 'agent_pulse', { agent: 'NEURAL_CHAT', state: 'done', message: chatText });
-      SocketService.emitToSession(pId, 'chat_reply', { _id: dbMsg._id, userMessage: message, aiResponse: chatText, status: 'COMPLETED' });
+      await SystemLogger.log(pId, 'NEURAL_CHAT', chatResponse);
+      SocketService.emitToSession(pId, 'agent_pulse', { agent: 'NEURAL_CHAT', state: 'done', message: chatResponse });
+      SocketService.emitToSession(pId, 'chat_reply', { _id: dbMsg._id, userMessage: message, aiResponse: chatResponse, status: 'COMPLETED' });
 
-      // REAL FILE REGENERATION IN BACKGROUND
-      SocketService.emitToSession(pId, 'agent_pulse', { agent: 'CODE_FORGE', state: 'active', message: `Synthesizing modifications for ${targetFile}...` });
-      
-      const codeOutput = await callSwarmAI(`Implement the following instruction for project "${project.title}": "${message}". Output ONLY raw, robust, executable code for the file: ${targetFile}. Do NOT use markdown codeblock wrappers, output strictly code.`, pId);
-      const cleanCode = codeOutput.replace(/```[a-z]*\n?/g, '').replace(/```/g, '').trim() || "// Execution failed to compile feature.";
-      
-      await CommandExecutor.writeFile(pId, targetFile, cleanCode);
-      
-      await SystemLogger.log(pId, 'CODE_FORGE', `Successfully integrated ${targetFile} via Neural Request.`);
-      SocketService.emitToSession(pId, 'agent_pulse', { metadata: { type: 'code_stream', path: targetFile, content: cleanCode }, agent: 'CODE_FORGE', message: `Module Injected: ${targetFile}`, state: 'done' });
-      SocketService.emitToSession(pId, 'file_created', { path: targetFile });
+      // Run sequential edits for all planned changes
+      const baseDir = path.resolve(__dirname, '../../../../projects', pId);
+
+      for (const change of changes) {
+          const fullPath = path.resolve(baseDir, change.path);
+          const isFrontend = change.path.includes('frontend/') || change.path.includes('admin/') || change.path.includes('public/');
+          const fileExists = fs.existsSync(fullPath);
+          
+          await SystemLogger.log(pId, 'CODE_FORGE', `Synthesizing modifications for ${change.path} (${change.action})...`);
+          SocketService.emitToSession(pId, 'agent_pulse', { agent: 'CODE_FORGE', state: 'active', message: `Writing ${change.path}...` });
+
+          let codeOutput = "";
+          if (change.action === 'modify' && fileExists) {
+              const existingContent = fs.readFileSync(fullPath, 'utf8');
+              const mutatePrompt = `You are updating the existing file "${change.path}".
+Project: "${project.title}"
+Instruction: "${change.instruction}"
+
+Existing file content:
+\`\`\`
+${existingContent}
+\`\`\`
+
+Generate and return ONLY the complete, updated file content. Do NOT include markdown codeblock wrappers, output strictly code. Ensure all existing imports and variables remain intact unless they are being refactored.`;
+              await awaitTokenBudget(mutatePrompt, pId);
+              codeOutput = await callSwarmAI(mutatePrompt, pId, change.path);
+          } else {
+              // Create new file
+              const isPrototype = (project as any).prototypeMode || false;
+              const designMandate = ANTIGRAVITY_GOD_MODE(project.title, fe, change.path, isPrototype);
+              const addPrompt = `Write a complete, compile-safe file for: "${change.path}".
+Project: "${project.title}"
+Purpose: "${change.instruction}"
+
+Context / Rules:
+${designMandate}
+
+Output ONLY raw code, no markdown wrappers, no explanations.`;
+              await awaitTokenBudget(addPrompt, pId);
+              codeOutput = await callSwarmAI(addPrompt, pId, change.path);
+          }
+
+          let cleanCode = codeOutput.replace(/```[a-z]*\n?/g, '').replace(/```/g, '').trim();
+          
+          if (cleanCode.length > 50) {
+              try {
+                  validateGeneratedCode(cleanCode, change.path);
+                  
+                  // Post processing for prototype mode
+                  if ((project as any).prototypeMode && !isFrontend) {
+                      if (!cleanCode.startsWith('/*')) {
+                          cleanCode = `/* \n   UI PROTOTYPE MODE: BACKEND LOGIC PRESERVED AS DOCUMENTATION\n   -----------------------------------------------------------\n${cleanCode}\n*/`;
+                      }
+                  }
+
+                  await CommandExecutor.writeFile(pId, change.path, cleanCode);
+                  await updateSymbolTable(pId, change.path, cleanCode);
+                  
+                  await SystemLogger.log(pId, 'CODE_FORGE', `Successfully integrated ${change.path}.`);
+                  SocketService.emitToSession(pId, 'agent_pulse', { metadata: { type: 'code_stream', path: change.path, content: cleanCode }, agent: 'CODE_FORGE', message: `Module Injected: ${change.path}`, state: 'done' });
+                  SocketService.emitToSession(pId, 'file_created', { path: change.path });
+              } catch (valErr: any) {
+                  await SystemLogger.log(pId, 'CODE_FORGE', `⚠️ Validation failed for ${change.path}: ${valErr.message}. Skipping write.`);
+              }
+          } else {
+              await SystemLogger.log(pId, 'CODE_FORGE', `⚠️ Generated code for ${change.path} was too short or empty.`);
+          }
+      }
+
+      // Re-run compilation check after chat updates if it's a frontend project!
+      await verifyAndRepairBuild(pId, baseDir, techStack);
 
     } catch(err: any) {
       await SystemLogger.log(pId, 'CHAT_ERROR', `Failed to generate response: ${err.message}`);
@@ -1249,7 +1461,7 @@ JSON ONLY. Use "\\n" for newlines. NO markdown bounds.`;
     SocketService.emitToSession(pId, 'project_update', { status: 'GENERATING' });
 
     // Create tasks
-    const taskTypes = ['analyze', 'blueprint', 'context_memory', 'database', 'api', 'backend_module', 'frontend_module', 'packaging'];
+    const taskTypes = ['analyze', 'blueprint', 'context_memory', 'database', 'api', 'backend_module', 'frontend_module', 'compilation', 'packaging'];
     const objectId = new mongoose.Types.ObjectId(pId);
     for (const [i, type] of taskTypes.entries()) {
       const existing = await ProjectTask.findOne({ projectId: objectId, taskType: type });
@@ -1311,10 +1523,65 @@ JSON ONLY. Use "\\n" for newlines. NO markdown bounds.`;
         prototypeMode = true;
     }
     const objectId = new mongoose.Types.ObjectId(pId);
+    const fsPath = path.resolve(__dirname, '../../../../projects', pId);
+    if (!fs.existsSync(fsPath)) {
+      try {
+        fs.mkdirSync(fsPath, { recursive: true });
+      } catch (err) {
+        console.error("Failed to create folder:", err);
+      }
+    }
+    const taskMdPath = path.join(fsPath, 'task.md');
+    
+    // Status tracking for task.md
+    const taskStatusMap: Record<string, string> = {
+        analyze: 'pending',
+        blueprint: 'pending',
+        context_memory: 'pending',
+        database: 'pending',
+        backend_module: 'pending',
+        api: 'pending',
+        frontend_module: 'pending',
+        compilation: 'pending',
+        packaging: 'pending'
+    };
+
+    const rewriteTaskMd = () => {
+        try {
+            const formatStatus = (status: string) => {
+                if (status === 'running') return '[/]';
+                if (status === 'completed') return '[x]';
+                if (status === 'failed') return '[failed]';
+                return '[ ]';
+            };
+            const content = `# Generation Checklist: "${title}"
+
+- ${formatStatus(taskStatusMap.analyze)} Research & Planning (PSD Specification)
+- ${formatStatus(taskStatusMap.blueprint)} System Architecture & Diagrams (Mermaid)
+- ${formatStatus(taskStatusMap.context_memory)} Context Memory Core Setup
+- ${formatStatus(taskStatusMap.database)} Core Boilerplate Deployment
+- ${formatStatus(taskStatusMap.backend_module)} Database Schema Models
+- ${formatStatus(taskStatusMap.api)} Backend CRUD API Routes
+- ${formatStatus(taskStatusMap.frontend_module)} React UI Pages & Components
+- ${formatStatus(taskStatusMap.compilation)} Sandboxed Build Verification
+- ${formatStatus(taskStatusMap.packaging)} Academic Documentation & Packaging
+`;
+            fs.writeFileSync(taskMdPath, content, 'utf8');
+        } catch (err) {
+            console.error("Failed to write task.md:", err);
+        }
+    };
+
+    // Initialize task.md
+    rewriteTaskMd();
     
     // Dynamically finding and updating the tracker to prevent stale references
     const updateTask = async (taskType: string, stats: string) => {
       try {
+         if (taskType in taskStatusMap) {
+             taskStatusMap[taskType] = stats;
+             rewriteTaskMd();
+         }
          const tgt = await ProjectTask.findOneAndUpdate(
              { projectId: objectId, taskType: taskType },
              { status: stats },
@@ -1772,6 +2039,9 @@ JSON array ONLY. No markdown, no explanations.`;
       // Leave phase running until next iteration, we'll mark all completed below
     }
     
+    // Phase 4.2: Sandboxed Compilation & Auto-Repair Gate
+    await verifyAndRepairBuild(pId, fsPath, techStack, updateTask);
+
     // Conclude all modules status dynamically
     await updateTask('api', phaseTrack.api.f > 0 && phaseTrack.api.s === 0 ? 'failed' : 'completed');
     await updateTask('backend_module', phaseTrack.backend_module.f > 0 && phaseTrack.backend_module.s === 0 ? 'failed' : 'completed');
@@ -1802,7 +2072,6 @@ Calculate an audit score percentage (0-100%). Return strictly a JSON object matc
     await updateTask('packaging', 'running');
     await SystemLogger.log(pId, 'EXPORT_FACTORY', `📦 Initializing Phase D Export Factory — Doc + PPT + ZIP...`);
     
-    const fsPath = path.join(__dirname, '../../../../projects', pId);
     if (!fs.existsSync(fsPath)) { fs.mkdirSync(fsPath, { recursive: true }); }
 
     // ─── 5A: README.md ──────────────────────────────────────────────────────
@@ -2059,6 +2328,9 @@ ONLY return raw code. No markdown.`;
     // ─── 4. PACKAGE VERSION (V2 / V3) ───
     await SystemLogger.log(pId, 'EXPORT_FACTORY', `📦 Packaging Version ${currentV} Release...`);
     const fsPath = path.join(__dirname, '../../../../projects', pId);
+    
+    // Verify and auto-repair compiling errors
+    await verifyAndRepairBuild(pId, fsPath, techStack);
     
     // Quick re-generate updated Docs
     const updatedProjData = await CollageProject.findById(pId).lean();
