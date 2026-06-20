@@ -20,7 +20,7 @@ export const createProjectZip = async (
 ): Promise<string | null> => {
     try {
         const archiver = (await import('archiver')).default;
-        const safeTitle = title.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase().slice(0, 40);
+        const safeTitle = title.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase().slice(0, 40) || 'project';
         // Move output to parent directory to avoid circular zipping (Fixes Windows Access Denied)
         const zipOutPath = path.join(path.dirname(outputDir), `${safeTitle}-complete.zip`);
         const output = fs.createWriteStream(zipOutPath);

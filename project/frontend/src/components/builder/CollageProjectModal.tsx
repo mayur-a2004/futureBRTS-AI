@@ -68,6 +68,7 @@ export const CollageProjectModal: React.FC<CollageProjectModalProps> = ({ isOpen
     const [chatMsg, setChatMsg] = useState('');
     const [isChatLoading, setIsChatLoading] = useState(false);
     const [isDiscoveryComplete, setIsDiscoveryComplete] = useState(false);
+    const [parsedRequirements, setParsedRequirements] = useState<any>(null);
 
     const handleDiscoverySubmit = async (e?: React.FormEvent, customMsg?: string, isSystemAuto?: boolean) => {
         if(e) e.preventDefault();
@@ -97,6 +98,7 @@ export const CollageProjectModal: React.FC<CollageProjectModalProps> = ({ isOpen
                 setChatHistory(prev => [...prev, {role: 'agent', text: `⚠️ API Error: ${data.message || data.error || 'Failed to process request due to heavy load.'}`}]);
             } else if (data.isComplete && data.document) {
                 setIsDiscoveryComplete(true);
+                setParsedRequirements(data.document);
                 setRequirements(JSON.stringify(data.document, null, 2));
                 setChatHistory(prev => [...prev, {role: 'agent', text: "✅ System Data: Apka pura R&D and memory save kiya gaya hai! Now click BUILD_MISSION to start development!"}]);
             } else {
@@ -668,13 +670,50 @@ export const CollageProjectModal: React.FC<CollageProjectModalProps> = ({ isOpen
                                                             ) : (
                                                                 <div className="flex-1 flex flex-col bg-[#0d0d14] border border-[#6366f1]/50 rounded-xl overflow-hidden shadow-[0_0_15px_rgba(99,102,241,0.1)]">
                                                                     <div className="flex-1 overflow-y-auto p-3 space-y-3 scrollbar-hide">
-                                                                        {chatHistory.map((m, i) => (
-                                                                            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                                                                <div className={`max-w-[85%] p-3 rounded-xl text-[11px] font-medium leading-relaxed whitespace-pre-wrap ${m.role === 'user' ? 'bg-[#6366f1] text-white rounded-br-none' : 'bg-[#16161e] border border-[#ffffff]/10 text-[#ffffff]/90 rounded-bl-none shadow-[0_4px_15px_rgba(0,0,0,0.3)]'} ${m.text?.includes('Apka pura R&D and memory') ? 'bg-[#10b981]/20 border border-[#10b981]/50 text-[#10b981]' : ''}`}>
-                                                                                    {m.text || "⚠️ Invalid System Feedback..."}
+                                                                        {isDiscoveryComplete && parsedRequirements ? (
+                                                                            <div className="space-y-4">
+                                                                                <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <Brain className="text-[#10b981]" size={16} />
+                                                                                        <h4 className="text-xs font-black uppercase text-white tracking-wider">Project Specification Review</h4>
+                                                                                    </div>
+                                                                                    <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/30">TOTAL_PAGES: {parsedRequirements.pages?.length || 0}</span>
+                                                                                </div>
+                                                                                
+                                                                                <p className="text-[10px] text-white/50 font-medium leading-relaxed">
+                                                                                    Here is the list of files and pages planned for your project. Please review them before starting the build.
+                                                                                </p>
+
+                                                                                <div className="border border-white/10 rounded-xl overflow-hidden bg-black/40">
+                                                                                    <table className="w-full text-left border-collapse text-[9px] md:text-[10px]">
+                                                                                        <thead>
+                                                                                            <tr className="bg-white/5 border-b border-white/10 font-black text-white/40 uppercase tracking-wider">
+                                                                                                <th className="p-3">Page / Component</th>
+                                                                                                <th className="p-3">Target Path</th>
+                                                                                                <th className="p-3">Description</th>
+                                                                                            </tr>
+                                                                                        </thead>
+                                                                                        <tbody className="divide-y divide-white/5 font-medium text-white/80">
+                                                                                            {parsedRequirements.pages?.map((p: any, idx: number) => (
+                                                                                                <tr key={idx} className="hover:bg-white/5 transition-all">
+                                                                                                    <td className="p-3 font-bold text-white whitespace-nowrap">{p.name}</td>
+                                                                                                    <td className="p-3 font-mono text-[8px] text-[#818cf8] whitespace-nowrap">{p.path}</td>
+                                                                                                    <td className="p-3 text-white/60 leading-normal">{p.description}</td>
+                                                                                                </tr>
+                                                                                            ))}
+                                                                                        </tbody>
+                                                                                    </table>
                                                                                 </div>
                                                                             </div>
-                                                                        ))}
+                                                                        ) : (
+                                                                            chatHistory.map((m, i) => (
+                                                                                <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                                                                    <div className={`max-w-[85%] p-3 rounded-xl text-[11px] font-medium leading-relaxed whitespace-pre-wrap ${m.role === 'user' ? 'bg-[#6366f1] text-white rounded-br-none' : 'bg-[#16161e] border border-[#ffffff]/10 text-[#ffffff]/90 rounded-bl-none shadow-[0_4px_15px_rgba(0,0,0,0.3)]'} ${m.text?.includes('Apka pura R&D and memory') ? 'bg-[#10b981]/20 border border-[#10b981]/50 text-[#10b981]' : ''}`}>
+                                                                                        {m.text || "⚠️ Invalid System Feedback..."}
+                                                                                    </div>
+                                                                                </div>
+                                                                            ))
+                                                                        )}
                                                                         {isChatLoading && (
                                                                             <div className="flex justify-start">
                                                                                 <div className="bg-[#16161e] border border-[#ffffff]/10 text-[#ffffff]/40 p-2 rounded-xl rounded-bl-none text-[10px]">

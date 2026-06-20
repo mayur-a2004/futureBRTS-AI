@@ -118,6 +118,21 @@ async def agent_interact(payload: dict, background_tasks: BackgroundTasks):
     result = await asyncio.to_thread(agent.process_request, prompt, files)
     return result
 
+@app.post("/omega-build")
+async def omega_build(payload: dict, background_tasks: BackgroundTasks):
+    """
+    Triggers the Omega Pipeline (Danger Algorithm) to build the project.
+    """
+    from orchestrator.future import future
+    import asyncio
+    
+    console.print(Panel(f"[bold red]🔥 OMEGA PIPELINE ACTIVATED[/bold red]\nProject: {payload.get('title')}", border_style="red"))
+    
+    # Run the omega build in the background
+    background_tasks.add_task(future.dispatch, "omega_build", payload)
+    
+    return {"status": "omega_pipeline_started", "message": "The Danger Algorithm is running in the background"}
+
 @app.post("/build-project")
 async def build_project(payload: dict):
     """

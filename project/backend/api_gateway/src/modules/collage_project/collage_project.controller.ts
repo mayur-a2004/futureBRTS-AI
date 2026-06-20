@@ -27,6 +27,21 @@ const error = (res: Response, message: string, code: string = 'INTERNAL_ERROR') 
 // Memory-based per-user throttle map
 const userLastRequest = new Map<string, number>();
 
+// Sanitize Pollinations AI image links in Markdown (combines newlines and encodes prompt parts)
+const sanitizeMarkdownImages = (text: string): string => {
+    if (!text) return text;
+    // 1. Remove newlines and whitespace between ![...] and (...)
+    let sanitized = text.replace(/!\[([^\]]*)\]\s*\n+\s*\(([^)]+)\)/g, '![$1]($2)');
+    
+    // 2. Find pollinations.ai URLs and URL-encode their prompts safely
+    sanitized = sanitized.replace(/https:\/\/image\.pollinations\.ai\/prompt\/([^?)\s]+(?:\s+[^?)\s]+)*)(?=\?|\)|$)/g, (match, promptPart) => {
+        return `https://image.pollinations.ai/prompt/${encodeURIComponent(promptPart.trim())}`;
+    });
+    
+    return sanitized;
+};
+
+
 export const collageProjectController = {
     // PROJECT MANAGEMENT
     createProject: async (req: Request, res: Response) => {
@@ -73,6 +88,18 @@ export const collageProjectController = {
             await newVersion.save();
 
             // Auto-trigger build pipeline via Antigravity Mode
+            // OMEGA PIPELINE: Initialize File Registry for Advanced Tracking
+            const FileRegistry = (await import('./file_registry.model')).default;
+            await FileRegistry.deleteMany({ projectId: project._id });
+            await new FileRegistry({
+                projectId: project._id,
+                filePath: '/project_root_initialized',
+                status: 'completed',
+                exports: [],
+                imports: [],
+                dependsOn: []
+            }).save();
+
             multiAgentService.startProjectBuild(project).catch(err => {
                 console.error("Autonomous Build Initiation Failed:", err);
             });
@@ -86,35 +113,85 @@ export const collageProjectController = {
             if (!context || !context.title) return error(res, "Title context is mandatory.", "VALIDATION_FAILED");
 
             const { multiAgentService } = await import('./multi_agent.service');
+            
+            // 🌐 DEEP RESEARCH & WEB SCRAPER INTEGRATION
+            let webContext = "";
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            const urls = message ? message.match(urlRegex) : [];
+            
+            if (urls && urls.length > 0) {
+                const axios = require('axios');
+                const cheerio = require('cheerio');
+                try {
+                    for (const url of urls) {
+                        const response = await axios.get(url, { 
+                            timeout: 10000, 
+                            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' } 
+                        });
+                        const html = response.data;
+                        const $ = cheerio.load(html);
+                        
+                        // Clean up unnecessary tags
+                        $('script, style, noscript, iframe, img, svg, video, path').remove();
+                        
+                        const title = $('title').text() || $('meta[property="og:title"]').attr('content') || '';
+                        const metaDesc = $('meta[name="description"]').attr('content') || $('meta[property="og:description"]').attr('content') || '';
+                        const siteName = $('meta[property="og:site_name"]').attr('content') || '';
+                        const author = $('meta[name="author"]').attr('content') || '';
+                        let textContent = $('body').text().replace(/\s+/g, ' ').trim();
+                        
+                        // Truncate to prevent token overflow
+                        if (textContent.length > 8000) textContent = textContent.substring(0, 8000) + '...';
+                        
+                        webContext += `\n[LIVE_WEB_CONTEXT for ${url}]\nPlatform/Site: ${siteName}\nAuthor: ${author}\nTitle: ${title}\nDescription: ${metaDesc}\nContent Excerpt: ${textContent}\n`;
+                    }
+                } catch (e: any) {
+                    console.error("Web Scraper Error:", e.message);
+                    webContext += `\n[LIVE_WEB_CONTEXT for ${urls.join(', ')}]\nFailed to fetch live URL content. The website might have bot-protection. Proceed based on URL string inference.\n`;
+                }
+            }
 
             const historyText = history ? history.map((m: any) => `${m.role === 'user' ? 'User' : 'Agent'}: ${m.text}`).join('\n') : '';
 
-            const prompt = `You are a highly intelligent, proactive Technical Architect and AI Discovery Agent interacting with a client.
+            const prompt = `You are a highly intelligent Dual-Mode AI. You act as an Expert Senior Software Engineer and a Technical Architect interacting with a client.
 Project Title: "${context.title}"
 Type: ${context.type} | Sector: ${context.field}
+
 Current Chat History:
 ${historyText}
+
 User's latest message: "${message || 'Hi, I want to build this project.'}"
+${webContext ? `\nCRITICAL LIVE DATA (Scraped from user's link):\n${webContext}\nAnalyze this data heavily to perfectly answer their questions about companies, code logic, platforms, developers, and tech stacks.` : ''}
 
-Your goal is to gather perfect requirements for this app dynamically.
-CRITICAL RULES:
-1. LANGUAGE MATCH: You MUST reply in the EXACT language the user is speaking (e.g., if they speak Hinglish/Hindi like "muje ecommerce chiye", reply in natural, intelligent Hinglish/Hindi: "Zaroor! Ek ecommerce website ke liye hume order management aur payment gateway add karna chahiye. Aapke according kya functions zaroori hain?").
-2. COMPREHENSIVE PITCH (LONG & EXHAUSTIVE): When starting, act exactly like ChatGPT doing a massive deep-dive architectural session. Write an extremely long, deeply detailed point-by-point document covering:
-   - 🎯 Main Problem & Solid SaaS Solution.
-   - 👥 User Roles (e.g., Admin, Customer, Vendor, Manager), what each role does.
-   - ⭐ Core Functions & Features section (Extensive & deeply mapped).
-   - 📊 Admin Control Panel overview (Analytics, lists, module controls).
-   Provide heavy details, easily over 600 words!
-3. PREMIUM FORMATTING & STRUCTURE: Use perfect structure. Use double line-breaks strictly for paragraphing. Use bold text, emojis, and properly tabulated lists. Never clump text together. It MUST read like a highly professional, well-spaced SaaS proposal document.
-4. CALL TO ACTION: After providing your detailed pitch, ask the user if they want to add anything else or if they approve this for the final Build Mission.
-5. AUTO-COMPLETION: When the user explicitly agrees or provides enough info over 2-3 exchanges, you MUST STOP asking questions and output STRICT JSON describing the final parsed requirements.
+You operate in DUAL-MODE based on the user's intent:
 
-If discussing, just output your conversational response in plain text (No markdown code blocks).
+MODE A: PROBLEM SOLVING & CODING ASSISTANT
+If the user is asking a coding question, debugging an error, asking for technology explanations, or sharing a StackOverflow/GitHub/Technical link:
+1. Act purely as an Elite Senior Developer.
+2. Provide exact, real-world code solutions, debugging steps, and technical explanations.
+3. Use the EXACT language the user speaks (e.g. Hinglish/Hindi if they use it).
+4. DO NOT write a SaaS project proposal. DO NOT ask them to approve a "Build Mission". Just solve their problem perfectly.
+5. If explaining a complex architecture or UI concept, embed an illustrative image using: ![Alt](https://image.pollinations.ai/prompt/{url-encoded-detailed-description}?width=800&height=400&nologo=true)
+
+MODE B: PROJECT ARCHITECT & BUILDER
+If the user is explicitly discussing building a new software project or feature set:
+1. Act like an advanced Architect doing a deep-dive session. 
+2. Write a highly detailed pitch covering: Main Problem, User Roles, Core Functions, and Admin Panel.
+3. Use the EXACT language the user speaks.
+4. PAGE MANIFEST: You MUST list all pages to be developed in a Markdown table with columns: Page # | Page Name | Route Path | Functional Description | Key UI Components. State the total page count clearly (e.g. "Total Pages: 8").
+5. VISUALS: You MUST embed 1 or 2 stunning conceptual images related to the user's project idea using this exact markdown format: ![UI Concept](https://image.pollinations.ai/prompt/{url-encoded-detailed-ui-concept-description}?width=800&height=400&nologo=true)
+6. Call to Action: Ask if they approve this for the final Build Mission.
+
+AUTO-COMPLETION RULE (Applies to Mode B only):
+If the user explicitly approves the final project requirements, output STRICT JSON describing the final parsed requirements.
 If COMPLETE, output ONLY a JSON object exactly like this:
 {
   "status": "COMPLETE",
   "actors": ["user type 1", "admin"],
   "features": ["feature 1", "feature 2", "feature 3"],
+  "pages": [
+     { "name": "LandingPage", "path": "frontend/src/pages/LandingPage.tsx", "description": "Welcome Page with Hero and Features" }
+  ],
   "techDecisions": { "auth": "JWT", "payment": "Stripe" },
   "summary": "Full comprehensive project requirements stringified here."
 }
@@ -124,6 +201,9 @@ NEVER wrap JSON in markdown.`;
             let isComplete = false;
             let document = null;
             let question = aiResponse || "⚠️ System Alert: API is currently hitting extreme Rate Limits. Please wait a minute and try again.";
+
+            // Apply markdown image sanitization
+            question = sanitizeMarkdownImages(question);
 
             if (aiResponse.includes('"COMPLETE"') && aiResponse.includes('{') && aiResponse.includes('}')) {
                 const jsonStr = aiResponse.substring(aiResponse.indexOf('{'), aiResponse.lastIndexOf('}') + 1);
@@ -429,17 +509,29 @@ NEVER wrap JSON in markdown.`;
                 }
             });
 
+            // Wait for completion
+            const zipFinished = new Promise<void>((resolve, reject) => {
+                res.on('finish', resolve);
+                res.on('error', reject);
+                archive.on('error', reject);
+            });
+
             archive.pipe(res);
 
             for (const f of files) {
                 if (f.filePath && f.fileContent) {
                     // Sanitize path for Windows compatibility (replace backslashes with forward slashes)
-                    const safePath = f.filePath.replace(/\\/g, '/');
-                    archive.append(f.fileContent, { name: safePath });
+                    let safePath = f.filePath.replace(/\\/g, '/');
+                    // Remove leading slashes to prevent Windows zip extraction restrictions (Access Denied)
+                    safePath = safePath.replace(/^\/+/g, '');
+                    if (safePath) {
+                        archive.append(f.fileContent, { name: safePath });
+                    }
                 }
             }
 
             await archive.finalize();
+            await zipFinished;
         } catch (err: any) { error(res, err.message); }
     },
 
@@ -716,6 +808,21 @@ NEVER wrap JSON in markdown.`;
             multiAgentServiceModule.multiAgentService.runPostBuildIteration(req.params.id, userChangeRequest).catch(e => {
                 console.error("Post Build Iteration Error", e);
             });
+        } catch (err: any) { error(res, err.message); }
+    },
+
+    getProjectRegistry: async (req: Request, res: Response) => {
+        try {
+            const userId = (req as any).user.id;
+            const objectId = new mongoose.Types.ObjectId(req.params.id);
+            
+            const project = await CollageProject.findOne({ _id: objectId, userId });
+            if (!project) return error(res, "Project Not Found", "NOT_FOUND");
+            
+            const FileRegistry = (await import('./file_registry.model')).default;
+            const registry = await FileRegistry.find({ projectId: objectId }).sort({ createdAt: 1 });
+            
+            success(res, "Omega File Registry retrieved", { registry });
         } catch (err: any) { error(res, err.message); }
     }
 };

@@ -40,6 +40,20 @@ const SearchBadge = ({ subject }: { subject: string }) => (
     </motion.div>
 );
 
+// Sanitize Pollinations AI image links in Markdown (combines newlines and encodes prompt parts)
+const sanitizeMarkdownImages = (text: string): string => {
+    if (!text) return text;
+    // 1. Remove newlines and whitespace between ![...] and (...)
+    let sanitized = text.replace(/!\[([^\]]*)\]\s*\n+\s*\(([^)]+)\)/g, '![$1]($2)');
+    
+    // 2. Find pollinations.ai URLs and URL-encode their prompts safely
+    sanitized = sanitized.replace(/https:\/\/image\.pollinations\.ai\/prompt\/([^?)\s]+(?:\s+[^?)\s]+)*)(?=\?|\)|$)/g, (_, promptPart) => {
+        return `https://image.pollinations.ai/prompt/${encodeURIComponent(promptPart.trim())}`;
+    });
+    
+    return sanitized;
+};
+
 export interface Attachment {
     name: string;
     type: string;
@@ -103,6 +117,7 @@ export const MessageBubble = React.memo(({
     }
 
     const cleanedContent = !isUser ? strippedContent : content;
+    const sanitizedCleanedContent = sanitizeMarkdownImages(cleanedContent);
 
     const handleCopy = () => {
         navigator.clipboard.writeText(content);
@@ -356,7 +371,7 @@ export const MessageBubble = React.memo(({
                                     }
                                 }}
                             >
-                                {cleanedContent}
+                                {sanitizedCleanedContent}
                             </ReactMarkdown>
 
                             {/* Summary Section */}

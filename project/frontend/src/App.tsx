@@ -119,6 +119,8 @@ const ChatMonitor = lazy(() => import('./pages/admin/ChatMonitor'));
 const ProjectRegistry = lazy(() => import('./pages/admin/ProjectRegistry'));
 const FactoryLiveTracking = lazy(() => import('./pages/projects/FactoryLiveTracking'));
 
+const ExamGenerator = lazy(() => import('./pages/ExamGeneratorPage'));
+
 function App() {
     useTrafficTracker();
     return (
@@ -196,6 +198,7 @@ function App() {
                                                             <Route path="history" element={<History />} />
                                                             <Route path="profile" element={<Profile />} />
                                                             <Route path="war-room" element={<BusinessWarRoom />} />
+                                                            <Route path="exam-generator" element={<ExamGenerator />} />
                                                             <Route path="settings" element={<Settings />} />
                                                             <Route path="checkout" element={<Checkout />} />
                                                             <Route path="checkout/success" element={<Success />} />

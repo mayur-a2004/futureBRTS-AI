@@ -4,7 +4,7 @@ import ProjectFile from './project_file.model';
 import mongoose from 'mongoose';
 import SystemLog from './system_log.model';
 
-export const runSanityCheck = async (projectId: string, fsPath: string, symbolTable: any) => {
+export const runSanityCheck = async (projectId: string, fsPath: string, symbolTable: any, aiRepairFunction?: any) => {
     try {
         const pId = new mongoose.Types.ObjectId(projectId);
         const files = await ProjectFile.find({ projectId: pId });
@@ -41,14 +41,56 @@ export const runSanityCheck = async (projectId: string, fsPath: string, symbolTa
                 content = `import React from 'react';\n${content}`;
             }
 
-            // 5. Catch HTML wrappers in React components and log warnings
-            if ((file.filePath.endsWith('.jsx') || file.filePath.endsWith('.tsx') || file.filePath.endsWith('.js') || file.filePath.endsWith('.ts')) && 
-                (/<!DOCTYPE\s+html/i.test(content) || /<html/i.test(content) || /<body/i.test(content))) {
+            // 5. Catch HTML wrappers or missing default exports in React components and trigger AGENTIC SELF-HEALING
+            let needsRepair = false;
+            let repairReason = "";
+            const isReactFile = file.filePath.endsWith('.jsx') || file.filePath.endsWith('.tsx');
+            
+            if (isReactFile) {
+                if (/<!DOCTYPE\s+html/i.test(content) || /<html/i.test(content) || /<body/i.test(content)) {
+                    needsRepair = true;
+                    repairReason = "Frontend component contains HTML page wrappers (<html>, <body>, etc). It must be a raw React functional component without HTML document wrappers.";
+                } else if (!content.includes('export default') && !content.includes('module.exports')) {
+                    needsRepair = true;
+                    repairReason = "Frontend component is missing an 'export default' statement. A React component must be exported.";
+                }
+            }
+
+            if (needsRepair && aiRepairFunction) {
                 await SystemLog.create({
                     projectId: pId,
                     logType: 'SANITY_SCANNER',
-                    message: `⚠️ WARNING: Frontend component ${file.filePath} contains HTML page wrapper. This will break Vite build!`
+                    message: `⚠️ CRITICAL: Anomaly detected in ${file.filePath}. Triggering Agentic Auto-Repair...`
                 });
+
+                const repairPrompt = `You are an elite React Developer. The following code for the file "${file.filePath}" is fundamentally broken or improperly formatted.
+REASON: ${repairReason}
+
+Broken Code:
+\`\`\`
+${content}
+\`\`\`
+
+TASK: Fix the code completely. Ensure it is a valid, clean React component. DO NOT wrap it in <html> or <body> tags. Ensure it has a valid 'export default'.
+CRITICAL: ONLY return the fixed raw code. Do NOT output any markdown, explanations, or chat. Return the pure code string.`;
+
+                try {
+                    let repairedCode = await aiRepairFunction(repairPrompt, projectId, file.filePath);
+                    
+                    // Clean markdown if the AI hallucinates it
+                    repairedCode = repairedCode.replace(/```[a-z]*\n?/g, '').replace(/```/g, '').trim();
+                    
+                    if (repairedCode.length > 50) {
+                        content = repairedCode;
+                        await SystemLog.create({
+                            projectId: pId,
+                            logType: 'SANITY_SCANNER',
+                            message: `✅ Agentic Repair successful for ${file.filePath}. Overwriting corrupted file.`
+                        });
+                    }
+                } catch (e: any) {
+                    console.error("Auto-Repair Failed:", e.message);
+                }
             }
 
 

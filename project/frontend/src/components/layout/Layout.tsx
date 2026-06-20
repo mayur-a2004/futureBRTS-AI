@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom"
-import { LayoutDashboard, Zap, LogOut, Clock, Menu, X, MessageSquare, Map, CheckSquare, Edit2, Check, MoreHorizontal, Trash2, Share2, Pin, Archive, FolderInput, Sparkles, PanelLeftClose, PanelLeftOpen, Settings, User, ChevronRight, Briefcase, ShieldCheck } from "lucide-react"
+import { LayoutDashboard, Zap, LogOut, Clock, Menu, X, MessageSquare, Map, CheckSquare, Edit2, Check, MoreHorizontal, Trash2, Share2, Pin, Archive, FolderInput, Sparkles, PanelLeftClose, PanelLeftOpen, Settings, User, ChevronRight, Briefcase, ShieldCheck, FileText } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { useState, useEffect, useRef } from "react";
 import TokenWall from "@/components/economy/TokenWall";
@@ -190,6 +190,7 @@ export default function Layout() {
         { name: "Roadmap", path: "/roadmap", icon: <Map size={20} /> },
         { name: "Today Task", path: "/today-task", icon: <CheckSquare size={20} /> },
         { name: "Builder", path: "/builder", icon: <Zap size={20} /> },
+        { name: "Exam Generator", path: "/exam-generator", icon: <FileText size={20} /> },
         { name: "Business War Room", path: "/war-room", icon: <Briefcase size={20} /> },
     ];
 

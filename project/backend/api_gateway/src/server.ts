@@ -77,6 +77,10 @@ app.use('/api/growth', growthRoutes);
 app.use('/api/war-room', warRoomRoutes);
 console.log('✅ Routes Mounted: /api/war-room');
 
+import examGeneratorRoutes from './modules/exam_generator/exam_generator.routes';
+app.use('/api/exam', examGeneratorRoutes);
+console.log('✅ Routes Mounted: /api/exam');
+
 import adminRoutes from './modules/admin/admin.routes';
 app.use('/api/admin', adminRoutes);
 import jobsRoutes from './api/jobs.routes';

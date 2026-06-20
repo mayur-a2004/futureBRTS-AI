@@ -40,6 +40,74 @@ const generateKrokiUrl = (diagramType: string, content: string) => {
     }
 };
 
+// Sanitize Mermaid code to prevent Kroki compilation errors
+const sanitizeMermaidCode = (type: string, code: string): string => {
+    if (!code) return code;
+    let lines = code.split('\n');
+    
+    // 1. erDiagram constraints
+    if (type === 'architecture' || code.includes('erDiagram')) {
+        // erDiagram does NOT support classDef, style, class, click, subgraph, or flowchart arrows
+        lines = lines.filter(line => {
+            const clean = line.trim();
+            return !clean.startsWith('classDef') && 
+                   !clean.startsWith('class ') && 
+                   !clean.startsWith('style ') && 
+                   !clean.startsWith('subgraph') && 
+                   !clean.startsWith('end') &&
+                   !clean.startsWith('click');
+        });
+        
+        // Replace invalid relationships or flowchart arrow connectors inside erDiagram
+        lines = lines.map(line => {
+            let clean = line.trim();
+            if (clean.includes(':') && !clean.startsWith('%%')) {
+                // Check if connector is valid. Connectors must be: [|o, ||, }o, }|]-- or ..[o|, ||, o{, |{]
+                const validConnectorPattern = /(\|o|\|\||\}o|\}|o\||o\{|\|\{)\s*(--|\.\.)\s*(\|o|\|\||\}o|\}|o\||o\{|\|\{)/;
+                if (!validConnectorPattern.test(clean)) {
+                    // Replace the connector with a safe default "||--o{"
+                    clean = clean.replace(/([a-zA-Z0-9_]+)\s+[^:]*?\s+([a-zA-Z0-9_]+)\s*:/, '$1 ||--o{ $2 :');
+                }
+            }
+            return clean;
+        });
+    }
+    
+    // 2. sequenceDiagram constraints
+    if (type === 'sequence_flow' || code.includes('sequenceDiagram')) {
+        lines = lines.filter(line => {
+            const clean = line.trim();
+            return !clean.startsWith('classDef') && !clean.startsWith('class ') && !clean.startsWith('style ');
+        });
+    }
+
+    // 3. stateDiagram constraints
+    if (type === 'activity_flow' || code.includes('stateDiagram')) {
+        lines = lines.filter(line => {
+            const clean = line.trim();
+            return !clean.startsWith('classDef') && !clean.startsWith('class ') && !clean.startsWith('style ');
+        });
+    }
+    
+    // 4. flowchart constraints (system_flow, dfd_level_1, dfd_level_2)
+    if (type.includes('flow') || type.includes('dfd') || code.includes('graph ') || code.includes('flowchart ')) {
+        lines = lines.map(line => {
+            let clean = line.trim();
+            // Ensure nested parentheses inside labels are converted to safe double quotes
+            clean = clean.replace(/([a-zA-Z0-9_-]+)\s*\(([^)]+)\)/g, (match, id, label) => {
+                if (label.includes('(') || label.includes(')') || /[^a-zA-Z0-9_ -]/.test(label)) {
+                    return `${id}["${label.replace(/"/g, '')}"]`;
+                }
+                return match;
+            });
+            return clean;
+        });
+    }
+
+    return lines.join('\n');
+};
+
+
 // 🏁 BOOT CHECK — Ensure API Keys exist (Initial check, dynamic fetching will follow)
 (async () => {
     const groq = await getAiKey('GROQ');
@@ -51,32 +119,65 @@ const generateKrokiUrl = (diagramType: string, content: string) => {
 // ============================================================
 // ⚡ ANTIGRAVITY COMPACT DESIGN RULE — Token Efficient
 // ============================================================
-const ANTIGRAVITY_GOD_MODE = (title: string, tech: string, filePath?: string) => {
+const ANTIGRAVITY_GOD_MODE = (title: string, tech: string, filePath?: string, prototypeMode: boolean = false) => {
     let linesLimit = "400+ lines per file";
     const lowerPath = filePath ? filePath.toLowerCase() : "";
-    const isReact = lowerPath.endsWith('.tsx') || lowerPath.endsWith('.jsx') || lowerPath.endsWith('.ts') || lowerPath.endsWith('.js');
+    
+    // Accurately distinguish backend vs frontend files
+    const isBackend = lowerPath.includes('backend/') || lowerPath.includes('controllers/') || lowerPath.includes('models/') || lowerPath.includes('routes/');
+    const isFrontend = !isBackend && (lowerPath.includes('frontend/') || lowerPath.includes('admin/') || lowerPath.includes('public/'));
+    
+    const isReact = isFrontend && (lowerPath.endsWith('.tsx') || lowerPath.endsWith('.jsx') || lowerPath.endsWith('.ts') || lowerPath.endsWith('.js'));
+    
     if (filePath) {
         if (lowerPath.includes('config') || lowerPath.includes('context') || lowerPath.includes('hook') || lowerPath.includes('helper') || lowerPath.includes('mockdata') || lowerPath.includes('util') || lowerPath.includes('theme') || lowerPath.endsWith('main.jsx') || lowerPath.endsWith('main.tsx')) {
             linesLimit = "50+ lines per file";
         }
     }
+
+    const isComponent = isReact && 
+        !(lowerPath.includes('context') || 
+          lowerPath.includes('mockdata') || 
+          lowerPath.includes('uicomponents') || 
+          lowerPath.includes('main.jsx') || 
+          lowerPath.includes('main.tsx') ||
+          lowerPath.includes('authcontext'));
+
     const reactConstraint = isReact 
         ? `\nCRITICAL REACT CONSTRAINT:
-- Output clean ESM React component code ONLY.
+${isComponent ? `- Output clean ESM React component code ONLY.` : `- Output clean, complete ESM code. If this is a data module (e.g. mockData), export the raw data arrays/objects directly. If this is a context provider, export the Context and AppProvider properly. If this is UIComponents, export multiple independent reusable component functions (like StatCard, DataTable, RecentActivity, ProductCard, Modal, Button).`}
 - DO NOT include HTML wrapper tags (e.g. <!DOCTYPE html>, <html>, <head>, <body>) or <style> blocks.
 - Use Tailwind CSS classes for styles and animations. DO NOT link or import external Google font files inside React components.
-- IMPORT only universally available Lucide icons from 'lucide-react' (safe list: Plus, Trash2, Edit, Save, X, Search, Filter, ChevronLeft, ChevronRight, Settings, User, LogOut, LayoutDashboard, BarChart3, ListTodo, Activity, AlertCircle, CheckCircle2, Shield, ArrowUpRight, Calendar, Info).
+- IMPORT only universally available Lucide icons from 'lucide-react' (safe list: Plus, Trash2, Edit, Save, X, Search, Filter, ChevronLeft, ChevronRight, Settings, User, LogOut, LayoutDashboard, BarChart3, ListTodo, Activity, AlertCircle, CheckCircle2, Shield, ArrowUpRight, Calendar, Info, Star, ShoppingCart, Heart, Eye, LogIn, UserPlus, Menu, Bell, Trash, Check, Lock, CreditCard, ArrowLeft, ArrowRight).
+- Any Lucide icon component used in the JSX (e.g. <Star />, <ShoppingCart />) MUST be explicitly imported from 'lucide-react' at the top of the file.
 - NO PLACEHOLDERS: DO NOT write comments like '// TODO', '// implement later', '// rest of the code', '// add logic here' or '...'. You must write 100% complete, functional code for every function, form handler, page section, and list item. No lorem ipsum text.
-- DYNAMIC STATE & LINKS: Use React useState/useEffect for functional search, sorting, filtering, adding/editing items in lists, and pagination controls. Use '<Link to="...">' from 'react-router-dom' for sidebars, navbars, and buttons to connect pages properly.`
+- DYNAMIC STATE & LINKS: Use React useState/useEffect for functional search, sorting, filtering, adding/editing items in lists, and pagination controls. Use '<Link to="...">' from 'react-router-dom' for sidebars, navbars, and buttons to connect pages properly.
+- TYPE DEFINITIONS: When initializing state objects in TSX/JSX (like user profile, cart, payments), always provide full type declarations or safe fallbacks (e.g. use '<any>' or define interfaces/types for initialized empty objects) to avoid TypeScript compiler errors when reading sub-properties (e.g. state.accountStatistics?.orders).
+- NO NAME COLLISIONS: To avoid name collisions, do NOT name local components or page components the same as Lucide icons. If importing icons like 'Settings' or 'User', use them strictly as icons, and name pages/routes/page components as 'SettingsPage', 'UserPage', etc. instead of 'Settings' or 'User'.`
         : "";
+
+    const backendConstraint = isBackend 
+        ? `\nCRITICAL BACKEND CONSTRAINT:
+- Write complete, fully-implemented Express/Node.js controllers, schemas, and routes.
+- NO FAKE/MOCK CONTROLLERS: Database queries must use real Mongoose/Sequelize methods (e.g. Model.find(), Model.create(), save(), deleteOne()). DO NOT return static mock JSON objects from controllers.
+- Complete password hashing using bcrypt.
+- Complete error handling middleware catching and routing all exceptions.
+- Export all models and middleware correctly using ES Modules/CommonJS.` 
+        : "";
+
+    const dataRule = prototypeMode 
+        ? `LOCAL STORAGE DATA PERSISTENCE: Write fully functional CRUD logic inside React components using state and 'localStorage'. Retrieve, filter, add, edit, and delete records dynamically in the UI so that refreshing the page maintains state changes. Do not use dummy empty event handlers or mock placeholders; write complete client-side simulation logic.`
+        : `FULL STACK CONNECTIVITY: The frontend MUST make real Axios or Fetch API requests to backend API endpoints (e.g., '/api/users', '/api/products'). Handle request loading states, dynamic error messaging, and update local component states based on backend JSON responses. Do not mock API responses or use static hardcoded state where API integration is required.`;
+
     return `DESIGN MANDATE FOR "${title}" (${tech}):
 1. BACKGROUND: Dark #0F172A. Gradient accents indigo→purple→cyan. NEVER plain white/grey.
 2. GLASS CARDS: backdrop-filter:blur(20px) + rgba(255,255,255,0.05) borders + glow shadows.
 3. ANIMATIONS: @keyframes fadeInUp, pulse-glow, shimmer. Hover scale(1.05) on all interactive elements.
 4. TYPOGRAPHY: Google Fonts Inter/Poppins. Min 3 font-size scales. Font-weight 400/600/800.
-5. MOCK DATA: Realistic hardcoded arrays/objects. ZERO real API calls, ZERO fetch/axios.
+5. DATA STRATEGY: ${dataRule}
 6. LAYOUT: CSS Grid + Flexbox. Sticky glassmorphic Navbar.
-7. MINIMUM: ${linesLimit}. All sections with real data and working interactions.${reactConstraint}
+7. MINIMUM: ${linesLimit}. All sections with real data and working interactions.
+8. COMPLETE LOGIC & NO FAKE CODE: Under no circumstances may any file have missing code blocks, placeholders, "// TODO" comments, or truncated event handlers. Everything must be fully and functionally coded.${reactConstraint}${backendConstraint}
 OUTPUT: Raw ${tech} code ONLY. Zero markdown. Zero explanations.`;
 };
 
@@ -131,21 +232,27 @@ const callOpenRouterAI = async (prompt: string, projectId: string, modelOverride
 // ============================================================
 // GROQ AI CALLER — Real code generation engine
 // ============================================================
-const callGroqAI = async (prompt: string, projectId: string, retries = 3): Promise<string> => {
+export const callGroqAI = async (prompt: string, projectId: string, retries = 3): Promise<string> => {
   const GROQ_API_KEY = await getAiKey('GROQ');
   if (!GROQ_API_KEY) throw new Error('GROQ_API_KEY not configured in admin or .env');
 
   for (let i = 0; i < retries; i++) {
     try {
+      // Use 8b model for exam generator to avoid strict 12k TPM free tier limits
+      const model = projectId === 'exam_generator' ? 'llama-3.1-8b-instant' : 'llama-3.3-70b-versatile';
+      const maxTokens = projectId === 'exam_generator' ? 4000 : 8192;
+
       const response = await axios.post(
         'https://api.groq.com/openai/v1/chat/completions',
         {
-          model: 'llama-3.3-70b-versatile',
+          model: model,
           messages: [
             {
               role: 'system',
               content: projectId === 'discovery_agent'
                 ? `You are a brilliant Architectural AI Assistant conducting a Discovery Chat with a client. Be conversational, proactive, use the exact language they speak (Hindi/English), and output exactly as requested.`
+                : projectId === 'exam_generator'
+                ? `You are an Expert Academic Examiner.`
                 : `You are an ELITE DESIGN ENGINEER & FULL STACK ARCHITECT. 
 You ONLY write complete, working, production-quality code.
 NEVER write placeholder comments like "// Add logic here".
@@ -155,7 +262,7 @@ Output ONLY the raw code, no markdown, no explanation.`
             { role: 'user', content: prompt }
           ],
           temperature: 0.3,
-          max_tokens: 8192
+          max_tokens: maxTokens
         },
         {
           headers: {
@@ -184,11 +291,11 @@ Output ONLY the raw code, no markdown, no explanation.`
 };
 
 // 🧠 GEMINI — Deep Synthesis Engine (Fallback for Rate Limits)
-const callGeminiAI = async (prompt: string): Promise<string> => {
+export const callGeminiAI = async (prompt: string): Promise<string> => {
     const GEMINI_API_KEY = await getAiKey('GEMINI');
     if (!GEMINI_API_KEY) return "";
     try {
-        const res = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        const res = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: { temperature: 0.3, maxOutputTokens: 8192 }
         }, { timeout: 60000 });
@@ -210,6 +317,28 @@ const callSwarmAI = async (prompt: string, projectId: string, filePath?: string)
             if (fallbackRes) return fallbackRes;
             
             throw new Error((e as Error).message);
+        }
+    }
+
+    // 🚀 EXAM GENERATOR / STUDY PORTAL -> GEMINI 2.5 FLASH ONLY 🚀
+    let isExamGen = projectId === 'exam_generator';
+    if (!isExamGen && mongoose.Types.ObjectId.isValid(projectId)) {
+        try {
+            const p = await CollageProject.findById(projectId).lean();
+            if (p) {
+                const text = `${p.title} ${p.requirements} ${p.category}`.toLowerCase();
+                isExamGen = text.includes('exam') || text.includes('paper') || text.includes('study') || text.includes('test');
+            }
+        } catch (e) {}
+    }
+
+    if (isExamGen) {
+        try {
+            console.log(`[SWARM:Exam] Routing to Gemini 2.5 Flash for project ${projectId}...`);
+            const geminiRes = await callGeminiAI(prompt);
+            if (geminiRes && geminiRes.length > 50) return geminiRes;
+        } catch (e: any) {
+            console.warn(`[SWARM:Exam] Gemini 2.5 Flash failed: ${e.message}. Falling back...`);
         }
     }
 
@@ -315,6 +444,8 @@ const validateGeneratedCode = (code: string, filePath: string): void => {
     // 1. Check for placeholder comments
     const placeholders = [
         /\/\/\s*\.\.\./,
+        /\b\.\.\.\b/,
+        /^\s*\.\.\.\s*$/m,
         /\/\/\s*rest\s+of\s+(?:the\s+)?code/i,
         /\/\/\s*implement\s+(?:here|this)/i,
         /\/\/\s*add\s+(?:your\s+)?logic/i,
@@ -329,11 +460,74 @@ const validateGeneratedCode = (code: string, filePath: string): void => {
         }
     }
 
-    // 2. Syntax truncation checks are now handled via Auto-Stitch protocol in the execution loop.
+    // 2. Syntax check: Braces, parentheses, and brackets balancing (skipping strings and comments)
+    let openBraces = 0, openParens = 0, openBrackets = 0;
+    let inSingleQuote = false, inDoubleQuote = false, inTemplateLiteral = false;
+    let inLineComment = false, inBlockComment = false;
+    for (let i = 0; i < trimmed.length; i++) {
+        const c = trimmed[i];
+        const next = trimmed[i + 1] || '';
+        if (inLineComment) {
+            if (c === '\n') inLineComment = false;
+            continue;
+        }
+        if (inBlockComment) {
+            if (c === '*' && next === '/') {
+                inBlockComment = false;
+                i++;
+            }
+            continue;
+        }
+        if (inSingleQuote) {
+            if (c === "'" && trimmed[i - 1] !== '\\') inSingleQuote = false;
+            continue;
+        }
+        if (inDoubleQuote) {
+            if (c === '"' && trimmed[i - 1] !== '\\') inDoubleQuote = false;
+            continue;
+        }
+        if (inTemplateLiteral) {
+            if (c === '`' && trimmed[i - 1] !== '\\') inTemplateLiteral = false;
+            continue;
+        }
+        
+        // Detect comments
+        if (c === '/' && next === '/') {
+            inLineComment = true;
+            i++;
+            continue;
+        }
+        if (c === '/' && next === '*') {
+            inBlockComment = true;
+            i++;
+            continue;
+        }
+        
+        // Detect string literals
+        if (c === "'") { inSingleQuote = true; continue; }
+        if (c === '"') { inDoubleQuote = true; continue; }
+        if (c === '`') { inTemplateLiteral = true; continue; }
+        
+        // Count brackets
+        if (c === '{') openBraces++;
+        else if (c === '}') openBraces--;
+        else if (c === '(') openParens++;
+        else if (c === ')') openParens--;
+        else if (c === '[') openBrackets++;
+        else if (c === ']') openBrackets--;
+    }
+    if (openBraces !== 0) {
+        throw new Error(`SYNTAX_ERROR: Unbalanced curly braces { } (${openBraces > 0 ? openBraces + ' unclosed' : -openBraces + ' extra closed'}).`);
+    }
+    if (openParens !== 0) {
+        throw new Error(`SYNTAX_ERROR: Unbalanced parentheses ( ) (${openParens > 0 ? openParens + ' unclosed' : -openParens + ' extra closed'}).`);
+    }
+
+    const lowerPath = filePath.toLowerCase();
+    const isReactFile = lowerPath.endsWith('.tsx') || lowerPath.endsWith('.jsx') || lowerPath.endsWith('.ts') || lowerPath.endsWith('.js');
 
     // 3. Prevent raw HTML wrappers in TSX/JSX/JS/TS component files
-    const lowerPath = filePath.toLowerCase();
-    if (lowerPath.endsWith('.tsx') || lowerPath.endsWith('.jsx') || lowerPath.endsWith('.ts') || lowerPath.endsWith('.js')) {
+    if (isReactFile) {
         const htmlWrappers = [
             /<!DOCTYPE\s+html/i,
             /<html/i,
@@ -343,6 +537,37 @@ const validateGeneratedCode = (code: string, filePath: string): void => {
         for (const pattern of htmlWrappers) {
             if (pattern.test(trimmed)) {
                 throw new Error(`FILE_QUALITY_FAIL: HTML page wrapper tag (${pattern.toString()}) found in React/JS/TS component file.`);
+            }
+        }
+
+        // 4. React Router version validation
+        if (trimmed.includes('Switch') && trimmed.includes('react-router-dom')) {
+            throw new Error(`COMPILATION_ERROR: Obsolete React Router v5 'Switch' component detected. You must use React Router v6 'Routes' instead.`);
+        }
+        if (trimmed.includes('Route') && /component\s*=\s*\{/.test(trimmed)) {
+            throw new Error(`COMPILATION_ERROR: Obsolete React Router v5 'component={}' prop found. You must use React Router v6 'element={<Component />}' instead.`);
+        }
+
+        // 5. Unimported components or Lucide icons verification check
+        const usedComponents = [...new Set([...trimmed.matchAll(/<([A-Z][a-zA-Z0-9_]*)/g)].map(m => m[1]))];
+        for (const comp of usedComponents) {
+            if (comp === 'Fragment' || comp === 'React') continue;
+            
+            const isDeclared = new RegExp(`\\b(const|let|var|function|class)\\s+${comp}\\b`).test(trimmed);
+            const isImportedExplicitly = new RegExp(`\\bimport\\b.*\\b${comp}\\b`).test(trimmed);
+            
+            if (!isDeclared && !isImportedExplicitly) {
+                throw new Error(`COMPILATION_ERROR: Component or Icon <${comp} /> is used in JSX but is neither imported nor declared in this file.`);
+            }
+        }
+
+        // 6. Name collisions checker (Imports vs Local declarations)
+        const imports = [...trimmed.matchAll(/import\s+.*\{([^}]+)\}\s+from/g)].flatMap(m => m[1].split(',').map(s => s.trim()));
+        for (const imp of imports) {
+            const name = imp.split(/\sas\s/)[1] || imp;
+            const localDecl = new RegExp(`\\b(const|let|var|function|class)\\s+${name}\\b`).test(trimmed.replace(/import[\s\S]*?from.*/g, ''));
+            if (localDecl) {
+                throw new Error(`COMPILATION_ERROR: Name collision detected. Local component/variable declaration '${name}' conflicts with import.`);
             }
         }
     }
@@ -448,10 +673,11 @@ const detectDomain = (title: string, requirements: string): DomainType => {
 // ============================================================
 // 🖥️ DOMAIN-AWARE FRONTEND PLAN — Dynamic by Project Type
 // ============================================================
-const buildFrontendOnlyPlan = (title: string, fe: string, feExt: string, entity: string, requirements: string) => {
+const buildFrontendOnlyPlan = (title: string, fe: string, feExt: string, entity: string, requirements: string, prototypeMode: boolean = true) => {
     const D = "__ANTIGRAVITY_GOD_MODE_PLACEHOLDER__";
     const C = `Project:"${title}". Stack:${fe}. Req:${requirements.substring(0, 150)}.`;
     const domain = detectDomain(title, requirements);
+    const projectName = title.toLowerCase().replace(/[^a-z0-9]/g, '-');
 
     const staticFiles = [
         {
@@ -459,8 +685,12 @@ const buildFrontendOnlyPlan = (title: string, fe: string, feExt: string, entity:
             content: `<!DOCTYPE html>\n<html lang="en">\n  <head>\n    <meta charset="UTF-8" />\n    <meta name="viewport" content="width=device-width, initial-scale=1.0" />\n    <title>${title}</title>\n    <link rel="preconnect" href="https://fonts.googleapis.com">\n    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">\n  </head>\n  <body>\n    <div id="root"></div>\n    <script type="module" src="/src/main.${feExt}"></script>\n  </body>\n</html>`
         },
         {
+            path: `frontend/src/main.${feExt}`,
+            content: `import React from 'react';\nimport ReactDOM from 'react-dom/client';\nimport App from './App';\nimport './index.css';\n\nReactDOM.createRoot(document.getElementById('root')!).render(\n  <React.StrictMode>\n    <App />\n  </React.StrictMode>\n);`
+        },
+        {
             path: 'frontend/package.json',
-            content: `{\n  "name": "${title.toLowerCase().replace(/[^a-z0-9]/g, '-')}",\n  "private": true,\n  "version": "1.0.0",\n  "type": "module",\n  "scripts": { "dev": "vite", "build": "tsc && vite build", "preview": "vite preview" },\n  "dependencies": {\n    "react": "^18.3.1",\n    "react-dom": "^18.3.1",\n    "react-router-dom": "^6.22.0",\n    "lucide-react": "^0.330.0",\n    "recharts": "^2.12.0",\n    "framer-motion": "^11.0.3"\n  },\n  "devDependencies": {\n    "@types/react": "^18.2.55",\n    "@types/react-dom": "^18.2.19",\n    "@vitejs/plugin-react": "^4.2.1",\n    "autoprefixer": "^10.4.17",\n    "postcss": "^8.4.35",\n    "tailwindcss": "^3.4.1",\n    "typescript": "^5.3.3",\n    "vite": "^5.1.0"\n  }\n}`
+            content: `{\n  "name": "${projectName}",\n  "private": true,\n  "version": "1.0.0",\n  "type": "module",\n  "scripts": { "dev": "vite", "build": "tsc && vite build", "preview": "vite preview" },\n  "dependencies": {\n    "axios": "^1.6.8",\n    "framer-motion": "^11.0.3",\n    "lucide-react": "^0.330.0",\n    "react": "^18.3.1",\n    "react-dom": "^18.3.1",\n    "react-router-dom": "^6.22.0",\n    "recharts": "^2.12.0"\n  },\n  "devDependencies": {\n    "@types/react": "^18.2.55",\n    "@types/react-dom": "^18.2.19",\n    "@vitejs/plugin-react": "^4.2.1",\n    "autoprefixer": "^10.4.17",\n    "postcss": "^8.4.35",\n    "tailwindcss": "^3.4.1",\n    "typescript": "^5.3.3",\n    "vite": "^5.1.0"\n  }\n}`
         },
         {
             path: 'frontend/vite.config.js',
@@ -468,102 +698,66 @@ const buildFrontendOnlyPlan = (title: string, fe: string, feExt: string, entity:
         },
         {
             path: 'frontend/tailwind.config.js',
-            content: `/** @type {import('tailwindcss').Config} */\nexport default {\n  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],\n  theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } } },\n  plugins: []\n}`
+            content: `/** @type {import('tailwindcss').Config} */\nexport default {\n  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],\n  theme: {\n    extend: {\n      fontFamily: { sans: ['Inter', 'sans-serif'], poppins: ['Poppins', 'sans-serif'] },\n      colors: {\n        brand: { 50: '#eef2ff', 100: '#e0e7ff', 500: '#6366f1', 600: '#4f46e5', 900: '#312e81' },\n        glass: 'rgba(255, 255, 255, 0.05)',\n        glassBorder: 'rgba(255, 255, 255, 0.1)'\n      }\n    }\n  },\n  plugins: []\n}`
         },
         {
             path: 'frontend/postcss.config.js',
             content: `export default { plugins: { tailwindcss: {}, autoprefixer: {} } }`
         },
         {
+            path: 'frontend/tsconfig.json',
+            content: `{\n  "compilerOptions": {\n    "target": "ES2020",\n    "useDefineForClassFields": true,\n    "lib": ["ES2020", "DOM", "DOM.Iterable"],\n    "module": "ESNext",\n    "skipLibCheck": true,\n    "moduleResolution": "bundler",\n    "allowImportingTsExtensions": true,\n    "resolveJsonModule": true,\n    "isolatedModules": true,\n    "noEmit": true,\n    "jsx": "react-jsx",\n    "strict": false,\n    "noUnusedLocals": false,\n    "noUnusedParameters": false,\n    "noFallthroughCasesInSwitch": true,\n    "baseUrl": ".",\n    "paths": {\n      "@/*": ["src/*"]\n    }\n  },\n  "include": ["src"],\n  "references": [{ "path": "./tsconfig.node.json" }]\n}`
+        },
+        {
+            path: 'frontend/tsconfig.node.json',
+            content: `{\n  "compilerOptions": {\n    "composite": true,\n    "skipLibCheck": true,\n    "module": "ESNext",\n    "moduleResolution": "bundler",\n    "allowSyntheticDefaultImports": true\n  },\n  "include": ["vite.config.ts", "vite.config.js"]\n}`
+        },
+        {
+            path: 'frontend/README.md',
+            content: `# ${title}\n\n## Project Setup\nThis is a fully functional React frontend application generated by Antigravity Engine.\n\n### Prerequisites\n- Node.js (v18+ recommended)\n- npm or yarn\n\n### Installation\n1. Open a terminal in the \`frontend\` directory.\n2. Run \`npm install\` to install all dependencies.\n3. Run \`npm run dev\` to start the development server.\n\n### Features Included\n- Complete Routing (\`react-router-dom\`)\n- Global State Context (\`src/context\`)\n- Premium UI Components (\`src/components\`)\n- Animations (\`framer-motion\`)\n- Charts (\`recharts\`)\n- Mock Data Engine (\`src/data\`)\n- Tailwind CSS Styling\n`
+        },
+        {
             path: 'frontend/src/index.css',
-            content: `@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\n:root {\n  --bg: #0F172A;\n  --bg2: #1E293B;\n  --accent: #6366f1;\n  --accent2: #06b6d4;\n  --glass: rgba(255,255,255,0.04);\n  --border: rgba(255,255,255,0.08);\n}\n* { box-sizing: border-box; margin: 0; padding: 0; }\nbody {\n  background: var(--bg);\n  color: #f1f5f9;\n  font-family: 'Inter', sans-serif;\n  min-height: 100vh;\n  background-image:\n    radial-gradient(ellipse at 20% 50%, rgba(99,102,241,0.12) 0%, transparent 60%),\n    radial-gradient(ellipse at 80% 10%, rgba(6,182,212,0.08) 0%, transparent 60%);\n}\n.glass { background:var(--glass); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid var(--border); }\n.glass-card { background:rgba(255,255,255,0.03); backdrop-filter:blur(20px); border:1px solid var(--border); border-radius:1.5rem; }\n.btn-primary { background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; padding:0.75rem 2rem; border-radius:0.75rem; border:none; cursor:pointer; font-weight:600; transition:all 0.3s; box-shadow:0 0 20px rgba(99,102,241,0.35); }\n.btn-primary:hover { transform:translateY(-2px) scale(1.03); box-shadow:0 0 30px rgba(99,102,241,0.55); }\n@keyframes fadeInUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }\n@keyframes pulseGlow { 0%,100%{box-shadow:0 0 20px rgba(99,102,241,0.3)} 50%{box-shadow:0 0 40px rgba(99,102,241,0.6)} }\n@keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }\n.fade-in { animation: fadeInUp 0.6s ease forwards; }\n.skeleton { background:linear-gradient(90deg,#1e293b 25%,#334155 50%,#1e293b 75%); background-size:200% 100%; animation:shimmer 1.5s infinite; border-radius:0.5rem; }`
+            content: `@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\n:root {\n  --bg: #030712;\n  --bg-gradient-1: #0f172a;\n  --bg-gradient-2: #1e1b4b;\n  --accent: #6366f1;\n  --accent-glow: rgba(99, 102, 241, 0.4);\n  --glass: rgba(255, 255, 255, 0.03);\n  --glass-border: rgba(255, 255, 255, 0.08);\n}\n* { box-sizing: border-box; margin: 0; padding: 0; }\nbody {\n  background-color: var(--bg);\n  background-image:\n    radial-gradient(ellipse at top right, var(--bg-gradient-2) 0%, transparent 60%),\n    radial-gradient(ellipse at bottom left, var(--bg-gradient-1) 0%, transparent 60%);\n  background-attachment: fixed;\n  color: #f8fafc;\n  font-family: 'Inter', sans-serif;\n  min-height: 100vh;\n  overflow-x: hidden;\n}\n.glass-panel {\n  background: var(--glass);\n  backdrop-filter: blur(12px);\n  -webkit-backdrop-filter: blur(12px);\n  border: 1px solid var(--glass-border);\n  border-radius: 1rem;\n  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);\n}\n.glass-nav {\n  background: rgba(3, 7, 18, 0.6);\n  backdrop-filter: blur(16px);\n  border-bottom: 1px solid var(--glass-border);\n}\n.glow-text { text-shadow: 0 0 20px var(--accent-glow); }\n.btn-primary {\n  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);\n  color: white;\n  border: 1px solid rgba(255,255,255,0.1);\n  box-shadow: 0 0 15px var(--accent-glow);\n  transition: all 0.3s ease;\n}\n.btn-primary:hover {\n  transform: translateY(-2px);\n  box-shadow: 0 0 25px rgba(99, 102, 241, 0.6);\n}\n.btn-secondary {\n  background: var(--glass);\n  color: #e2e8f0;\n  border: 1px solid var(--glass-border);\n  transition: all 0.3s ease;\n}\n.btn-secondary:hover {\n  background: rgba(255, 255, 255, 0.08);\n  transform: translateY(-2px);\n}\n.input-glass {\n  background: rgba(0, 0, 0, 0.2);\n  border: 1px solid var(--glass-border);\n  color: white;\n}\n.input-glass:focus {\n  outline: none;\n  border-color: var(--accent);\n  box-shadow: 0 0 0 2px var(--accent-glow);\n}\n/* Scrollbar */\n::-webkit-scrollbar { width: 8px; height: 8px; }\n::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }\n::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }\n::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }`
         }
     ];
 
     const coreUiFiles = [
         // Foundation & Mock Data
-        { path: `frontend/src/data/mockData.${feExt}`, prompt: `${C}\nCreate comprehensive mock data module for "${title}" (${domain} domain).\nMUST EXPORT: realistic entities, users, activities, stats relevant to this specific domain.\n${D}` },
+        { path: `frontend/src/data/mockData.ts`, prompt: `${C}\nCreate comprehensive, realistic mock data module for "${title}" (${domain} domain).\nMUST EXPORT: multiple realistic arrays/objects (e.g. users, main entities, activities, statistics) to populate the entire UI.\n${D}` },
         { path: `frontend/src/context/AppContext.${feExt}`, prompt: `${C}\nCreate React App Context + Provider (combining Auth, Toast notifications, and global state for CRUD operations).\nImplement session persistence in localStorage for auth and database items.\n${D}` },
         
         // Layouts & UI Components
-        { path: `frontend/src/components/Navigation.${feExt}`, prompt: `${C}\nCreate unified responsive Navigation system (combining Navbar, Sidebar, and DashboardLayout with sticky glassmorphism and active link indicators).\n${D}` },
+        { path: `frontend/src/components/Navigation.${feExt}`, prompt: `${C}\nCreate unified responsive Navigation system (combining Navbar, Sidebar, and DashboardLayout with sticky glassmorphism and active link indicators). Ensure it links to Dashboard, Settings, Profile, and domain pages.\n${D}` },
         { path: `frontend/src/components/UIComponents.${feExt}`, prompt: `${C}\nCreate a premium UI Kit file exporting reusable components: StatCard (with trends), DataTable (with sorting, filtering, and functional pagination), Modal (with backdrop blur), Button (with variants), and Toast notifications.\n${D}` },
         
         // Base Pages
-        { path: `frontend/src/pages/LandingPage.${feExt}`, prompt: `${C}\nCreate stunning landing page for ${domain} application. Include Hero, Features, Stats.\n${D}` },
-        { path: `frontend/src/pages/LoginPage.${feExt}`, prompt: `${C}\nCreate premium login page with glassmorphic form.\n${D}` },
-        { path: `frontend/src/pages/RegisterPage.${feExt}`, prompt: `${C}\nCreate premium register page.\n${D}` },
-        { path: `frontend/src/pages/DashboardPage.${feExt}`, prompt: `${C}\nCreate main dashboard overview page for ${domain} application. Use StatCards and charts.\n${D}` },
-        { path: `frontend/src/pages/SettingsPage.${feExt}`, prompt: `${C}\nCreate settings page with tabs (Profile, Security, Preferences).\n${D}` }
+        { path: `frontend/src/pages/LandingPage.${feExt}`, prompt: `${C}\nCreate stunning landing page for ${domain} application. Include Hero, Features, Stats, Testimonials, and Call to Action. Use framer-motion for scroll animations.\n${D}` },
+        { path: `frontend/src/pages/LoginPage.${feExt}`, prompt: `${C}\nCreate premium login page with glassmorphic form. Include validation and loading state.\n${D}` },
+        { path: `frontend/src/pages/RegisterPage.${feExt}`, prompt: `${C}\nCreate premium register page with glassmorphic form.\n${D}` },
+        { path: `frontend/src/pages/DashboardPage.${feExt}`, prompt: `${C}\nCreate main dashboard overview page for ${domain} application. Use StatCards, Recharts area/bar charts, and recent activity feed.\n${D}` },
+        { path: `frontend/src/pages/SettingsPage.${feExt}`, prompt: `${C}\nCreate settings page with tabs (Profile, Security, Preferences, Notifications). Allow mock toggling of settings.\n${D}` },
+        { path: `frontend/src/pages/ProfilePage.${feExt}`, prompt: `${C}\nCreate a detailed user profile page showing avatar, bio, recent activity, and account statistics.\n${D}` },
+        { path: `frontend/src/pages/NotFoundPage.${feExt}`, prompt: `${C}\nCreate a creative 404 Not Found page with a "Go Back Home" button.\n${D}` }
     ];
 
-    // Domain-Specific Pages
-    let domainFiles: any[] = [];
-    switch(domain) {
-        case 'library':
-            domainFiles = [
-                { path: `frontend/src/pages/CatalogPage.${feExt}`, prompt: `${C}\nCreate Library Catalog Page. Include search filters, category selectors, and a detailed overlay modal to borrow/return books.\n${D}` },
-                { path: `frontend/src/pages/BorrowingsPage.${feExt}`, prompt: `${C}\nCreate Borrowings Management Page. Shows list of checked-out books, active due dates, fine metrics, and history logs.\n${D}` }
-            ];
-            break;
-        case 'ecommerce':
-            domainFiles = [
-                { path: `frontend/src/pages/ProductsPage.${feExt}`, prompt: `${C}\nCreate Products Catalog Page. Grid view, search filters, interactive cart drawer, and checkout stepper modal.\n${D}` },
-                { path: `frontend/src/pages/OrdersPage.${feExt}`, prompt: `${C}\nCreate Order History and tracking timeline status Page.\n${D}` }
-            ];
-            break;
-        case 'hospital':
-            domainFiles = [
-                { path: `frontend/src/pages/PatientsPage.${feExt}`, prompt: `${C}\nCreate Patients Records Page. Directory list, detailed diagnostic records, vital metrics charts, and prescription drawer.\n${D}` },
-                { path: `frontend/src/pages/AppointmentsPage.${feExt}`, prompt: `${C}\nCreate Doctor Appointments Scheduling Page. Complete scheduling modal and slot trackers.\n${D}` }
-            ];
-            break;
-        case 'school':
-            domainFiles = [
-                { path: `frontend/src/pages/CoursesPage.${feExt}`, prompt: `${C}\nCreate Courses and syllabus progress board Page.\n${D}` },
-                { path: `frontend/src/pages/AssignmentsPage.${feExt}`, prompt: `${C}\nCreate Student Assignments grading sheet and attendance logs dashboard.\n${D}` }
-            ];
-            break;
-        case 'restaurant':
-            domainFiles = [
-                { path: `frontend/src/pages/MenuPage.${feExt}`, prompt: `${C}\nCreate Interactive Food Menu Page with categories, checkout summary list, and table booking reference.\n${D}` },
-                { path: `frontend/src/pages/ReservationsPage.${feExt}`, prompt: `${C}\nCreate Table Reservation Booking Page. Includes graphical restaurant floor plan layout.\n${D}` }
-            ];
-            break;
-        case 'hr':
-            domainFiles = [
-                { path: `frontend/src/pages/EmployeesPage.${feExt}`, prompt: `${C}\nCreate Employee Directory Page. Includes salary payroll details, payslips generator, and active leave records.\n${D}` },
-                { path: `frontend/src/pages/LeaveRequestsPage.${feExt}`, prompt: `${C}\nCreate Leave/PTO Request Forms and HR Approvals workflow dashboard Page.\n${D}` }
-            ];
-            break;
-        case 'realestate':
-            domainFiles = [
-                { path: `frontend/src/pages/PropertiesPage.${feExt}`, prompt: `${C}\nCreate Real Estate Listings Page with search filters, virtual tour mocks, agent directories, and CRM leads board.\n${D}` }
-            ];
-            break;
-        case 'banking':
-            domainFiles = [
-                { path: `frontend/src/pages/AccountsPage.${feExt}`, prompt: `${C}\nCreate Bank Accounts Dashboard. Shows cards list, ledger log table, and transfer funds wizard modal.\n${D}` }
-            ];
-            break;
-        default:
-            domainFiles = [
-                { path: `frontend/src/pages/WorkspacePage.${feExt}`, prompt: `${C}\nCreate ${entity} list/workspace page. Complete CRUD table with search filters, paginated list, and edit details drawer.\n${D}` },
-                { path: `frontend/src/pages/AnalyticsPage.${feExt}`, prompt: `${C}\nCreate extensive Analytics and Reports Page with Recharts charts (area/bar/line), trend indicators, and data export buttons.\n${D}` }
-            ];
-            break;
-    }
+    // Domain-Specific Pages are now generated dynamically by the Neural Planner in runWorker
+    
+    // Pass the list of all base pages to the App.jsx prompt so it wires them
+    const allPageNames = [...coreUiFiles]
+        .filter(f => f.path.includes('pages/'))
+        .map(f => f.path.split('/').pop()?.replace(`.${feExt}`, ''))
+        .join(', ');
 
     const routingFiles = [
         // Routing & Entry
-        { path: `frontend/src/App.${feExt}`, prompt: `${C}\nCreate root App component with React Router v6.\nDefine all necessary routes for a ${domain} application (Landing, Auth, Dashboard, Domain Pages) wrapped in the AppProvider.\n${D}` },
-        { path: `frontend/src/main.${feExt}`, prompt: `${C}\nCreate React app entry point. Import styles and App.\n${D}` }
+        { path: `frontend/src/App.${feExt}`, prompt: `${C}\nCreate root App component with React Router v6. \nIMPORT ALL THESE PAGES: ${allPageNames}.\nDefine routes for all of them. Wrap everything in the AppProvider and use the Navigation layout component for dashboard pages.\nEnsure the LandingPage is at "/", Login at "/login", Dashboard at "/dashboard", etc.\n${D}` }
     ];
 
-    const rawAiFiles = [...coreUiFiles, ...domainFiles, ...routingFiles];
+    const rawAiFiles = [...coreUiFiles, ...routingFiles];
     const aiFiles = rawAiFiles.map(f => ({
         ...f,
-        prompt: f.prompt.replace(/__ANTIGRAVITY_GOD_MODE_PLACEHOLDER__/g, ANTIGRAVITY_GOD_MODE(title, fe, f.path))
+        prompt: f.prompt.replace(/__ANTIGRAVITY_GOD_MODE_PLACEHOLDER__/g, ANTIGRAVITY_GOD_MODE(title, fe, f.path, prototypeMode))
     }));
 
     return { staticFiles, aiFiles };
@@ -837,7 +1031,7 @@ app.listen(PORT, () => console.log('🚀 SYSTEM DEPLOYED ON PORT ' + PORT));` )
 
   plan.aiFiles = rawAiFiles.map(f => ({
       ...f,
-      prompt: f.prompt.replace(/__ANTIGRAVITY_GOD_MODE_PLACEHOLDER__/g, ANTIGRAVITY_GOD_MODE(title, fe, f.path))
+      prompt: f.prompt.replace(/__ANTIGRAVITY_GOD_MODE_PLACEHOLDER__/g, ANTIGRAVITY_GOD_MODE(title, fe, f.path, prototypeMode))
   }));
 
   if (prototypeMode) {
@@ -1022,6 +1216,13 @@ JSON ONLY. Use "\\n" for newlines. NO markdown bounds.`;
           const cleanJson = rawRes.substring(rawRes.indexOf('{'), rawRes.lastIndexOf('}') + 1);
           if (cleanJson) {
               const diagrams = JSON.parse(cleanJson);
+              
+              // Apply diagram syntax sanitization
+              diagrams.architecture = sanitizeMermaidCode('architecture', diagrams.architecture);
+              diagrams.system_flow = sanitizeMermaidCode('system_flow', diagrams.system_flow);
+              diagrams.activity_flow = sanitizeMermaidCode('activity_flow', diagrams.activity_flow);
+              diagrams.sequence_flow = sanitizeMermaidCode('sequence_flow', diagrams.sequence_flow);
+
               const krokiUrls = {
                   architecture: generateKrokiUrl('mermaid', diagrams.architecture),
                   system_flow: generateKrokiUrl('mermaid', diagrams.system_flow),
@@ -1063,8 +1264,26 @@ JSON ONLY. Use "\\n" for newlines. NO markdown bounds.`;
       const timeoutPromise = new Promise<void>((_, reject) => {
         setTimeout(() => reject(new Error('AI Build Timeout - Operations took too long (60 mins max)')), 3600000);
       });
+      
+      const buildPromise = async () => {
+         // TRIGGERS OMEGA PIPELINE (DANGER ALGORITHM) in Python
+         try {
+             await axios.post('http://127.0.0.1:8000/omega-build', {
+                 project_id: pId,
+                 title: title,
+                 requirements: requirements,
+                 tech_stack: techStack
+             });
+             console.log("Omega Pipeline execution complete on Python side.");
+         } catch (e: any) {
+             console.error("Omega Pipeline connection failed:", e.message);
+         }
+         // Continue with existing flow for fallback / full ZIP packaging
+         await multiAgentService.runWorker(pId, title, requirements, category, techStack, project.type || 'Full Stack App', project.prototypeMode);
+      };
+
       Promise.race([
-        multiAgentService.runWorker(pId, title, requirements, category, techStack, project.type || 'Full Stack App', project.prototypeMode),
+        buildPromise(),
         timeoutPromise
       ]).catch(async (err) => {
         console.error('BUILD_WORKER_CRASH:', err);
@@ -1210,6 +1429,13 @@ SYNTAX & STYLING MANDATES:
     };
 
     // Generate robust SVG links using Kroki encoder
+    diagrams.architecture = sanitizeMermaidCode('architecture', diagrams.architecture);
+    diagrams.system_flow = sanitizeMermaidCode('system_flow', diagrams.system_flow);
+    if (diagrams.dfd_level_1) diagrams.dfd_level_1 = sanitizeMermaidCode('dfd_level_1', diagrams.dfd_level_1);
+    if (diagrams.dfd_level_2) diagrams.dfd_level_2 = sanitizeMermaidCode('dfd_level_2', diagrams.dfd_level_2);
+    diagrams.activity_flow = sanitizeMermaidCode('activity_flow', diagrams.activity_flow);
+    diagrams.sequence_flow = sanitizeMermaidCode('sequence_flow', diagrams.sequence_flow);
+
     const krokiUrls = {
         architecture: generateKrokiUrl('mermaid', diagrams.architecture),
         system_flow: generateKrokiUrl('mermaid', diagrams.system_flow),
@@ -1280,14 +1506,53 @@ Output strictly JSON only with keys: "database", "api_endpoints", "frontend_stru
     let filePlan: any;
 
     if (prototypeMode) {
-        // 🚀 FRONTEND-ONLY MODE: Use our 35-file premium plan directly
-        // No Groq call needed here — eliminates truncation failure
+        // 🚀 FRONTEND-ONLY MODE: Dynamic Neural Planner
         const feExt = fe.toLowerCase().includes('vue') ? 'vue'
             : fe.toLowerCase().includes('angular') ? 'ts'
             : fe.toLowerCase().includes('svelte') ? 'svelte'
             : 'tsx';
+            
         filePlan = buildFrontendOnlyPlan(title, fe, feExt, safeEntity, requirements);
-        await SystemLogger.log(pId, 'NEURAL_PLANNER', `✅ Frontend-Only mode: ${filePlan.staticFiles.length} static + ${filePlan.aiFiles.length} AI-generated frontend files queued.`);
+        
+        await SystemLogger.log(pId, 'NEURAL_PLANNER', `🧠 Dynamic Frontend Planner active. Generating custom pages for "${title}"...`);
+        try {
+            const plannerPrompt = `You are a frontend UI architect. Plan exactly 5-8 highly specific React application pages for "${title}". Requirements: "${requirements}". Stack: ${fe}.
+Focus heavily on unique features required for this specific app (e.g. BiddingPage, TrackingDashboard, etc.).
+DO NOT include base pages like LandingPage, LoginPage, RegisterPage, or DashboardPage (they already exist).
+Return ONLY a valid JSON array of objects:
+[{"path":"frontend/src/pages/CustomPageName.${feExt}", "prompt":"FILE GOAL: ... detailed instructions for premium UI ..."}]
+JSON array ONLY. No markdown, no explanations.`;
+
+            const rawPlannerStr = await callSwarmAI(plannerPrompt, pId);
+            const plannerJsonStr = rawPlannerStr.substring(rawPlannerStr.indexOf('['), rawPlannerStr.lastIndexOf(']') + 1);
+            if (plannerJsonStr && plannerJsonStr.includes('[')) {
+                const dynamicPages = JSON.parse(plannerJsonStr);
+                if (Array.isArray(dynamicPages) && dynamicPages.length > 0) {
+                    const newDynamicPages = dynamicPages.filter((p: any) => !p.path.includes('LandingPage') && !p.path.includes('LoginPage'));
+                    
+                    const D = "__ANTIGRAVITY_GOD_MODE_PLACEHOLDER__";
+                    const injectedPages = newDynamicPages.map((f: any) => ({
+                        ...f,
+                        prompt: (f.prompt.includes(D) ? f.prompt : f.prompt + "\n" + D).replace(/__ANTIGRAVITY_GOD_MODE_PLACEHOLDER__/g, ANTIGRAVITY_GOD_MODE(title, fe, f.path, prototypeMode))
+                    }));
+
+                    const appFileIndex = filePlan.aiFiles.findIndex((f: any) => f.path.endsWith(`App.${feExt}`));
+                    if (appFileIndex !== -1) {
+                         const dynamicPageNames = injectedPages.map((f: any) => f.path.split('/').pop()?.replace(`.${feExt}`, '')).join(', ');
+                         filePlan.aiFiles[appFileIndex].prompt = filePlan.aiFiles[appFileIndex].prompt.replace(
+                             "Define routes for all of them.",
+                             `Define routes for all of them. CRITICAL: YOU MUST ALSO IMPORT AND ROUTE THESE DYNAMIC PAGES: ${dynamicPageNames}.`
+                         );
+                    }
+                    
+                    filePlan.aiFiles.splice(filePlan.aiFiles.length - 2, 0, ...injectedPages);
+                    await SystemLogger.log(pId, 'NEURAL_PLANNER', `✅ Custom dynamic plan added ${injectedPages.length} specialized pages.`);
+                }
+            }
+        } catch (e: any) {
+            await SystemLogger.log(pId, 'NEURAL_PLANNER', `⚠️ Dynamic Planner fallback to base plan. (${e.message})`);
+        }
+        await SystemLogger.log(pId, 'NEURAL_PLANNER', `✅ Frontend-Only execution plan finalized: ${filePlan.staticFiles.length} static + ${filePlan.aiFiles.length} AI files.`);
     } else {
         // Full-stack mode: Use the standard plan + Neural Planner enhancement
         filePlan = buildFilePlan(title, requirements, category, techStack, type, limitedBlueprint, prototypeMode);
@@ -1311,6 +1576,14 @@ Output strictly JSON only with keys: "database", "api_endpoints", "frontend_stru
     }
 
     await SystemLogger.log(pId, 'ARCHITECT', `📁 Execution Map: ${filePlan.staticFiles.length} static + ${filePlan.aiFiles.length} AI files.`);
+    
+    // Log planned pages to the R&D Discovery Stream
+    for (const f of filePlan.aiFiles) {
+        if (f.path.includes('pages/')) {
+            const pageName = f.path.split('/').pop()?.replace(/\.[a-zA-Z0-9]+$/, '') || '';
+            await SystemLogger.log(pId, 'NEURAL_PLANNER', `📋 Planned UI Page: ${pageName} at ${f.path}`);
+        }
+    }
     await updateTask('blueprint', 'completed');
     
     // Phase 2.5: Context Memory
@@ -1363,12 +1636,12 @@ Output strictly JSON only with keys: "database", "api_endpoints", "frontend_stru
               const isFrontend = aiFile.path.includes('frontend/') || aiFile.path.includes('admin/') || aiFile.path.includes('public/');
               
               if (aiFile.path.includes('admin/')) {
-                  layerRules = `\nLAYER OVERRIDE — ADMIN PANEL:\nBuild a high-fidelity React Admin Dashboard component. DARK HUD style. Include stats widgets, activity monitors, and command logs. ${ANTIGRAVITY_GOD_MODE(title, fe, aiFile.path)}`;
+                  layerRules = `\nLAYER OVERRIDE — ADMIN PANEL:\nBuild a high-fidelity React Admin Dashboard component. DARK HUD style. Include stats widgets, activity monitors, and command logs. ${ANTIGRAVITY_GOD_MODE(title, fe, aiFile.path, prototypeMode)}`;
               } else if (isFrontend && (aiFile.path.endsWith('.jsx') || aiFile.path.endsWith('.tsx') || aiFile.path.endsWith('.vue') || aiFile.path.endsWith('.html') || aiFile.path.endsWith('.css'))) {
                   const compRule = (aiFile.path.endsWith('.tsx') || aiFile.path.endsWith('.jsx')) 
                       ? "Spend 100% of tokens on a clean, complete React ESM component. DO NOT write HTML wrappers (<html>, <body>, etc.)." 
                       : "Spend 100% of tokens on a premium UI interface layout.";
-                  layerRules = `\nLAYER OVERRIDE — DIVINE FRONTEND:\n${compRule} Ensure all links and routing inside this component work correctly. Use Industrial Datasets. ${ANTIGRAVITY_GOD_MODE(title, fe, aiFile.path)}`;
+                  layerRules = `\nLAYER OVERRIDE — DIVINE FRONTEND:\n${compRule} Ensure all links and routing inside this component work correctly. Use Industrial Datasets. ${ANTIGRAVITY_GOD_MODE(title, fe, aiFile.path, prototypeMode)}`;
               }
 
               // STRICT PROTOTYPE MODE ENFORCEMENT
@@ -1568,7 +1841,7 @@ ${safeDiagrams.architecture}
     // 🛡️ PHASE G: THE SANITY & VALIDATION SCANNER
     // ============================================================
     try {
-        await runSanityCheck(pId, fsPath, liveSymbolTable);
+        await runSanityCheck(pId.toString(), fsPath, liveSymbolTable, callSwarmAI);
     } catch(err) { console.error("Sanity check skipped:", err); }
 
     // ─── 5B: setup.sh + .env.example ────────────────────────────────────────
@@ -1651,6 +1924,54 @@ ${safeDiagrams.architecture}
       totalFiles: filePlan.staticFiles.length + filePlan.aiFiles.length,
       artifacts: { zipUrl, documentUrl, pitchDeckUrl, wordUrl, testReportUrl }
     });
+
+    // Add a final completion explanation message in the chat
+    try {
+      const ProjectMessage = (await import('./project_message.model')).default;
+      
+      const fileList = filePlan.aiFiles.map((f: any) => {
+          const name = f.path.split('/').pop();
+          const desc = f.path.includes('pages/') ? 'UI Page' 
+                     : f.path.includes('components/') ? 'UI Component' 
+                     : f.path.includes('controllers/') ? 'Backend Controller' 
+                     : f.path.includes('models/') ? 'Database Model' 
+                     : f.path.includes('routes/') ? 'API Router' 
+                     : 'Module';
+          return `- **${name}** (\`${f.path}\`): ${desc}`;
+      }).join('\n');
+
+      const summaryText = `### 🔱 Antigravity Build Complete!
+
+I have built a fully functional, production-ready implementation of **"${title}"** with 100% complete logic. Here is the summary of what was generated:
+
+**Total Files:** ${filePlan.staticFiles.length + filePlan.aiFiles.length} (${filePlan.aiFiles.length} AI generated + ${filePlan.staticFiles.length} boilerplate files)
+**Data Strategy:** ${prototypeMode ? 'Local Storage Client-Side CRUD' : 'MongoDB / Mongoose Live Database Queries'}
+
+#### Mapped Pages & Modules:
+${fileList}
+
+All files have been written directly to disk. You can download the complete project zip or view the files in the workspace.`;
+
+      const dbMsg = new ProjectMessage({
+          projectId: objectId,
+          userMessage: "[System Trigger: Build Complete]",
+          aiResponse: summaryText,
+          status: 'COMPLETED'
+      });
+      await dbMsg.save();
+      
+      SocketService.emitToSession(pId, 'chat_reply', {
+          _id: dbMsg._id,
+          userMessage: "[System Trigger: Build Complete]",
+          aiResponse: summaryText,
+          status: 'COMPLETED'
+      });
+      
+      await SystemLogger.log(pId, 'NEURAL_CHAT', "Sent build completion chat summary.");
+    } catch(err) {
+      console.error("Failed to save final project completion message:", err);
+    }
+
     await updateTask('packaging', 'completed');
   },
 

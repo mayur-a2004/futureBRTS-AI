@@ -31,6 +31,7 @@ router.get('/:id/file-content', collageProjectController.getFileContent);
 router.get('/:id/tasks', collageProjectController.getProjectTasks);
 router.get('/:id/system-logs', collageProjectController.getSystemLogs);
 router.get('/:id/versions', collageProjectController.getProjectVersions);
+router.get('/:id/registry', collageProjectController.getProjectRegistry);
 router.patch('/:id/update-status', collageProjectController.updateProjectStatus);
 router.get('/:id', collageProjectController.getProject);
 

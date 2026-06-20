@@ -7,7 +7,8 @@ import {
     Folder, Layers, Box, Cpu, Rocket, MessageSquare, Activity, Play, Send
 } from 'lucide-react';
 import { io } from 'socket.io-client';
-import { Button } from '@/components/ui/Button';
+import { Button } from '../../components/ui/Button';
+import { OmegaDependencyTree } from '../../components/builder/OmegaDependencyTree';
 import Prism from 'prismjs';
 import 'prismjs/themes/prism-tomorrow.css';
 import 'prismjs/components/prism-typescript';
@@ -40,7 +41,7 @@ const MermaidViewer = ({ chart }: { chart: string }) => {
     return <div ref={ref} className="mermaid flex justify-center w-full items-center overflow-auto max-h-[400px]" />;
 };
 
-type TabType = 'OVERVIEW' | 'FILES' | 'DIAGRAMS' | 'DOCS' | 'ROADMAP';
+type TabType = 'OVERVIEW' | 'FILES' | 'DIAGRAMS' | 'DOCS' | 'ROADMAP' | 'OMEGA';
 
 export default function ProjectStudio() {
     const { id } = useParams();
@@ -335,6 +336,7 @@ export default function ProjectStudio() {
 
     const TABS: { id: TabType, label: string }[] = [
         { id: 'OVERVIEW', label: 'OVERVIEW' },
+        { id: 'OMEGA', label: 'OMEGA MATRIX' },
         { id: 'FILES', label: 'FILE SYS' },
         { id: 'DIAGRAMS', label: 'DIAGRAMS' },
         { id: 'DOCS', label: 'DOCUMENTS' },
@@ -524,6 +526,13 @@ export default function ProjectStudio() {
                                         <div ref={bottomRef} />
                                     </div>
                                 </div>
+                            </div>
+                        )}
+
+                        {/* OMEGA TAB */}
+                        {activeTab === 'OMEGA' && (
+                            <div className="flex-1 overflow-y-auto p-4 scrollbar-hide">
+                                <OmegaDependencyTree projectId={id || ''} />
                             </div>
                         )}
 
