@@ -149,7 +149,7 @@ export default function App() {{
     ];
     setRecords(defaults);
     localStorage.setItem('antigravity_records_{project_slug}', JSON.stringify(defaults));
-  };
+  }};
 
   const saveRecordsToStorage = (updated) => {{
     setRecords(updated);
@@ -208,11 +208,11 @@ export default function App() {{
   return (
     <div className="min-h-screen bg-[#030712] text-[#f8fafc] font-sans selection:bg-indigo-500/30 overflow-x-hidden relative">
       
-      {/* Decorative Glow Elements */}
+      {{\/* Decorative Glow Elements *\/}}
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none" />
 
-      {/* Navigation Layer */}
+      {{\/* Navigation Layer *\/}}
       <nav className="fixed top-0 w-full z-[100] backdrop-blur-2xl bg-black/40 border-b border-white/5 px-8 py-4 flex justify-between items-center glass-nav">
         <div className="flex items-center gap-4 group cursor-pointer" onClick={{() => setActivePage('home')}}>
           <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20 group-hover:rotate-12 transition-all">
@@ -223,7 +223,7 @@ export default function App() {{
           </h1>
         </div>
         
-        {/* Navigation Tabs */}
+        {{\/* Navigation Tabs *\/}}
         <div className="hidden lg:flex items-center gap-10">
           {{['Home', 'Dashboard', 'Vault'].map((item) => (
             <button 
@@ -234,7 +234,7 @@ export default function App() {{
             </button>
           ))}}
           
-          {/* Native Popover User Dropdown */}
+          {{\/* Native Popover User Dropdown *\/}}
           <div className="relative">
             <button 
               {{...{{ popovertarget: "user-profile-menu" }}}}
@@ -276,7 +276,7 @@ export default function App() {{
         </div>
       </nav>
 
-      {/* Main Content Area */}
+      {{\/* Main Content Area *\/}}
       <main className={{`pt-24 min-h-[calc(100vh-180px)] transition-all duration-1000 ${{isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}}`}}>
         
         {{activePage === 'home' && (
@@ -336,7 +336,7 @@ export default function App() {{
               </button>
             </div>
 
-            {/* Filter and Search Bar */}
+            {{\/* Filter and Search Bar *\/}}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={{16}} />
@@ -360,7 +360,7 @@ export default function App() {{
               </div>
             </div>
 
-            {/* Records Data Table */}
+            {{\/* Records Data Table *\/}}
             <div className="glass-panel overflow-hidden border border-white/5 rounded-2xl">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -431,7 +431,7 @@ export default function App() {{
 
       </main>
 
-      {/* CRUD native dialog element with Backdrop animation & starting style */}
+      {{\/* CRUD native dialog element with Backdrop animation & starting style *\/}}
       <dialog 
         ref={{dialogRef}}
         className="w-full max-w-lg bg-[#090d16] border border-white/10 rounded-2xl p-8 text-white relative shadow-2xl glass-panel">
@@ -494,7 +494,7 @@ export default function App() {{
 
           <div className="space-y-1">
             <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest">Node Purpose / Description</label>
-            {/* Auto-resizing textarea via field-sizing: content */}
+            {{\/* Auto-resizing textarea via field-sizing: content *\/}}
             <textarea 
               placeholder="Provide a detailed telemetry purpose description..."
               value={{currentRecord.description}}
@@ -572,7 +572,7 @@ export default function Home() {{
     ];
     setRecords(defaults);
     localStorage.setItem('antigravity_records_{project_slug}', JSON.stringify(defaults));
-  };
+  }};
 
   const saveRecordsToStorage = (updated) => {{
     setRecords(updated);
@@ -630,11 +630,11 @@ export default function Home() {{
 
   return (
     <div className="min-h-screen bg-[#030712] text-[#f8fafc] font-sans selection:bg-indigo-500/30 overflow-x-hidden relative">
-      {/* Decorative Glow Elements */}
+      {{\/* Decorative Glow Elements *\/}}
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none" />
 
-      {/* Navigation Layer */}
+      {{\/* Navigation Layer *\/}}
       <nav className="fixed top-0 w-full z-[100] backdrop-blur-2xl bg-black/40 border-b border-white/5 px-8 py-4 flex justify-between items-center glass-nav">
         <div className="flex items-center gap-4 group cursor-pointer" onClick={{() => setActivePage('home')}}>
           <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20 group-hover:rotate-12 transition-all">
@@ -645,7 +645,7 @@ export default function Home() {{
           </h1>
         </div>
         
-        {/* Navigation Tabs */}
+        {{\/* Navigation Tabs *\/}}
         <div className="hidden lg:flex items-center gap-10">
           {{['Home', 'Dashboard', 'Vault'].map((item) => (
             <button 
@@ -656,7 +656,7 @@ export default function Home() {{
             </button>
           ))}}
           
-          {/* Native Popover User Dropdown */}
+          {{\/* Native Popover User Dropdown *\/}}
           <div className="relative">
             <button 
               {{...{{ popovertarget: "next-user-profile-menu" }}}}
@@ -698,7 +698,7 @@ export default function Home() {{
         </div>
       </nav>
 
-      {/* Main Content Area */}
+      {{\/* Main Content Area *\/}}
       <main className={{`pt-24 min-h-[calc(100vh-180px)] transition-all duration-1000 ${{isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}}`}}>
         
         {{activePage === 'home' && (
@@ -758,7 +758,7 @@ export default function Home() {{
               </button>
             </div>
 
-            {/* Filter and Search Bar */}
+            {{\/* Filter and Search Bar *\/}}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={{16}} />
@@ -782,7 +782,7 @@ export default function Home() {{
               </div>
             </div>
 
-            {/* Records Data Table */}
+            {{\/* Records Data Table *\/}}
             <div className="glass-panel overflow-hidden border border-white/5 rounded-2xl">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -853,7 +853,7 @@ export default function Home() {{
 
       </main>
 
-      {/* CRUD native dialog element with Backdrop animation & starting style */}
+      {{\/* CRUD native dialog element with Backdrop animation & starting style *\/}}
       <dialog 
         ref={{dialogRef}}
         className="w-full max-w-lg bg-[#090d16] border border-white/10 rounded-2xl p-8 text-white relative shadow-2xl glass-panel">
@@ -916,7 +916,7 @@ export default function Home() {{
 
           <div className="space-y-1">
             <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest">Node Purpose / Description</label>
-            {/* Auto-resizing textarea via field-sizing: content */}
+            {{\/* Auto-resizing textarea via field-sizing: content *\/}}
             <textarea 
               placeholder="Provide a detailed telemetry purpose description..."
               value={{currentRecord.description}}
@@ -1156,16 +1156,16 @@ export default function Home() {{
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-white/[0.01] transition-colors border-b border-white/5';
                 tr.innerHTML = `
-                    <td class="py-4 px-6 font-bold text-sm text-indigo-400">\${r.title}</td>
-                    <td class="py-4 px-6 text-xs text-gray-400">\${r.category}</td>
+                    <td class="py-4 px-6 font-bold text-sm text-indigo-400">\${{r.title}}</td>
+                    <td class="py-4 px-6 text-xs text-gray-400">\${{r.category}}</td>
                     <td class="py-4 px-6">
-                        <span class="inline-block px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-wider \${r.status.toLowerCase() === 'active' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}">
-                            \${r.status}
+                        <span class="inline-block px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-wider \${{r.status.toLowerCase() === 'active' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}}">
+                            \${{r.status}}
                         </span>
                     </td>
-                    <td class="py-4 px-6 text-xs text-gray-500 max-w-xs truncate">\${r.description}</td>
+                    <td class="py-4 px-6 text-xs text-gray-500 max-w-xs truncate">\${{r.description}}</td>
                     <td class="py-4 px-6 text-right">
-                        <button onclick="deleteRecord('\${r.id}')" class="p-2 hover:bg-red-500/10 rounded-lg text-gray-400 hover:text-red-400 transition-all">
+                        <button onclick="deleteRecord('\${{r.id}}')" class="p-2 hover:bg-red-500/10 rounded-lg text-gray-400 hover:text-red-400 transition-all">
                             <i data-lucide="trash-2" class="w-4 h-4"></i>
                         </button>
                     </td>
