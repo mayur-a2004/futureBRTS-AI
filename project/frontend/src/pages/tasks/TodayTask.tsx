@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import LoadingScreen from "@/components/ui/LoadingScreen";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { sanitizeExternalUrl } from "@/utils/url";
 import { ArrowLeft, CheckCircle2, Circle, Calendar, Lock, BarChart3, ListTodo, AlertCircle, Target, Brain, Zap, Navigation, Flag, Youtube, ExternalLink, ShieldCheck } from "lucide-react";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from "recharts";
 
@@ -823,7 +824,7 @@ export default function TodayTask() {
                                         {selectedTask.learningResources.map((res: any, idx: number) => (
                                             <a
                                                 key={idx}
-                                                href={res.url}
+                                                href={sanitizeExternalUrl(res.url)}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="flex items-center gap-4 p-5 bg-white/[0.03] border border-white/10 rounded-2xl hover:bg-white/[0.08] hover:border-emerald-500/30 transition-all group/res"

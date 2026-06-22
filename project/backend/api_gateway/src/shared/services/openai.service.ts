@@ -489,6 +489,217 @@ export const getProviderResponse = async (
     }
 };
 
+const requestStreamFromProvider = async (
+    provider: string,
+    model: string,
+    url: string,
+    payload: any,
+    headers: any,
+    timeout: number,
+    onChunk: (token: string) => void
+) => {
+    const response = await axios.post(url, payload, {
+        headers,
+        timeout,
+        responseType: 'stream'
+    });
+
+    return new Promise<string>((resolve, reject) => {
+        let accumulatedText = "";
+        let buffer = "";
+
+        response.data.on('data', (chunk: Buffer) => {
+            buffer += chunk.toString('utf8');
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                const cleanLine = line.trim();
+                if (!cleanLine) continue;
+
+                if (cleanLine.startsWith('data: ')) {
+                    const dataStr = cleanLine.slice(6);
+                    if (dataStr === '[DONE]') continue;
+                    try {
+                        const parsed = JSON.parse(dataStr);
+                        let token = "";
+                        if (provider === 'gemini') {
+                            token = parsed.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                        } else {
+                            token = parsed.choices?.[0]?.delta?.content || "";
+                        }
+                        if (token) {
+                            accumulatedText += token;
+                            onChunk(token);
+                        }
+                    } catch (e) {
+                        // ignore malformed JSON
+                    }
+                }
+            }
+        });
+
+        response.data.on('end', () => {
+            if (buffer.startsWith('data: ')) {
+                const dataStr = buffer.slice(6).trim();
+                if (dataStr !== '[DONE]') {
+                    try {
+                        const parsed = JSON.parse(dataStr);
+                        let token = "";
+                        if (provider === 'gemini') {
+                            token = parsed.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                        } else {
+                            token = parsed.choices?.[0]?.delta?.content || "";
+                        }
+                        if (token) {
+                            accumulatedText += token;
+                            onChunk(token);
+                        }
+                    } catch (e) {}
+                }
+            }
+            resolve(accumulatedText);
+        });
+
+        response.data.on('error', (err: any) => {
+            reject(err);
+        });
+    });
+};
+
+export const getProviderResponseStream = async (
+    messages: any[],
+    onChunk: (token: string) => void,
+    options: { jsonMode?: boolean, maxTokens?: number, temperature?: number, apiKey?: string } = {},
+    forcedProvider?: string
+) => {
+    let lastError: any = null;
+    const activeGroqKey = await getAiKey('GROQ');
+    const activeGeminiKey = await getAiKey('GEMINI');
+
+    // Phase 1: Groq 70b
+    try {
+        const keyToUse = options.apiKey || activeGroqKey;
+        const model = 'llama-3.3-70b-versatile';
+        console.log(`[AI STREAM] Trying Groq ${model}...`);
+        return await requestStreamFromProvider(
+            'groq',
+            model,
+            'https://api.groq.com/openai/v1/chat/completions',
+            {
+                messages,
+                model,
+                temperature: options.temperature || 0.7,
+                max_tokens: options.maxTokens || 4096,
+                stream: true
+            },
+            {
+                'Authorization': `Bearer ${keyToUse}`,
+                'Content-Type': 'application/json'
+            },
+            120000,
+            onChunk
+        );
+    } catch (err: any) {
+        lastError = err.response?.data || err.message;
+        console.error(`[AI Stream Primary Error] groq:`, lastError || err);
+    }
+
+    // Phase 2: Groq 8b
+    try {
+        const keyToUse = options.apiKey || activeGroqKey;
+        const model = 'llama-3.1-8b-instant';
+        console.log(`⚡ [STREAM-FALLBACK-1] Trying Groq ${model}...`);
+        return await requestStreamFromProvider(
+            'groq',
+            model,
+            'https://api.groq.com/openai/v1/chat/completions',
+            {
+                messages,
+                model,
+                temperature: options.temperature || 0.7,
+                max_tokens: options.maxTokens || 4096,
+                stream: true
+            },
+            {
+                'Authorization': `Bearer ${keyToUse}`,
+                'Content-Type': 'application/json'
+            },
+            30000,
+            onChunk
+        );
+    } catch (err: any) {
+        console.warn(`[AI Stream Fallback-1] failed:`, err.message);
+    }
+
+    // Phase 2.5: Groq 3b
+    try {
+        const keyToUse = options.apiKey || activeGroqKey;
+        const model = 'llama-3.2-3b-preview';
+        console.log(`⚡ [STREAM-FALLBACK-1.5] Trying Groq ${model}...`);
+        return await requestStreamFromProvider(
+            'groq',
+            model,
+            'https://api.groq.com/openai/v1/chat/completions',
+            {
+                messages,
+                model,
+                temperature: options.temperature || 0.7,
+                max_tokens: options.maxTokens || 4096,
+                stream: true
+            },
+            {
+                'Authorization': `Bearer ${keyToUse}`,
+                'Content-Type': 'application/json'
+            },
+            20000,
+            onChunk
+        );
+    } catch (err: any) {
+        console.warn(`[AI Stream Fallback-1.5] failed:`, err.message);
+    }
+
+    // Phase 3: Gemini
+    console.log("🔄 [STREAM-FALLBACK-2] Switching to Gemini...");
+    try {
+        const geminiKey = activeGeminiKey;
+        if (!geminiKey) throw new Error("GEMINI_API_KEY not set.");
+
+        const systemMsg = messages.find(m => m.role === 'system');
+        let contents = messages
+            .filter(m => m.role !== 'system')
+            .map(m => ({
+                role: m.role === 'assistant' ? 'model' : 'user',
+                parts: [{ text: String(m.content || '') }]
+            }));
+        if (contents.length === 0) contents = [{ role: 'user', parts: [{ text: 'proceed' }] }];
+
+        const requestBody: any = {
+            contents,
+            generationConfig: {
+                temperature: options.temperature ?? 0.7,
+                maxOutputTokens: options.maxTokens || 4096
+            }
+        };
+        if (systemMsg?.content) {
+            requestBody.system_instruction = { parts: [{ text: systemMsg.content }] };
+        }
+
+        return await requestStreamFromProvider(
+            'gemini',
+            'gemini-1.5-flash',
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?key=${geminiKey}&alt=sse`,
+            requestBody,
+            { 'Content-Type': 'application/json' },
+            90000,
+            onChunk
+        );
+    } catch (err: any) {
+        console.error(`[AI Stream Fallback Error] Gemini:`, err.response?.data || err.message);
+        throw new Error(`AI System Critical Failure: All providers exhausted in stream mode.`);
+    }
+};
+
 export const openaiService = {
     // ... logic to use GLOBAL_INTELLIGENCE in prompts if needed
     // For now, I will just inject it into the final prompt builder
@@ -636,6 +847,187 @@ INSTRUCTIONS:
             }
 
             return "Bhai, piche se system thoda load mein hai. Ek baar refresh karke wapis bol ke dekh?";
+        }
+    },
+
+    async generateResponseStream(
+        context: { title: string; lastMsg: string },
+        userMessage: string,
+        onToken: (chunk: { type: 'think' | 'text', token: string }) => void,
+        systemContext?: { mode: string, sessionState: any, userContext: any },
+        chatHistory: any[] = []
+    ): Promise<string> {
+        try {
+            const sessionContextContract = JSON.stringify({
+                user_profile: systemContext?.userContext || {},
+                session_state: systemContext?.sessionState || {}
+            }, null, 2);
+
+            const activeMode = systemContext?.mode || "execution";
+            const attachmentAnalysis = systemContext?.userContext?.attachmentAnalysis;
+
+            let contextInjection = `
+[SYSTEM CONTEXT CONTRACT(NON - NEGOTIABLE)]
+${sessionContextContract}
+
+[LEARNED INTELLIGENCE & EVOLUTION STATUS]
+${JSON.stringify(GLOBAL_INTELLIGENCE, null, 2)}
+
+CURRENT MODE: ${activeMode.toUpperCase()}
+`;
+
+            // 🧠 MICRO-INTERACTION DETECTION (NEURAL SOCIAL FILTER)
+            const lowMsg = userMessage.toLowerCase().trim();
+            const isGreeting = /^(hi|hello|hey|hyy?|how are you|hey there|good morning|good evening)/i.test(lowMsg);
+            const isTinyAck = /^(ok|okay|thanks?|thx|yes|ya|yup|hm+m?|h|han|ji|perfect|noted|done)$/i.test(lowMsg) || (lowMsg.length <= 2 && !/^\d+$/.test(lowMsg));
+
+            if (isGreeting) {
+                contextInjection += `\n[SOCIAL_PROTOCOL]: This is a greeting. Respond naturally as an "Elder Brother" and ALWAYS use the User's name: ${systemContext?.userContext?.name || 'Futurist'}. Example: "Hey **${systemContext?.userContext?.name || 'Futurist'}**, how are you doing today?" Keep it warm and brief.\n`;
+            } else if (isTinyAck) {
+                contextInjection += `\n[SOCIAL_PROTOCOL]: This is a tiny acknowledgment/confirmation. Do NOT give a long chatty response. Just give a 1-3 word confirmation (e.g., "**Noted.**") and then focus entirely on the [SUMMARY] section.\n`;
+            }
+
+            if (attachmentAnalysis && attachmentAnalysis.length > 5) {
+                contextInjection += `
+--------------------------------------------------------------------------------
+⚠️ ** URGENT: USER HAS ATTACHED A FILE.IGNORE DEFAULT PERSONA LIMITS.** ⚠️
+--------------------------------------------------------------------------------
+    You MUST prioritize the file analysis below over any other context.
+The user wants you to analyze, summarize, or work with this file content.
+
+[ATTACHMENT ANALYSIS & CONTENT]:
+${attachmentAnalysis}
+
+INSTRUCTIONS:
+1. If the user asks a question, answer it using the [ATTACHMENT ANALYSIS] above.
+2. If the user gives a command alongside the file, execute it on the file's content.
+3. Be specific.Quote the file content where possible.
+4. Maintain the persona while prioritizing this data.
+--------------------------------------------------------------------------------
+    `;
+            }
+
+            const history = chatHistory.slice(-20).map(m => ({
+                role: m.role,
+                content: m.content
+            }));
+
+            // 🔍 LIVE RESEARCH TRIGGER
+            const researchKeywords = ["who is", "what is", "mannat rugs", "search for", "find", "latest", "price", "website", "link", "url", "show me"];
+            const isResearchIntent = researchKeywords.some(kw => userMessage.toLowerCase().includes(kw));
+
+            if (isResearchIntent) {
+                try {
+                    console.log("🔍 Live Research Triggered: " + userMessage);
+                    const workerRes = await axios.post(`${process.env.PYTHON_WORKER_URL || 'http://127.0.0.1:8000'}/execute`, {
+                        job_id: 'live-research-' + Date.now(),
+                        command: 'research: ' + userMessage,
+                        file_path: null,
+                        prompt: userMessage
+                    }, { timeout: 30000 });
+
+                    if (workerRes.data?.status === 'completed' && workerRes.data?.extracted_text) {
+                        const realData = workerRes.data.extracted_text;
+                        contextInjection += `
+================================================================================
+🌐 LIVE WEB ACQUISITION COMPLETE
+================================================================================
+The Python Worker has successfully scraped the live internet for this query.
+Here is the RAW TRUTH DATA (Citational Source):
+
+${realData}
+
+INSTRUCTIONS:
+1. You MUST use this data to answer.
+2. You MUST cite specific parts using [[Citation: Source | URL | Snippet]].
+3. Ignore your internal cut-off knowledge if it contradicts this live data.
+================================================================================
+`;
+                    }
+                } catch (e: any) {
+                    console.error("Research Worker Failed (Non-Fatal):", e.message);
+                }
+            }
+
+            let provider = await getActiveAiProvider();
+            let dynamicKey = await getAiKey('GROQ');
+
+            if (dynamicKey) {
+                const maskedKey = dynamicKey.substring(0, 5) + '...';
+                console.log(`[AI CORE STREAM] PROVISIONING: ${provider.toUpperCase()} | KEY: ${maskedKey}`);
+            }
+
+            // We must inject a system instruction to output detailed step-by-step reasoning inside <think>...</think> tags if they are not already doing it natively
+            let reasoningInstruction = `\nBefore answering, you MUST write down your detailed step-by-step thinking/reasoning process inside <think> and </think> tags. Do not skip this step.\n`;
+
+            const messages = [
+                { role: 'system', content: MASTER_PROMPT(systemContext) + contextInjection + reasoningInstruction },
+                ...history,
+                { role: 'user', content: userMessage }
+            ];
+
+            let accumulatedText = "";
+            let lastSentThink = "";
+            let lastSentAnswer = "";
+
+            const onChunkWrapper = (token: string) => {
+                accumulatedText += token;
+
+                const thinkStart = accumulatedText.indexOf('<think>');
+                const thinkEnd = accumulatedText.indexOf('</think>');
+
+                let currentThink = "";
+                let currentAnswer = "";
+
+                if (thinkStart !== -1) {
+                    if (thinkEnd !== -1) {
+                        currentThink = accumulatedText.slice(thinkStart + 7, thinkEnd);
+                        currentAnswer = accumulatedText.slice(0, thinkStart) + accumulatedText.slice(thinkEnd + 8);
+                    } else {
+                        currentThink = accumulatedText.slice(thinkStart + 7);
+                        currentAnswer = accumulatedText.slice(0, thinkStart);
+                    }
+                } else {
+                    currentThink = "";
+                    currentAnswer = accumulatedText;
+                }
+
+                if (currentThink.length > lastSentThink.length) {
+                    const newThink = currentThink.slice(lastSentThink.length);
+                    onToken({ type: 'think', token: newThink });
+                    lastSentThink = currentThink;
+                }
+                if (currentAnswer.length > lastSentAnswer.length) {
+                    const newAnswer = currentAnswer.slice(lastSentAnswer.length);
+                    onToken({ type: 'text', token: newAnswer });
+                    lastSentAnswer = currentAnswer;
+                }
+            };
+
+            const fullText = await getProviderResponseStream(messages, onChunkWrapper, { apiKey: dynamicKey }, provider);
+
+            // 🔍 BACKGROUND INTELLIGENCE & SEO ANALYSIS (Non-blocking)
+            if (typeof fullText === 'string') {
+                this.analyzeAndLogConversation({
+                    userId: systemContext?.userContext?.id,
+                    sessionId: systemContext?.sessionState?._id,
+                    userMessage,
+                    aiResponse: fullText,
+                    location: null
+                }).catch((e: any) => console.error("Analytic Background Error:", e.message));
+            }
+
+            return fullText;
+
+        } catch (error: any) {
+            console.error("AI Service Stream Error Details:", error.message);
+            // Fallback content in offline mode
+            let fallbackText = "Bhai, piche se system thoda load mein hai. Ek baar refresh karke wapis bol ke dekh?";
+            if (systemContext?.userContext?.neuralMemory) {
+                fallbackText = `⚠️ **[OFFLINE INTELLIGENCE MODE]**\n\nBhai, primary engine down hai but mere paas memory mein ye data hai:\n\n${systemContext.userContext.neuralMemory}\n\nKaam chalu rakhte hain, tension mat le!`;
+            }
+            onToken({ type: 'text', token: fallbackText });
+            return fallbackText;
         }
     },
 

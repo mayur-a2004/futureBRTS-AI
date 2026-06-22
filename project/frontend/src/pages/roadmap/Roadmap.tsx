@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, CheckCircle2, Activity, Navigation, Target, Youtube, Circle, Lock, ListTodo } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import LoadingScreen from "@/components/ui/LoadingScreen";
+import { sanitizeExternalUrl } from "@/utils/url";
 
 export default function Roadmap() {
     const navigate = useNavigate();
@@ -480,7 +481,7 @@ export default function Roadmap() {
                                                                     </div>
                                                                     <div className="flex items-center gap-2">
                                                                         <a
-                                                                            href={ms.youtubeLink || `https://www.youtube.com/results?search_query=${encodeURIComponent(ms.title)}`}
+                                                                            href={sanitizeExternalUrl(ms.youtubeLink || `https://www.youtube.com/results?search_query=${encodeURIComponent(ms.title)}`)}
                                                                             target="_blank"
                                                                             rel="noopener noreferrer"
                                                                             onClick={(e) => e.stopPropagation()}
@@ -538,7 +539,7 @@ export default function Roadmap() {
                                                                                         size="sm"
                                                                                         onClick={(e) => {
                                                                                             e.stopPropagation();
-                                                                                            window.open(ms.youtubeLink || `https://www.youtube.com/results?search_query=${encodeURIComponent(ms.title)}`, '_blank');
+                                                                                            window.open(sanitizeExternalUrl(ms.youtubeLink || `https://www.youtube.com/results?search_query=${encodeURIComponent(ms.title)}`), '_blank');
                                                                                         }}
                                                                                         className="h-7 text-[9px] bg-red-600 hover:bg-red-500 font-black italic uppercase tracking-widest px-4 rounded-full"
                                                                                     >

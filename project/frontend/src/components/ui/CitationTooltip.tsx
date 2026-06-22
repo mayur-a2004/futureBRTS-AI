@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from "framer-motion";
 import { Globe, ExternalLink, AlertCircle } from 'lucide-react';
+import { sanitizeExternalUrl } from '@/utils/url';
 
 interface Citation {
     name: string;
@@ -37,7 +38,7 @@ export const CitationTooltip = ({ citation, children }: { citation: Citation, ch
 
     const handleOpenLink = (e: React.MouseEvent) => {
         e.stopPropagation();
-        window.open(citation.url, '_blank');
+        window.open(sanitizeExternalUrl(citation.url), '_blank');
     };
 
     return (

@@ -360,9 +360,12 @@ export default function Builder() {
             return { name: f.name, type: f.type, preview };
         }));
 
+        const assistantMsgId = crypto.randomUUID();
+        const startTime = Date.now();
+
         try {
             const token = localStorage.getItem('fbrts_token');
-            const res = await fetch(`/api/builder/session/${targetSessionId}/message`, {
+            const res = await fetch(`/api/builder/session/${targetSessionId}/message/stream`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({
@@ -372,36 +375,117 @@ export default function Builder() {
                 })
             });
 
-            const data = await res.json();
-
-            if (data.error === 'OUT_OF_TOKENS') {
-                setTokenWallOpen(true);
-                setMessages(prev => prev.filter(m => m.id !== tempId));
-                return;
+            if (res.status === 403) {
+                const data = await res.json();
+                if (data.error === 'OUT_OF_TOKENS') {
+                    setTokenWallOpen(true);
+                    setMessages(prev => prev.filter(m => m.id !== tempId));
+                    return;
+                }
             }
 
-            if (data.success && Array.isArray(data.messages)) {
-                setMessages(processMessages(data.messages));
+            if (!res.ok) {
+                throw new Error(`HTTP error ${res.status}`);
+            }
 
-                if (data.title) {
-                    window.dispatchEvent(new Event('fb-refresh-sessions'));
-                }
-                if (data.rank) {
-                    setUserRank(data.rank);
-                } else if (data.session?.userContext?.rank) {
-                    setUserRank(data.session.userContext.rank);
-                }
-                if (typeof data.tokenBalance === 'number') {
-                    setTokenBalance(data.tokenBalance);
-                }
-                if (data.projectFiles) {
-                    setBuildStatus('completed');
-                    setProjectDownloadUrl(data.projectFiles.zip?.url || null);
-                    setActiveProjectFiles(data.projectFiles);
+            // Push an optimistic assistant message to start the stream
+            setMessages(prev => [...prev, {
+                id: assistantMsgId,
+                role: 'assistant',
+                content: '',
+                thinking: '',
+                isThinking: true,
+                timestamp: new Date()
+            }]);
+
+            const reader = res.body?.getReader();
+            if (!reader) throw new Error("No readable stream in response");
+
+            const decoder = new TextDecoder();
+            let buffer = "";
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    const cleanLine = line.trim();
+                    if (!cleanLine) continue;
+
+                    if (cleanLine.startsWith('data: ')) {
+                        const dataStr = cleanLine.slice(6);
+                        if (dataStr === '[DONE]') continue;
+
+                        try {
+                            const parsed = JSON.parse(dataStr);
+
+                            if (parsed.type === 'think') {
+                                setMessages(prev => prev.map(m => {
+                                    if (m.id === assistantMsgId) {
+                                        return {
+                                            ...m,
+                                            thinking: (m.thinking || "") + parsed.token
+                                        };
+                                    }
+                                    return m;
+                                }));
+                            } else if (parsed.type === 'text') {
+                                setMessages(prev => prev.map(m => {
+                                    if (m.id === assistantMsgId) {
+                                        const now = Date.now();
+                                        const duration = m.thinkingTime || Math.round((now - startTime) / 1000);
+                                        return {
+                                            ...m,
+                                            isThinking: false,
+                                            thinkingTime: duration,
+                                            content: (m.content || "") + parsed.token
+                                        };
+                                    }
+                                    return m;
+                                }));
+                            } else if (parsed.type === 'metadata') {
+                                const meta = parsed.data;
+                                if (meta.messages && Array.isArray(meta.messages)) {
+                                    setMessages(processMessages(meta.messages));
+                                }
+                                if (meta.title) {
+                                    window.dispatchEvent(new Event('fb-refresh-sessions'));
+                                }
+                                if (meta.rank) {
+                                    setUserRank(meta.rank);
+                                }
+                                if (typeof meta.tokenBalance === 'number') {
+                                    setTokenBalance(meta.tokenBalance);
+                                }
+                                if (meta.projectFiles) {
+                                    setBuildStatus('completed');
+                                    setProjectDownloadUrl(meta.projectFiles.zip?.url || null);
+                                    setActiveProjectFiles(meta.projectFiles);
+                                }
+                            }
+                        } catch (e) {
+                            // ignore malformed SSE
+                        }
+                    }
                 }
             }
         } catch (e) {
             console.error(e);
+            // Show error on failure
+            setMessages(prev => prev.map(m => {
+                if (m.id === assistantMsgId) {
+                    return {
+                        ...m,
+                        isThinking: false,
+                        content: (m.content || "") + "\n\n⚠️ **Connection error during stream. Please retry.**"
+                    };
+                }
+                return m;
+            }));
         } finally {
             setLoading(false);
         }
@@ -888,6 +972,9 @@ export default function Builder() {
                             key={msg.id || i}
                             role={msg.role}
                             content={msg.content}
+                            thinking={msg.thinking}
+                            isThinking={msg.isThinking}
+                            thinkingTime={msg.thinkingTime}
                             attachments={msg.attachments}
                             onRetry={i === messages.length - 1 && msg.role === 'assistant' ? () => handleSend() : undefined}
                             onFeedback={(type) => handleFeedback(type, msg.id)}

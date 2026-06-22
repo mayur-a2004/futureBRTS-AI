@@ -16,8 +16,10 @@ router.put('/session/:id/pin', authMiddleware, builderController.togglePinSessio
 
 // Chat & Messaging
 router.post('/session/:id/message', authMiddleware, tokenGuard, builderController.addMessage);
+router.post('/session/:id/message/stream', authMiddleware, tokenGuard, builderController.addMessageStream);
 router.post('/message/:messageId/feedback', authMiddleware, builderController.logMessageFeedback);
 router.put('/session/:id', authMiddleware, builderController.renameSession);
+router.get('/search-doc', builderController.searchDocLink);
 
 // Summary & Intent
 router.post('/summary/generate', authMiddleware, summaryController.generate);

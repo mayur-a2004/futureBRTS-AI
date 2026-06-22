@@ -24,7 +24,31 @@ const DIRECT_DOCS: Record<string, string> = {
     'typescript': 'https://www.typescriptlang.org/docs/',
     'tailwind': 'https://tailwindcss.com/docs',
     'nextjs': 'https://nextjs.org/docs',
-    'vite': 'https://vitejs.dev/guide/'
+    'vite': 'https://vitejs.dev/guide/',
+    'usestate': 'https://react.dev/reference/react/useState',
+    'useeffect': 'https://react.dev/reference/react/useEffect',
+    'usecontext': 'https://react.dev/reference/react/useContext',
+    'usereducer': 'https://react.dev/reference/react/useReducer',
+    'usecallback': 'https://react.dev/reference/react/useCallback',
+    'usememo': 'https://react.dev/reference/react/useMemo',
+    'useref': 'https://react.dev/reference/react/useRef',
+    'useimperativehandle': 'https://react.dev/reference/react/useImperativeHandle',
+    'uselayouteffect': 'https://react.dev/reference/react/useLayoutEffect',
+    'usedebugvalue': 'https://react.dev/reference/react/useDebugValue',
+    'hooks': 'https://react.dev/reference/react',
+    'props': 'https://react.dev/learn/passing-props-to-a-component',
+    'state': 'https://react.dev/learn/state-a-components-memory',
+    'component': 'https://react.dev/learn/your-first-component',
+    'express': 'https://expressjs.com/',
+    'jwt': 'https://jwt.io/',
+    'prisma': 'https://www.prisma.io/docs/',
+    'mongoose': 'https://mongoosejs.com/docs/',
+    'socket.io': 'https://socket.io/docs/v4/',
+    'html': 'https://developer.mozilla.org/en-US/docs/Web/HTML',
+    'css': 'https://developer.mozilla.org/en-US/docs/Web/CSS',
+    'npm': 'https://docs.npmjs.com/',
+    'git': 'https://git-scm.com/doc',
+    'github': 'https://docs.github.com/en'
 };
 
 export const NeuralTooltip = ({ text, children }: { text: string, children: React.ReactNode }) => {
@@ -33,6 +57,8 @@ export const NeuralTooltip = ({ text, children }: { text: string, children: Reac
     const [loading, setLoading] = useState(false);
     const triggerRef = useRef<HTMLSpanElement>(null);
     const [leftOffset, setLeftOffset] = useState(0);
+    const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
+    const [resolvingUrl, setResolvingUrl] = useState(false);
 
     useEffect(() => {
         if (isVisible && triggerRef.current) {
@@ -78,23 +104,96 @@ export const NeuralTooltip = ({ text, children }: { text: string, children: Reac
         }, 500);
     };
 
-    const handleOpenInfo = (e: React.MouseEvent) => {
+    const resolveLink = async () => {
+        const trimmedText = text.trim();
+        const term = trimmedText.toLowerCase();
+        if (DIRECT_DOCS[term]) {
+            setResolvedUrl(DIRECT_DOCS[term]);
+            return;
+        }
+        if (term.startsWith('use') && term.length > 3) {
+            setResolvedUrl(`https://react.dev/reference/react/${trimmedText}`);
+            return;
+        }
+
+        setResolvingUrl(true);
+        try {
+            const token = localStorage.getItem('fbrts_token');
+            const res = await fetch(`/api/builder/search-doc?q=${encodeURIComponent(trimmedText)}`, {
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : ''
+                }
+            });
+            const data = await res.json();
+            if (data.success && data.url) {
+                setResolvedUrl(data.url);
+            }
+        } catch (err) {
+            console.error('Error pre-resolving link:', err);
+        } finally {
+            setResolvingUrl(false);
+        }
+    };
+
+    const handleOpenInfo = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        const term = text.toLowerCase().trim();
+        
+        if (resolvedUrl) {
+            window.open(resolvedUrl, '_blank');
+            return;
+        }
+
+        const trimmedText = text.trim();
+        const term = trimmedText.toLowerCase();
 
         if (DIRECT_DOCS[term]) {
-            window.open(DIRECT_DOCS[term], '_blank');
-        } else {
-            // Use 'I\'m Feeling Lucky' style direct search for everything else
-            window.open(`https://www.google.com/search?btnI=I%27m+Feeling+Lucky&q=${encodeURIComponent(text + " official documentation")}`, '_blank');
+            const target = DIRECT_DOCS[term];
+            setResolvedUrl(target);
+            window.open(target, '_blank');
+            return;
         }
+
+        if (term.startsWith('use') && term.length > 3) {
+            const target = `https://react.dev/reference/react/${trimmedText}`;
+            setResolvedUrl(target);
+            window.open(target, '_blank');
+            return;
+        }
+
+        setResolvingUrl(true);
+        try {
+            const token = localStorage.getItem('fbrts_token');
+            const res = await fetch(`/api/builder/search-doc?q=${encodeURIComponent(trimmedText)}`, {
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : ''
+                }
+            });
+            const data = await res.json();
+            if (data.success && data.url) {
+                setResolvedUrl(data.url);
+                window.open(data.url, '_blank');
+                return;
+            }
+        } catch (err) {
+            console.error('Failed to resolve link on click:', err);
+        } finally {
+            setResolvingUrl(false);
+        }
+
+        window.open(`https://www.google.com/search?q=${encodeURIComponent(trimmedText + " official documentation")}`, '_blank');
     };
 
     return (
         <span
             ref={triggerRef}
             className="relative inline-block z-10 neural-tooltip-wrapper group/wrapper"
-            onMouseEnter={() => { setIsVisible(true); fetchInsight(); }}
+            onMouseEnter={() => {
+                setIsVisible(true);
+                fetchInsight();
+                if (!resolvedUrl && !resolvingUrl) {
+                    resolveLink();
+                }
+            }}
             onMouseLeave={() => setIsVisible(false)}
         >
             <span
