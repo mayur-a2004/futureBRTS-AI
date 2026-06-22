@@ -4,7 +4,7 @@ const axios = require('axios');
 async function testFlow() {
     try {
         console.log("Logging in...");
-        const loginRes = await axios.post('http://localhost:7000/api/auth/login', {
+        const loginRes = await axios.post('http://localhost:7001/api/auth/login', {
             email: 'mayur@gmail.com',
             password: 'password123' // Guessing standard test password
         });
@@ -13,7 +13,7 @@ async function testFlow() {
         console.log("Logged in. Token received.");
 
         console.log("Creating session...");
-        const sessionRes = await axios.post('http://localhost:7000/api/builder/session',
+        const sessionRes = await axios.post('http://localhost:7001/api/builder/session',
             { initialPrompt: "test", title: "Test Session" },
             { headers: { 'Authorization': `Bearer ${token}` } }
         );
@@ -22,7 +22,7 @@ async function testFlow() {
         console.log("Session created:", sessionId);
 
         console.log("Sending message...");
-        const msgRes = await axios.post(`http://localhost:7000/api/builder/session/${sessionId}/message`,
+        const msgRes = await axios.post(`http://localhost:7001/api/builder/session/${sessionId}/message`,
             { content: "hi backend test" },
             { headers: { 'Authorization': `Bearer ${token}` } }
         );

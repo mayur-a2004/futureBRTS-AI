@@ -6,7 +6,7 @@ const sessionId = '698de4f5904a52904db145d4';
 async function sendMsg() {
     try {
         console.log("Sending message to backend...");
-        const res = await axios.post(`http://localhost:7000/api/builder/session/${sessionId}/message`,
+        const res = await axios.post(`http://localhost:7001/api/builder/session/${sessionId}/message`,
             { content: "hi backend test" },
             { headers: { 'Authorization': `Bearer ${token}` } }
         );

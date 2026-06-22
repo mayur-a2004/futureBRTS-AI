@@ -5,7 +5,7 @@ import json
 import uuid
 
 # Configuration
-API_URL = "http://localhost:7000/api"  # Node Backend
+API_URL = "http://localhost:7001/api"  # Node Backend
 WORKER_TEST_FILES_DIR = "test_data_rough_tough"
 
 def log(step, msg, status="INFO"):
