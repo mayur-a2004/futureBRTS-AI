@@ -192,5 +192,113 @@ Instructions:
         } catch(err: any) {
             error(res, err.message, "SERVER_ERROR");
         }
+    },
+    
+    downloadPdf: async (req: Request, res: Response) => {
+        try {
+            const { id } = req.params;
+            const { mode } = req.query; // 'question' or 'answer'
+            
+            const exam = await ExamPaper.findById(id);
+            if (!exam) return error(res, "Exam paper not found", "NOT_FOUND");
+            
+            const paper = exam.generatedPaper;
+            const isAnswerKey = mode === 'answer';
+            
+            // Create PDF Document using PDFKit
+            const PDFDocument = require('pdfkit');
+            const doc = new PDFDocument({ margin: 50, bufferPages: true });
+            
+            const filename = `${exam.subject}_${exam.standard}_${isAnswerKey ? 'AnswerKey' : 'QuestionPaper'}.pdf`;
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+            
+            doc.pipe(res);
+            
+            // Header Section
+            doc.font('Helvetica-Bold').fontSize(22).text(exam.board.toUpperCase() + " BOARD", { align: 'center' });
+            doc.moveDown(0.2);
+            doc.fontSize(14).text(`CLASS: ${exam.standard} | SUBJECT: ${exam.subject}`, { align: 'center' });
+            doc.moveDown(0.2);
+            doc.fontSize(12).text(`Time Allowed: 3 Hours | Maximum Marks: ${exam.marks}`, { align: 'center' });
+            doc.moveDown(0.2);
+            doc.fontSize(11).text(isAnswerKey ? "OFFICIAL ANSWER KEY & EVALUATION SHEET" : "QUESTION PAPER", { align: 'center', underline: true });
+            doc.moveDown(1.5);
+            
+            // Thin divider line
+            doc.moveTo(50, doc.y).lineTo(550, doc.y).strokeColor('#334155').stroke();
+            doc.moveDown(1);
+            
+            // General Instructions
+            doc.font('Helvetica-Bold').fontSize(11).text("General Instructions:");
+            doc.font('Helvetica').fontSize(10);
+            doc.text("1. All questions are compulsory.");
+            doc.text("2. Write your answers clearly and show all steps where applicable.");
+            doc.text(isAnswerKey ? "3. Evaluators should check step-by-step marking guidelines." : "3. Marks for each question are indicated against it.");
+            doc.moveDown(1.5);
+            
+            // Render Sections and Questions
+            if (paper && paper.sections) {
+                for (const section of paper.sections) {
+                    doc.font('Helvetica-Bold').fontSize(13).text(section.sectionName, { underline: true });
+                    doc.moveDown(0.5);
+                    
+                    if (section.questions) {
+                        section.questions.forEach((q: any, qIdx: number) => {
+                            // Question text and marks
+                            doc.font('Helvetica-Bold').fontSize(10).text(`Q${qIdx + 1}. `, { continued: true });
+                            doc.font('Helvetica').text(`${q.question} `, { continued: true });
+                            doc.font('Helvetica-Bold').text(`[Marks: ${q.marks || 1}]`, { align: 'right' });
+                            doc.moveDown(0.3);
+                            
+                            // MCQ Options if present
+                            if (q.options && q.options.length > 0) {
+                                q.options.forEach((opt: string, optIdx: number) => {
+                                    const optionLetter = String.fromCharCode(65 + optIdx);
+                                    doc.font('Helvetica').fontSize(10).text(`  (${optionLetter}) ${opt}`);
+                                    doc.moveDown(0.2);
+                                });
+                            }
+                            
+                            // Show Answers if Answer Key mode is active
+                            if (isAnswerKey && q.answer) {
+                                doc.moveDown(0.2);
+                                doc.font('Helvetica-Bold').fontSize(10).fillColor('#10b981').text("Answer/Explanation: ", { continued: true });
+                                doc.font('Helvetica-Oblique').fillColor('#1e293b').text(q.answer);
+                                doc.fillColor('#000000');
+                                doc.moveDown(0.5);
+                            } else {
+                                doc.moveDown(0.5);
+                            }
+                        });
+                    }
+                    doc.moveDown(1);
+                }
+            }
+            
+            // Buffering for Watermarks and Footer Page Numbers on all pages
+            const pages = doc.bufferedPageRange();
+            for (let i = 0; i < pages.count; i++) {
+                doc.switchToPage(i);
+                
+                // Opacity-backed watermark
+                doc.save();
+                doc.fontSize(40).fillColor('#cbd5e1').opacity(0.15);
+                doc.rotate(45, { origin: [300, 400] });
+                doc.text("FUTURE BRTS AI", 120, 380, { align: 'center' });
+                doc.restore();
+                
+                // Footer
+                doc.save();
+                doc.fontSize(9).fillColor('#64748b');
+                doc.text(`Page ${i + 1} of ${pages.count}`, 50, 750, { align: 'center' });
+                doc.restore();
+            }
+            
+            doc.end();
+        } catch (err: any) {
+            console.error("PDF Export Error:", err);
+            res.status(500).json({ status: 'error', message: err.message });
+        }
     }
 };

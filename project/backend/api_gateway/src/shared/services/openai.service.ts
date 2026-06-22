@@ -858,19 +858,47 @@ Generate EXACTLY 3 high-fidelity questions to verify understanding.
 
     evaluateViva: async (results: any[], groundTruth: any) => {
         try {
-            const prompt = `
-            🧠 NEURAL EVALUATOR — FUTURE BRTS
-            Evaluate the user's VIVA results.
-            - User Answers: ${JSON.stringify(results)}
-            - Ground Truth: ${JSON.stringify(groundTruth)}
+            const prompt = `You are an expert AI Academic Evaluator for the FutureBRTS-AI learning platform.
+Your task is to grade a student's responses to VIVA questions against the ground truth.
 
-            RULES:
-            1. Multilingual Support: Understand any language. If meaning matches, it's correct.
-            2. Threshold: 70% required to pass.
-            3. Feedback: Provide correct answers for wrong ones.
+Student's Submitted Answers:
+${JSON.stringify(results, null, 2)}
 
-            Output ONLY JSON: { "isPassed": boolean, "score": number, "results": [ { "question": "...", "isCorrect": boolean, "correctSuggestion": "..." } ] }
-            `;
+Ground Truth (MCQs and Short Question):
+${JSON.stringify(groundTruth, null, 2)}
+
+Strict Grading Protocols:
+1. Multilingual Semantic Checking: 
+   - Students may answer the Viva short question in English, Hindi, Hinglish (e.g. "routing table connect karta hai client aur server ko"), Gujarati, or a mixture of these.
+   - You MUST perform semantic comparison of the student's answer against the correct answer. Do not perform strict keyword or text matching.
+   - If the student's answer demonstrates that they understand the underlying technical concept, count it as correct.
+2. Typos & Grammar Tolerance:
+   - Ignore grammatical mistakes, spelling typos, casing, and punctuation errors.
+   - Focus strictly on conceptual mastery.
+3. MCQ Grading:
+   - For MCQs, compare the student's selected answer option with the correct answer. MCQ answers must be correct based on choice.
+4. Threshold & Score:
+   - Calculate a score from 0 to 100 representing the percentage of correctness.
+   - A score of 70 or higher is a PASS (isPassed = true). Otherwise, isPassed = false.
+5. Suggestions:
+   - For incorrect answers, provide a friendly, supportive explanation (like a helpful elder brother/tech co-founder) in clear English/Hinglish suggesting how to improve and what the correct concept is.
+
+Output Format:
+You must output ONLY a valid JSON object. Do not include markdown block wrappers (like \`\`\`json) or any other chatty text.
+JSON Schema:
+{
+  "isPassed": boolean,
+  "score": number, // 0 to 100
+  "results": [
+    {
+      "questionId": "string matching the questionId from the student's answer",
+      "question": "string text of the question",
+      "isCorrect": boolean,
+      "correctSuggestion": "Friendly coaching suggestion or explanation if wrong, or praise if correct"
+    }
+  ]
+}
+`;
             const messages = [{ role: 'system', content: prompt }];
             const res = await getProviderResponse(messages, { jsonMode: true, temperature: 0.1 });
             return safeJsonParse(String(res?.choices?.[0]?.message?.content || res?.message));

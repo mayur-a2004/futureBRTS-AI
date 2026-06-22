@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import html2pdf from 'html2pdf.js';
 
 const ExamGeneratorPage: React.FC = () => {
     const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -18,6 +17,7 @@ const ExamGeneratorPage: React.FC = () => {
     
     const [loading, setLoading] = useState(false);
     const [generatedExam, setGeneratedExam] = useState<any>(null);
+    const [examId, setExamId] = useState<string>('');
     const [errorMsg, setErrorMsg] = useState('');
     const [editMode, setEditMode] = useState(false); // Toggle for editing headers
 
@@ -81,6 +81,8 @@ const ExamGeneratorPage: React.FC = () => {
             const data = await res.json();
             if (data.status === 'success') {
                 const paper = data.data.exam.generatedPaper;
+                const id = data.data.exam._id;
+                setExamId(id);
                 if (paper) {
                     if (!paper.board) paper.board = board;
                     if (!paper.examScope) paper.examScope = examScope;
@@ -100,83 +102,23 @@ const ExamGeneratorPage: React.FC = () => {
         }
     };
 
-    const downloadQuestionPaper = async () => {
-        const element = document.getElementById('printable-exam');
-        if (!element) return;
-        
-        const watermark = document.getElementById('pdf-watermark');
-        if (watermark) watermark.style.display = 'block';
-
-        const answerBlocks = document.querySelectorAll('.answer-block');
-        answerBlocks.forEach((el: any) => el.style.display = 'none');
-
-        const optQuestion = {
-            margin: 0.5,
-            filename: `${generatedExam?.subject || subject}_${generatedExam?.standard || standard}_QuestionPaper.pdf`,
-            image: { type: 'jpeg' as const, quality: 0.98 },
-            html2canvas: { scale: 2 },
-            jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' as const }
-        };
-        await html2pdf().set(optQuestion).from(element).save();
-
-        if (watermark) watermark.style.display = 'none';
-        answerBlocks.forEach((el: any) => el.style.display = 'block'); // Restore answers on screen
+    const downloadQuestionPaper = () => {
+        if (!examId) return;
+        const url = `/api/exam/${examId}/pdf?mode=question`;
+        window.open(url, '_blank');
     };
 
-    const downloadAnswerKey = async () => {
-        const element = document.getElementById('printable-exam');
-        if (!element) return;
-        
-        const watermark = document.getElementById('pdf-watermark');
-        if (watermark) watermark.style.display = 'block';
-
-        const answerBlocks = document.querySelectorAll('.answer-block');
-        answerBlocks.forEach((el: any) => el.style.display = 'block');
-
-        const optAnswer = {
-            margin: 0.5,
-            filename: `${generatedExam?.subject || subject}_${generatedExam?.standard || standard}_AnswerKey.pdf`,
-            image: { type: 'jpeg' as const, quality: 0.98 },
-            html2canvas: { scale: 2 },
-            jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' as const }
-        };
-        await html2pdf().set(optAnswer).from(element).save();
-
-        if (watermark) watermark.style.display = 'none';
+    const downloadAnswerKey = () => {
+        if (!examId) return;
+        const url = `/api/exam/${examId}/pdf?mode=answer`;
+        window.open(url, '_blank');
     };
 
-    const downloadBothPDFs = async () => {
-        const element = document.getElementById('printable-exam');
-        if (!element) return;
-        
-        const watermark = document.getElementById('pdf-watermark');
-        if (watermark) watermark.style.display = 'block';
-
-        const answerBlocks = document.querySelectorAll('.answer-block');
-
-        // --- 1. DOWNLOAD QUESTION PAPER (Hide Answers) ---
-        answerBlocks.forEach((el: any) => el.style.display = 'none');
-        const optQuestion = {
-            margin: 0.5,
-            filename: `${generatedExam?.subject || subject}_${generatedExam?.standard || standard}_QuestionPaper.pdf`,
-            image: { type: 'jpeg' as const, quality: 0.98 },
-            html2canvas: { scale: 2 },
-            jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' as const }
-        };
-        await html2pdf().set(optQuestion).from(element).save();
-
-        // --- 2. DOWNLOAD ANSWER KEY (Show Answers) ---
-        answerBlocks.forEach((el: any) => el.style.display = 'block');
-        const optAnswer = {
-            margin: 0.5,
-            filename: `${generatedExam?.subject || subject}_${generatedExam?.standard || standard}_AnswerKey.pdf`,
-            image: { type: 'jpeg' as const, quality: 0.98 },
-            html2canvas: { scale: 2 },
-            jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' as const }
-        };
-        await html2pdf().set(optAnswer).from(element).save();
-
-        if (watermark) watermark.style.display = 'none';
+    const downloadBothPDFs = () => {
+        downloadQuestionPaper();
+        setTimeout(() => {
+            downloadAnswerKey();
+        }, 500);
     };
 
     return (

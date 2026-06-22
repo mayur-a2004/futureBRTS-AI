@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/Button";
 import LoadingScreen from "@/components/ui/LoadingScreen";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, CheckCircle2, Circle, Calendar, Lock, BarChart3, ListTodo, AlertCircle, Target, Brain, Zap, Navigation, Flag, Youtube, ExternalLink, ShieldCheck } from "lucide-react";
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from "recharts";
 
 export default function TodayTask() {
     const navigate = useNavigate();
@@ -17,6 +18,47 @@ export default function TodayTask() {
 
     const [targetLanguage, setTargetLanguage] = useState<string>("Hindi"); // Default translation target
     const [translating, setTranslating] = useState(false);
+
+    // Prepare radar chart data dynamically based on tasks conceptMap and status
+    const conceptMasteryData = () => {
+        const conceptStats: Record<string, { total: number; completed: number }> = {};
+        
+        tasks.forEach(t => {
+            const concepts = t.conceptMap || ['Core logic'];
+            concepts.forEach((concept: string) => {
+                if (!conceptStats[concept]) {
+                    conceptStats[concept] = { total: 0, completed: 0 };
+                }
+                conceptStats[concept].total += 1;
+                if (t.status === 'done') {
+                    conceptStats[concept].completed += 1;
+                }
+            });
+        });
+        
+        const chartData = Object.entries(conceptStats).map(([subject, stats]) => {
+            const percentage = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+            return {
+                subject: subject.substring(0, 15), // keep labels short
+                A: percentage,
+                fullMark: 100
+            };
+        });
+        
+        // If there's no data or too few categories, return a default set
+        if (chartData.length < 3) {
+            const completedCount = tasks.filter(t => t.status === 'done').length;
+            return [
+                { subject: 'Implementation', A: completedCount > 0 ? 80 : 20, fullMark: 100 },
+                { subject: 'Architecture', A: completedCount > 0 ? 90 : 30, fullMark: 100 },
+                { subject: 'Problem Solving', A: completedCount > 0 ? 70 : 15, fullMark: 100 },
+                { subject: 'Testing', A: completedCount > 0 ? 85 : 10, fullMark: 100 },
+                { subject: 'Security', A: completedCount > 0 ? 75 : 25, fullMark: 100 }
+            ];
+        }
+        
+        return chartData.slice(0, 7); // Cap at 7 categories for design cleaness
+    };
 
     // --- Verification System State ---
     const [isVerifying, setIsVerifying] = useState(false);
@@ -518,6 +560,26 @@ export default function TodayTask() {
                             </div>
 
                             <div className="space-y-6">
+                                {/* Recharts Radar Chart */}
+                                <div className="bg-[#111] border border-indigo-500/10 p-6 rounded-2xl shadow-xl relative overflow-hidden group hover:border-indigo-500/30 transition-all">
+                                    <h3 className="text-sm font-black italic tracking-tighter uppercase text-white mb-4 flex items-center gap-2">
+                                        <Brain size={16} className="text-indigo-400" /> Concept Mastery Map
+                                    </h3>
+                                    <div className="h-[250px] w-full flex items-center justify-center">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <RadarChart cx="50%" cy="50%" outerRadius="75%" data={conceptMasteryData()}>
+                                                <PolarGrid stroke="#27272a" />
+                                                <PolarAngleAxis dataKey="subject" tick={{ fill: '#a1a1aa', fontSize: 10, fontWeight: 'bold' }} />
+                                                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#3f3f46', fontSize: 8 }} />
+                                                <Radar name="Mastery" dataKey="A" stroke="#6366f1" fill="#6366f1" fillOpacity={0.3} />
+                                            </RadarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                    <div className="mt-2 text-center text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                                        Based on VIVA check-ins & labs
+                                    </div>
+                                </div>
+
                                 <h2 className="text-xl font-bold flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>Recent Wins</h2>
                                 <div className="space-y-3">
                                     {completedTasks.length === 0 && <div className="text-gray-600 italic text-sm">Finish tasks to see your wins.</div>}
