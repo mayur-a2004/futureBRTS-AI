@@ -6,7 +6,6 @@ import {
     Save,
     CheckCircle2,
     AlertCircle,
-    ExternalLink,
     Loader2
 } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -18,7 +17,9 @@ export default function GoogleServices() {
         gsc_id: "sc-domain:futurebrts.com",
         maps_api_key: "",
         adsense_client_id: "pub-xxxxxxxxxxxxxxxx",
-        tag_manager_id: "GTM-XXXXXXX"
+        tag_manager_id: "GTM-XXXXXXX",
+        facebook_pixel_id: "XXXXXXXXXXXXXXXX",
+        google_ads_id: "AW-XXXXXXXXX"
     });
 
     const handleSave = async () => {
@@ -29,7 +30,9 @@ export default function GoogleServices() {
                 { key: 'GOOGLE_ANALYTICS_ID', value: configs.ga_id, description: 'Google Analytics 4 Measurement ID' },
                 { key: 'GOOGLE_TAG_MANAGER_ID', value: configs.tag_manager_id, description: 'Google Tag Manager ID' },
                 { key: 'GOOGLE_ADSENSE_CLIENT_ID', value: configs.adsense_client_id, description: 'Google AdSense Publisher ID' },
-                { key: 'GOOGLE_SEARCH_CONSOLE_ID', value: configs.gsc_id, description: 'Search Console Property Trace ID' }
+                { key: 'GOOGLE_SEARCH_CONSOLE_ID', value: configs.gsc_id, description: 'Search Console Property Trace ID' },
+                { key: 'FACEBOOK_PIXEL_ID', value: configs.facebook_pixel_id, description: 'Meta/Facebook Ads Pixel ID' },
+                { key: 'GOOGLE_ADS_ID', value: configs.google_ads_id, description: 'Google Ads Conversion ID' }
             ];
 
             const res = await fetch('/api/admin/settings/batch', {
@@ -43,7 +46,7 @@ export default function GoogleServices() {
 
             const data = await res.json();
             if (data.success) {
-                toast.success("Google Ecosystem Integration Synced and Verified.");
+                toast.success("Marketing Ecosystem Integration Synced and Verified.");
             } else {
                 toast.error("Ecosystem sync failed: " + (data.error || "Unknown error"));
             }
@@ -58,8 +61,8 @@ export default function GoogleServices() {
         <div className="max-w-4xl space-y-8 animate-in fade-in duration-500">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-black text-white tracking-tighter">Google Ecosystem Integration</h1>
-                    <p className="text-gray-400 mt-1 font-medium">Coordinate Google Cloud & Marketing services with the Genesis Core.</p>
+                    <h1 className="text-3xl font-black text-white tracking-tighter">Marketing Ecosystem Integration</h1>
+                    <p className="text-gray-400 mt-1 font-medium">Coordinate Google Cloud, Meta Pixel, AdSense & Marketing services with the Genesis Core.</p>
                 </div>
                 <div className="w-14 h-14 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center">
                     <Globe className="text-indigo-400" size={28} />
@@ -99,7 +102,7 @@ export default function GoogleServices() {
                     </div>
                 </div>
 
-                {/* Adsense */}
+                {/* Adsense & Monetization */}
                 <div className="p-8 rounded-[32px] bg-white/[0.02] border border-white/5 space-y-6">
                     <div className="flex items-center gap-3 pb-4 border-b border-white/5">
                         <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
@@ -124,15 +127,47 @@ export default function GoogleServices() {
                     </div>
                 </div>
 
+                {/* Paid Advertising & Tracking Pixels */}
+                <div className="p-8 rounded-[32px] bg-white/[0.02] border border-white/5 space-y-6">
+                    <div className="flex items-center gap-3 pb-4 border-b border-white/5">
+                        <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                            <Globe size={20} className="text-purple-400" />
+                        </div>
+                        <h2 className="text-lg font-black text-white">Ads & Retargeting</h2>
+                    </div>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Meta (Facebook) Pixel ID</label>
+                            <input
+                                type="text"
+                                value={configs.facebook_pixel_id}
+                                onChange={e => setConfigs({ ...configs, facebook_pixel_id: e.target.value })}
+                                className="w-full px-5 py-4 bg-white/[0.02] border border-white/10 rounded-2xl outline-none focus:border-indigo-500/50 transition-all text-sm font-bold text-white"
+                                placeholder="16-digit Pixel ID..."
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Google Ads Conversion ID</label>
+                            <input
+                                type="text"
+                                value={configs.google_ads_id}
+                                onChange={e => setConfigs({ ...configs, google_ads_id: e.target.value })}
+                                className="w-full px-5 py-4 bg-white/[0.02] border border-white/10 rounded-2xl outline-none focus:border-indigo-500/50 transition-all text-sm font-bold text-white"
+                                placeholder="AW-XXXXXXXXX"
+                            />
+                        </div>
+                    </div>
+                </div>
+
                 {/* Search Console */}
-                <div className="p-8 rounded-[32px] bg-white/[0.02] border border-white/5 space-y-6 md:col-span-2">
+                <div className="p-8 rounded-[32px] bg-white/[0.02] border border-white/5 space-y-6">
                     <div className="flex items-center gap-3 pb-4 border-b border-white/5">
                         <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
                             <CheckCircle2 size={20} className="text-emerald-400" />
                         </div>
                         <h2 className="text-lg font-black text-white">Search Console Identity</h2>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Property Trace ID</label>
                             <input
@@ -143,10 +178,7 @@ export default function GoogleServices() {
                             />
                         </div>
                         <div className="flex flex-col justify-center">
-                            <p className="text-xs text-gray-500 leading-relaxed font-bold">Verify your site ownership using the HTML tag or DNS record provided in your Google Search Console dashboard.</p>
-                            <button className="flex items-center gap-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest mt-2 hover:text-indigo-300 transition-colors">
-                                Access GSC Panel <ExternalLink size={12} />
-                            </button>
+                            <p className="text-xs text-gray-500 leading-relaxed font-bold">Verify your site ownership using Google Search Console.</p>
                         </div>
                     </div>
                 </div>
