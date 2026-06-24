@@ -7,17 +7,10 @@ export default function Terms() {
     const rotateValue = useTransform(scrollYProgress, [0, 1], [0, 180]);
 
     return (
-        <div className="py-32 px-6 max-w-7xl mx-auto space-y-60 text-white font-sans overflow-x-hidden relative">
-            
-            {/* --- GLOBAL HUD OVERLAY --- */}
-            <div className="fixed top-24 left-1/2 -translate-x-1/2 w-full max-w-5xl flex justify-between px-10 text-[8px] font-black uppercase tracking-[0.6em] text-gray-800 pointer-events-none z-0">
-                <div>LEGAL_FRAME: BINDING</div>
-                <div>JURISDICTION: GLOBAL_SYNC</div>
-                <div>PROTOCOL: TERMS_V9</div>
-            </div>
+        <div className="pt-16 pb-12 px-6 max-w-7xl mx-auto space-y-12 md:space-y-16 text-white font-sans overflow-x-hidden relative">
 
             {/* --- SECTION 1: THE LEGAL HERO --- */}
-            <section className="relative flex flex-col items-center text-center space-y-16">
+            <section className="relative flex flex-col items-center text-center space-y-12">
                 <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -37,16 +30,13 @@ export default function Terms() {
                         <div className="inline-flex items-center gap-4 px-6 py-2 rounded-full bg-amber-500/5 border border-amber-500/10 backdrop-blur-xl text-[10px] font-black uppercase tracking-[0.5em] text-amber-400">
                             <Gavel size={14} className="animate-pulse" /> LEGAL_HANDSHAKE_INITIATED
                         </div>
-                        <h1 className="text-4xl md:text-6xl font-black tracking-tighter leading-[0.8] mb-8 uppercase italic">
-                            BUILDER <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-500 to-amber-700 animate-gradient-x drop-shadow-[0_0_20px_rgba(245,158,11,0.3)]">
-                                AGREEMENT.
-                            </span>
+                        <h1 className="text-4xl md:text-6xl font-black tracking-tighter leading-none mb-8 uppercase italic">
+                            BUILDER <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-500 to-amber-700 animate-gradient-x drop-shadow-[0_0_20px_rgba(245,158,11,0.3)]">AGREEMENT.</span>
                         </h1>
                     </div>
                 </motion.div>
 
-                <p className="text-base md:text-lg text-gray-500 font-medium leading-relaxed max-w-4xl mx-auto border-y border-white/5 py-12 px-10 italic text-center">
+                <p className="text-base md:text-lg text-gray-500 font-medium leading-relaxed max-w-4xl mx-auto border-y border-white/5 py-10 px-10 italic text-center">
                     "By accessing the FutureBuilder Industrial Engine, you enter a binding <span className="text-white font-black underline decoration-amber-500 decoration-4 underline-offset-8">Execution Protocol</span>. We provide the tools; you provide the integrity."
                 </p>
                 
@@ -61,7 +51,7 @@ export default function Terms() {
             </section>
 
             {/* --- SECTION 2: THE TERMS MATRIX --- */}
-            <section className="space-y-24">
+            <section className="space-y-16">
                 <div className="text-center space-y-4">
                     <h2 className="text-2xl md:text-4xl font-black tracking-tighter italic uppercase text-white leading-none">CORE_RULES.</h2>
                     <p className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-600">The parameters of operation</p>
@@ -94,21 +84,21 @@ export default function Terms() {
             </section>
 
             {/* --- SECTION 3: INTELLECTUAL PROPERTY HUD --- */}
-            <section className="bg-white/[0.01] border border-white/5 rounded-[4rem] p-12 md:p-32 relative overflow-hidden group">
+            <section className="bg-white/[0.01] border border-white/5 rounded-[3rem] p-8 md:p-16 relative overflow-hidden group">
                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-5" />
                 <div className="absolute -top-40 -left-40 w-96 h-96 bg-amber-600/10 blur-[150px] group-hover:bg-amber-600/20 transition-all duration-1000" />
 
-                <div className="grid lg:grid-cols-2 gap-32 items-center relative z-10">
-                    <div className="space-y-16">
+                <div className="grid lg:grid-cols-2 gap-16 items-center relative z-10">
+                    <div className="space-y-10 text-left">
                         <div className="space-y-6 text-left">
                             <h2 className="text-2xl md:text-5xl font-black tracking-tighter italic uppercase text-white leading-none">OWNERSHIP.</h2>
                             <div className="h-1 w-32 bg-amber-500" />
-                            <p className="text-xl text-gray-400 font-medium leading-relaxed">
+                            <p className="text-lg text-gray-400 font-medium leading-relaxed">
                                 You own the input. We own the engine. The resulting roadmaps are yours to execute, but the underlying algorithmic patterns remain property of the Collective Core.
                             </p>
                         </div>
 
-                        <div className="grid gap-6">
+                        <div className="grid gap-4">
                             <SecurityStat label="ENGINE_COPYRIGHT" value="MAYUR_S_2025" />
                             <div className="h-px w-full bg-white/5" />
                             <SecurityStat label="DATA_RESIDENCY" value="EARTH_SECTOR_01" />
@@ -118,16 +108,16 @@ export default function Terms() {
                     </div>
 
                     <div className="relative">
-                        <div className="p-1 rounded-[3rem] bg-gradient-to-br from-amber-500/20 via-white/5 to-orange-500/20 shadow-2xl">
-                            <div className="bg-[#050505] rounded-[2.9rem] p-16 flex flex-col items-center justify-center text-center space-y-10 border border-white/10">
+                        <div className="p-1 rounded-[3.5rem] bg-gradient-to-br from-amber-500/20 via-white/5 to-orange-500/20 shadow-2xl">
+                            <div className="bg-[#050505] rounded-[2.9rem] p-8 md:p-12 flex flex-col items-center justify-center text-center space-y-6 border border-white/10">
                                 <motion.div
                                     animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
                                     transition={{ duration: 6, repeat: Infinity }}
                                 >
-                                    <FileText size={100} className="text-amber-500/30" />
+                                    <FileText size={80} className="text-amber-500/30" />
                                 </motion.div>
                                 <div className="space-y-2">
-                                    <h3 className="text-2xl font-black italic tracking-tighter uppercase">BINDING_SIGNATURE</h3>
+                                    <h3 className="text-xl font-black italic tracking-tighter uppercase">BINDING_SIGNATURE</h3>
                                     <p className="text-[9px] text-amber-400 font-black tracking-[0.4em] uppercase">Status: Legally Enforced v9.4</p>
                                 </div>
                                 <Button className="w-full bg-amber-500 text-white font-[1000] uppercase tracking-[0.2em] text-[10px] py-8 rounded-2xl hover:bg-amber-400 hover:shadow-[0_0_30px_rgba(245,158,11,0.4)] transition-all border-none">
@@ -140,7 +130,7 @@ export default function Terms() {
             </section>
 
             {/* --- SECTION 4: TERMINATION & REFUNDS --- */}
-            <section className="space-y-20">
+            <section className="space-y-12">
                 <div className="text-center space-y-6">
                     <div className="inline-flex items-center gap-3 px-6 py-2 rounded-full bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.4em] text-gray-500">
                         <RefreshCcw size={14} className="hover:rotate-180 transition-transform duration-700" /> DEPLOYMENT_CYCLE

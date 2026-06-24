@@ -98,12 +98,12 @@ function LandingPageContent() {
                                     <Sparkles size={12} className="text-indigo-400 animate-pulse" />
                                     <span className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-300">Robotic Career Command</span>
                                 </div>
-                                <h1 className="text-4xl md:text-6xl lg:text-7xl font-black leading-[0.95] tracking-tighter uppercase italic select-none">
-                                    <span className="relative block text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+                                <h1 className="text-4xl md:text-6xl lg:text-7xl font-black leading-[0.95] tracking-tighter uppercase italic select-none flex flex-wrap gap-x-4">
+                                    <span className="relative text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
                                         FUTURE
                                         <span className="absolute -top-1 -right-3 text-[10px] font-mono not-italic text-indigo-500 opacity-50 tracking-normal">TM</span>
                                     </span>
-                                    <span className="relative inline-block text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-500 to-cyan-400 animate-gradient-x drop-shadow-[0_0_20px_rgba(79,70,229,0.5)]">
+                                    <span className="relative text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-500 to-cyan-400 animate-gradient-x drop-shadow-[0_0_20px_rgba(79,70,229,0.5)]">
                                         BRTS
                                     </span>
                                 </h1>
@@ -192,7 +192,7 @@ function LandingPageContent() {
             </section>
 
             {/* --- SECTION 2: THE 3D BLUEPRINT --- */}
-            <section className="py-20 md:py-32 px-6 relative">
+            <section className="py-8 md:py-12 px-6 relative">
                 <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-24">
                     <div className="lg:w-1/2 space-y-12">
                         <div className="space-y-4">
@@ -203,8 +203,8 @@ function LandingPageContent() {
                             >
                                 SYSTEM_CORE_PILLARS
                             </motion.span>
-                            <h2 className="text-3xl md:text-5xl font-black italic tracking-tighter leading-[0.85] uppercase">
-                                THE BRTS <br /> <span className="text-gray-700">BLUEPRINT.</span>
+                            <h2 className="text-3xl md:text-5xl font-black italic tracking-tighter leading-none uppercase">
+                                THE BRTS <span className="text-gray-700">BLUEPRINT.</span>
                             </h2>
                         </div>
                         <p className="text-lg text-gray-500 font-medium leading-relaxed max-w-xl">
@@ -263,7 +263,7 @@ function LandingPageContent() {
             </section>
 
             {/* --- SECTION 2.5: LIVE OPERATIONAL FEED (New) --- */}
-            <section className="py-20 bg-indigo-500/5 border-y border-white/5 relative overflow-hidden hidden md:block">
+            <section className="py-12 bg-indigo-500/5 border-y border-white/5 relative overflow-hidden hidden md:block">
                 <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,rgba(79,70,229,0.2)_0%,transparent_100%)]" />
                 <div className="max-w-7xl mx-auto px-6 flex items-center justify-between gap-12">
                     <div className="flex items-center gap-6 whitespace-nowrap overflow-hidden">
@@ -288,7 +288,7 @@ function LandingPageContent() {
             </section>
 
             {/* --- SECTION 3: THE DATA PULSE (Statistics) --- */}
-            <section className="py-20 md:py-32 bg-white/[0.01] border-y border-white/5 relative overflow-hidden">
+            <section className="py-8 md:py-12 bg-white/[0.01] border-y border-white/5 relative overflow-hidden">
                 <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-4 gap-12 text-center">
                     <StatBox label="ACTIVE_MISSIONS" value="12,402" icon={<Rocket size={20} />} />
                     <StatBox label="NEURAL_PATH_GEN" value="4.2M" icon={<Zap size={20} />} />
@@ -298,8 +298,8 @@ function LandingPageContent() {
             </section>
 
             {/* --- SECTION 3.5: MISSION PIPELINE (Detailed Steps) --- */}
-            <section id="how-it-works" className="py-20 md:py-32 px-6 relative overflow-hidden">
-                <div className="max-w-7xl mx-auto space-y-24">
+            <section id="how-it-works" className="py-8 md:py-12 px-6 relative overflow-hidden">
+                <div className="max-w-7xl mx-auto space-y-16">
                     <div className="flex flex-col md:flex-row justify-between items-end gap-8">
                         <div className="space-y-4">
                             <span className="text-indigo-500 font-black uppercase tracking-[0.4em] text-[10px]">OPERATIONAL_WORKFLOW</span>
@@ -344,7 +344,7 @@ function LandingPageContent() {
 
 
             {/* --- CTA: FINAL HANDSHAKE --- */}
-            <section className="py-32 md:py-60 px-6 text-center relative">
+            <section className="py-10 md:py-16 px-6 text-center relative">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(79,70,229,0.1)_0%,transparent_100%)]" />
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
@@ -352,8 +352,8 @@ function LandingPageContent() {
                     viewport={{ once: true }}
                     className="max-w-4xl mx-auto space-y-8 md:space-y-12 relative z-10"
                 >
-                    <h2 className="text-4xl md:text-7xl font-black leading-[0.8] tracking-tighter uppercase italic text-white px-4">
-                        INITIALIZE <br /> <span className="text-transparent bg-clip-text bg-gradient-to-r from-transparent via-indigo-400 to-transparent animate-pulse">PROTOCOL.</span>
+                    <h2 className="text-4xl md:text-7xl font-black leading-none tracking-tighter uppercase italic text-white px-4">
+                        INITIALIZE <span className="text-transparent bg-clip-text bg-gradient-to-r from-transparent via-indigo-400 to-transparent animate-pulse">PROTOCOL.</span>
                     </h2>
                     <p className="text-base md:text-xl text-gray-500 font-medium tracking-[0.2em] md:tracking-[0.4em] uppercase">
                         The future doesn't wait for permission.
@@ -367,8 +367,8 @@ function LandingPageContent() {
             </section>
 
             {/* --- SECTION 4: THE FEATURE MATRIX (EXPANDED) --- */}
-            <section className="py-20 md:py-32 px-6 relative bg-white/[0.01]">
-                <div className="max-w-7xl mx-auto space-y-24">
+            <section className="py-8 md:py-12 px-6 relative bg-white/[0.01]">
+                <div className="max-w-7xl mx-auto space-y-16">
                     <div className="text-center space-y-4">
                         <span className="text-indigo-500 font-black uppercase tracking-[0.4em] text-[10px]">CORE_CAPABILITIES</span>
                         <h2 className="text-4xl md:text-6xl font-black italic tracking-tighter uppercase leading-none">
@@ -412,7 +412,7 @@ function LandingPageContent() {
             </section>
 
             {/* --- SECTION 5: THE VISIONARY (Founder/Brand Story) --- */}
-            <section className="py-20 md:py-32 px-6 relative overflow-hidden">
+            <section className="py-8 md:py-12 px-6 relative overflow-hidden">
                 <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-20">
                     <div className="md:w-1/2 relative group">
                         <div className="absolute -inset-4 bg-indigo-500/20 rounded-[4rem] blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -429,11 +429,11 @@ function LandingPageContent() {
                             </div>
                         </div>
                     </div>
-                    <div className="md:w-1/2 space-y-10">
+                    <div className="md:w-1/2 space-y-10 text-left">
                         <div className="space-y-4">
                             <span className="text-indigo-500 font-black uppercase tracking-[0.4em] text-[10px]">THE_HUMAN_ELEMENT</span>
-                            <h2 className="text-4xl md:text-5xl font-black italic tracking-tighter uppercase leading-[0.85]">
-                                MORE THAN <br /> <span className="text-gray-700">AN AI ENGINE.</span>
+                            <h2 className="text-4xl md:text-5xl font-black italic tracking-tighter uppercase leading-none">
+                                MORE THAN <span className="text-gray-700">AN AI ENGINE.</span>
                             </h2>
                         </div>
                         <p className="text-xl text-gray-400 font-medium leading-relaxed italic">
@@ -454,8 +454,8 @@ function LandingPageContent() {
             </section>
 
             {/* --- SECTION 6: TECHNOLOGY STACK (Branding) --- */}
-            <section className="py-20 md:py-32 px-6 bg-[#050505]/50 border-y border-white/5">
-                <div className="max-w-7xl mx-auto space-y-20">
+            <section className="py-8 md:py-12 px-6 bg-[#050505]/50 border-y border-white/5">
+                <div className="max-w-7xl mx-auto space-y-16">
                     <div className="text-center space-y-4">
                         <span className="text-indigo-500 font-black uppercase tracking-[0.4em] text-[10px]">POWERED_BY_ELITE_TECH</span>
                         <h2 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase">THE NEURAL <span className="text-gray-700">STACK.</span></h2>
@@ -473,8 +473,8 @@ function LandingPageContent() {
             </section>
 
             {/* --- SECTION 7: ACCESS TIERS (Pricing Mockup) --- */}
-            <section id="pricing" className="py-20 md:py-32 px-6 relative overflow-hidden">
-                <div className="max-w-7xl mx-auto space-y-24">
+            <section id="pricing" className="py-8 md:py-12 px-6 relative overflow-hidden">
+                <div className="max-w-7xl mx-auto space-y-16">
                     <div className="text-center space-y-4">
                         <span className="text-indigo-500 font-black uppercase tracking-[0.4em] text-[10px]">SCALABLE_INITIATION</span>
                         <h2 className="text-4xl md:text-6xl font-black italic tracking-tighter uppercase leading-none">
@@ -513,8 +513,8 @@ function LandingPageContent() {
             </section>
 
             {/* --- SECTION 7.5: SUCCESS PROTOCOLS (New) --- */}
-            <section className="py-20 md:py-32 px-6 relative bg-white/[0.01]">
-                <div className="max-w-7xl mx-auto space-y-24">
+            <section className="py-8 md:py-12 px-6 relative bg-white/[0.01]">
+                <div className="max-w-7xl mx-auto space-y-16">
                     <div className="text-center space-y-4">
                         <span className="text-indigo-500 font-black uppercase tracking-[0.4em] text-[10px]">MISSION_ACCOMPLISHED</span>
                         <h2 className="text-4xl md:text-6xl font-black italic tracking-tighter uppercase leading-none">
@@ -553,23 +553,23 @@ function LandingPageContent() {
             </section>
 
             {/* --- SECTION 7.6: INDUSTRIAL SPECIFICATIONS (New) --- */}
-            <section className="py-20 md:py-32 px-6 border-y border-white/5 bg-[#050505] relative overflow-hidden">
+            <section className="py-8 md:py-12 px-6 border-y border-white/5 bg-[#050505] relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 pointer-events-none" />
-                <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-20 items-center relative z-10">
-                    <div className="space-y-12">
+                <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center relative z-10">
+                    <div className="space-y-10 text-left">
                         <div className="space-y-4">
                             <span className="text-indigo-500 font-black uppercase tracking-[0.4em] text-[10px]">TECHNICAL_HARDENING</span>
-                            <h2 className="text-4xl md:text-5xl font-black italic tracking-tighter uppercase leading-[0.85]">
-                                THE INDUSTRIAL <br /> <span className="text-gray-700">SPECIFICATION.</span>
+                            <h2 className="text-4xl md:text-5xl font-black italic tracking-tighter uppercase leading-none">
+                                THE INDUSTRIAL <span className="text-gray-700">SPECIFICATION.</span>
                             </h2>
                         </div>
-                        <div className="space-y-10">
+                        <div className="space-y-8">
                             <SpecItem title="Latency Management" desc="Average response time of 400ms across 20+ LLM providers using our Groq/Gemini hybrid layer." icon={<Zap size={20} />} />
                             <SpecItem title="Data Integrity" desc="Deterministic roadmap validation ensures 0% hallucination in project dependency chains." icon={<ShieldIcon size={20} />} />
                             <SpecItem title="Market Sync" desc="Real-time ingestion of 10k+ daily industry updates to recalibrate skill priorities." icon={<ActivityIcon size={20} />} />
                         </div>
                     </div>
-                    <div className="relative p-10 rounded-[4rem] bg-indigo-500/5 border border-indigo-500/20 shadow-3xl overflow-hidden group">
+                    <div className="relative p-8 rounded-[3rem] bg-indigo-500/5 border border-indigo-500/20 shadow-3xl overflow-hidden group text-left">
                         <div className="absolute top-0 right-0 p-10 opacity-10 group-hover:opacity-20 transition-opacity">
                             <Cog size={200} className="animate-spin-slow rotate-12 text-indigo-500/20" />
                         </div>
@@ -593,7 +593,7 @@ function LandingPageContent() {
 
 
             {/* --- SECTION 8: FAQ PROTOCOL --- */}
-            <section className="py-20 md:py-32 px-6 max-w-5xl mx-auto space-y-24">
+            <section className="py-8 md:py-12 px-6 max-w-5xl mx-auto space-y-16">
                 <div className="text-center space-y-4">
                     <span className="text-indigo-500 font-black uppercase tracking-[0.4em] text-[10px]">KNOWLEDGE_BASE</span>
                     <h2 className="text-4xl md:text-6xl font-black italic tracking-tighter uppercase leading-none">

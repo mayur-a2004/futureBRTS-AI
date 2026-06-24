@@ -7,17 +7,10 @@ export default function Careers() {
     const opacityHero = useTransform(scrollYProgress, [0, 0.2], [1, 0]);
 
     return (
-        <div className="py-32 px-6 max-w-7xl mx-auto text-center text-white space-y-60 font-sans overflow-x-hidden relative">
-
-            {/* --- TOP HUD DECORATION --- */}
-            <div className="fixed top-24 left-1/2 -translate-x-1/2 w-full max-w-5xl flex justify-between px-10 text-[8px] font-black uppercase tracking-[0.6em] text-gray-800 pointer-events-none z-0">
-                <div>PROTOCOL: RECRUITMENT_PHASE_09</div>
-                <div>SLOTS: LIMITED</div>
-                <div>CLEARANCE: LEVEL_4</div>
-            </div>
+        <div className="pt-16 pb-12 px-6 max-w-7xl mx-auto text-center text-white space-y-12 md:space-y-16 font-sans overflow-x-hidden relative">
 
             {/* --- SECTION 1: THE MISSION CALL --- */}
-            <section className="relative space-y-16">
+            <section className="relative space-y-12">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -29,22 +22,19 @@ export default function Careers() {
                         <div className="inline-flex items-center gap-4 px-6 py-2 rounded-full bg-indigo-500/5 border border-indigo-500/10 text-[10px] font-black uppercase tracking-[0.6em] text-indigo-400 backdrop-blur-md">
                             <Fingerprint size={14} className="animate-pulse" /> BIOMETRIC_RECRUIT_ACTIVE
                         </div>
-                        <h1 className="text-3xl md:text-5xl font-black leading-[0.8] tracking-tighter uppercase italic drop-shadow-[0_0_25px_rgba(168,85,247,0.3)]">
-                            JOIN THE <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-indigo-400 to-purple-400 animate-gradient-x">
-                                ARCHITECTS.
-                            </span>
+                        <h1 className="text-3xl md:text-5xl font-black leading-none tracking-tighter uppercase italic drop-shadow-[0_0_25px_rgba(168,85,247,0.3)]">
+                            JOIN THE <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-indigo-400 to-purple-400 animate-gradient-x">ARCHITECTS.</span>
                         </h1>
                     </div>
                 </motion.div>
 
-                <p className="text-lg md:text-xl text-gray-500 font-medium leading-relaxed max-w-5xl mx-auto border-y border-white/5 py-12 italic">
+                <p className="text-lg md:text-xl text-gray-500 font-medium leading-relaxed max-w-5xl mx-auto border-y border-white/5 py-10 italic">
                     "We are not looking for passive employees. We are recruiting rogue engineers and elite minds to build the core infrastructure of human achievement. Are you ready for <span className="text-white font-black italic">operational excellence?</span>"
                 </p>
             </section>
 
             {/* --- SECTION 2: THE 3-PROTOCOL VALUES --- */}
-            <section className="grid md:grid-cols-3 gap-12 text-left">
+            <section className="grid md:grid-cols-3 gap-8 text-left">
                 <RoboCultureCard
                     icon={<Hammer />}
                     title="SYSTEM_INTEGRITY"
@@ -70,20 +60,20 @@ export default function Careers() {
             </section>
 
             {/* --- SECTION 3: THE ENVIRONMENT HUD (Stats & Culture) --- */}
-            <section className="bg-white/[0.01] border border-white/5 rounded-[4rem] p-12 md:p-32 relative overflow-hidden group">
+            <section className="bg-white/[0.01] border border-white/5 rounded-[3rem] p-8 md:p-16 relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-purple-600/5 blur-[150px] -z-10 group-hover:opacity-100 transition-opacity duration-1000" />
 
-                <div className="grid lg:grid-cols-2 gap-32 items-center relative z-10">
-                    <div className="text-left space-y-16">
+                <div className="grid lg:grid-cols-2 gap-16 items-center relative z-10">
+                    <div className="text-left space-y-10">
                         <div className="space-y-6">
                             <h2 className="text-3xl md:text-4xl font-black tracking-tighter italic uppercase text-white leading-none">WORK_SPECS.</h2>
                             <div className="h-1.5 w-32 bg-purple-500" />
-                            <p className="text-xl text-gray-500 font-medium leading-relaxed">
+                            <p className="text-lg text-gray-500 font-medium leading-relaxed">
                                 Our operational environment is optimized for high-performance output. We provide the tools; you provide the brilliance.
                             </p>
                         </div>
 
-                        <div className="grid gap-10">
+                        <div className="grid gap-6">
                             <EnvSpec title="GLOBAL_REMOTE_SYNC" desc="Work from any sector on the planet. Fully asynchronous protocols enabled." />
                             <EnvSpec title="EQUITY_GENESIS" desc="Ownership stake for every core builder. We win as one collective unit." />
                             <EnvSpec title="NEURAL_UPGRADE_FIX" desc="Unlimited learning budget. We fund your specialized certifications." />
@@ -140,18 +130,18 @@ export default function Careers() {
             </div>
 
             {/* --- SECTION 5: THE UNKNOWN ENTITY --- */}
-            <div className="bg-white/[0.01] border border-white/5 rounded-[4rem] p-12 md:p-32 text-center space-y-12 relative overflow-hidden group">
+            <div className="bg-white/[0.01] border border-white/5 rounded-[3rem] p-8 md:p-16 text-center space-y-8 relative overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-500/5 to-transparent -z-10" />
                 <h3 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase leading-none text-white">PORTAL_NOT_ACTIVE?</h3>
-                <p className="text-xl text-gray-500 max-w-2xl mx-auto font-medium leading-relaxed italic border-x border-white/5 px-10">
+                <p className="text-lg text-gray-500 max-w-2xl mx-auto font-medium leading-relaxed italic border-x border-white/5 px-10">
                     "Extraordinary talent is hard to categorize. If you are the outlier we need, transmit your raw data to our core directly."
                 </p>
-                <div className="pt-10">
+                <div className="pt-6">
                     <Button className="px-20 py-10 bg-white text-black font-black uppercase tracking-[0.4em] text-xs rounded-3xl hover:bg-purple-600 hover:text-white transition-all shadow-2xl border-none">
                         TRANSMIT_DATA_SET
                     </Button>
                 </div>
-                <div className="flex justify-center gap-12 text-[10px] font-black uppercase tracking-[0.6em] text-gray-800 pt-10">
+                <div className="flex justify-center gap-12 text-[10px] font-black uppercase tracking-[0.6em] text-gray-800 pt-6">
                     <div>REPLY_LATENCY: {'<'} 24H</div>
                     <div>PRIORITY: CRITICAL</div>
                 </div>

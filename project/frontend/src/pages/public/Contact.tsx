@@ -5,17 +5,10 @@ import { motion, AnimatePresence } from "framer-motion"
 
 export default function Contact() {
     return (
-        <div className="py-32 px-6 max-w-7xl mx-auto text-white font-sans space-y-60 overflow-x-hidden relative">
-
-            {/* --- TOP HUD DECORATION --- */}
-            <div className="fixed top-24 left-1/2 -translate-x-1/2 w-full max-w-5xl flex justify-between px-10 text-[8px] font-black uppercase tracking-[0.6em] text-gray-800 pointer-events-none z-0">
-                <div>COMMS_ID: TERMINAL_77</div>
-                <div>SIGNAL_STRENGTH: 98%</div>
-                <div>ENCRYPTION: AES_X</div>
-            </div>
+        <div className="pt-16 pb-12 px-6 max-w-7xl mx-auto text-white font-sans space-y-12 md:space-y-16 overflow-x-hidden relative">
 
             {/* --- SECTION 1: THE COMMS HEADER --- */}
-            <section className="text-center max-w-5xl mx-auto space-y-16 relative">
+            <section className="text-center max-w-5xl mx-auto space-y-12 relative">
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-purple-600/5 blur-[150px] -z-10 animate-pulse" />
 
                 <motion.div
@@ -26,11 +19,8 @@ export default function Contact() {
                     <div className="inline-flex items-center gap-4 px-6 py-2 rounded-full bg-purple-500/5 border border-purple-500/10 backdrop-blur-xl text-[10px] font-black uppercase tracking-[0.6em] text-purple-400">
                         <Activity size={14} className="animate-pulse" /> SIGNAL_LIVE_STABLE
                     </div>
-                    <h1 className="text-3xl md:text-5xl font-black leading-[0.8] tracking-tighter uppercase italic drop-shadow-[0_0_20px_rgba(168,85,247,0.3)]">
-                        OPEN <br />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-indigo-500 to-purple-400 animate-gradient-x">
-                            PORTS.
-                        </span>
+                    <h1 className="text-3xl md:text-5xl font-black leading-none tracking-tighter uppercase italic drop-shadow-[0_0_20px_rgba(168,85,247,0.3)]">
+                        OPEN <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-indigo-500 to-purple-400 animate-gradient-x">PORTS.</span>
                     </h1>
                 </motion.div>
 
@@ -40,17 +30,17 @@ export default function Contact() {
             </section>
 
             {/* --- SECTION 2: THE TRANSMISSION TERMINAL (Layout) --- */}
-            <div className="grid lg:grid-cols-2 gap-32 items-start relative">
+            <div className="grid lg:grid-cols-2 gap-16 items-start relative">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_left,rgba(168,85,247,0.05)_0%,transparent_70%)] -z-10" />
 
                 {/* Left Side: Intel Matrix */}
-                <div className="space-y-32">
-                    <div className="space-y-16">
+                <div className="space-y-24">
+                    <div className="space-y-12 text-left">
                         <div className="space-y-4">
                             <h2 className="text-2xl md:text-4xl font-black tracking-tighter italic uppercase text-white leading-none underline decoration-purple-600/20 underline-offset-[20px]">DIRECT_SYNC.</h2>
                             <p className="text-[10px] font-black uppercase tracking-[0.4em] text-purple-500">Dedicated Communication Nodes</p>
                         </div>
-                        <div className="grid md:grid-cols-2 gap-6 pb-20">
+                        <div className="grid md:grid-cols-2 gap-6 pb-12">
                             <CommsSocket
                                 icon={<Headphones />}
                                 title="CORE_OPS"
@@ -83,7 +73,7 @@ export default function Contact() {
                     </div>
 
                     {/* FAQ HUD */}
-                    <div className="space-y-16">
+                    <div className="space-y-10 text-left">
                         <div className="space-y-4">
                             <h2 className="text-2xl md:text-4xl font-black tracking-tighter italic uppercase text-white leading-none underline decoration-purple-600/20 underline-offset-[20px]">DATA_QUERY.</h2>
                             <p className="text-[10px] font-black uppercase tracking-[0.4em] text-purple-500">Frequently Accessed Intel</p>
@@ -97,7 +87,7 @@ export default function Contact() {
                 </div>
 
                 {/* Right Side: Transmission Form */}
-                <div className="p-10 md:p-20 rounded-[4rem] bg-white/[0.01] border border-white/5 relative overflow-hidden group/form shadow-2xl">
+                <div className="p-8 md:p-12 rounded-[3rem] bg-white/[0.01] border border-white/5 relative overflow-hidden group/form shadow-2xl">
                     <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-purple-500 via-indigo-600 to-purple-500 opacity-50 group-hover:opacity-100 transition-opacity duration-1000" />
 
                     {/* Industrial Frame Details */}
@@ -106,7 +96,7 @@ export default function Contact() {
                         <Settings size={16} className="animate-spin-slow" />
                     </div>
 
-                    <div className="space-y-16 relative z-10">
+                    <div className="space-y-10 relative z-10 text-left">
                         <div className="space-y-4">
                             <h3 className="text-2xl md:text-3xl font-black italic tracking-tighter uppercase leading-none">TRANSMIT_PAYLOAD</h3>
                             <p className="text-gray-700 font-black uppercase text-[10px] tracking-[0.4em] flex items-center gap-3">
@@ -114,7 +104,7 @@ export default function Contact() {
                             </p>
                         </div>
 
-                        <form className="space-y-12" onSubmit={(e) => e.preventDefault()}>
+                        <form className="space-y-8" onSubmit={(e) => e.preventDefault()}>
                             <div className="grid md:grid-cols-2 gap-10">
                                 <div className="space-y-4 group/input">
                                     <label className="block text-[9px] font-black uppercase tracking-[0.5em] text-gray-700 group-focus-within/input:text-purple-400 transition-colors">OPERATOR_ID (NAME)</label>

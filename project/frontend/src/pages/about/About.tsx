@@ -7,16 +7,10 @@ export default function About() {
     const rotateValue = useTransform(scrollYProgress, [0, 1], [0, 360]);
 
     return (
-        <div className="py-32 px-6 max-w-7xl mx-auto space-y-60 text-white font-sans overflow-x-hidden relative">
-            {/* --- TOP HUD DECORATION --- */}
-            <div className="fixed top-24 left-1/2 -translate-x-1/2 w-full max-w-5xl flex justify-between px-10 text-[8px] font-black uppercase tracking-[0.6em] text-gray-800 pointer-events-none z-0">
-                <div>PROTOCOL_NAME: ABOUT_US</div>
-                <div>VERSION: 4.8.2_BETA</div>
-                <div>INTEL_STATUS: SYNCED</div>
-            </div>
+        <div className="pt-16 pb-12 px-6 max-w-7xl mx-auto space-y-12 md:space-y-16 text-white font-sans overflow-x-hidden relative">
 
             {/* --- SECTION 1: THE ORIGIN ENGINE --- */}
-            <section className="relative flex flex-col items-center text-center space-y-16">
+            <section className="relative flex flex-col items-center text-center space-y-12">
                 <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -36,22 +30,19 @@ export default function About() {
                         <div className="inline-flex items-center gap-4 px-6 py-2 rounded-full bg-white/[0.03] border border-white/5 backdrop-blur-xl text-[10px] font-black uppercase tracking-[0.5em] text-indigo-400">
                             <Fingerprint size={14} className="animate-pulse" /> NEURAL_IDENTITY_VALIDATED
                         </div>
-                        <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-[0.8] mb-8 uppercase italic">
-                            THE <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-500 to-cyan-400 animate-gradient-x drop-shadow-[0_0_20px_rgba(79,70,229,0.5)]">
-                                ARCHITECTS.
-                            </span>
+                        <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-none mb-8 uppercase italic">
+                            THE <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-500 to-cyan-400 animate-gradient-x drop-shadow-[0_0_20px_rgba(79,70,229,0.5)]">ARCHITECTS.</span>
                         </h1>
                     </div>
                 </motion.div>
 
-                <p className="text-base md:text-lg text-gray-400 font-medium leading-relaxed max-w-5xl mx-auto border-y border-white/5 py-12 px-10 italic">
+                <p className="text-base md:text-lg text-gray-400 font-medium leading-relaxed max-w-5xl mx-auto border-y border-white/5 py-10 px-10 italic">
                     "We didn't build just another website. We engineered a <span className="text-white font-black underline decoration-indigo-500 decoration-4 underline-offset-8">Robotic Prediction Engine</span> that solves the most complex variable in the universe: Human Potential."
                 </p>
             </section>
 
             {/* --- SECTION 2: THE 3-PILLAR PROTOCOL --- */}
-            <section className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
+            <section className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
                 <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(circle_at_right,rgba(79,70,229,0.05)_0%,transparent_70%)] -z-10" />
                 <RoboDetailCard
                     icon={<Cpu />}
@@ -75,21 +66,21 @@ export default function About() {
             </section>
 
             {/* --- SECTION 3: THE LABORATORY (History & Specs) --- */}
-            <section className="bg-white/[0.01] border border-white/5 rounded-[4rem] p-12 md:p-32 relative overflow-hidden group">
+            <section className="bg-white/[0.01] border border-white/5 rounded-[3rem] p-8 md:p-16 relative overflow-hidden group">
                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10" />
                 <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-600/10 blur-[150px] group-hover:bg-indigo-600/20 transition-all duration-1000" />
 
-                <div className="grid lg:grid-cols-2 gap-32 items-center relative z-10">
-                    <div className="space-y-16">
+                <div className="grid lg:grid-cols-2 gap-16 items-center relative z-10">
+                    <div className="space-y-10">
                         <div className="space-y-6">
                             <h2 className="text-2xl md:text-4xl font-black tracking-tighter italic uppercase text-white leading-none">SYSTEM_ORIGIN.</h2>
                             <div className="h-1 w-32 bg-indigo-500" />
-                            <p className="text-xl text-gray-500 font-medium leading-relaxed">
+                            <p className="text-lg text-gray-500 font-medium leading-relaxed">
                                 Born in 2025, developed by a guild of rogue architects who believed the traditional career path was fundamentally broken. We built the robot to mend the gap.
                             </p>
                         </div>
 
-                        <div className="grid gap-6">
+                        <div className="grid gap-4">
                             <SpecRow label="CORES_ACTIVE" value="4,096" />
                             <SpecRow label="THOUGHT_LATENCY" value="12ms" />
                             <SpecRow label="ETHICS_LAYER" value="v1.0_SIGNED" />
@@ -98,17 +89,17 @@ export default function About() {
                     </div>
 
                     <div className="relative">
-                        <div className="p-1 rounded-[3rem] bg-gradient-to-br from-indigo-500/10 via-white/5 to-purple-500/10">
-                            <div className="bg-white/[0.02] rounded-[2.9rem] p-16 flex flex-col items-center justify-center text-center space-y-10 border border-white/5">
+                        <div className="p-1 rounded-[3.5rem] bg-gradient-to-br from-indigo-500/10 via-white/5 to-purple-500/10">
+                            <div className="bg-white/[0.02] rounded-[3.4rem] p-8 md:p-12 flex flex-col items-center justify-center text-center space-y-6 border border-white/5">
                                 <motion.div
                                     animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
                                     transition={{ duration: 6, repeat: Infinity }}
                                 >
-                                    <Box size={100} className="text-indigo-500/40" />
+                                    <Box size={80} className="text-indigo-500/40" />
                                 </motion.div>
                                 <div className="space-y-2">
-                                    <h3 className="text-2xl font-black italic tracking-tighter uppercase">98% TRUST_RATING</h3>
-                                    <p className="text-xs text-indigo-400 font-black tracking-[0.4em] uppercase">Based on 50,000+ Deployments</p>
+                                    <h3 className="text-xl font-black italic tracking-tighter uppercase">98% TRUST_RATING</h3>
+                                    <p className="text-[10px] text-indigo-400 font-black tracking-[0.4em] uppercase">Based on 50,000+ Deployments</p>
                                 </div>
                                 <Button className="w-full bg-white text-black font-black uppercase tracking-widest text-[10px] py-8 rounded-2xl hover:bg-gray-200 transition-all shadow-2xl border-none">
                                     VERIFY_SYSTEM_DATA
@@ -120,12 +111,12 @@ export default function About() {
             </section>
 
             {/* --- SECTION 4: GLOBAL SYNC --- */}
-            <section className="max-w-4xl mx-auto text-center space-y-16">
+            <section className="max-w-4xl mx-auto text-center space-y-12">
                 <div className="space-y-4">
                     <span className="text-xs font-black text-indigo-500 uppercase tracking-[0.5em]">OPERATIONAL_FUTURE</span>
                     <h2 className="text-2xl md:text-4xl font-black tracking-tighter italic uppercase leading-none">AUTONOMOUS GROWTH.</h2>
                 </div>
-                <p className="text-xl text-gray-500 font-medium leading-relaxed italic border-l-4 border-indigo-500 pl-10 text-left">
+                <p className="text-lg text-gray-500 font-medium leading-relaxed italic border-l-4 border-indigo-500 pl-10 text-left">
                     "We are not here to teach. We are here to architect. We provide the map, you provide the momentum. Together, we are building a world where potential is never wasted due to poor navigation."
                 </p>
                 <div className="flex justify-center gap-12 text-gray-700 font-black text-[10px] uppercase tracking-[0.6em]">

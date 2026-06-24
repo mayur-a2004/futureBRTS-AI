@@ -4,17 +4,10 @@ import { Button } from "../../components/ui/Button"
 
 export default function HowItWorks() {
     return (
-        <div className="py-32 px-6 max-w-7xl mx-auto text-white font-sans space-y-60 relative overflow-hidden">
-
-            {/* --- TOP HUD --- */}
-            <div className="fixed top-24 left-1/2 -translate-x-1/2 w-full max-w-5xl flex justify-between px-10 text-[8px] font-black uppercase tracking-[0.6em] text-gray-800 pointer-events-none z-0">
-                <div>PROTOCOL: PIPELINE_DEPLOYMENT</div>
-                <div>LATENCY: 12ms</div>
-                <div>NODES: SYNCED</div>
-            </div>
+        <div className="pt-16 pb-12 px-6 max-w-7xl mx-auto text-white font-sans space-y-12 md:space-y-16 relative overflow-hidden">
 
             {/* --- SECTION 1: THE PIPELINE HEADER --- */}
-            <section className="text-center max-w-4xl mx-auto space-y-16 relative">
+            <section className="text-center max-w-4xl mx-auto space-y-12 relative">
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -25,16 +18,13 @@ export default function HowItWorks() {
                         <div className="inline-flex items-center gap-3 px-6 py-2 rounded-full bg-white/[0.03] border border-white/5 backdrop-blur-xl text-[10px] font-black uppercase tracking-[0.5em] text-indigo-400">
                             <Settings size={14} className="animate-spin-slow" /> SYSTEM_ORCHESTRATION_LOADED
                         </div>
-                        <h1 className="text-4xl md:text-6xl font-black leading-[0.8] tracking-tighter uppercase italic drop-shadow-[0_0_20px_rgba(79,70,229,0.3)]">
-                            THE <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-500 to-cyan-400 animate-gradient-x">
-                                PROTOCOL.
-                            </span>
+                        <h1 className="text-4xl md:text-6xl font-black leading-none tracking-tighter uppercase italic drop-shadow-[0_0_20px_rgba(79,70,229,0.3)]">
+                            THE <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-500 to-cyan-400 animate-gradient-x">PROTOCOL.</span>
                         </h1>
                     </div>
                 </motion.div>
 
-                <p className="text-xl text-gray-500 font-medium leading-relaxed max-w-3xl mx-auto border-y border-white/5 py-10 italic">
+                <p className="text-xl text-gray-500 font-medium leading-relaxed max-w-3xl mx-auto border-y border-white/5 py-8 italic">
                     "From raw ambition to operational reality. We take your intent and process it through a deterministic 4-stage deployment pipeline."
                 </p>
             </section>
@@ -44,7 +34,7 @@ export default function HowItWorks() {
                 {/* Connection Spine */}
                 <div className="absolute left-10 md:left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-indigo-500 via-purple-500 to-transparent opacity-20 hidden md:block" />
 
-                <div className="space-y-40 relative z-10">
+                <div className="space-y-16 md:space-y-24 relative z-10">
                     <PipelineStep
                         num="01"
                         title="INPUT_CAPTURE"
@@ -81,18 +71,18 @@ export default function HowItWorks() {
             </section>
 
             {/* --- SECTION 3: THE FEEDBACK LOOP (3D Card) --- */}
-            <section className="bg-white/[0.01] border border-white/5 rounded-[4rem] p-12 md:p-32 grid lg:grid-cols-2 gap-32 items-center relative overflow-hidden group">
+            <section className="bg-white/[0.01] border border-white/5 rounded-[3rem] p-8 md:p-16 grid lg:grid-cols-2 gap-16 items-center relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-indigo-500/10 blur-[150px] -z-10 group-hover:opacity-100 opacity-50 transition-opacity" />
 
-                <div className="space-y-12">
+                <div className="space-y-10 text-left">
                     <div className="space-y-4">
                         <h2 className="text-2xl md:text-4xl font-black tracking-tighter italic uppercase text-white leading-none">LOOP_SYNC.</h2>
                         <p className="text-xs font-black uppercase tracking-[0.4em] text-indigo-500">Autonomous Recalibration Cycle</p>
                     </div>
-                    <p className="text-xl text-gray-400 font-medium leading-relaxed">
+                    <p className="text-lg text-gray-400 font-medium leading-relaxed">
                         The system never stops planning. It monitors your velocity and the market's evolution 24/7. If a skill becomes obsolete or you move faster than expected, the roadmap <span className="text-white font-black italic">self-heals.</span>
                     </p>
-                    <div className="grid gap-6 border-l-2 border-indigo-500/20 pl-8">
+                    <div className="grid gap-4 border-l-2 border-indigo-500/20 pl-8">
                         <LoopFeature title="Real-time Industry Ingest" />
                         <LoopFeature title="Performance Metric Tracking" />
                         <LoopFeature title="Logic-Based Priority Shift" />
@@ -103,17 +93,17 @@ export default function HowItWorks() {
                     <motion.div
                         whileHover={{ rotateY: 20, rotateX: 10 }}
                         transition={{ type: "spring", stiffness: 100 }}
-                        className="w-full h-full rounded-[3rem] bg-white/[0.02] border border-white/10 shadow-[0_50px_80px_rgba(0,0,0,0.5)] flex flex-col items-center justify-center p-16 space-y-10 border-indigo-500/20"
+                        className="w-full h-full rounded-[3rem] bg-white/[0.02] border border-white/10 shadow-[0_50px_80px_rgba(0,0,0,0.5)] flex flex-col items-center justify-center p-8 space-y-6 border-indigo-500/20"
                     >
                         <motion.div
                             animate={{ rotate: 360 }}
                             transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-                            className="w-48 h-48 rounded-full border border-dashed border-indigo-500/40 flex items-center justify-center"
+                            className="w-36 h-36 rounded-full border border-dashed border-indigo-500/40 flex items-center justify-center"
                         >
-                            <Zap size={60} className="text-white animate-pulse" />
+                            <Zap size={40} className="text-white animate-pulse" />
                         </motion.div>
                         <div className="space-y-2 text-center">
-                            <h3 className="text-2xl font-black italic tracking-tighter uppercase text-white">AUTONOMOUS_READY</h3>
+                            <h3 className="text-xl font-black italic tracking-tighter uppercase text-white">AUTONOMOUS_READY</h3>
                             <p className="text-[10px] font-black uppercase text-gray-700 tracking-[0.3em]">System Health: Optimal</p>
                         </div>
                         <div className="flex gap-4">
@@ -126,7 +116,7 @@ export default function HowItWorks() {
             </section>
 
             {/* --- SECTION 4: CALL TO ACTION --- */}
-            <section className="text-center py-40 space-y-16">
+            <section className="text-center py-16 md:py-24 space-y-12">
                 <h3 className="text-2xl md:text-4xl font-black italic uppercase tracking-tighter text-gray-800">READY TO DEPLOY UNIT?</h3>
                 <div className="flex flex-col md:flex-row justify-center gap-6">
                     <Button className="px-16 py-10 bg-indigo-600 text-white font-black uppercase tracking-[0.4em] text-xs rounded-2xl hover:bg-white hover:text-black transition-all hover:scale-110 shadow-[0_0_50px_rgba(79,70,229,0.5)] border-none">
@@ -139,7 +129,7 @@ export default function HowItWorks() {
             </section>
 
             {/* --- SECTION 5: TECHNICAL DEPTH (The Spec) --- */}
-            <section className="py-40 px-6 max-w-7xl mx-auto space-y-32">
+            <section className="py-16 md:py-24 px-6 max-w-7xl mx-auto space-y-16 md:space-y-24">
                 <div className="text-center space-y-4">
                     <span className="text-indigo-500 font-black uppercase tracking-[0.4em] text-[10px]">under_the_hood</span>
                     <h2 className="text-4xl md:text-6xl font-black italic tracking-tighter uppercase leading-none">
@@ -147,7 +137,7 @@ export default function HowItWorks() {
                     </h2>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-16">
+                <div className="grid md:grid-cols-2 gap-12">
                     <TechSpec
                         title="Multimodal Parsing"
                         desc="We don't just read text. Our engine analyzes PDFs, images, and code repositories to build a 360-degree view of your current expertise."
@@ -172,10 +162,10 @@ export default function HowItWorks() {
             </section>
 
             {/* --- SECTION 6: RECALIBRATION DEMO (Visual) --- */}
-            <section className="py-40 relative group bg-indigo-600/5 rounded-[5rem] border border-white/5 mx-6">
-                <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-20 p-12 md:p-24">
-                    <div className="md:w-1/2 space-y-8">
-                        <h2 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase leading-tight text-white">RE-ROUTING <br /> <span className="text-indigo-400">ACTIVE.</span></h2>
+            <section className="py-16 md:py-24 relative group bg-indigo-600/5 rounded-[3rem] border border-white/5 mx-6">
+                <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-12 p-8 md:p-16">
+                    <div className="md:w-1/2 space-y-8 text-left">
+                        <h2 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase leading-none text-white">RE-ROUTING <span className="text-indigo-400">ACTIVE.</span></h2>
                         <p className="text-lg text-gray-500 font-medium leading-relaxed italic">
                             "In a global industry, stability is a myth. Our engine is built to embrace volatility. When the market shifts, we re-architect your future in milliseconds."
                         </p>

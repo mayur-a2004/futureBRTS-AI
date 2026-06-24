@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/Button"
 
 export default function Services() {
     return (
-        <div className="py-32 px-6 max-w-7xl mx-auto space-y-60 text-white font-sans overflow-x-hidden relative">
+        <div className="pt-16 pb-12 px-6 max-w-7xl mx-auto space-y-12 md:space-y-16 text-white font-sans overflow-x-hidden relative">
 
             {/* --- GLOBAL SCANOVERLAY --- */}
             <div className="fixed inset-0 pointer-events-none z-[-1] opacity-[0.02]">
@@ -12,7 +12,7 @@ export default function Services() {
             </div>
 
             {/* --- SECTION 1: MODULE SELECTION --- */}
-            <section className="text-center max-w-5xl mx-auto space-y-16 relative">
+            <section className="text-center max-w-5xl mx-auto space-y-12 relative">
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -21,11 +21,8 @@ export default function Services() {
                     <div className="inline-flex items-center gap-3 px-6 py-2 rounded-full bg-cyan-500/5 border border-cyan-500/10 text-[10px] font-black uppercase tracking-[0.6em] text-cyan-400 backdrop-blur-md">
                         <Activity size={14} className="animate-pulse" /> SYSTEM_MODULES_ONLINE
                     </div>
-                    <h1 className="text-4xl md:text-6xl font-black leading-[0.8] tracking-tighter uppercase italic drop-shadow-[0_0_20px_rgba(34,211,238,0.3)]">
-                        CORE <br />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-indigo-500 to-purple-500 animate-gradient-x">
-                            ENGINES.
-                        </span>
+                    <h1 className="text-4xl md:text-6xl font-black leading-none tracking-tighter uppercase italic drop-shadow-[0_0_20px_rgba(34,211,238,0.3)]">
+                        CORE <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-indigo-500 to-purple-500 animate-gradient-x">ENGINES.</span>
                     </h1>
                 </motion.div>
 
@@ -93,17 +90,17 @@ export default function Services() {
             </section>
 
             {/* --- SECTION 3: DEEP TECH HUD --- */}
-            <section className="bg-white/[0.01] border border-white/5 rounded-[4rem] p-12 md:p-32 relative overflow-hidden group">
+            <section className="bg-white/[0.01] border border-white/5 rounded-[3rem] p-8 md:p-16 relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-cyan-500/10 blur-[150px] -z-10" />
 
-                <div className="grid lg:grid-cols-2 gap-32 items-center relative z-10">
-                    <div className="space-y-12">
+                <div className="grid lg:grid-cols-2 gap-16 items-center relative z-10">
+                    <div className="space-y-10 text-left">
                         <div className="space-y-4">
                             <h2 className="text-2xl md:text-4xl font-black tracking-tighter italic uppercase text-white leading-none">TECH_SPECS.</h2>
                             <p className="text-xs font-black uppercase tracking-[0.4em] text-cyan-500">Universal Engine Features</p>
                         </div>
 
-                        <div className="grid gap-10">
+                        <div className="grid gap-8">
                             <DeepFeature
                                 icon={<Terminal />}
                                 title="Deterministic Scheduling"
@@ -123,7 +120,7 @@ export default function Services() {
                     </div>
 
                     <div className="relative aspect-square max-w-md mx-auto">
-                        <div className="absolute inset-0 bg-white shadow-[0_0_100px_rgba(255,255,255,0.05)] rounded-[3rem] p-12 flex flex-col items-center justify-center text-center space-y-10 group-hover:rotate-3 transition-transform duration-700 bg-white/[0.01] border border-white/5">
+                        <div className="absolute inset-0 bg-white shadow-[0_0_100px_rgba(255,255,255,0.05)] rounded-[3rem] p-8 flex flex-col items-center justify-center text-center space-y-6 group-hover:rotate-3 transition-transform duration-700 bg-white/[0.01] border border-white/5">
                             <div className="w-24 h-1 bg-cyan-500/50" />
                             <h3 className="text-2xl font-black italic tracking-tighter uppercase leading-tight">READY TO <br /> INITIALIZE <br /> <span className="text-cyan-400">MODULE?</span></h3>
                             <Button className="w-full h-24 bg-white text-black font-black uppercase tracking-widest text-xs rounded-2xl hover:bg-cyan-50 transition-all shadow-2xl border-none">
@@ -135,7 +132,7 @@ export default function Services() {
             </section>
 
             {/* --- SECTION 4: SYSTEM STATS --- */}
-            <section className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-5xl mx-auto pt-20 border-t border-white/5">
+            <section className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-5xl mx-auto pt-16 border-t border-white/5">
                 <MiniStat label="THROUGHPUT" value="4.2 GB/S" />
                 <MiniStat label="AVAILABILITY" value="99.99%" />
                 <MiniStat label="NODES_LINKED" value="12,042" />
@@ -143,7 +140,7 @@ export default function Services() {
             </section>
 
             {/* --- SECTION 5: THE COMPARISON MATRIX (Differentiator) --- */}
-            <section className="py-40 space-y-24">
+            <section className="py-16 md:py-24 space-y-16">
                 <div className="text-center space-y-4">
                     <span className="text-cyan-500 font-black uppercase tracking-[0.4em] text-[10px]">competitive_advantage</span>
                     <h2 className="text-4xl md:text-6xl font-black italic tracking-tighter uppercase leading-none">
@@ -155,9 +152,9 @@ export default function Services() {
                     <table className="w-full border-collapse">
                         <thead>
                             <tr className="border-b border-white/10 text-[10px] font-black uppercase tracking-widest text-gray-500">
-                                <th className="py-8 text-left">Industrial Feature</th>
-                                <th className="py-8 text-center text-gray-700">Traditional Mentor</th>
-                                <th className="py-8 text-center text-cyan-400 bg-cyan-500/5">Future BRTS (AI)</th>
+                                <th className="py-6 text-left">Industrial Feature</th>
+                                <th className="py-6 text-center text-gray-700">Traditional Mentor</th>
+                                <th className="py-6 text-center text-cyan-400 bg-cyan-500/5">Future BRTS (AI)</th>
                             </tr>
                         </thead>
                         <tbody className="text-sm font-medium italic">
@@ -173,15 +170,15 @@ export default function Services() {
             </section>
 
             {/* --- SECTION 6: REGIONAL DOMINANCE (The Map) --- */}
-            <section className="py-40 relative group">
+            <section className="py-16 md:py-24 relative group">
                 <div className="absolute inset-0 bg-cyan-500/5 blur-[100px] -z-10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="max-w-5xl mx-auto flex flex-col items-center text-center space-y-16">
+                <div className="max-w-5xl mx-auto flex flex-col items-center text-center space-y-12">
                     <div className="space-y-4">
                         <h2 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase leading-tight">GLOBAL <span className="text-gray-700">PRESENCE.</span></h2>
                         <p className="text-sm text-gray-500 font-bold uppercase tracking-[0.3em]">Our neural nodes are distributed globally for zero latency.</p>
                     </div>
 
-                    <div className="relative w-full aspect-video bg-white/[0.01] border border-white/5 rounded-[4rem] p-12 overflow-hidden flex items-center justify-center">
+                    <div className="relative w-full aspect-video bg-white/[0.01] border border-white/5 rounded-[3rem] p-8 overflow-hidden flex items-center justify-center">
                         <Globe size={300} className="text-white/5 animate-pulse-slow" />
                         <MapNode x="30%" y="40%" city="San Francisco" />
                         <MapNode x="70%" y="45%" city="London" />
@@ -193,7 +190,7 @@ export default function Services() {
             </section>
 
             {/* --- SECTION 7: SUCCESS LIFECYCLE --- */}
-            <section className="py-40 space-y-24">
+            <section className="py-16 md:py-24 space-y-16">
                 <div className="text-center space-y-4">
                     <span className="text-cyan-500 font-black uppercase tracking-[0.4em] text-[10px]">operational_arc</span>
                     <h2 className="text-4xl md:text-6xl font-black italic tracking-tighter uppercase leading-none">
