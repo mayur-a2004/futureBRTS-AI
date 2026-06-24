@@ -2,6 +2,7 @@ import { Outlet, useLocation, Link, useNavigate } from "react-router-dom"
 import { motion, useScroll, useTransform } from "framer-motion"
 import { Button } from "@/components/ui/Button"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
+import { Twitter, Linkedin, Github, Instagram } from "lucide-react"
 
 export default function PublicLayout() {
     const { scrollY } = useScroll();
@@ -43,6 +44,8 @@ export default function PublicLayout() {
                 <main className="relative z-10">
                     <Outlet />
                 </main>
+
+                <Footer />
             </div>
         </ErrorBoundary>
     )
@@ -55,5 +58,78 @@ function NavLink({ to, label, current }: { to: string, label: string, current: s
             {label}
             <span className={`absolute -bottom-1 left-0 h-0.5 bg-indigo-500 transition-all duration-300 ${isActive ? 'w-full' : 'w-0 group-hover:w-full'}`} />
         </Link>
+    )
+}
+
+function Footer() {
+    const navigate = useNavigate();
+    return (
+        <footer className="py-20 px-6 border-t border-white/5 bg-[#050505] relative overflow-hidden font-inter text-white mt-12">
+            {/* Ambient background glow */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vw] bg-[radial-gradient(circle_at_center,rgba(79,70,229,0.03)_0%,transparent_70%)] blur-[100px] pointer-events-none" />
+            
+            <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12 md:gap-16 relative z-10">
+                <div className="space-y-6 col-span-1 md:col-span-2">
+                    <h3 className="text-2xl font-black italic uppercase tracking-tighter flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-black text-xs not-italic text-white">F</span>
+                        FUTURE <span className="text-indigo-500">BRTS</span>
+                    </h3>
+                    <p className="text-sm text-gray-400 font-medium max-w-sm leading-relaxed text-left">
+                        Architecting the future using humanized intelligence and robotic precision. Designed by Mayur Savaliya for industry legends.
+                    </p>
+                    <div className="flex gap-4">
+                        <SocialIcon icon={<Twitter size={16} />} />
+                        <SocialIcon icon={<Linkedin size={16} />} />
+                        <SocialIcon icon={<Github size={16} />} />
+                        <SocialIcon icon={<Instagram size={16} />} />
+                    </div>
+                </div>
+
+                <div className="space-y-6 text-left">
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400">NAVIGATION</h4>
+                    <ul className="space-y-3">
+                        <FooterLink label="Explore Modules" onClick={() => navigate('/')} />
+                        <FooterLink label="How It Works" onClick={() => navigate('/how-it-works')} />
+                        <FooterLink label="Pricing Tiers" onClick={() => navigate('/pricing')} />
+                        <FooterLink label="Neural Support" onClick={() => navigate('/contact')} />
+                    </ul>
+                </div>
+
+                <div className="space-y-6 text-left">
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400">LEGAL_CORE</h4>
+                    <ul className="space-y-3 text-left">
+                        <FooterLink label="Privacy Protocol" onClick={() => navigate('/privacy')} />
+                        <FooterLink label="Terms of Access" onClick={() => navigate('/terms')} />
+                        <FooterLink label="Cookie Data" onClick={() => {}} />
+                    </ul>
+                </div>
+            </div>
+            
+            <div className="max-w-7xl mx-auto pt-12 border-t border-white/5 mt-16 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-black uppercase tracking-widest text-gray-500">
+                <div>FUTURE BRTS © 2026. ALL RIGHTS RESERVED.</div>
+                <div className="flex items-center gap-4">
+                    <span>VERSION: 4.2.0-ULTRA</span>
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                </div>
+            </div>
+        </footer>
+    );
+}
+
+function SocialIcon({ icon }: { icon: any }) {
+    return (
+        <a href="#" className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:bg-indigo-500 hover:text-white hover:border-indigo-500 transition-all">
+            {icon}
+        </a>
+    )
+}
+
+function FooterLink({ label, onClick }: { label: string, onClick?: () => void }) {
+    return (
+        <li>
+            <button onClick={onClick} className="text-xs font-semibold text-gray-400 hover:text-white transition-colors uppercase tracking-wider text-left">
+                {label}
+            </button>
+        </li>
     )
 }

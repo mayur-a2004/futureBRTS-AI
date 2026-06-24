@@ -9,7 +9,6 @@ import {
     ArrowRight, CheckCircle, Globe, Zap,
     Cpu, Rocket, Terminal, Activity,
     Shield, Star, ChevronDown,
-    Instagram, Twitter, Linkedin, Github,
     Database, Brain, Workflow, Code,
     MessageSquare, Lock, Sparkles, TrendingUp,
     Quote, Cog
@@ -622,49 +621,7 @@ function LandingPageContent() {
                 </div>
             </section>
 
-            {/* --- FOOTER: SYSTEM TERMINUS --- */}
-            <footer className="py-20 px-6 border-t border-white/5 bg-[#050505] relative overflow-hidden">
-                <div className="max-w-7xl mx-auto grid md:grid-cols-4 gap-16 relative z-10">
-                    <div className="space-y-8 col-span-1 md:col-span-2">
-                        <h3 className="text-3xl font-black italic uppercase italic tracking-tighter">FUTURE <span className="text-indigo-500">BRTS</span></h3>
-                        <p className="text-sm text-gray-500 font-medium max-w-sm leading-relaxed">
-                            Architecting the future using humanized intelligence and robotic precision. Designed by Mayur Savaliya for industry legends.
-                        </p>
-                        <div className="flex gap-6">
-                            <SocialIcon icon={<Twitter size={18} />} />
-                            <SocialIcon icon={<Linkedin size={18} />} />
-                            <SocialIcon icon={<Github size={18} />} />
-                            <SocialIcon icon={<Instagram size={18} />} />
-                        </div>
-                    </div>
 
-                    <div className="space-y-8">
-                        <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-500">NAVIGATION</h4>
-                        <ul className="space-y-4">
-                            <FooterLink label="Explore Modules" onClick={() => window.scrollTo({ top: 1500, behavior: 'smooth' })} />
-                            <FooterLink label="How It Works" onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })} />
-                            <FooterLink label="Pricing Tiers" onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} />
-                            <FooterLink label="Neural Support" onClick={() => navigate('/contact')} />
-                        </ul>
-                    </div>
-
-                    <div className="space-y-8">
-                        <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-500">LEGAL_CORE</h4>
-                        <ul className="space-y-4">
-                            <FooterLink label="Privacy Protocol" />
-                            <FooterLink label="Terms of Access" />
-                            <FooterLink label="Cookie Data" />
-                        </ul>
-                    </div>
-                </div>
-                <div className="max-w-7xl mx-auto pt-20 border-t border-white/5 mt-20 flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-gray-700">
-                    <div>FUTURE BRTS © 2026. ALL RIGHTS RESERVED.</div>
-                    <div className="flex gap-4">
-                        <span>VERSION: 4.2.0-ULTRA</span>
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    </div>
-                </div>
-            </footer>
         </div>
     )
 }
@@ -757,22 +714,7 @@ function FAQItem({ q, a }: any) {
     )
 }
 
-function SocialIcon({ icon }: any) {
-    return (
-        <div className="p-3 bg-white/5 border border-white/10 rounded-xl text-gray-500 hover:text-indigo-400 hover:border-indigo-400/30 transition-all cursor-pointer">
-            {icon}
-        </div>
-    )
-}
 
-function FooterLink({ label, onClick }: any) {
-    return (
-        <li onClick={onClick} className="text-sm font-bold text-gray-700 hover:text-indigo-400 transition-colors uppercase italic tracking-widest cursor-pointer group flex items-center gap-2">
-            <div className="w-1 h-1 bg-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-            {label}
-        </li>
-    )
-}
 
 function TestimonialCard({ name, role, content, stat }: any) {
     return (

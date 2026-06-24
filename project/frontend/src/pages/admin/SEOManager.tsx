@@ -38,7 +38,15 @@ export default function SEOManager() {
             });
             const data = await res.json();
             if (data.success) {
-                setAnalytics(data.analytics);
+                const rawKeywords = data.currentKeywords || data.analytics || [];
+                const mappedKeywords = rawKeywords.map((k: any) => ({
+                    keyword: k.keyword || k._id || 'Unknown',
+                    volume: k.volume || 0,
+                    rank: k.ranking || k.rank || 1,
+                    trend: k.trend === 'Increasing' || k.trend === 'up' ? 'up' : 'down',
+                    cpc: k.cpc || '1.20'
+                }));
+                setAnalytics(mappedKeywords);
             }
         } catch (err) {
             console.error(err);
