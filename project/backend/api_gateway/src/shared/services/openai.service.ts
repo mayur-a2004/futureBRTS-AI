@@ -1333,6 +1333,11 @@ JSON Schema:
         } catch (error) {
             return "New Chat";
         }
+    },
+
+    extractIntent: async (message: string, attachmentPath?: string | null, attachmentMeta?: any | null): Promise<string> => {
+        console.log(`[AI SERVICE] extractIntent called for: ${message.substring(0, 50)}`);
+        return message;
     }
 };
 
