@@ -11,12 +11,24 @@ let isConnected = false;
 export const connectDB = async () => {
     let uri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/fueture_db';
 
-    // 👉 COMPULSORY: Ensure the database is always 'fueture_db'
-    if (!uri.includes('/fueture_db')) {
+    // Parse the connection URI to check if a database is specified.
+    // If no database is specified, we default to 'fueture_db'.
+    const connectionParts = uri.split('?')[0];
+    const hostAndDb = connectionParts.split('://')[1] || '';
+    const slashIndex = hostAndDb.indexOf('/');
+    const dbPath = slashIndex !== -1 ? hostAndDb.substring(slashIndex + 1) : '';
+
+    if (!dbPath.trim()) {
         const baseUrl = uri.includes('?') ? uri.split('?')[0] : uri;
         const options = uri.includes('?') ? `?${uri.split('?')[1]}` : '';
         const cleanBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
         uri = `${cleanBase}fueture_db${options}`;
+    } else {
+        // If there's a double-slash database name issue (like "futurebilder_tool/fueture_db" from previous logic), fix it
+        if (dbPath.includes('/')) {
+            const cleanDbName = dbPath.split('/')[0];
+            uri = uri.replace(dbPath, cleanDbName);
+        }
     }
 
     mongoose.set('strictQuery', false);
