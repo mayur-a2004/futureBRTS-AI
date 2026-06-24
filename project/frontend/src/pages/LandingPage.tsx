@@ -1,4 +1,4 @@
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/Button"
 import { useNavigate } from "react-router-dom"
@@ -85,89 +85,92 @@ function LandingPageContent() {
                     </svg>
                 </motion.div>
 
-                <div className="max-w-7xl w-full flex flex-col items-center relative z-10 space-y-16">
-                    {/* MAIN TITLE WITH GLITCH EFFECT */}
-                    <div className="relative space-y-4 px-2">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-                            className="text-center"
-                        >
-                            <h1 className="text-4xl md:text-7xl font-black leading-[0.9] md:leading-none tracking-tighter uppercase italic select-none">
-                                <span className="relative block text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
-                                    FUTURE
-                                    <span className="absolute -top-1 -right-3 text-[10px] font-mono not-italic text-indigo-500 opacity-50 tracking-normal">TM</span>
-                                </span>
-                                <span className="relative inline-block text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-500 to-cyan-400 animate-gradient-x drop-shadow-[0_0_20px_rgba(79,70,229,0.5)]">
-                                    BRTS
-                                </span>
-                            </h1>
-                        </motion.div>
+                <div className="max-w-7xl w-full grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center relative z-10">
+                    {/* Left Column: Title + Command Deck */}
+                    <div className="lg:col-span-7 flex flex-col space-y-10 text-left items-start w-full">
+                        {/* Title & Badge */}
+                        <div className="relative space-y-4 w-full">
+                            <motion.div
+                                initial={{ opacity: 0, x: -30 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+                            >
+                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 mb-2">
+                                    <Sparkles size={12} className="text-indigo-400 animate-pulse" />
+                                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-300">Robotic Career Command</span>
+                                </div>
+                                <h1 className="text-4xl md:text-6xl lg:text-7xl font-black leading-[0.95] tracking-tighter uppercase italic select-none">
+                                    <span className="relative block text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+                                        FUTURE
+                                        <span className="absolute -top-1 -right-3 text-[10px] font-mono not-italic text-indigo-500 opacity-50 tracking-normal">TM</span>
+                                    </span>
+                                    <span className="relative inline-block text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-500 to-cyan-400 animate-gradient-x drop-shadow-[0_0_20px_rgba(79,70,229,0.5)]">
+                                        BRTS
+                                    </span>
+                                </h1>
+                            </motion.div>
 
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.5 }}
+                                className="flex justify-start items-center gap-4 py-2"
+                            >
+                                <span className="text-indigo-400 font-black uppercase tracking-[0.4em] text-[10px] md:text-xs animate-pulse whitespace-nowrap">ARCHITECT YOUR FUTURE</span>
+                                <div className="h-px flex-1 bg-gradient-to-r from-indigo-500/50 to-transparent" />
+                            </motion.div>
+                        </div>
+
+                        {/* Command Deck (Input Box) */}
                         <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.5 }}
-                            className="flex justify-center items-center gap-2 md:gap-4 py-4"
+                            initial={{ opacity: 0, y: 30 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.8, duration: 0.8 }}
+                            className="w-full relative group"
                         >
-                            <div className="h-px w-12 md:w-20 bg-gradient-to-r from-transparent to-indigo-500/50" />
-                            <span className="text-indigo-400 font-black uppercase tracking-[0.4em] md:tracking-[0.8em] text-[10px] md:text-md animate-pulse whitespace-nowrap">ARCHITECT YOUR FUTURE</span>
-                            <div className="h-px w-12 md:w-20 bg-gradient-to-l from-transparent to-indigo-500/50" />
+                            {/* Robotic Frame Surround */}
+                            <div className="absolute -inset-4 pointer-events-none opacity-40 group-hover:opacity-100 transition-opacity duration-700">
+                                <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-indigo-500 rounded-tl-2xl" />
+                                <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-indigo-500 rounded-tr-2xl" />
+                                <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-indigo-500 rounded-bl-2xl" />
+                                <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-indigo-500 rounded-br-2xl" />
+                            </div>
+
+                            {/* Input Core */}
+                            <div className="relative bg-[#050505] p-1 rounded-2xl shadow-[0_0_50px_rgba(79,70,229,0.1)] group-hover:shadow-[0_0_80px_rgba(79,70,229,0.15)] transition-all duration-1000 border border-white/5">
+                                <div className="bg-gradient-to-br from-indigo-500/5 via-transparent to-purple-500/5 rounded-2xl p-4 md:p-6 space-y-4">
+                                    <div className="flex flex-col gap-4">
+                                        <div className="flex-1 w-full space-y-2">
+                                            <div className="flex items-center gap-2 text-indigo-500/50 font-black text-[9px] uppercase tracking-widest pl-1">
+                                                <Terminal size={10} /> NEURAL_INPUT_ACTIVE
+                                            </div>
+                                            <textarea
+                                                rows={2}
+                                                value={prompt}
+                                                onChange={(e) => setPrompt(e.target.value)}
+                                                placeholder="What is your ultimate career milestone?"
+                                                className="w-full bg-transparent border-none p-0 text-sm md:text-base text-white focus:ring-0 outline-none font-bold tracking-tight placeholder:text-gray-800 resize-none min-h-[50px] scrollbar-hide italic leading-snug"
+                                            />
+                                        </div>
+                                        <div className="w-full flex justify-end">
+                                            <Button
+                                                onClick={handleStart}
+                                                className="w-full md:w-auto group/btn h-12 px-6 bg-white text-black hover:bg-indigo-50 rounded-xl flex items-center justify-center gap-2 shadow-xl transition-all hover:scale-[1.02] active:scale-95 border-none"
+                                            >
+                                                <Zap size={14} className="text-indigo-600 transition-transform group-hover/btn:scale-125" />
+                                                <span className="font-black uppercase tracking-[0.2em] text-[9px]">START CHAT</span>
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </motion.div>
                     </div>
 
-                    {/* THE COMMAND DECK (Input Area) */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 40 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.8, duration: 0.8 }}
-                        className="w-full max-w-5xl relative group"
-                    >
-                        {/* Robotic Frame Surround */}
-                        <div className="absolute -inset-8 pointer-events-none opacity-40 group-hover:opacity-100 transition-opacity duration-700">
-                            <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-indigo-500 rounded-tl-3xl" />
-                            <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-indigo-500 rounded-tr-3xl" />
-                            <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-indigo-500 rounded-bl-3xl" />
-                            <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-indigo-500 rounded-br-3xl" />
-
-                            {/* Measured Tech Lines */}
-                            <div className="absolute top-1/2 left-0 w-4 h-px bg-indigo-500" />
-                            <div className="absolute top-1/2 right-0 w-4 h-px bg-indigo-500" />
-                            <div className="absolute left-1/2 top-0 w-px h-4 bg-indigo-500" />
-                            <div className="absolute left-1/2 bottom-0 w-px h-4 bg-indigo-500" />
-                        </div>
-
-                        {/* Input Core */}
-                        <div className="relative bg-[#050505] p-1 rounded-3xl md:rounded-[2.5rem] shadow-[0_0_100px_rgba(79,70,229,0.1)] group-hover:shadow-[0_0_150px_rgba(79,70,229,0.2)] transition-all duration-1000 border border-white/5 mx-2">
-                            <div className="bg-gradient-to-br from-indigo-500/10 via-transparent to-purple-500/10 rounded-[1.3rem] md:rounded-[2.3rem] p-4 md:p-10 space-y-6 md:space-y-8">
-                                <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start md:items-center">
-                                    <div className="flex-1 w-full space-y-2 md:space-y-4">
-                                        <div className="flex items-center gap-3 text-indigo-500/50 font-black text-[8px] md:text-[10px] uppercase tracking-widest pl-2">
-                                            <Terminal size={12} /> NEURAL_INPUT_ACTIVE
-                                        </div>
-                                        <textarea
-                                            rows={2}
-                                            value={prompt}
-                                            onChange={(e) => setPrompt(e.target.value)}
-                                            placeholder="What is your ultimate career milestone?"
-                                            className="w-full bg-transparent border-none p-0 text-base md:text-xl text-white focus:ring-0 outline-none font-bold tracking-tight placeholder:text-gray-800 resize-none min-h-[60px] md:min-h-[80px] scrollbar-hide italic leading-snug"
-                                        />
-                                    </div>
-                                    <div className="w-full md:w-auto">
-                                        <Button
-                                            onClick={handleStart}
-                                            className="w-full md:w-auto group/btn h-20 md:h-32 px-12 bg-white text-black hover:bg-indigo-50 rounded-2xl md:rounded-3xl flex flex-col items-center justify-center gap-1 md:gap-2 shadow-2xl transition-all hover:scale-[1.02] active:scale-95 border-none"
-                                        >
-                                            <Zap size={24} className="text-indigo-600 md:size-[32px] transition-transform group-hover/btn:scale-125" />
-                                            <span className="font-black uppercase tracking-[0.2em] text-[8px] md:text-[10px]">START CHAT</span>
-                                        </Button>
-                                    </div>
-                                </div>
-
-                            </div>
-                        </div>
-                    </motion.div>
+                    {/* Right Column: Neural Output Preview */}
+                    <div className="lg:col-span-5 w-full flex justify-center lg:justify-end">
+                        <NeuralOutputPreview />
+                    </div>
                 </div>
 
                 {/* SCROLL INDICATOR TECH */}
@@ -190,7 +193,7 @@ function LandingPageContent() {
             </section>
 
             {/* --- SECTION 2: THE 3D BLUEPRINT --- */}
-            <section className="py-40 px-6 relative">
+            <section className="py-20 md:py-32 px-6 relative">
                 <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-24">
                     <div className="lg:w-1/2 space-y-12">
                         <div className="space-y-4">
@@ -286,7 +289,7 @@ function LandingPageContent() {
             </section>
 
             {/* --- SECTION 3: THE DATA PULSE (Statistics) --- */}
-            <section className="py-40 bg-white/[0.01] border-y border-white/5 relative overflow-hidden">
+            <section className="py-20 md:py-32 bg-white/[0.01] border-y border-white/5 relative overflow-hidden">
                 <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-4 gap-12 text-center">
                     <StatBox label="ACTIVE_MISSIONS" value="12,402" icon={<Rocket size={20} />} />
                     <StatBox label="NEURAL_PATH_GEN" value="4.2M" icon={<Zap size={20} />} />
@@ -296,7 +299,7 @@ function LandingPageContent() {
             </section>
 
             {/* --- SECTION 3.5: MISSION PIPELINE (Detailed Steps) --- */}
-            <section id="how-it-works" className="py-40 px-6 relative overflow-hidden">
+            <section id="how-it-works" className="py-20 md:py-32 px-6 relative overflow-hidden">
                 <div className="max-w-7xl mx-auto space-y-24">
                     <div className="flex flex-col md:flex-row justify-between items-end gap-8">
                         <div className="space-y-4">
@@ -365,7 +368,7 @@ function LandingPageContent() {
             </section>
 
             {/* --- SECTION 4: THE FEATURE MATRIX (EXPANDED) --- */}
-            <section className="py-40 px-6 relative bg-white/[0.01]">
+            <section className="py-20 md:py-32 px-6 relative bg-white/[0.01]">
                 <div className="max-w-7xl mx-auto space-y-24">
                     <div className="text-center space-y-4">
                         <span className="text-indigo-500 font-black uppercase tracking-[0.4em] text-[10px]">CORE_CAPABILITIES</span>
@@ -410,7 +413,7 @@ function LandingPageContent() {
             </section>
 
             {/* --- SECTION 5: THE VISIONARY (Founder/Brand Story) --- */}
-            <section className="py-40 px-6 relative overflow-hidden">
+            <section className="py-20 md:py-32 px-6 relative overflow-hidden">
                 <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-20">
                     <div className="md:w-1/2 relative group">
                         <div className="absolute -inset-4 bg-indigo-500/20 rounded-[4rem] blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -452,7 +455,7 @@ function LandingPageContent() {
             </section>
 
             {/* --- SECTION 6: TECHNOLOGY STACK (Branding) --- */}
-            <section className="py-40 px-6 bg-[#050505]/50 border-y border-white/5">
+            <section className="py-20 md:py-32 px-6 bg-[#050505]/50 border-y border-white/5">
                 <div className="max-w-7xl mx-auto space-y-20">
                     <div className="text-center space-y-4">
                         <span className="text-indigo-500 font-black uppercase tracking-[0.4em] text-[10px]">POWERED_BY_ELITE_TECH</span>
@@ -471,7 +474,7 @@ function LandingPageContent() {
             </section>
 
             {/* --- SECTION 7: ACCESS TIERS (Pricing Mockup) --- */}
-            <section id="pricing" className="py-40 px-6 relative overflow-hidden">
+            <section id="pricing" className="py-20 md:py-32 px-6 relative overflow-hidden">
                 <div className="max-w-7xl mx-auto space-y-24">
                     <div className="text-center space-y-4">
                         <span className="text-indigo-500 font-black uppercase tracking-[0.4em] text-[10px]">SCALABLE_INITIATION</span>
@@ -511,7 +514,7 @@ function LandingPageContent() {
             </section>
 
             {/* --- SECTION 7.5: SUCCESS PROTOCOLS (New) --- */}
-            <section className="py-40 px-6 relative bg-white/[0.01]">
+            <section className="py-20 md:py-32 px-6 relative bg-white/[0.01]">
                 <div className="max-w-7xl mx-auto space-y-24">
                     <div className="text-center space-y-4">
                         <span className="text-indigo-500 font-black uppercase tracking-[0.4em] text-[10px]">MISSION_ACCOMPLISHED</span>
@@ -551,7 +554,7 @@ function LandingPageContent() {
             </section>
 
             {/* --- SECTION 7.6: INDUSTRIAL SPECIFICATIONS (New) --- */}
-            <section className="py-40 px-6 border-y border-white/5 bg-[#050505] relative overflow-hidden">
+            <section className="py-20 md:py-32 px-6 border-y border-white/5 bg-[#050505] relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 pointer-events-none" />
                 <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-20 items-center relative z-10">
                     <div className="space-y-12">
@@ -591,7 +594,7 @@ function LandingPageContent() {
 
 
             {/* --- SECTION 8: FAQ PROTOCOL --- */}
-            <section className="py-40 px-6 max-w-5xl mx-auto space-y-24">
+            <section className="py-20 md:py-32 px-6 max-w-5xl mx-auto space-y-24">
                 <div className="text-center space-y-4">
                     <span className="text-indigo-500 font-black uppercase tracking-[0.4em] text-[10px]">KNOWLEDGE_BASE</span>
                     <h2 className="text-4xl md:text-6xl font-black italic tracking-tighter uppercase leading-none">
@@ -895,4 +898,214 @@ function PipelineStep({ num, title, desc, icon }: any) {
             </div>
         </div>
     )
+}
+
+function NeuralOutputPreview() {
+    const [activeTab, setActiveTab] = useState<'roadmap' | 'radar' | 'console'>('roadmap');
+    const [rotate, setRotate] = useState({ x: 0, y: 0 });
+    const [logs, setLogs] = useState<string[]>([
+        "[system] Core intelligence handshake initialized.",
+        "[intel] Loading telemetry profiles...",
+        "[system] 99.4% path integrity verified.",
+    ]);
+
+    const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+        const card = e.currentTarget;
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left - rect.width / 2;
+        const y = e.clientY - rect.top - rect.height / 2;
+        const degX = -(y / (rect.height / 2)) * 8; // max 8 deg
+        const degY = (x / (rect.width / 2)) * 8; // max 8 deg
+        setRotate({ x: degX, y: degY });
+    };
+
+    const handleMouseLeave = () => {
+        setRotate({ x: 0, y: 0 });
+    };
+
+    useEffect(() => {
+        if (activeTab !== 'console') return;
+        const logTemplates = [
+            "[agent] Analyzing career prompt...",
+            "[builder] Mapping milestone node 1: Architecture Core",
+            "[builder] Mapping milestone node 2: Deployment Orchestrator",
+            "[intel] Fetching salary vectors for 'Fullstack AI Architect'...",
+            "[system] Core validation sequence active.",
+            "[api] Dynamic learning assets injected.",
+            "[todaytask] Daily action items compiled: 4 units.",
+            "[agent] Ready to deploy target node configuration.",
+        ];
+        let idx = 0;
+        const interval = setInterval(() => {
+            setLogs(prev => {
+                const next = [...prev, logTemplates[idx]];
+                if (next.length > 6) next.shift(); // keep it compact
+                return next;
+            });
+            idx = (idx + 1) % logTemplates.length;
+        }, 2000);
+        return () => clearInterval(interval);
+    }, [activeTab]);
+
+    return (
+        <div 
+            className="w-full max-w-md relative transition-transform duration-200 ease-out"
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+            style={{
+                transform: `perspective(1000px) rotateX(${rotate.x}deg) rotateY(${rotate.y}deg) scale3d(1.01, 1.01, 1.01)`,
+                transformStyle: 'preserve-3d'
+            }}
+        >
+            {/* Ambient Outer Glow */}
+            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-cyan-500/20 rounded-[2rem] blur-2xl opacity-75 pointer-events-none" />
+            
+            {/* Inner Border Blueprint */}
+            <div className="absolute -inset-4 pointer-events-none opacity-30">
+                <div className="absolute top-0 left-0 w-6 h-6 border-t border-l border-indigo-500/50 rounded-tl-xl" />
+                <div className="absolute top-0 right-0 w-6 h-6 border-t border-r border-indigo-500/50 rounded-tr-xl" />
+                <div className="absolute bottom-0 left-0 w-6 h-6 border-b border-l border-indigo-500/50 rounded-bl-xl" />
+                <div className="absolute bottom-0 right-0 w-6 h-6 border-b border-r border-indigo-500/50 rounded-br-xl" />
+            </div>
+
+            {/* Card Content Wrapper */}
+            <div className="relative bg-[#050505]/95 border border-white/10 rounded-3xl p-6 shadow-2xl backdrop-blur-xl overflow-hidden">
+                {/* Cyber Scanner Mesh overlay */}
+                <div className="absolute inset-0 bg-cyber-dots opacity-25 pointer-events-none" />
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent" />
+
+                {/* Header Status Bar */}
+                <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-5 relative z-10">
+                    <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 bg-indigo-500 rounded-full animate-ping" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">TELEMETRY_STREAM</span>
+                    </div>
+                    <div className="text-[8px] font-mono text-gray-500">SYS_INT: 99.4%</div>
+                </div>
+
+                {/* Card Body - Viewports */}
+                <div className="min-h-[220px] relative z-10">
+                    <AnimatePresence mode="wait">
+                        {activeTab === 'roadmap' && (
+                            <motion.div
+                                key="roadmap"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                className="space-y-4"
+                            >
+                                <div className="text-[9px] font-black text-gray-600 uppercase tracking-widest">ROADMAP PROTOCOL</div>
+                                <div className="relative pl-6 space-y-4">
+                                    {/* Vertical line connecting steps */}
+                                    <div className="absolute left-2 top-2 bottom-2 w-px bg-gradient-to-b from-indigo-500 via-purple-500 to-transparent" />
+                                    
+                                    <div className="relative flex items-start gap-3">
+                                        <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                                        <div>
+                                            <div className="text-xs font-black text-white uppercase tracking-tight italic">01. Core Architecture Scaffolding</div>
+                                            <div className="text-[9px] text-gray-500">COMPLETED - 12 Modules Compiled</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="relative flex items-start gap-3">
+                                        <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.8)] animate-pulse" />
+                                        <div>
+                                            <div className="text-xs font-black text-indigo-300 uppercase tracking-tight italic">02. REST/GraphQL API Gateway</div>
+                                            <div className="text-[9px] text-indigo-400/80 animate-pulse">ACTIVE BUNDLING - Step 4/8</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="relative flex items-start gap-3 opacity-40">
+                                        <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-zinc-800" />
+                                        <div>
+                                            <div className="text-xs font-black text-gray-400 uppercase tracking-tight italic">03. Production Edge Optimization</div>
+                                            <div className="text-[9px] text-gray-600">LOCKED - Requires Gateway Handshake</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {activeTab === 'radar' && (
+                            <motion.div
+                                key="radar"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                className="flex flex-col items-center justify-center py-2"
+                            >
+                                <div className="text-[9px] font-black text-gray-600 uppercase tracking-widest mb-4 self-start">COGNITIVE RATINGS</div>
+                                <div className="w-28 h-28 bg-indigo-500/5 border border-indigo-500/20 animate-morph-radar flex items-center justify-center relative shadow-[inset_0_0_20px_rgba(99,102,241,0.1)]">
+                                    <div className="absolute inset-2 bg-purple-500/5 border border-dashed border-purple-500/30 rounded-full animate-spin-slow" />
+                                    <Cpu size={24} className="text-indigo-400 z-10 animate-pulse" />
+                                </div>
+                                <div className="grid grid-cols-3 gap-x-6 gap-y-1 mt-4 text-[8px] font-black tracking-widest text-gray-500 uppercase text-center w-full">
+                                    <div>ENGINEERING: <span className="text-indigo-400">92%</span></div>
+                                    <div>SCALING: <span className="text-purple-400">84%</span></div>
+                                    <div>ROUTING: <span className="text-cyan-400">95%</span></div>
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {activeTab === 'console' && (
+                            <motion.div
+                                key="console"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                className="space-y-3"
+                            >
+                                <div className="text-[9px] font-black text-gray-600 uppercase tracking-widest">LIVE PROCESS MONITOR</div>
+                                <div className="bg-black/80 rounded-xl p-3 border border-white/5 font-mono text-[9px] text-indigo-300 space-y-1.5 h-36 overflow-y-auto">
+                                    {logs.map((log, index) => (
+                                        <div key={index} className="truncate select-none leading-relaxed">
+                                            <span className="text-gray-600">{`>`}</span> {log}
+                                        </div>
+                                    ))}
+                                    <div className="flex items-center gap-1 text-white">
+                                        <span className="text-gray-600">{`>`}</span>
+                                        <span className="w-1.5 h-3 bg-indigo-400 animate-pulse" />
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+
+                {/* Tab Switchers */}
+                <div className="flex gap-2 border-t border-white/5 pt-4 mt-5 relative z-10">
+                    <button
+                        onClick={() => setActiveTab('roadmap')}
+                        className={`flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${
+                            activeTab === 'roadmap'
+                                ? 'bg-white text-black border-white'
+                                : 'bg-transparent text-gray-500 border-white/5 hover:text-white hover:border-white/20'
+                        }`}
+                    >
+                        Roadmap
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('radar')}
+                        className={`flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${
+                            activeTab === 'radar'
+                                ? 'bg-white text-black border-white'
+                                : 'bg-transparent text-gray-500 border-white/5 hover:text-white hover:border-white/20'
+                        }`}
+                    >
+                        Radar
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('console')}
+                        className={`flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${
+                            activeTab === 'console'
+                                ? 'bg-white text-black border-white'
+                                : 'bg-transparent text-gray-500 border-white/5 hover:text-white hover:border-white/20'
+                        }`}
+                    >
+                        Console
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
 }

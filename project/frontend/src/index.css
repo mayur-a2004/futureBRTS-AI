@@ -475,3 +475,64 @@
 .theme-light ::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
 }
+
+/* --- CYBERNETIC / AI DESIGN PATTERNS --- */
+.bg-cyber-dots {
+    background-image: radial-gradient(rgba(99, 102, 241, 0.08) 1px, transparent 0);
+    background-size: 24px 24px;
+}
+
+.border-blueprint {
+    border: 1px solid rgba(99, 102, 241, 0.1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.border-blueprint:hover {
+    border-color: rgba(99, 102, 241, 0.2);
+}
+
+/* Custom grid mesh lines */
+.blueprint-mesh {
+    position: relative;
+}
+.blueprint-mesh::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: 
+        linear-gradient(to right, rgba(99, 102, 241, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
+    background-size: 80px 80px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Morphing animation for radar preview */
+@keyframes morph-radar {
+    0%, 100% {
+        border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%;
+    }
+    34% {
+        border-radius: 70% 30% 52% 48% / 60% 40% 60% 40%;
+    }
+    66% {
+        border-radius: 50% 50% 30% 70% / 50% 60% 40% 50%;
+    }
+}
+
+.animate-morph-radar {
+    animation: morph-radar 8s ease-in-out infinite;
+}
+
+/* Vertical / Horizontal blueprint separator lines */
+.blueprint-sep-h {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.15) 20%, rgba(99, 102, 241, 0.15) 80%, transparent);
+}
+
+.blueprint-sep-v {
+    width: 1px;
+    background: linear-gradient(180deg, transparent, rgba(99, 102, 241, 0.15) 20%, rgba(99, 102, 241, 0.15) 80%, transparent);
+}
+
