@@ -11,7 +11,7 @@ import {
     Shield, Star, ChevronDown,
     Database, Brain, Workflow, Code,
     MessageSquare, Lock, Sparkles, TrendingUp,
-    Quote, Cog
+    Quote, Cog, GraduationCap, BookOpen
 } from "lucide-react"
 
 export default function LandingPage() {
@@ -22,11 +22,137 @@ export default function LandingPage() {
     );
 }
 
+const blueprintSlides = [
+    {
+        letter: "B",
+        name: "BUILDER",
+        title: "Advanced Syllabus Decomposition & Semantic Knowledge Mapping",
+        desc: "The Builder serves as the foundational ingestion engine of the BRTS platform. It processes unstructured academic syllabi, textbooks, research publications, and PDFs using OCR and natural language processing. It decomposes files into discrete, granular concepts (micro-chunks) and maps out the implicit topological dependency graph. This creates a logical prerequisite chain where advanced topics are gated behind prerequisite nodes. It calculates dynamic weightage vectors based on historical board exam trends, question frequency, and core curriculum standards.",
+        details: [
+            "AI-Powered PDF & Document Parse Engine with optical structural recognition",
+            "Dynamic Dependency Graph mapping logical prerequisite hierarchies between micro-concepts",
+            "High-Yield Priority Indexing that auto-calculates topic weights based on exam recurrence and weightage",
+            "Automated Syllabus Gap Analysis highlighting unaddressed curriculum areas in ingested docs"
+        ],
+        icon: <Brain className="text-indigo-400" size={24} />
+    },
+    {
+        letter: "R",
+        name: "ROADMAP",
+        title: "Dynamic Multi-Dimensional Traversal Path Generator",
+        desc: "The Roadmap engine compiles your student cognitive model to generate a non-linear study graph. Rather than forcing a rigid chronological progression, it constructs spiral learning trajectories that integrate lateral connections between intersecting disciplines. The traversal path dynamically adapts using deep reinforcement learning based on your response latencies, active performance metrics, and measured memory decay. If the system detects cognitive overload, it automatically inserts explanatory bridge concepts or switches to a more compatible cognitive format.",
+        details: [
+            "Student Cognitive Fingerprinting adapting to Visual, Logical, and Socratic styles",
+            "Non-Linear Traversal Algorithm generating personalized spiral review structures",
+            "Self-Healing Route Optimization that auto-recalibrates path direction upon conceptual struggle",
+            "Cross-Disciplinary Bridge Injection linking distinct subjects to reinforce lateral thinking"
+        ],
+        icon: <Workflow className="text-cyan-400" size={24} />
+    },
+    {
+        letter: "T",
+        name: "TODAYTASK",
+        title: "Algorithmic Daily Study Quests & Active-Recall Sandbox",
+        desc: "TodayTask transforms passive studying into structured, high-intensity daily quests designed to trigger active recall. Every morning, it compiles a set of tasks that align with your roadmap's priority nodes. These include socratic interrogation decks, flashcards optimized via a custom SuperMemo spacing algorithm, and coding/analytical playgrounds executing in a secure sandbox environment. The scheduler tracks your recall threshold, presenting reviews right before the curve of forgetting drops to ensure long-term retention.",
+        details: [
+            "Personalized Daily Quest Compilation targeting high-priority nodes on your path",
+            "Custom Spaced-Repetition Scheduler pacing reviews based on real-time memory decay curves",
+            "Interactive Sandboxed Execution environment for coding, math, and logical simulations",
+            "Smart Pause & Recovery Prompts dynamically triggered to minimize cognitive fatigue"
+        ],
+        icon: <Rocket className="text-amber-400" size={24} />
+    },
+    {
+        letter: "S",
+        name: "STRATEGIES",
+        title: "Socratic Interrogation & Interactive Mastery Verification",
+        desc: "Strategies acts as the gatekeeper of the learning ecosystem, ensuring no student advances without true comprehension. Instead of generic multiple-choice questions, it uses Socratic dialogue and active teaching simulations where you must explain the concept to the AI. The system runs diagnostic semantic checks on your explanations to evaluate depth, accuracy, and logic. Progress gates remain locked until the Mastery Verification System registers a 100% transfer index, preventing conceptual gaps from accumulating.",
+        details: [
+            "Active Teaching Simulation (Feynman Technique) evaluating explanation semantic clarity",
+            "Multi-Layered Diagnostic Assays measuring surface, deep, and synthesis comprehension",
+            "Mastery Verification Gates blocking progress to advanced nodes until 100% retention is verified",
+            "Remedial Loop Activation injecting specialized micro-lessons for failed verification points"
+        ],
+        icon: <CheckCircle className="text-emerald-400" size={24} />
+    }
+];
+
+const techStack = [
+    { name: "TYPESCRIPT", icon: <Code size={18} /> },
+    { name: "PYTHON", icon: <Terminal size={18} /> },
+    { name: "RUST", icon: <Cpu size={18} /> },
+    { name: "GO_LANG", icon: <Globe size={18} /> },
+    { name: "C++", icon: <Code size={18} /> },
+    { name: "JAVA", icon: <Code size={18} /> },
+    { name: "JAVASCRIPT", icon: <Code size={18} /> },
+    { name: "NEXT.JS", icon: <Activity size={18} /> },
+    { name: "REACT", icon: <Zap size={18} /> },
+    { name: "NODE.JS", icon: <Terminal size={18} /> },
+    { name: "TAILWIND_CSS", icon: <Sparkles size={18} /> },
+    { name: "FASTAPI", icon: <Zap size={18} /> },
+    { name: "DOCKER", icon: <Shield size={18} /> },
+    { name: "KUBERNETES", icon: <Workflow size={18} /> },
+    { name: "PYTORCH", icon: <Brain size={18} /> },
+    { name: "MONGODB", icon: <Database size={18} /> },
+    { name: "POSTGRESQL", icon: <Database size={18} /> },
+    { name: "AWS_CLOUD", icon: <Globe size={18} /> },
+    { name: "GEMINI_AI", icon: <Sparkles size={18} /> },
+    { name: "GROQ_LLM", icon: <Zap size={18} /> }
+];
+
 function LandingPageContent() {
     const navigate = useNavigate();
     const { isAuthenticated } = useAuth();
     const [prompt, setPrompt] = useState("");
+    const [activeSlide, setActiveSlide] = useState(0);
+    const [direction, setDirection] = useState(1);
+    const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
     const containerRef = useRef(null);
+
+    useEffect(() => {
+        const logs = [
+            "SYS: INITIALIZING COGNITIVE_SYNC_PROTOCOL...",
+            "DB: ESTABLISHING SECURE HANDSHAKE PROTOCOL WITH COGNITIVE NODE...",
+            "BUILDER: PARSING INGESTED SYLLABUS DOCUMENT STRUCTURE...",
+            "BUILDER: LOGICAL CONCEPT MICRO-CHUNKS SUCCESSFULLY CREATED [OK]",
+            "ROADMAP: PLOTTING NON-LINEAR TRAVERSAL GRAPH (42 NODES FOUND)...",
+            "TODAYTASK: COMPILED 3 HIGH-PRIORITY ACTIVE STUDY QUESTS...",
+            "STRATEGIES: INSTANTIATING SOCRATIC DIALOGUE VERIFIER...",
+            "SYS: RETENTION METRICS ONLINE - OPTIMIZED AT 100% YIELD...",
+            "SYS: ENGINE HANDSHAKE READY FOR SYNCHRONIZATION."
+        ];
+        
+        setConsoleLogs([logs[0]]);
+        let count = 1;
+        
+        const interval = setInterval(() => {
+            setConsoleLogs((prev) => {
+                const nextLog = logs[count % logs.length];
+                if (count % logs.length === 0) {
+                    return [nextLog];
+                }
+                return [...prev.slice(-4), nextLog];
+            });
+            count++;
+        }, 1800);
+        
+        return () => clearInterval(interval);
+    }, []);
+
+    const changeSlide = (newIndex: number) => {
+        setDirection(newIndex > activeSlide ? 1 : -1);
+        setActiveSlide(newIndex);
+    };
+
+    const handleNext = () => {
+        setDirection(1);
+        setActiveSlide((prev) => (prev + 1) % blueprintSlides.length);
+    };
+
+    const handlePrev = () => {
+        setDirection(-1);
+        setActiveSlide((prev) => (prev - 1 + blueprintSlides.length) % blueprintSlides.length);
+    };
 
     const { scrollYProgress } = useScroll();
     const yHero = useTransform(scrollYProgress, [0, 1], [0, 500]);
@@ -96,7 +222,7 @@ function LandingPageContent() {
                             >
                                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 mb-2">
                                     <Sparkles size={12} className="text-indigo-400 animate-pulse" />
-                                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-300">Robotic Career Command</span>
+                                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-300">Neural Hyper-Learning Platform</span>
                                 </div>
                                 <h1 className="text-4xl md:text-6xl lg:text-7xl font-black leading-[0.95] tracking-tighter uppercase italic select-none flex flex-wrap gap-x-4">
                                     <span className="relative text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
@@ -115,7 +241,7 @@ function LandingPageContent() {
                                 transition={{ delay: 0.5 }}
                                 className="flex justify-start items-center gap-4 py-2"
                             >
-                                <span className="text-indigo-400 font-black uppercase tracking-[0.4em] text-[10px] md:text-xs animate-pulse whitespace-nowrap">ARCHITECT YOUR FUTURE</span>
+                                <span className="text-indigo-400 font-black uppercase tracking-[0.4em] text-[10px] md:text-xs animate-pulse whitespace-nowrap">AI-NATIVE COGNITIVE EDUCATION PROTOCOL</span>
                                 <div className="h-px flex-1 bg-gradient-to-r from-indigo-500/50 to-transparent" />
                             </motion.div>
                         </div>
@@ -141,13 +267,13 @@ function LandingPageContent() {
                                     <div className="flex flex-col gap-4">
                                         <div className="flex-1 w-full space-y-2">
                                             <div className="flex items-center gap-2 text-indigo-500/50 font-black text-[9px] uppercase tracking-widest pl-1">
-                                                <Terminal size={10} /> NEURAL_INPUT_ACTIVE
+                                                <Terminal size={10} /> SYLLABUS_COGNITIVE_INPUT_ACTIVE
                                             </div>
                                             <textarea
                                                 rows={2}
                                                 value={prompt}
                                                 onChange={(e) => setPrompt(e.target.value)}
-                                                placeholder="What is your ultimate career milestone?"
+                                                placeholder="Enter a subject topic or paste syllabus details to Traversal..."
                                                 className="w-full bg-transparent border-none p-0 text-sm md:text-base text-white focus:ring-0 outline-none font-bold tracking-tight placeholder:text-gray-800 resize-none min-h-[50px] scrollbar-hide italic leading-snug"
                                             />
                                         </div>
@@ -157,7 +283,7 @@ function LandingPageContent() {
                                                 className="w-full md:w-auto group/btn h-12 px-6 bg-white text-black hover:bg-indigo-50 rounded-xl flex items-center justify-center gap-2 shadow-xl transition-all hover:scale-[1.02] active:scale-95 border-none"
                                             >
                                                 <Zap size={14} className="text-indigo-600 transition-transform group-hover/btn:scale-125" />
-                                                <span className="font-black uppercase tracking-[0.2em] text-[9px]">START CHAT</span>
+                                                <span className="font-black uppercase tracking-[0.2em] text-[9px]">INITIALIZE LEARNING</span>
                                             </Button>
                                         </div>
                                     </div>
@@ -166,9 +292,9 @@ function LandingPageContent() {
                         </motion.div>
                     </div>
 
-                    {/* Right Column: Neural Output Preview */}
+                    {/* Right Column: BRTS Education Visual Animation */}
                     <div className="lg:col-span-5 w-full flex justify-center lg:justify-end">
-                        <NeuralOutputPreview />
+                        <BRTSEducationVisual />
                     </div>
                 </div>
 
@@ -201,20 +327,143 @@ function LandingPageContent() {
                                 whileInView={{ opacity: 1, x: 0 }}
                                 className="block text-indigo-500 font-black uppercase tracking-[0.4em] text-xs"
                             >
-                                SYSTEM_CORE_PILLARS
+                                COGNITIVE_CORE_PILLARS
                             </motion.span>
                             <h2 className="text-3xl md:text-5xl font-black italic tracking-tighter leading-none uppercase">
                                 THE BRTS <span className="text-gray-700">BLUEPRINT.</span>
                             </h2>
                         </div>
                         <p className="text-lg text-gray-500 font-medium leading-relaxed max-w-xl">
-                            Our proprietary 4-layer intelligence architecture ensures that your every move is backed by deterministic logic and real-time market sync.
+                            Our proprietary 4-layer cognitive architecture shifts the learning paradigm from passive reading to active traversal and verified mastery.
                         </p>
-                        <div className="grid gap-4">
-                            <BlueprintItem letter="B" name="BUILDER" desc="The Logical Foundation." />
-                            <BlueprintItem letter="R" name="ROADMAP" desc="The Trajectory Vector." />
-                            <BlueprintItem letter="T" name="TODAYTASK" desc="Operational Execution." />
-                            <BlueprintItem letter="S" name="STRATEGIES" desc="Competitive Shielding." />
+                        {/* Tab Buttons (Header) */}
+                        <div className="flex flex-wrap gap-2 p-1.5 bg-white/[0.02] border border-white/5 rounded-2xl mb-6">
+                            {blueprintSlides.map((slide, idx) => {
+                                const isActive = activeSlide === idx;
+                                return (
+                                    <button
+                                        key={slide.letter}
+                                        onClick={() => changeSlide(idx)}
+                                        className={`relative flex-1 min-w-[70px] py-3 px-4 rounded-xl text-xs md:text-sm font-black tracking-widest uppercase transition-all duration-300 flex items-center justify-center gap-2 group/tab ${
+                                            isActive ? 'text-white' : 'text-gray-500 hover:text-gray-300'
+                                        }`}
+                                    >
+                                        {isActive && (
+                                            <motion.div
+                                                layoutId="activeTabIndicator"
+                                                className="absolute inset-0 bg-indigo-500/10 border border-indigo-500/20 rounded-xl"
+                                                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                                            />
+                                        )}
+                                        <span className={`text-sm italic font-mono transition-colors ${isActive ? 'text-indigo-400' : 'text-gray-600 group-hover/tab:text-gray-400'}`}>
+                                            {slide.letter}
+                                        </span>
+                                        <span className="hidden sm:inline">{slide.name}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {/* Active Slide Body */}
+                        <div className="relative overflow-hidden min-h-[380px] flex flex-col justify-between p-6 bg-white/[0.01] border border-white/5 rounded-3xl backdrop-blur-sm">
+                            <AnimatePresence mode="wait" custom={direction}>
+                                <motion.div
+                                    key={activeSlide}
+                                    custom={direction}
+                                    variants={{
+                                        enter: (dir: number) => ({
+                                            x: dir > 0 ? 50 : -50,
+                                            opacity: 0
+                                        }),
+                                        center: {
+                                            x: 0,
+                                            opacity: 1
+                                        },
+                                        exit: (dir: number) => ({
+                                            x: dir > 0 ? -50 : 50,
+                                            opacity: 0
+                                        })
+                                    }}
+                                    initial="enter"
+                                    animate="center"
+                                    exit="exit"
+                                    transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                                    className="space-y-6 text-left"
+                                >
+                                    {/* Slide Header */}
+                                    <div className="flex items-start gap-4">
+                                        <div className="p-3.5 bg-indigo-500/10 rounded-2xl border border-indigo-500/20 text-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.15)] shrink-0">
+                                            {blueprintSlides[activeSlide].icon}
+                                        </div>
+                                        <div>
+                                            <div className="text-[10px] font-black tracking-[0.3em] text-indigo-400 uppercase font-mono mb-1">
+                                                PILLAR 0{activeSlide + 1} // {blueprintSlides[activeSlide].name}
+                                            </div>
+                                            <h3 className="text-xl md:text-2xl font-black italic tracking-tighter uppercase text-white leading-tight">
+                                                {blueprintSlides[activeSlide].title}
+                                            </h3>
+                                        </div>
+                                    </div>
+
+                                    {/* Description */}
+                                    <p className="text-sm md:text-base text-gray-400 leading-relaxed font-medium">
+                                        {blueprintSlides[activeSlide].desc}
+                                    </p>
+
+                                    {/* Core Specs / Feature list */}
+                                    <div className="space-y-3 pt-2">
+                                        {blueprintSlides[activeSlide].details.map((detail, idx) => (
+                                            <motion.div
+                                                key={idx}
+                                                initial={{ opacity: 0, x: -10 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: idx * 0.1 }}
+                                                className="flex items-start gap-3 text-xs md:text-sm font-black uppercase tracking-widest text-gray-300 italic"
+                                            >
+                                                <CheckCircle size={14} className="text-indigo-500 mt-0.5 shrink-0" />
+                                                <span>{detail}</span>
+                                            </motion.div>
+                                        ))}
+                                    </div>
+                                </motion.div>
+                            </AnimatePresence>
+
+                            {/* Slider Controls / Navigation bar */}
+                            <div className="flex items-center justify-between border-t border-white/5 pt-6 mt-8">
+                                {/* Indicators */}
+                                <div className="flex items-center gap-4">
+                                    <span className="text-xs font-mono font-black text-indigo-400">
+                                        0{activeSlide + 1} <span className="text-gray-700">/</span> 0{blueprintSlides.length}
+                                    </span>
+                                    <div className="flex gap-1.5">
+                                        {blueprintSlides.map((_, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={() => changeSlide(idx)}
+                                                className={`h-1.5 rounded-full transition-all duration-300 ${
+                                                    activeSlide === idx ? 'w-6 bg-indigo-500' : 'w-1.5 bg-white/10 hover:bg-white/30'
+                                                }`}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Prev/Next arrows */}
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={handlePrev}
+                                        className="w-10 h-10 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-center text-gray-500 hover:text-white hover:bg-indigo-500/10 hover:border-indigo-500/20 transition-all active:scale-95"
+                                    >
+                                        <ArrowRight size={16} className="rotate-180" />
+                                    </button>
+                                    <button
+                                        onClick={handleNext}
+                                        className="w-10 h-10 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-center text-gray-500 hover:text-white hover:bg-indigo-500/10 hover:border-indigo-500/20 transition-all active:scale-95"
+                                    >
+                                        <ArrowRight size={16} />
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -223,39 +472,152 @@ function LandingPageContent() {
                         <motion.div
                             whileHover={{ rotateY: 15, rotateX: -10, scale: 1.05 }}
                             transition={{ type: "spring", stiffness: 100, damping: 30 }}
-                            className="relative aspect-square max-w-lg mx-auto bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-[4rem] border border-white/10 shadow-[0_50px_100px_rgba(0,0,0,0.5)] transform-style-3d p-12 overflow-hidden group"
+                            className="relative aspect-square max-w-lg mx-auto bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-[4rem] border border-white/10 shadow-[0_50px_100px_rgba(0,0,0,0.5)] transform-style-3d overflow-hidden group"
                         >
-                            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20" />
+                            <div className="absolute inset-0 bg-[#020203]/90" />
+                            
+                            {/* Scanning Laser Line */}
+                            <motion.div
+                                animate={{ top: ["0%", "100%", "0%"] }}
+                                transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                                className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_15px_rgba(34,211,238,0.8)] z-20 pointer-events-none"
+                            />
 
-                            {/* Central Core Circle */}
-                            <div className="absolute inset-0 flex items-center justify-center">
+                            {/* Cyber Mesh Grid Overlay */}
+                            <div className="absolute inset-0 bg-cyber-dots opacity-20 pointer-events-none" />
+
+                            {/* Rotating Aperture Rings */}
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                {/* Outer Technical Measurement Circle */}
                                 <motion.div
                                     animate={{ rotate: 360 }}
-                                    transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-                                    className="w-80 h-80 rounded-full border border-dashed border-indigo-500/30 flex items-center justify-center"
+                                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                                    className="w-96 h-96 rounded-full border border-indigo-500/10 flex items-center justify-center relative"
                                 >
+                                    {/* Compass-style tick marks on outer ring */}
+                                    <div className="absolute top-1 left-1/2 -translate-x-1/2 w-[2px] h-3 bg-indigo-500/30" />
+                                    <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-[2px] h-3 bg-indigo-500/30" />
+                                    <div className="absolute left-1 top-1/2 -translate-y-1/2 w-3 h-[2px] bg-indigo-500/30" />
+                                    <div className="absolute right-1 top-1/2 -translate-y-1/2 w-3 h-[2px] bg-indigo-500/30" />
+                                </motion.div>
+                                
+                                {/* Secondary Mechanical Gear Ring */}
+                                <motion.div
+                                    animate={{ rotate: -360 }}
+                                    transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+                                    className="w-80 h-80 rounded-full border border-dashed border-cyan-500/20 flex items-center justify-center"
+                                />
+
+                                {/* Interactive Hexagonal Core Orbit */}
+                                <motion.div
+                                    animate={{ rotate: 180 }}
+                                    transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+                                    className="w-64 h-64 rounded-[2rem] border border-double border-purple-500/20 flex items-center justify-center"
+                                />
+                            </div>
+
+                            {/* Main Robotic Core (Aperture + Glowing Core) */}
+                            <div className="absolute inset-0 flex items-center justify-center z-10">
+                                <motion.div
+                                    whileHover={{ scale: 1.1 }}
+                                    className="w-48 h-48 rounded-[3rem] bg-indigo-950/20 border border-indigo-500/30 flex items-center justify-center relative shadow-[0_0_60px_rgba(99,102,241,0.25)] backdrop-blur-md"
+                                >
+                                    {/* Glowing Inner Reactor Aura */}
+                                    <div className="absolute inset-4 rounded-full bg-gradient-to-tr from-indigo-500 to-cyan-500 opacity-20 blur-xl animate-pulse" />
+                                    
+                                    {/* Robotic Gear Ring rotating inside */}
                                     <motion.div
-                                        animate={{ rotate: -360 }}
-                                        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                                        className="w-60 h-60 rounded-full border border-double border-purple-500/30 flex items-center justify-center"
-                                    >
-                                        <div className="w-20 h-20 rounded-2xl bg-indigo-600 shadow-[0_0_60px_rgba(79,70,229,1)] flex items-center justify-center">
-                                            <Cpu size={40} className="text-white animate-pulse" />
-                                        </div>
-                                    </motion.div>
+                                        animate={{ rotate: 360 }}
+                                        transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+                                        className="absolute w-[80%] h-[80%] rounded-full border-4 border-dashed border-indigo-400/30 flex items-center justify-center"
+                                    />
+                                    
+                                    {/* Core Reactor Icon */}
+                                    <Cpu size={56} className="text-cyan-400 drop-shadow-[0_0_20px_rgba(6,182,212,0.8)] z-10 animate-pulse" />
+                                    
+                                    {/* Concentric Scanner Dots */}
+                                    <div className="absolute inset-0 border border-white/5 rounded-[3rem] pointer-events-none" />
+                                    
+                                    {/* Mini blinking status lights around the core */}
+                                    <div className="absolute top-4 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
+                                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse" />
                                 </motion.div>
                             </div>
 
-                            {/* Floating HUD Elements */}
-                            <motion.div className="absolute top-10 left-10 p-4 rounded-xl bg-white/5 backdrop-blur-md border border-white/10 text-[9px] font-black uppercase tracking-widest space-y-2">
-                                <div>INTEGRITY: 99.4%</div>
-                                <div className="flex gap-1 h-1 w-20 bg-white/10">
-                                    <div className="bg-indigo-500 w-[90%]" />
+                            {/* Floating Tech HUD Telemetry 1 (Top Left) */}
+                            <motion.div
+                                initial={{ opacity: 0, x: -20 }}
+                                whileInView={{ opacity: 1, x: 0 }}
+                                className="absolute top-10 left-10 p-4 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-md text-[9px] font-mono text-gray-400 space-y-2.5 shadow-xl z-20"
+                            >
+                                <div className="flex items-center gap-2 border-b border-white/5 pb-1.5 font-bold uppercase tracking-wider text-indigo-400">
+                                    <Cpu size={12} /> MECH_DIAGNOSTICS
+                                </div>
+                                <div className="space-y-1">
+                                    <div>SYS_TEMP: <span className="text-white">36.5 °C</span></div>
+                                    <div>LOAD_INDEX: <span className="text-white">42.8%</span></div>
+                                    <div>CORE_FREQ: <span className="text-cyan-400">4.8 GHz</span></div>
+                                </div>
+                                <div className="flex gap-1 h-1.5 w-24 bg-white/10 rounded-full overflow-hidden">
+                                    <motion.div
+                                        animate={{ width: ["40%", "85%", "40%"] }}
+                                        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                                        className="bg-indigo-500 h-full"
+                                    />
                                 </div>
                             </motion.div>
-                            <motion.div className="absolute bottom-10 right-10 flex gap-4">
-                                <Zap size={24} className="text-amber-500 animate-bounce" />
-                                <Activity size={24} className="text-indigo-400" />
+
+                            {/* Floating Tech HUD Telemetry 2 (Top Right) */}
+                            <motion.div
+                                initial={{ opacity: 0, x: 20 }}
+                                whileInView={{ opacity: 1, x: 0 }}
+                                className="absolute top-10 right-10 p-4 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-md text-[9px] font-mono text-gray-400 space-y-2 z-20 shadow-xl"
+                            >
+                                <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-cyan-400">
+                                    <Activity size={12} /> NEURAL_WAVEFORM
+                                </div>
+                                {/* Animated Sine Wave Path */}
+                                <svg className="w-28 h-8 text-cyan-400" viewBox="0 0 100 30" fill="none">
+                                    <motion.path
+                                        stroke="currentColor"
+                                        strokeWidth="1.5"
+                                        animate={{
+                                            d: [
+                                                "M0 15 Q25 0 50 15 T100 15",
+                                                "M0 15 Q25 30 50 15 T100 15",
+                                                "M0 15 Q25 0 50 15 T100 15"
+                                            ]
+                                        }}
+                                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                                    />
+                                </svg>
+                                <div className="text-[8px] text-gray-500 uppercase tracking-widest text-right">SYNC_INTEGRITY: 99.4%</div>
+                            </motion.div>
+
+                            {/* Floating Tech HUD Telemetry 3 (Bottom Left) */}
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                className="absolute bottom-10 left-10 p-4 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-md text-[9px] font-mono text-gray-400 flex items-center gap-3 z-20 shadow-xl"
+                            >
+                                <div className="w-3 h-3 bg-emerald-500 rounded-full animate-ping shrink-0" />
+                                <div>
+                                    <div className="font-bold text-white uppercase tracking-wider">ROBOTIC_FLOW_ACTIVE</div>
+                                    <div className="text-[8px] text-gray-600">PORT: 8000 // CHANNEL_01</div>
+                                </div>
+                            </motion.div>
+
+                            {/* Floating Tech HUD Telemetry 4 (Bottom Right) */}
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                className="absolute bottom-10 right-10 p-4 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-md text-[9px] font-mono text-gray-400 flex items-center gap-3 z-20 shadow-xl"
+                            >
+                                <div className="text-right">
+                                    <div className="font-bold text-white uppercase tracking-wider">SECURE_HANDSHAKE</div>
+                                    <div className="text-[8px] text-gray-600">MD5_TOKEN: verified</div>
+                                </div>
+                                <Shield size={16} className="text-indigo-400 animate-pulse" />
                             </motion.div>
                         </motion.div>
                     </div>
@@ -266,23 +628,25 @@ function LandingPageContent() {
             <section className="py-12 bg-indigo-500/5 border-y border-white/5 relative overflow-hidden hidden md:block">
                 <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,rgba(79,70,229,0.2)_0%,transparent_100%)]" />
                 <div className="max-w-7xl mx-auto px-6 flex items-center justify-between gap-12">
-                    <div className="flex items-center gap-6 whitespace-nowrap overflow-hidden">
-                        <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em] flex items-center gap-2">
+                    <div className="flex items-center gap-6 w-full overflow-hidden">
+                        <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em] flex items-center gap-2 shrink-0 select-none">
                             <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
                             LIVE_INTEL_STREAM:
                         </span>
-                        <motion.div
-                            animate={{ x: [0, -1000] }}
-                            transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-                            className="flex gap-20 text-[10px] font-bold text-gray-500 uppercase tracking-widest italic"
-                        >
-                            <span>Deployment: Python Worker 8000 initialized in Gujarat</span>
-                            <span>Roadmap: Fullstack Architect arc generated for user_492</span>
-                            <span>System: 99.4% Integrity maintained across 12k nodes</span>
-                            <span>Intel: New API documentation ingested for React 19</span>
-                            <span>Security: AES-256 handshake completed for private vault</span>
-                            <span>Yield: User_102 achieved mission milestone 04/06</span>
-                        </motion.div>
+                        <div className="flex-1 overflow-hidden">
+                            <motion.div
+                                animate={{ x: [0, -1000] }}
+                                transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
+                                className="flex gap-20 text-[10px] font-bold text-gray-500 uppercase tracking-widest italic whitespace-nowrap"
+                            >
+                                <span>Deployment: Python Worker 8000 initialized in Gujarat</span>
+                                <span>Roadmap: Fullstack Architect arc generated for user_492</span>
+                                <span>System: 99.4% Integrity maintained across 12k nodes</span>
+                                <span>Intel: New API documentation ingested for React 19</span>
+                                <span>Security: AES-256 handshake completed for private vault</span>
+                                <span>Yield: User_102 achieved mission milestone 04/06</span>
+                            </motion.div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -344,24 +708,92 @@ function LandingPageContent() {
 
 
             {/* --- CTA: FINAL HANDSHAKE --- */}
-            <section className="py-10 md:py-16 px-6 text-center relative">
+            <section className="py-12 md:py-24 px-6 relative overflow-hidden">
+                {/* Robotic Background Grid Lines */}
+                <div className="absolute inset-0 bg-cyber-dots opacity-[0.15] pointer-events-none" />
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(79,70,229,0.1)_0%,transparent_100%)]" />
+                
                 <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
-                    className="max-w-4xl mx-auto space-y-8 md:space-y-12 relative z-10"
+                    transition={{ duration: 0.8 }}
+                    className="max-w-6xl mx-auto flex flex-col md:flex-row items-center gap-12 md:gap-16 relative z-10 text-left"
                 >
-                    <h2 className="text-4xl md:text-7xl font-black leading-none tracking-tighter uppercase italic text-white px-4">
-                        INITIALIZE <span className="text-transparent bg-clip-text bg-gradient-to-r from-transparent via-indigo-400 to-transparent animate-pulse">PROTOCOL.</span>
-                    </h2>
-                    <p className="text-base md:text-xl text-gray-500 font-medium tracking-[0.2em] md:tracking-[0.4em] uppercase">
-                        The future doesn't wait for permission.
-                    </p>
-                    <div className="pt-6 md:pt-10">
-                        <Button onClick={handleStart} className="w-full sm:w-auto px-10 md:px-20 py-8 md:py-10 bg-indigo-600 text-white font-black uppercase tracking-[0.2em] md:tracking-[0.4em] text-xs md:text-sm rounded-2xl md:rounded-3xl hover:bg-white hover:text-black transition-all hover:scale-110 shadow-[0_0_50px_rgba(79,70,229,0.5)] border-none">
-                            INIT_ENGINE_HANDSHAKE
-                        </Button>
+                    {/* Left Column: Heading, description, and action button */}
+                    <div className="w-full md:w-1/2 space-y-6">
+                        <div className="space-y-4">
+                            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em] flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-ping" />
+                                FINAL_HANDSHAKE_STAGE
+                            </span>
+                            <h2 className="text-3xl md:text-5xl font-black leading-tight tracking-tighter uppercase italic text-white select-none">
+                                INITIALIZE <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-cyan-400 to-purple-500 drop-shadow-[0_0_30px_rgba(6,182,212,0.4)] animate-pulse">PROTOCOL.</span>
+                            </h2>
+                            <p className="text-xs md:text-sm text-gray-400 font-medium leading-relaxed max-w-md">
+                                Sync with the BRTS cognitive architecture. Establish a secure handshake to generate your dynamic learning roadmap, load today's quests, and verify your master strategy.
+                            </p>
+                        </div>
+
+                        {/* Action Button */}
+                        <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                            <Button 
+                                onClick={handleStart} 
+                                className="w-full sm:w-auto px-8 md:px-12 py-6 bg-indigo-600 text-white font-black uppercase tracking-[0.3em] text-[10px] md:text-xs rounded-2xl hover:bg-white hover:text-black transition-all hover:scale-105 shadow-[0_0_40px_rgba(79,70,229,0.4)] border-none relative group overflow-hidden"
+                            >
+                                {/* Scanning Laser line */}
+                                <motion.span 
+                                    animate={{ x: ["-100%", "100%"] }}
+                                    transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                                    className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-cyan-400/20 to-transparent skew-x-12 pointer-events-none"
+                                />
+                                <div className="flex items-center justify-center gap-2.5 relative z-10">
+                                    <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                                    <span>INIT_ENGINE_HANDSHAKE</span>
+                                </div>
+                            </Button>
+                            <span className="text-[8px] font-mono text-gray-600 uppercase tracking-widest sm:pt-0 pt-1">
+                                HANDSHAKE_READY // SPEED: 400ms
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Right Column: Handshake Typewriter Terminal Console */}
+                    <div className="w-full md:w-1/2">
+                        <div className="bg-[#020204]/90 border border-white/5 rounded-3xl p-6 font-mono text-left space-y-4 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8),inset_0_0_30px_rgba(79,70,229,0.05)] backdrop-blur-md relative group">
+                            {/* Glow effect on hover */}
+                            <div className="absolute inset-0 rounded-3xl bg-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none duration-500" />
+                            
+                            {/* Terminal Header */}
+                            <div className="flex items-center justify-between border-b border-white/5 pb-3 text-[9px] font-black uppercase tracking-widest text-indigo-400 relative z-10">
+                                <div className="flex items-center gap-2">
+                                    <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
+                                    <span>COGNITIVE_TERMINAL_LOG v1.0.4</span>
+                                </div>
+                                <span className="text-gray-600 bg-white/[0.02] px-2 py-0.5 rounded border border-white/5">SECURE_LINK</span>
+                            </div>
+                            
+                            {/* Logs */}
+                            <div className="space-y-2 h-[120px] overflow-hidden text-[10px] md:text-xs relative z-10">
+                                {consoleLogs.map((log, i) => {
+                                    if (!log) return null;
+                                    return (
+                                        <div key={i} className="flex gap-2 items-start leading-relaxed">
+                                            <span className="text-indigo-500 font-bold shrink-0">&gt;</span>
+                                            <span className={log.includes("[OK]") ? "text-emerald-400 font-medium" : log.includes("READY") ? "text-cyan-400 font-bold" : "text-gray-400"}>
+                                                {log}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            
+                            {/* Mini telemetry stats on bottom of terminal */}
+                            <div className="flex justify-between items-center text-[8px] text-gray-600 border-t border-white/5 pt-3 relative z-10">
+                                <span>PING: 14ms // PKT_LOSS: 0.0%</span>
+                                <span>ENCRYPTION: AES_256_GCM</span>
+                            </div>
+                        </div>
                     </div>
                 </motion.div>
             </section>
@@ -371,7 +803,7 @@ function LandingPageContent() {
                 <div className="max-w-7xl mx-auto space-y-16">
                     <div className="text-center space-y-4">
                         <span className="text-indigo-500 font-black uppercase tracking-[0.4em] text-[10px]">CORE_CAPABILITIES</span>
-                        <h2 className="text-4xl md:text-6xl font-black italic tracking-tighter uppercase leading-none">
+                        <h2 className="text-2xl md:text-4xl font-black italic tracking-tighter uppercase leading-none text-white">
                             HYPER <span className="text-gray-700">INTELLIGENCE.</span>
                         </h2>
                     </div>
@@ -411,63 +843,48 @@ function LandingPageContent() {
                 </div>
             </section>
 
-            {/* --- SECTION 5: THE VISIONARY (Founder/Brand Story) --- */}
-            <section className="py-8 md:py-12 px-6 relative overflow-hidden">
-                <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-20">
-                    <div className="md:w-1/2 relative group">
-                        <div className="absolute -inset-4 bg-indigo-500/20 rounded-[4rem] blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="relative aspect-[4/5] rounded-[4rem] border border-white/5 bg-gradient-to-br from-gray-900 to-indigo-900 overflow-hidden shadow-3xl">
-                            <img
-                                src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=1974&auto=format&fit=crop"
-                                alt="Founder"
-                                className="w-full h-full object-cover grayscale mix-blend-overlay"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent" />
-                            <div className="absolute bottom-12 left-12 space-y-2">
-                                <h3 className="text-3xl font-black italic uppercase tracking-tighter">MAYUR SAVALIYA</h3>
-                                <p className="text-xs font-black uppercase tracking-[0.4em] text-indigo-400">CHIEF ARCHITECT / FOUNDER</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="md:w-1/2 space-y-10 text-left">
-                        <div className="space-y-4">
-                            <span className="text-indigo-500 font-black uppercase tracking-[0.4em] text-[10px]">THE_HUMAN_ELEMENT</span>
-                            <h2 className="text-4xl md:text-5xl font-black italic tracking-tighter uppercase leading-none">
-                                MORE THAN <span className="text-gray-700">AN AI ENGINE.</span>
-                            </h2>
-                        </div>
-                        <p className="text-xl text-gray-400 font-medium leading-relaxed italic">
-                            "Future BRTS was born out of a single obsession: to bridge the gap between human ambition and technical complexity. We don't just give you answers; we give you the trajectory to become an industry legend."
-                        </p>
-                        <div className="grid grid-cols-2 gap-8 pt-8">
-                            <div className="space-y-2">
-                                <h4 className="text-3xl font-black italic tracking-tighter text-white">0%</h4>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Generic Content</p>
-                            </div>
-                            <div className="space-y-2">
-                                <h4 className="text-3xl font-black italic tracking-tighter text-white">100%</h4>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Industrial Depth</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
+
 
             {/* --- SECTION 6: TECHNOLOGY STACK (Branding) --- */}
-            <section className="py-8 md:py-12 px-6 bg-[#050505]/50 border-y border-white/5">
-                <div className="max-w-7xl mx-auto space-y-16">
+            <section className="py-12 md:py-16 px-6 bg-black/40 border-y border-white/5 overflow-hidden relative">
+                <div className="max-w-7xl mx-auto space-y-12">
                     <div className="text-center space-y-4">
                         <span className="text-indigo-500 font-black uppercase tracking-[0.4em] text-[10px]">POWERED_BY_ELITE_TECH</span>
                         <h2 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase">THE NEURAL <span className="text-gray-700">STACK.</span></h2>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-10 opacity-30 group-hover:opacity-100 transition-opacity">
-                        <TechIcon name="GROQ" icon={<Zap size={24} />} />
-                        <TechIcon name="GEMINI" icon={<Sparkles size={24} />} />
-                        <TechIcon name="PYWKR" icon={<Cpu size={24} />} />
-                        <TechIcon name="REACT" icon={<Code size={24} />} />
-                        <TechIcon name="MONGO" icon={<Database size={24} />} />
-                        <TechIcon name="NODE" icon={<Terminal size={24} />} />
+                    {/* Infinite Scrolling Marquee Container */}
+                    <div 
+                        className="relative flex overflow-hidden w-full py-4 select-none pointer-events-none"
+                        style={{
+                            maskImage: "linear-gradient(to right, transparent, black 15%, black 85%, transparent)",
+                            WebkitMaskImage: "linear-gradient(to right, transparent, black 15%, black 85%, transparent)"
+                        }}
+                    >
+                        <motion.div 
+                            animate={{ x: [0, "-50%"] }}
+                            transition={{
+                                ease: "linear",
+                                duration: 35,
+                                repeat: Infinity,
+                            }}
+                            className="flex gap-8 whitespace-nowrap shrink-0 pr-8"
+                        >
+                            {/* Render original list */}
+                            {techStack.map((tech, i) => (
+                                <div key={`orig-${i}`} className="flex items-center gap-3 bg-white/[0.02] border border-white/5 px-6 py-3.5 rounded-2xl">
+                                    <span className="text-indigo-400 shrink-0">{tech.icon}</span>
+                                    <span className="text-xs font-black uppercase tracking-[0.2em] text-white font-mono">{tech.name}</span>
+                                </div>
+                            ))}
+                            {/* Render duplicate list for infinite loop */}
+                            {techStack.map((tech, i) => (
+                                <div key={`dup-${i}`} className="flex items-center gap-3 bg-white/[0.02] border border-white/5 px-6 py-3.5 rounded-2xl">
+                                    <span className="text-indigo-400 shrink-0">{tech.icon}</span>
+                                    <span className="text-xs font-black uppercase tracking-[0.2em] text-white font-mono">{tech.name}</span>
+                                </div>
+                            ))}
+                        </motion.div>
                     </div>
                 </div>
             </section>
@@ -644,17 +1061,6 @@ function FeatureCard({ icon, title, desc }: any) {
     )
 }
 
-function TechIcon({ name, icon }: any) {
-    return (
-        <div className="flex flex-col items-center gap-4 group cursor-default">
-            <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center justify-center text-gray-600 group-hover:bg-indigo-500/10 group-hover:text-indigo-400 transition-all">
-                {icon}
-            </div>
-            <span className="text-[9px] font-black uppercase tracking-[0.4em] text-gray-800 group-hover:text-gray-400">{name}</span>
-        </div>
-    )
-}
-
 function TierCard({ name, price, desc, features, isFeatured, buttonText, onClick }: any) {
     return (
         <motion.div
@@ -797,21 +1203,6 @@ function CircuitGroup({ x, y, delay }: any) {
     )
 }
 
-function BlueprintItem({ letter, name, desc }: any) {
-    return (
-        <motion.div
-            whileHover={{ x: 10 }}
-            className="flex items-center gap-6 p-6 rounded-2xl bg-white/[0.01] border border-white/5 hover:bg-indigo-500/5 hover:border-indigo-500/20 transition-all cursor-default group"
-        >
-            <div className="text-3xl font-black italic text-white/10 group-hover:text-indigo-500 transition-colors">{letter}</div>
-            <div>
-                <h4 className="font-black text-white text-lg tracking-tight uppercase italic">{name}</h4>
-                <p className="text-xs text-gray-600 font-medium group-hover:text-gray-400">{desc}</p>
-            </div>
-            <ArrowRight size={16} className="ml-auto text-white/5 group-hover:text-indigo-500 transition-all" />
-        </motion.div>
-    )
-}
 
 function StatBox({ label, value, icon }: any) {
     return (
@@ -842,212 +1233,156 @@ function PipelineStep({ num, title, desc, icon }: any) {
     )
 }
 
-function NeuralOutputPreview() {
-    const [activeTab, setActiveTab] = useState<'roadmap' | 'radar' | 'console'>('roadmap');
-    const [rotate, setRotate] = useState({ x: 0, y: 0 });
-    const [logs, setLogs] = useState<string[]>([
-        "[system] Core intelligence handshake initialized.",
-        "[intel] Loading telemetry profiles...",
-        "[system] 99.4% path integrity verified.",
-    ]);
-
-    const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-        const card = e.currentTarget;
-        const rect = card.getBoundingClientRect();
-        const x = e.clientX - rect.left - rect.width / 2;
-        const y = e.clientY - rect.top - rect.height / 2;
-        const degX = -(y / (rect.height / 2)) * 8; // max 8 deg
-        const degY = (x / (rect.width / 2)) * 8; // max 8 deg
-        setRotate({ x: degX, y: degY });
-    };
-
-    const handleMouseLeave = () => {
-        setRotate({ x: 0, y: 0 });
-    };
-
-    useEffect(() => {
-        if (activeTab !== 'console') return;
-        const logTemplates = [
-            "[agent] Analyzing career prompt...",
-            "[builder] Mapping milestone node 1: Architecture Core",
-            "[builder] Mapping milestone node 2: Deployment Orchestrator",
-            "[intel] Fetching salary vectors for 'Fullstack AI Architect'...",
-            "[system] Core validation sequence active.",
-            "[api] Dynamic learning assets injected.",
-            "[todaytask] Daily action items compiled: 4 units.",
-            "[agent] Ready to deploy target node configuration.",
-        ];
-        let idx = 0;
-        const interval = setInterval(() => {
-            setLogs(prev => {
-                const next = [...prev, logTemplates[idx]];
-                if (next.length > 6) next.shift(); // keep it compact
-                return next;
-            });
-            idx = (idx + 1) % logTemplates.length;
-        }, 2000);
-        return () => clearInterval(interval);
-    }, [activeTab]);
-
+function BRTSEducationVisual() {
     return (
-        <div 
-            className="w-full max-w-md relative transition-transform duration-200 ease-out"
-            onMouseMove={handleMouseMove}
-            onMouseLeave={handleMouseLeave}
-            style={{
-                transform: `perspective(1000px) rotateX(${rotate.x}deg) rotateY(${rotate.y}deg) scale3d(1.01, 1.01, 1.01)`,
-                transformStyle: 'preserve-3d'
-            }}
-        >
-            {/* Ambient Outer Glow */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-cyan-500/20 rounded-[2rem] blur-2xl opacity-75 pointer-events-none" />
+        <div className="w-full max-w-lg aspect-square relative flex items-center justify-center overflow-hidden">
+            {/* Ambient Background Radial Glows */}
+            <div className="absolute w-[80%] h-[80%] rounded-full bg-gradient-to-tr from-indigo-500/20 via-purple-500/10 to-cyan-500/20 blur-[80px] pointer-events-none" />
             
-            {/* Inner Border Blueprint */}
-            <div className="absolute -inset-4 pointer-events-none opacity-30">
-                <div className="absolute top-0 left-0 w-6 h-6 border-t border-l border-indigo-500/50 rounded-tl-xl" />
-                <div className="absolute top-0 right-0 w-6 h-6 border-t border-r border-indigo-500/50 rounded-tr-xl" />
-                <div className="absolute bottom-0 left-0 w-6 h-6 border-b border-l border-indigo-500/50 rounded-bl-xl" />
-                <div className="absolute bottom-0 right-0 w-6 h-6 border-b border-r border-indigo-500/50 rounded-br-xl" />
+            {/* Blueprint Grid Mesh */}
+            <div className="absolute inset-0 bg-cyber-dots opacity-20 pointer-events-none rounded-[3rem]" />
+
+            {/* Glowing Tech Frame */}
+            <div className="absolute -inset-2 pointer-events-none opacity-40">
+                <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-indigo-500/40 rounded-tl-2xl" />
+                <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-indigo-500/40 rounded-tr-2xl" />
+                <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-indigo-500/40 rounded-bl-2xl" />
+                <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-indigo-500/40 rounded-br-2xl" />
             </div>
 
-            {/* Card Content Wrapper */}
-            <div className="relative bg-[#050505]/95 border border-white/10 rounded-3xl p-6 shadow-2xl backdrop-blur-xl overflow-hidden">
-                {/* Cyber Scanner Mesh overlay */}
-                <div className="absolute inset-0 bg-cyber-dots opacity-25 pointer-events-none" />
-                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent" />
+            {/* Rotating Orbits (SVG) */}
+            <svg className="w-[90%] h-[90%] absolute pointer-events-none" viewBox="0 0 400 400">
+                {/* Outer Dashed Orbit */}
+                <motion.circle
+                    cx="200"
+                    cy="200"
+                    r="155"
+                    fill="none"
+                    stroke="rgba(99, 102, 241, 0.25)"
+                    strokeWidth="1.5"
+                    strokeDasharray="8 12"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+                    style={{ transformOrigin: '200px 200px' }}
+                />
+                
+                {/* Inner Hexagon Path */}
+                <motion.polygon
+                    points="200,80 304,140 304,260 200,320 96,260 96,140"
+                    fill="none"
+                    stroke="rgba(6, 182, 212, 0.2)"
+                    strokeWidth="1.5"
+                    strokeDasharray="5 5"
+                    animate={{ rotate: -360 }}
+                    transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+                    style={{ transformOrigin: '200px 200px' }}
+                />
 
-                {/* Header Status Bar */}
-                <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-5 relative z-10">
-                    <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 bg-indigo-500 rounded-full animate-ping" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">TELEMETRY_STREAM</span>
-                    </div>
-                    <div className="text-[8px] font-mono text-gray-500">SYS_INT: 99.4%</div>
+                {/* Circuit Connections */}
+                <g opacity="0.3">
+                    <path d="M 200,80 L 200,40 M 304,140 L 340,120 M 304,260 L 340,280 M 200,320 L 200,360 M 96,260 L 60,280 M 96,140 L 60,120" stroke="#6366f1" strokeWidth="2" fill="none" strokeLinecap="round" />
+                    <circle cx="200" cy="40" r="4" fill="#6366f1" />
+                    <circle cx="340" cy="120" r="4" fill="#06b6d4" />
+                    <circle cx="340" cy="280" r="4" fill="#6366f1" />
+                    <circle cx="200" cy="360" r="4" fill="#06b6d4" />
+                    <circle cx="60" cy="280" r="4" fill="#6366f1" />
+                    <circle cx="60" cy="120" r="4" fill="#06b6d4" />
+                </g>
+            </svg>
+
+            {/* Central Floating Graduation Cap & Book Hologram (HTML) */}
+            <motion.div
+                animate={{ y: [0, -12, 0] }}
+                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+                className="relative z-10 flex flex-col items-center gap-4 animate-pulse-slow"
+            >
+                {/* Graduation Cap Container */}
+                <div className="relative w-32 h-32 bg-indigo-500/10 border border-indigo-500/30 rounded-[2.5rem] flex items-center justify-center shadow-[0_0_50px_rgba(99,102,241,0.2)] backdrop-blur-md hover:border-indigo-400 transition-colors">
+                    {/* Glowing pulse aura */}
+                    <div className="absolute -inset-1 rounded-[2.5rem] bg-indigo-500/20 blur-lg animate-pulse" />
+                    
+                    {/* Cap Icon */}
+                    <GraduationCap size={64} className="text-indigo-400 drop-shadow-[0_0_15px_rgba(99,102,241,0.6)]" />
                 </div>
 
-                {/* Card Body - Viewports */}
-                <div className="min-h-[220px] relative z-10">
-                    <AnimatePresence mode="wait">
-                        {activeTab === 'roadmap' && (
-                            <motion.div
-                                key="roadmap"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                className="space-y-4"
-                            >
-                                <div className="text-[9px] font-black text-gray-600 uppercase tracking-widest">ROADMAP PROTOCOL</div>
-                                <div className="relative pl-6 space-y-4">
-                                    {/* Vertical line connecting steps */}
-                                    <div className="absolute left-2 top-2 bottom-2 w-px bg-gradient-to-b from-indigo-500 via-purple-500 to-transparent" />
-                                    
-                                    <div className="relative flex items-start gap-3">
-                                        <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-                                        <div>
-                                            <div className="text-xs font-black text-white uppercase tracking-tight italic">01. Core Architecture Scaffolding</div>
-                                            <div className="text-[9px] text-gray-500">COMPLETED - 12 Modules Compiled</div>
-                                        </div>
-                                    </div>
-
-                                    <div className="relative flex items-start gap-3">
-                                        <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.8)] animate-pulse" />
-                                        <div>
-                                            <div className="text-xs font-black text-indigo-300 uppercase tracking-tight italic">02. REST/GraphQL API Gateway</div>
-                                            <div className="text-[9px] text-indigo-400/80 animate-pulse">ACTIVE BUNDLING - Step 4/8</div>
-                                        </div>
-                                    </div>
-
-                                    <div className="relative flex items-start gap-3 opacity-40">
-                                        <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-zinc-800" />
-                                        <div>
-                                            <div className="text-xs font-black text-gray-400 uppercase tracking-tight italic">03. Production Edge Optimization</div>
-                                            <div className="text-[9px] text-gray-600">LOCKED - Requires Gateway Handshake</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        )}
-
-                        {activeTab === 'radar' && (
-                            <motion.div
-                                key="radar"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                className="flex flex-col items-center justify-center py-2"
-                            >
-                                <div className="text-[9px] font-black text-gray-600 uppercase tracking-widest mb-4 self-start">COGNITIVE RATINGS</div>
-                                <div className="w-28 h-28 bg-indigo-500/5 border border-indigo-500/20 animate-morph-radar flex items-center justify-center relative shadow-[inset_0_0_20px_rgba(99,102,241,0.1)]">
-                                    <div className="absolute inset-2 bg-purple-500/5 border border-dashed border-purple-500/30 rounded-full animate-spin-slow" />
-                                    <Cpu size={24} className="text-indigo-400 z-10 animate-pulse" />
-                                </div>
-                                <div className="grid grid-cols-3 gap-x-6 gap-y-1 mt-4 text-[8px] font-black tracking-widest text-gray-500 uppercase text-center w-full">
-                                    <div>ENGINEERING: <span className="text-indigo-400">92%</span></div>
-                                    <div>SCALING: <span className="text-purple-400">84%</span></div>
-                                    <div>ROUTING: <span className="text-cyan-400">95%</span></div>
-                                </div>
-                            </motion.div>
-                        )}
-
-                        {activeTab === 'console' && (
-                            <motion.div
-                                key="console"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                className="space-y-3"
-                            >
-                                <div className="text-[9px] font-black text-gray-600 uppercase tracking-widest">LIVE PROCESS MONITOR</div>
-                                <div className="bg-black/80 rounded-xl p-3 border border-white/5 font-mono text-[9px] text-indigo-300 space-y-1.5 h-36 overflow-y-auto">
-                                    {logs.map((log, index) => (
-                                        <div key={index} className="truncate select-none leading-relaxed">
-                                            <span className="text-gray-600">{`>`}</span> {log}
-                                        </div>
-                                    ))}
-                                    <div className="flex items-center gap-1 text-white">
-                                        <span className="text-gray-600">{`>`}</span>
-                                        <span className="w-1.5 h-3 bg-indigo-400 animate-pulse" />
-                                    </div>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                {/* Subtitle / Hologram Label */}
+                <div className="text-center space-y-1">
+                    <div className="text-[10px] font-black text-indigo-400 tracking-[0.4em] uppercase">BRTS_COGNITIVE_CORE</div>
+                    <div className="text-[8px] font-mono text-gray-500 uppercase tracking-widest">Mastery Status: active</div>
                 </div>
+            </motion.div>
 
-                {/* Tab Switchers */}
-                <div className="flex gap-2 border-t border-white/5 pt-4 mt-5 relative z-10">
-                    <button
-                        onClick={() => setActiveTab('roadmap')}
-                        className={`flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${
-                            activeTab === 'roadmap'
-                                ? 'bg-white text-black border-white'
-                                : 'bg-transparent text-gray-500 border-white/5 hover:text-white hover:border-white/20'
-                        }`}
-                    >
-                        Roadmap
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('radar')}
-                        className={`flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${
-                            activeTab === 'radar'
-                                ? 'bg-white text-black border-white'
-                                : 'bg-transparent text-gray-500 border-white/5 hover:text-white hover:border-white/20'
-                        }`}
-                    >
-                        Radar
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('console')}
-                        className={`flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${
-                            activeTab === 'console'
-                                ? 'bg-white text-black border-white'
-                                : 'bg-transparent text-gray-500 border-white/5 hover:text-white hover:border-white/20'
-                        }`}
-                    >
-                        Console
-                    </button>
+            {/* Floating Satellite Nodes (Book, Brain, Award, Sparkles) */}
+            
+            {/* 1. Open Book Node (Top Left) */}
+            <motion.div
+                animate={{ y: [0, 8, 0], x: [0, -4, 0] }}
+                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+                className="absolute top-[15%] left-[15%] z-20 flex flex-col items-center gap-1.5"
+            >
+                <div className="w-12 h-12 rounded-2xl bg-cyan-950/80 border border-cyan-500/30 flex items-center justify-center shadow-[0_0_20px_rgba(6,182,212,0.15)] backdrop-blur-md">
+                    <BookOpen size={20} className="text-cyan-400" />
                 </div>
+                <span className="text-[8px] font-black tracking-widest text-cyan-400/80 uppercase">Active Recall</span>
+            </motion.div>
+
+            {/* 2. Brain Node (Top Right) */}
+            <motion.div
+                animate={{ y: [0, -8, 0], x: [0, 4, 0] }}
+                transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                className="absolute top-[15%] right-[15%] z-20 flex flex-col items-center gap-1.5"
+            >
+                <div className="w-12 h-12 rounded-2xl bg-indigo-950/80 border border-indigo-500/30 flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.15)] backdrop-blur-md">
+                    <Brain size={20} className="text-indigo-400" />
+                </div>
+                <span className="text-[8px] font-black tracking-widest text-indigo-400/80 uppercase">Socratic AI</span>
+            </motion.div>
+
+            {/* 3. Award/Mastery Node (Bottom Left) */}
+            <motion.div
+                animate={{ y: [0, -6, 0], x: [0, -4, 0] }}
+                transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+                className="absolute bottom-[18%] left-[15%] z-20 flex flex-col items-center gap-1.5"
+            >
+                <div className="w-12 h-12 rounded-2xl bg-purple-950/80 border border-purple-500/30 flex items-center justify-center shadow-[0_0_20px_rgba(168,85,247,0.15)] backdrop-blur-md">
+                    <CheckCircle size={20} className="text-purple-400" />
+                </div>
+                <span className="text-[8px] font-black tracking-widest text-purple-400/80 uppercase">Mastery Gate</span>
+            </motion.div>
+
+            {/* 4. Telemetry Node (Bottom Right) */}
+            <motion.div
+                animate={{ y: [0, 6, 0], x: [0, 4, 0] }}
+                transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+                className="absolute bottom-[18%] right-[15%] z-20 flex flex-col items-center gap-1.5"
+            >
+                <div className="w-12 h-12 rounded-2xl bg-emerald-950/80 border border-emerald-500/30 flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.15)] backdrop-blur-md">
+                    <Activity size={20} className="text-emerald-400" />
+                </div>
+                <span className="text-[8px] font-black tracking-widest text-emerald-400/80 uppercase">Adaptive Feed</span>
+            </motion.div>
+
+            {/* Rising Digital Sparkles */}
+            <div className="absolute inset-0 pointer-events-none">
+                {[...Array(5)].map((_, i) => (
+                    <motion.div
+                        key={i}
+                        initial={{ y: "100%", x: `${20 + i * 15}%`, opacity: 0 }}
+                        animate={{
+                            y: ["100%", "20%"],
+                            opacity: [0, 0.4, 0],
+                        }}
+                        transition={{
+                            duration: 4 + i,
+                            repeat: Infinity,
+                            delay: i * 0.8,
+                            ease: "linear"
+                        }}
+                        className="absolute w-1 h-1 bg-indigo-400 rounded-full"
+                    />
+                ))}
             </div>
         </div>
     );
 }
+
