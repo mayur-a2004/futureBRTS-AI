@@ -68,7 +68,7 @@ export default function Dashboard() {
     return (
         <div className="text-white space-y-8 max-w-7xl mx-auto">
             {/* Hero Section */}
-            <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-8">
                 <div>
                     <motion.h1
                         initial={{ opacity: 0, x: -20 }}

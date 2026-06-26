@@ -1,7 +1,7 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { HelmetProvider } from 'react-helmet-async';
 import { motion } from 'framer-motion';
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastContainer } from "react-toastify";
@@ -36,6 +36,17 @@ const History = lazy(() => import('./pages/history/History'));
 const Builder = lazy(() => import('./pages/builder/Builder'));
 const BusinessWarRoom = lazy(() => import('./pages/war-room/BusinessWarRoom'));
 const NotFound = lazy(() => import('./pages/NotFound'));
+
+// 🎓 Minerva Education Pages (Full Screen — own layout)
+const MinervaHome = lazy(() => import('./pages/minerva/MinervaHome'));
+const MinervaSessionPage = lazy(() => import('./pages/minerva/MinervaSessionPage'));
+const MinervaLearnPage = lazy(() => import('./pages/minerva/MinervaLearnPage'));
+const MinervaHomeworkPage = lazy(() => import('./pages/minerva/MinervaHomeworkPage'));
+const MinervaExamPage = lazy(() => import('./pages/minerva/MinervaExamPage'));
+const MinervaExamListPage = lazy(() => import('./pages/minerva/MinervaExamListPage'));
+const MinervaRoadmapsPage = lazy(() => import('./pages/minerva/MinervaRoadmapsPage'));
+const MinervaTasksPage = lazy(() => import('./pages/minerva/MinervaTasksPage'));
+const MinervaBuilderPage = lazy(() => import('./pages/minerva/MinervaBuilderPage'));
 
 // Admin Pages
 const AdminLayout = lazy(() => import('./components/layout/AdminLayout'));
@@ -121,6 +132,19 @@ const FactoryLiveTracking = lazy(() => import('./pages/projects/FactoryLiveTrack
 
 const ExamGenerator = lazy(() => import('./pages/ExamGeneratorPage'));
 
+const MinervaRedirect = () => {
+    const target = window.location.pathname.replace(/^\/minerva/, '/future-education');
+    return <Navigate to={target + window.location.search} replace />;
+};
+
+function ScrollToTop() {
+    const { pathname } = useLocation();
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, [pathname]);
+    return null;
+}
+
 function App() {
     useTrafficTracker();
     return (
@@ -141,6 +165,7 @@ function App() {
                                 theme="light"
                             />
                             <Router>
+                                <ScrollToTop />
                                 {/* GLOBAL BACKGROUND - Applied once for the whole app */}
                                 <div className="min-h-screen bg-black text-white font-sans selection:bg-indigo-500/30 font-inter relative">
                                     {/* Animation Layer */}
@@ -202,6 +227,21 @@ function App() {
                                                             <Route path="settings" element={<Settings />} />
                                                             <Route path="checkout" element={<Checkout />} />
                                                             <Route path="checkout/success" element={<Success />} />
+
+                                                            {/* 🎓 Future Education OS — Nested inside Layout */}
+                                                            <Route path="future-education" element={<MinervaHome />} />
+                                                            <Route path="future-education/session/:id" element={<MinervaSessionPage />} />
+                                                            <Route path="future-education/learn/:id" element={<MinervaLearnPage />} />
+                                                            <Route path="future-education/homework" element={<MinervaHomeworkPage />} />
+                                                            <Route path="future-education/exams" element={<MinervaExamListPage />} />
+                                                            <Route path="future-education/exam/:id" element={<MinervaExamPage />} />
+                                                            <Route path="future-education/roadmaps" element={<MinervaRoadmapsPage />} />
+                                                            <Route path="future-education/tasks" element={<MinervaTasksPage />} />
+                                                            <Route path="future-education/builder" element={<MinervaBuilderPage />} />
+                                                            
+                                                            {/* Redirect old path to new path recursively */}
+                                                            <Route path="minerva" element={<Navigate to="/future-education" replace />} />
+                                                            <Route path="minerva/*" element={<MinervaRedirect />} />
                                                         </Route>
                                                     </Route>
                                                 </Route>

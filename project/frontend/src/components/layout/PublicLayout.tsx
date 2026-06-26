@@ -1,13 +1,15 @@
+import { useState } from "react"
 import { Outlet, useLocation, Link, useNavigate } from "react-router-dom"
-import { motion, useScroll, useTransform } from "framer-motion"
+import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/Button"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
-import { Twitter, Linkedin, Github, Instagram } from "lucide-react"
+import { Twitter, Linkedin, Github, Instagram, Menu, X } from "lucide-react"
 
 export default function PublicLayout() {
     const { scrollY } = useScroll();
     const navigate = useNavigate();
     const location = useLocation();
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     const headerBg = useTransform(scrollY, [0, 100], ["rgba(5, 5, 5, 0)", "rgba(5, 5, 5, 0.9)"]);
     const headerBlur = useTransform(scrollY, [0, 100], ["blur(0px)", "blur(12px)"]);
@@ -20,7 +22,7 @@ export default function PublicLayout() {
                 {/* --- SHARED HEADER --- */}
                 <motion.header style={{ backgroundColor: headerBg, backdropFilter: headerBlur }} className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 py-4">
                     <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
-                        <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
+                        <div className="flex items-center gap-2 cursor-pointer" onClick={() => { setIsMobileMenuOpen(false); navigate('/'); }}>
                             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-black">F</div>
                             <span className="text-xl font-black tracking-tighter">FutureBRTS</span>
                         </div>
@@ -34,12 +36,95 @@ export default function PublicLayout() {
                             <NavLink to="/contact" label="Contact" current={location.pathname} />
                         </nav>
 
-                        <div className="flex items-center gap-4">
+                        <div className="hidden lg:flex items-center gap-4">
                             <button onClick={() => navigate('/auth/login')} className="text-sm font-black uppercase tracking-widest text-gray-400 hover:text-white transition-colors">Login</button>
                             <Button onClick={() => navigate('/auth/register')} className="bg-white text-black font-black uppercase tracking-widest text-[10px] px-6 py-2 rounded-full hover:bg-gray-200 transition-all">Get Started</Button>
                         </div>
+
+                        {/* Mobile Hamburger toggle */}
+                        <div className="flex lg:hidden">
+                            <button 
+                                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+                                className="text-white hover:text-indigo-400 transition-colors p-2 bg-white/5 border border-white/10 rounded-xl"
+                            >
+                                {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+                            </button>
+                        </div>
                     </div>
                 </motion.header>
+
+                {/* Mobile Menu Panel */}
+                <AnimatePresence>
+                    {isMobileMenuOpen && (
+                        <motion.div 
+                            initial={{ opacity: 0, y: -20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.3 }}
+                            className="fixed inset-x-0 top-[73px] bottom-0 z-40 bg-black/95 backdrop-blur-2xl border-b border-white/10 lg:hidden flex flex-col p-6 space-y-6 overflow-y-auto"
+                        >
+                            <div className="flex flex-col space-y-4">
+                                <Link 
+                                    to="/" 
+                                    onClick={() => setIsMobileMenuOpen(false)} 
+                                    className={`text-base font-black uppercase tracking-[0.2em] py-3 border-b border-white/5 ${location.pathname === '/' ? 'text-indigo-400' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    Home
+                                </Link>
+                                <Link 
+                                    to="/about" 
+                                    onClick={() => setIsMobileMenuOpen(false)} 
+                                    className={`text-base font-black uppercase tracking-[0.2em] py-3 border-b border-white/5 ${location.pathname === '/about' ? 'text-indigo-400' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    About
+                                </Link>
+                                <Link 
+                                    to="/services" 
+                                    onClick={() => setIsMobileMenuOpen(false)} 
+                                    className={`text-base font-black uppercase tracking-[0.2em] py-3 border-b border-white/5 ${location.pathname === '/services' ? 'text-indigo-400' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    Services
+                                </Link>
+                                <Link 
+                                    to="/how-it-works" 
+                                    onClick={() => setIsMobileMenuOpen(false)} 
+                                    className={`text-base font-black uppercase tracking-[0.2em] py-3 border-b border-white/5 ${location.pathname === '/how-it-works' ? 'text-indigo-400' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    How It Works
+                                </Link>
+                                <Link 
+                                    to="/careers-public" 
+                                    onClick={() => setIsMobileMenuOpen(false)} 
+                                    className={`text-base font-black uppercase tracking-[0.2em] py-3 border-b border-white/5 ${location.pathname === '/careers-public' ? 'text-indigo-400' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    Careers
+                                </Link>
+                                <Link 
+                                    to="/contact" 
+                                    onClick={() => setIsMobileMenuOpen(false)} 
+                                    className={`text-base font-black uppercase tracking-[0.2em] py-3 border-b border-white/5 ${location.pathname === '/contact' ? 'text-indigo-400' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    Contact
+                                </Link>
+                            </div>
+
+                            <div className="flex flex-col gap-4 pt-4 border-t border-white/10">
+                                <button 
+                                    onClick={() => { setIsMobileMenuOpen(false); navigate('/auth/login'); }} 
+                                    className="w-full py-3 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl text-center text-sm font-black uppercase tracking-widest text-white transition-all"
+                                >
+                                    Login
+                                </button>
+                                <button 
+                                    onClick={() => { setIsMobileMenuOpen(false); navigate('/auth/register'); }} 
+                                    className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl text-center text-sm font-black uppercase tracking-widest text-white transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)]"
+                                >
+                                    Get Started
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 <main className="relative z-10">
                     <Outlet />

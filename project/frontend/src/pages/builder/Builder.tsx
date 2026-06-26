@@ -823,31 +823,33 @@ export default function Builder() {
                 <header className="h-16 border-b border-white/10 flex items-center px-4 md:px-6 bg-[#09090b]/50 backdrop-blur-md sticky top-0 z-10 w-full shadow-sm">
                     <div className="flex items-center justify-between w-full">
                         {/* 🌐 System Status (Left) */}
-                        <div className="flex items-center">
-                            <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white hover:bg-white/5 text-xs gap-3 min-w-[140px] justify-start px-3 border border-white/5 rounded-xl bg-white/[0.02] cursor-default">
+                        <div className="flex items-center shrink-0">
+                            <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white hover:bg-white/5 text-xs gap-2 sm:gap-3 lg:min-w-[140px] min-w-0 justify-start px-2 sm:px-3 border border-white/5 rounded-xl bg-white/[0.02] cursor-default shrink-0">
                                 {loading ? (
                                     <>
-                                        <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse shadow-[0_0_15px_rgba(99,102,241,0.6)]" />
-                                        <span className="font-black text-[10px] tracking-tight">NEURAL SYNC</span>
+                                        <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse shadow-[0_0_15px_rgba(99,102,241,0.6)] shrink-0" />
+                                        <span className="font-black text-[10px] tracking-tight hidden lg:inline">NEURAL SYNC</span>
+                                        <span className="font-black text-[10px] tracking-tight inline lg:hidden">SYNC</span>
                                     </>
                                 ) : (
                                     <>
-                                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_15px_rgba(16,185,129,0.6)]" />
-                                        <span className="font-black text-[10px] tracking-tight">Future V.1.0</span>
+                                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_15px_rgba(16,185,129,0.6)] shrink-0" />
+                                        <span className="font-black text-[10px] tracking-tight hidden lg:inline">Future V.1.0</span>
+                                        <span className="font-black text-[10px] tracking-tight inline lg:hidden">V.1.0</span>
                                     </>
                                 )}
                             </Button>
                         </div>
 
                         {/* ⚡ Action Center (Right) */}
-                        <div className="flex items-center gap-2 md:gap-3">
+                        <div className="flex items-center gap-1.5 sm:gap-2.5">
                             {/* 🔌 Energy Chip */}
                             <div
                                 onClick={() => setTokenWallOpen(true)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 cursor-pointer hover:bg-indigo-500/20 transition-all active:scale-95 group"
+                                className="flex items-center gap-1 px-2 py-1 sm:gap-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 cursor-pointer hover:bg-indigo-500/20 transition-all active:scale-95 group shrink-0"
                             >
-                                <Zap size={12} className="text-indigo-400 group-hover:scale-110 transition-transform" />
-                                <span className="text-white font-black text-[11px] tabular-nums">
+                                <Zap size={12} className="text-indigo-400 group-hover:scale-110 transition-transform shrink-0" />
+                                <span className="text-white font-black text-[11px] tabular-nums shrink-0">
                                     {user?.tokenBalance?.toLocaleString() || '0'}
                                 </span>
                             </div>
@@ -855,14 +857,14 @@ export default function Builder() {
                             <div className="h-6 w-px bg-white/10 mx-1 hidden md:block" />
 
                             {/* TASK BUTTON */}
-                            <div className="relative" ref={taskMenuRef}>
+                            <div className="relative shrink-0" ref={taskMenuRef}>
                                 <Button
                                     variant="secondary"
                                     size="sm"
                                     onClick={() => setTaskMenuOpen(!taskMenuOpen)}
-                                    className="bg-[#18181b] border border-white/10 hover:bg-white/5 hover:border-indigo-500/50 text-gray-200 text-xs font-semibold gap-2 h-9 px-4 rounded-xl shadow-sm transition-all"
+                                    className="bg-[#18181b] border border-white/10 hover:bg-white/5 hover:border-indigo-500/50 text-gray-200 text-xs font-semibold gap-2 h-9 px-3 lg:px-4 rounded-xl shadow-sm transition-all shrink-0"
                                 >
-                                    <Menu size={14} className="text-indigo-400" /> <span className="hidden sm:inline">Tasks</span>
+                                    <Menu size={14} className="text-indigo-400 shrink-0" /> <span className="hidden lg:inline">Tasks</span>
                                 </Button>
                                 {taskMenuOpen && (
                                     <div className="absolute top-full right-0 mt-2 w-48 bg-[#0a0a0b] border border-white/10 rounded-xl shadow-2xl p-1 z-50 animate-in fade-in zoom-in-95 backdrop-blur-xl">
@@ -885,9 +887,9 @@ export default function Builder() {
                                     variant="secondary"
                                     size="sm"
                                     onClick={() => setRoadmapMenuOpen(!roadmapMenuOpen)}
-                                    className="bg-[#18181b] border border-white/10 hover:bg-white/5 hover:border-purple-500/50 text-gray-200 text-xs font-bold gap-2 h-10 px-5 rounded-2xl shadow-lg transition-all active:scale-95"
+                                    className="bg-[#18181b] border border-white/10 hover:bg-white/5 hover:border-purple-500/50 text-gray-200 text-xs font-bold gap-2 h-10 px-3 lg:px-5 rounded-2xl shadow-lg transition-all active:scale-95 shrink-0"
                                 >
-                                    <Map size={14} className="text-purple-400" /> Roadmap
+                                    <Map size={14} className="text-purple-400 shrink-0" /> <span className="hidden lg:inline">Roadmap</span>
                                 </Button>
                                 {roadmapMenuOpen && (
                                     <div className="absolute top-full right-0 mt-2 w-64 bg-[#0a0a0b] border border-white/10 rounded-2xl shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 backdrop-blur-2xl">

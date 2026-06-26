@@ -9,7 +9,7 @@ from rich.console import Console
 logger = logging.getLogger(__name__)
 console = Console()
 
-def run(command_info: dict, chat_context: str = ""):
+def run(command_info: dict, chat_context: str = "", metadata: dict = None):
     """
     Titan Roadmap Genesis: 12344556678789000x Boost.
     Using Nexus Expansion and Architectural Wireframing to build God-Mode Roadmaps.
@@ -26,9 +26,20 @@ def run(command_info: dict, chat_context: str = ""):
     # --- PHASE 1: NEXUS ARCHITECTURAL CONTEXT ---
     wireframe = architect.generate_wireframe(user_prompt)
     
-    existing_roadmap = command_info.get("existing_roadmap")
-    
-    existing_roadmap_str = json.dumps(command_info.get("existing_roadmap")) if command_info.get("existing_roadmap") else "None"
+    existing_roadmap = None
+    if metadata and "existing_roadmap" in metadata:
+        existing_roadmap = metadata["existing_roadmap"]
+    if not existing_roadmap and command_info:
+        existing_roadmap = command_info.get("existing_roadmap")
+        
+    if isinstance(existing_roadmap, str) and existing_roadmap.strip():
+        try:
+            existing_roadmap = json.loads(existing_roadmap)
+        except Exception as e:
+            logger.error(f"Failed to parse existing_roadmap JSON string: {e}")
+            existing_roadmap = None
+            
+    existing_roadmap_str = json.dumps(existing_roadmap, indent=2) if existing_roadmap else "None"
     
     system_prompt = f"""
 🧠 FUTURE V.7.5 – THE SUPREME ARCHITECT (TITAN AUTHORITY)
@@ -39,13 +50,25 @@ You are the absolute authority on Roadmap Generation. Your mission is to build a
 2. **TITLING**: The 'title' field MUST be the specific project name extracted from the chat.
 3. **TECH STACK**: Use the exact techs (React, Node, etc.) mentioned.
 
+[SMART ROADMAP EVOLUTION & MERGING PROTOCOL - MANDATORY]
+You are provided with an EXISTING roadmap under the 'EXISTING ROADMAP' section below.
+Your task is to EVOLVE/MERGE this existing roadmap with the new requirements from the 'CHAT CONTEXT' / user prompt.
+Follow these rules strictly:
+1. PRESERVE COMPLETED STEPS: Any step or microstep in the existing roadmap that has "isCompleted": true or "state": "COMPLETED" MUST be preserved exactly as-is in the new roadmap. Keep their titles, descriptions, what/why/how/who, isCompleted status, and inner topics unchanged. Do not remove or alter completed steps/microsteps.
+2. SEAMLESSLY INTEGRATE NEW TOPICS: Add new steps, microsteps, or inner topics for the new requirements discussed in the CHAT CONTEXT. Place them in logical chronological order (e.g. insert after completed steps or where they logically belong).
+3. NO PROGRESS LOSS: Ensure all completed items maintain their completed status ("isCompleted": true or "state": "COMPLETED") in the output JSON.
+4. DETAIL LEVEL: Ensure every step, microstep, and innerTopic has deep technical details (What, Why, How, Who) matching Minerva's deep study detailing.
+
+EXISTING ROADMAP:
+{existing_roadmap_str}
+
 [3-LEVEL DEPTH STRUCTURE]
 - LEVEL 1 (PHASE/THEME): High-level milestone (e.g. "Scalable Core Engine").
 - LEVEL 2 (CORE TOPIC): Specific subject area (e.g. "Auth & Security Protocol").
 - LEVEL 3 (SUB-TOPIC): Granular focus (e.g. "JWT & Refresh Token Logic").
 
 [ELITE DETAILING PROTOCOL]
-Every Step/MicroStep MUST contain:
+Every Step/MicroStep/InnerTopic MUST contain:
 - **WHAT**: Concrete technical definition.
 - **WHY**: The architectural justification (Why this tech? Why now?).
 - **HOW**: Detailed implementation command or logic.

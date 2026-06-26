@@ -27,6 +27,7 @@ import guestRoutes from './modules/guest/guest.routes';
 import growthRoutes from './modules/growth/growth.routes';
 import warRoomRoutes from './modules/war_room/war_room.routes';
 import { tokenGuard } from './shared/middleware/token.middleware';
+import minervaRoutes from './modules/minerva/minerva.routes';
 
 import { globalLimiter, securityShield, hardenedHelmet } from './shared/middleware/security.shield';
 
@@ -76,6 +77,11 @@ app.use('/api/guest', guestRoutes);
 app.use('/api/growth', growthRoutes);
 app.use('/api/war-room', warRoomRoutes);
 console.log('✅ Routes Mounted: /api/war-room');
+
+// 🎓 MINERVA & FUTURE EDUCATION OS MODULE
+app.use('/api/minerva', minervaRoutes);
+app.use('/api/future-education', minervaRoutes);
+console.log('✅ Routes Mounted: /api/minerva & /api/future-education');
 
 import examGeneratorRoutes from './modules/exam_generator/exam_generator.routes';
 app.use('/api/exam', examGeneratorRoutes);

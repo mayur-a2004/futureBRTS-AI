@@ -1,10 +1,10 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom"
-import { LayoutDashboard, Zap, LogOut, Clock, Menu, X, MessageSquare, Map, CheckSquare, Edit2, Check, MoreHorizontal, Trash2, Share2, Pin, Archive, FolderInput, Sparkles, PanelLeftClose, PanelLeftOpen, Settings, User, ChevronRight, Briefcase, ShieldCheck, FileText } from "lucide-react"
+import { LayoutDashboard, Zap, LogOut, Clock, Menu, X, MessageSquare, Map, CheckSquare, Edit2, Check, MoreHorizontal, Trash2, Share2, Pin, Archive, FolderInput, Sparkles, PanelLeftClose, PanelLeftOpen, Settings, User, ChevronRight, Briefcase, ShieldCheck, FileText, GraduationCap } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { useState, useEffect, useRef } from "react";
 import TokenWall from "@/components/economy/TokenWall";
 import { useModal } from "@/context/ModalContext";
-import UniverseBackground from "@/components/ui/UniverseBackground";
+
 
 export default function Layout() {
     const location = useLocation();
@@ -14,6 +14,9 @@ export default function Layout() {
 
     // Session State
     const [sessions, setSessions] = useState<any[]>([]);
+    const [futureEdSessions, setFutureEdSessions] = useState<any[]>([]);
+    const [futureEdStats, setFutureEdStats] = useState<any>(null);
+    const [futureEdCourses, setFutureEdCourses] = useState<any[]>([]);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState("");
@@ -24,6 +27,20 @@ export default function Layout() {
         return localStorage.getItem('sidebar_collapsed') === 'true';
     });
     const [systemTime, setSystemTime] = useState(new Date().toLocaleTimeString());
+
+    const isFutureEd = location.pathname.startsWith('/future-education');
+    const isFullHeight = ['/builder', '/roadmap', '/today-task'].includes(location.pathname) || isFutureEd;
+
+    const queryParams = new URLSearchParams(location.search);
+    const currentSessionId = queryParams.get('sessionId') || localStorage.getItem('fbrts_active_session') || "";
+
+    const handleTokenWallAction = () => {
+        setIsTokenWallOpen(false);
+        if (isFutureEd) {
+            fetchFutureEdStats();
+        }
+    };
+
 
     useEffect(() => {
         const timer = setInterval(() => {
@@ -40,15 +57,33 @@ export default function Layout() {
 
     // Initial Load & URL Sync
     useEffect(() => {
-        fetchSessions();
-    }, [location.pathname, location.search]);
+        if (isFutureEd) {
+            fetchFutureEdSessions();
+            fetchFutureEdStats();
+            fetchFutureEdCourses();
+        } else {
+            fetchSessions();
+        }
+    }, [location.pathname, location.search, isFutureEd]);
 
     // 🧠 REAL-TIME SYNC: Listen for title changes from Builder
     useEffect(() => {
-        const handleRefresh = () => fetchSessions();
+        const handleRefresh = () => {
+            if (isFutureEd) {
+                fetchFutureEdSessions();
+                fetchFutureEdStats();
+                fetchFutureEdCourses();
+            } else {
+                fetchSessions();
+            }
+        };
         window.addEventListener('fb-refresh-sessions', handleRefresh);
-        return () => window.removeEventListener('fb-refresh-sessions', handleRefresh);
-    }, []);
+        window.addEventListener('future-education-refresh-sessions', handleRefresh);
+        return () => {
+            window.removeEventListener('fb-refresh-sessions', handleRefresh);
+            window.removeEventListener('future-education-refresh-sessions', handleRefresh);
+        };
+    }, [isFutureEd]);
 
     // Focus input when editing starts
     useEffect(() => {
@@ -72,27 +107,84 @@ export default function Layout() {
         } catch (e) { console.error(e); }
     };
 
-    const createSession = async () => {
-        const token = localStorage.getItem('fbrts_token');
-        if (!token) return;
-
-        const intent = "";
-        const title = "New Session";
-
+    const fetchFutureEdSessions = async () => {
         try {
-            const res = await fetch('/api/builder/session', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ initialPrompt: intent, title })
+            const token = localStorage.getItem('fbrts_token');
+            if (!token) return;
+            const res = await fetch('/api/future-education/chat/sessions', {
+                headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
             if (data.success) {
-                await fetchSessions();
-                localStorage.setItem('fbrts_active_session', data.session._id);
-                navigate(`/builder?sessionId=${data.session._id}`);
-                closeMobileMenu();
+                setFutureEdSessions(data.sessions || []);
             }
         } catch (e) { console.error(e); }
+    };
+
+    const fetchFutureEdStats = async () => {
+        try {
+            const token = localStorage.getItem('fbrts_token');
+            if (!token) return;
+            const res = await fetch('/api/future-education/stats', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+                setFutureEdStats(data.stats);
+            }
+        } catch (e) { console.error(e); }
+    };
+
+    const fetchFutureEdCourses = async () => {
+        try {
+            const token = localStorage.getItem('fbrts_token');
+            if (!token) return;
+            const res = await fetch('/api/future-education/sessions', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+                setFutureEdCourses(data.sessions || []);
+            }
+        } catch (e) { console.error(e); }
+    };
+
+    const handleCreateSession = async () => {
+        const token = localStorage.getItem('fbrts_token');
+        if (!token) return;
+
+        if (isFutureEd) {
+            try {
+                const res = await fetch('/api/future-education/chat/session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ title: 'New Chat' })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    await fetchFutureEdSessions();
+                    navigate(`/future-education?sessionId=${data.session._id}`);
+                    closeMobileMenu();
+                }
+            } catch (e) { console.error(e); }
+        } else {
+            const intent = "";
+            const title = "New Session";
+            try {
+                const res = await fetch('/api/builder/session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ initialPrompt: intent, title })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    await fetchSessions();
+                    localStorage.setItem('fbrts_active_session', data.session._id);
+                    navigate(`/builder?sessionId=${data.session._id}`);
+                    closeMobileMenu();
+                }
+            } catch (e) { console.error(e); }
+        }
     };
 
     const handleRenameSession = async (id: string) => {
@@ -101,69 +193,125 @@ export default function Layout() {
             return;
         }
 
-        setSessions(prev => prev.map(s => s._id === id ? { ...s, title: editTitle } : s));
-        setEditingSessionId(null);
-
-        try {
-            const token = localStorage.getItem('fbrts_token');
-            await fetch(`/api/builder/session/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ title: editTitle })
-            });
-        } catch (e) { console.error(e); }
+        if (isFutureEd) {
+            setFutureEdSessions(prev => prev.map(s => s._id === id ? { ...s, title: editTitle } : s));
+            setEditingSessionId(null);
+            try {
+                const token = localStorage.getItem('fbrts_token');
+                await fetch(`/api/future-education/chat/session/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ title: editTitle })
+                });
+                fetchFutureEdSessions();
+            } catch (e) { console.error(e); }
+        } else {
+            setSessions(prev => prev.map(s => s._id === id ? { ...s, title: editTitle } : s));
+            setEditingSessionId(null);
+            try {
+                const token = localStorage.getItem('fbrts_token');
+                await fetch(`/api/builder/session/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ title: editTitle })
+                });
+                fetchSessions();
+            } catch (e) { console.error(e); }
+        }
     };
 
     const handleTogglePin = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        try {
-            const token = localStorage.getItem('fbrts_token');
-            const res = await fetch(`/api/builder/session/${id}/pin`, {
-                method: 'PUT',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-            if (data.success) {
-                // Optimistic update or just refetch
-                setSessions(prev => {
-                    const updated = prev.map(s => s._id === id ? { ...s, isPinned: data.isPinned } : s);
-                    return [...updated].sort((a, b) => {
-                        if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
-                        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-                    });
+        const token = localStorage.getItem('fbrts_token');
+        if (!token) return;
+
+        if (isFutureEd) {
+            try {
+                const res = await fetch(`/api/future-education/chat/session/${id}/pin`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
-            }
-        } catch (e) {
-            console.error("Pin failed", e);
+                const data = await res.json();
+                if (data.success) {
+                    setFutureEdSessions(prev => {
+                        const updated = prev.map(s => s._id === id ? { ...s, isPinned: data.session.isPinned } : s);
+                        return [...updated].sort((a, b) => {
+                            if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+                            return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+                        });
+                    });
+                }
+            } catch (e) { console.error(e); }
+        } else {
+            try {
+                const res = await fetch(`/api/builder/session/${id}/pin`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    setSessions(prev => {
+                        const updated = prev.map(s => s._id === id ? { ...s, isPinned: data.isPinned } : s);
+                        return [...updated].sort((a, b) => {
+                            if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+                            return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+                        });
+                    });
+                }
+            } catch (e) { console.error(e); }
         }
     };
 
     const handleDeleteSession = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
+        const token = localStorage.getItem('fbrts_token');
+        if (!token) return;
 
-        const confirmed = await confirm({
-            title: "Delete Session?",
-            message: "This will permanently erase this session's history and roadmaps. This action cannot be undone.",
-            confirmText: "Delete Permanently",
-            cancelText: "Keep Session"
-        });
-
-        if (!confirmed) return;
-
-        setSessions(prev => prev.filter(s => s._id !== id));
-        if (location.search.includes(id)) navigate('/builder');
-
-        try {
-            const token = localStorage.getItem('fbrts_token');
-            const res = await fetch(`/api/builder/session/${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
+        if (isFutureEd) {
+            const confirmed = await confirm({
+                title: "Delete Chat?",
+                message: "This will permanently delete this conversation and all its messages. This action cannot be undone.",
+                confirmText: "Delete Permanently",
+                cancelText: "Keep Chat"
             });
-            const data = await res.json();
-            if (data.success) {
-                fetchSessions();
-            }
-        } catch (e) { console.error(e); }
+            if (!confirmed) return;
+
+            setFutureEdSessions(prev => prev.filter(s => s._id !== id));
+            if (location.search.includes(id)) navigate('/future-education');
+
+            try {
+                const res = await fetch(`/api/future-education/chat/session/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    fetchFutureEdSessions();
+                }
+            } catch (e) { console.error(e); }
+        } else {
+            const confirmed = await confirm({
+                title: "Delete Session?",
+                message: "This will permanently erase this session's history and roadmaps. This action cannot be undone.",
+                confirmText: "Delete Permanently",
+                cancelText: "Keep Session"
+            });
+            if (!confirmed) return;
+
+            setSessions(prev => prev.filter(s => s._id !== id));
+            if (location.search.includes(id)) navigate('/builder');
+
+            try {
+                const res = await fetch(`/api/builder/session/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    fetchSessions();
+                }
+            } catch (e) { console.error(e); }
+        }
     };
 
     const startEditing = (session: any) => {
@@ -180,13 +328,25 @@ export default function Layout() {
     const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
     const handleSessionClick = (id: string) => {
-        localStorage.setItem('fbrts_active_session', id);
-        navigate(`/builder?sessionId=${id}`);
+        if (isFutureEd) {
+            navigate(`/future-education?sessionId=${id}`);
+        } else {
+            localStorage.setItem('fbrts_active_session', id);
+            navigate(`/builder?sessionId=${id}`);
+        }
         closeMobileMenu();
     };
 
-    const navItems = [
+    const navItems = isFutureEd ? [
+        { name: "Tutor Chat", path: "/future-education", icon: <MessageSquare size={20} /> },
+        { name: "Study Roadmaps", path: "/future-education/roadmaps", icon: <Map size={20} /> },
+        { name: "Study Tasks", path: "/future-education/tasks", icon: <CheckSquare size={20} /> },
+        { name: "E-Builder", path: "/future-education/builder", icon: <Zap size={20} /> },
+        { name: "Practice Exams", path: "/future-education/exams", icon: <FileText size={20} /> },
+        { name: "Exit Student OS", path: "/dashboard", icon: <LogOut size={20} /> },
+    ] : [
         { name: "Dashboard", path: "/dashboard", icon: <LayoutDashboard size={20} /> },
+        { name: "Future Education OS", path: "/future-education", icon: <GraduationCap size={20} /> },
         { name: "Roadmap", path: "/roadmap", icon: <Map size={20} /> },
         { name: "Today Task", path: "/today-task", icon: <CheckSquare size={20} /> },
         { name: "Builder", path: "/builder", icon: <Zap size={20} /> },
@@ -194,23 +354,19 @@ export default function Layout() {
         { name: "Business War Room", path: "/war-room", icon: <Briefcase size={20} /> },
     ];
 
-    if (user?.role === 'admin') {
+    if (!isFutureEd && user?.role === 'admin') {
         navItems.push({ name: "Genesis Admin", path: "/admin", icon: <ShieldCheck size={20} className="text-orange-400" /> });
     }
 
-    const searchParams = new URLSearchParams(location.search);
-    const currentSessionId = searchParams.get('sessionId') || localStorage.getItem('fbrts_active_session');
-
-    const handleTokenWallAction = () => {
-        setIsTokenWallOpen(false);
-    };
+    const xp = futureEdStats ? (futureEdStats.completed_topics * 200 + futureEdStats.total_exams_taken * 300 + futureEdStats.total_study_minutes * 5) : 650;
+    const level = Math.floor(xp / 1000) + 1;
+    const levelProgressXp = xp % 1000;
+    const levelProgressPercent = (levelProgressXp / 1000) * 100;
+    const gold = futureEdStats ? (futureEdStats.completed_topics * 50 + futureEdStats.total_exams_taken * 100 + futureEdStats.streak_days * 10) : 320;
 
     return (
         <div className="flex h-screen text-white overflow-hidden font-sans relative bg-black">
-            {/* 🌌 Global Universe Background - Applied to every page */}
-            <div className="fixed inset-0 z-0 pointer-events-none">
-                <UniverseBackground intensity={0.8} />
-            </div>
+
 
             {/* Mobile Header */}
             <div className="md:hidden fixed top-0 left-0 right-0 h-14 border-b border-white/5 bg-black/20 backdrop-blur-xl z-40 flex items-center px-4">
@@ -219,17 +375,17 @@ export default function Layout() {
                 </button>
                 <div className="ml-3 flex items-center justify-between flex-1">
                     <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded bg-indigo-600 flex items-center justify-center font-black text-[10px]">FB</div>
-                        <span className="text-sm font-black tracking-widest uppercase">FutureBRTS</span>
+                        <div className="w-6 h-6 rounded bg-indigo-600 flex items-center justify-center font-black text-[10px]">{isFutureEd ? "FE" : "FB"}</div>
+                        <span className="text-sm font-black tracking-widest uppercase">{isFutureEd ? "Future Ed" : "FutureBRTS"}</span>
                     </div>
 
                     {/* New Chat Button - Mobile/Tablet Only */}
                     <button
-                        onClick={createSession}
+                        onClick={handleCreateSession}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 active:bg-indigo-700 text-white rounded-lg shadow-lg shadow-indigo-900/20 border border-indigo-400/20 transition-all"
                     >
                         <span className="text-lg leading-none mb-0.5">+</span>
-                        <span className="text-xs font-bold tracking-wide">New Chat</span>
+                        <span className="text-xs font-bold tracking-wide">{isFutureEd ? "New Chat" : "New Mission"}</span>
                     </button>
                 </div>
             </div>
@@ -247,9 +403,9 @@ export default function Layout() {
                             {/* Logo Button - Collapsed state hover trigger */}
                             <div
                                 onClick={isSidebarCollapsed ? toggleSidebar : undefined}
-                                className={`w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center font-black text-xs shrink-0 cursor-pointer transition-all hover:bg-indigo-500 relative`}
+                                className={`w-9 h-9 rounded-xl ${isFutureEd ? 'bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-600' : 'bg-indigo-600'} flex items-center justify-center font-black text-xs shrink-0 cursor-pointer transition-all hover:opacity-90 relative`}
                             >
-                                <span className={`${isSidebarCollapsed ? 'group-hover/header-actions:opacity-0' : ''} transition-opacity`}>FB</span>
+                                <span className={`${isSidebarCollapsed ? 'group-hover/header-actions:opacity-0' : ''} transition-opacity`}>{isFutureEd ? "FE" : "FB"}</span>
                                 {isSidebarCollapsed && (
                                     <PanelLeftOpen size={18} className="absolute opacity-0 group-hover/header-actions:opacity-100 transition-opacity text-white" />
                                 )}
@@ -257,7 +413,7 @@ export default function Layout() {
 
                             {!isSidebarCollapsed && (
                                 <>
-                                    <h1 className="text-xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 leading-none whitespace-nowrap">FutureBRTS</h1>
+                                    <h1 className="text-xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 leading-none whitespace-nowrap">{isFutureEd ? "Future Ed OS" : "FutureBRTS"}</h1>
                                     <button
                                         onClick={toggleSidebar}
                                         className="ml-auto p-2 text-gray-500 hover:text-white hover:bg-white/5 rounded-lg transition-all"
@@ -282,6 +438,46 @@ export default function Layout() {
                 </div>
 
                 <div className="flex-1 px-3 py-4 space-y-6 overflow-y-auto scrollbar-hide">
+                    {/* Gamification RPG Progression Profile Card */}
+                    {isFutureEd && !isSidebarCollapsed && (
+                        <div className="px-3 animate-in fade-in duration-300">
+                            <div className="bg-gradient-to-br from-[#0c0a21] via-[#050410] to-black border border-indigo-500/30 rounded-2xl p-3.5 shadow-lg relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-16 h-16 bg-indigo-500/5 rounded-full blur-xl pointer-events-none" />
+                                <div className="flex items-center justify-between text-[11px] font-bold text-gray-200">
+                                    <span className="flex items-center gap-1"><span className="text-[10px] text-indigo-400">Lv.</span> {level} Scholar</span>
+                                    <span className="text-amber-400 flex items-center gap-1">🪙 {gold} Gold</span>
+                                </div>
+                                <div className="h-1.5 w-full bg-white/10 rounded-full mt-2 overflow-hidden border border-white/5">
+                                    <div className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full" style={{ width: `${levelProgressPercent}%` }} />
+                                </div>
+                                <div className="flex justify-between text-[9px] text-gray-500 mt-1 font-bold">
+                                    <span>XP: {levelProgressXp} / 1000</span>
+                                    <span>{Math.round(levelProgressPercent)}% to Lv. {level + 1}</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Stats Widget for Future Education OS */}
+                    {isFutureEd && !isSidebarCollapsed && futureEdStats && (
+                        <div className="grid grid-cols-2 gap-2 mb-6 animate-in fade-in duration-300 px-3">
+                            {[
+                                { label: 'Active Streak', value: `${futureEdStats.streak_days} Days`, icon: '🔥', color: 'from-orange-500/10 via-red-500/5 to-transparent border-orange-500/20 text-orange-400' },
+                                { label: 'Chapters Done', value: `${futureEdStats.completed_topics}/${futureEdStats.total_topics}`, icon: '📚', color: 'from-indigo-500/10 via-purple-500/5 to-transparent border-indigo-500/20 text-indigo-400' },
+                                { label: 'Exams Taken', value: futureEdStats.total_exams_taken, icon: '🏆', color: 'from-emerald-500/10 via-teal-500/5 to-transparent border-emerald-500/20 text-emerald-400' },
+                                { label: 'Study Minutes', value: `${futureEdStats.total_study_minutes} Min`, icon: '⏱️', color: 'from-pink-500/10 via-rose-500/5 to-transparent border-pink-500/20 text-pink-400' },
+                            ].map((s, i) => (
+                                <div key={i} className={`bg-gradient-to-br ${s.color} border border-white/5 rounded-2xl p-2.5 flex flex-col justify-between shadow-lg backdrop-blur-sm transition-all hover:scale-[1.02]`}>
+                                    <div className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">{s.label}</div>
+                                    <div className="text-xs font-black mt-1 flex items-center justify-between">
+                                        <span>{s.value}</span>
+                                        <span>{s.icon}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     <div className="space-y-1">
                         {!isSidebarCollapsed && (
                             <div className="px-3 pb-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Main Menu</div>
@@ -305,14 +501,14 @@ export default function Layout() {
                         })}
 
                         <button
-                            onClick={() => { createSession(); }}
-                            title={isSidebarCollapsed ? "New Mission" : ""}
+                            onClick={() => { handleCreateSession(); }}
+                            title={isSidebarCollapsed ? (isFutureEd ? "New Chat" : "New Mission") : ""}
                             className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'gap-2 px-3'} py-2 rounded-lg text-[13px] font-medium transition-all text-indigo-400 hover:text-white hover:bg-indigo-500/10 border border-dashed border-indigo-500/20 hover:border-indigo-500/40 mt-2 group relative`}
                         >
                             <div className="w-5 h-5 rounded border border-indigo-500/30 flex items-center justify-center group-hover:border-indigo-400 transition-colors shrink-0">
                                 <span className="text-indigo-400/70 group-hover:text-indigo-300 text-xs leading-none mb-0.5">+</span>
                             </div>
-                            {!isSidebarCollapsed && <span>New Mission</span>}
+                            {!isSidebarCollapsed && <span>{isFutureEd ? "New Chat" : "New Mission"}</span>}
                         </button>
                     </div>
 
@@ -324,8 +520,8 @@ export default function Layout() {
                             </div>
                         )}
                         <div className="space-y-0.5 pb-4">
-                            {sessions.length > 0 ? (
-                                sessions.slice(0, isSidebarCollapsed ? 5 : undefined).map(s => (
+                            {(isFutureEd ? futureEdSessions : sessions).length > 0 ? (
+                                (isFutureEd ? futureEdSessions : sessions).slice(0, isSidebarCollapsed ? 5 : undefined).map(s => (
                                     <div key={s._id} className="group relative">
                                         {editingSessionId === s._id && !isSidebarCollapsed ? (
                                             <div className="px-3 py-1.5 bg-white/5 rounded-lg flex items-center gap-2 border border-indigo-500/50 my-0.5">
@@ -408,6 +604,31 @@ export default function Layout() {
                             ) : null}
                         </div>
                     </div>
+
+                    {/* Active Study Sessions / Courses for Future Education OS */}
+                    {isFutureEd && !isSidebarCollapsed && (
+                        <div className="space-y-1 px-3 pt-4 border-t border-white/5">
+                            <div className="pb-1 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Active Study Courses</div>
+                            {futureEdCourses.length === 0 ? (
+                                <div className="text-[11px] text-gray-500 italic py-2 bg-white/[0.01] border border-dashed border-white/5 rounded-lg text-center">No active courses. Ask the AI tutor to start a topic!</div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {futureEdCourses.slice(0, 5).map((s, i) => (
+                                        <button key={i} onClick={() => navigate(`/future-education/session/${s._id}`)}
+                                            className="w-full text-left p-2.5 rounded-xl bg-white/[0.02] hover:bg-white/5 border border-white/5 hover:border-indigo-500/30 transition-all group">
+                                            <div className="text-xs font-semibold text-gray-200 truncate group-hover:text-white transition-colors">{s.title}</div>
+                                            <div className="flex items-center gap-2 mt-1.5">
+                                                <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full" style={{ width: `${s.progress_percent}%` }} />
+                                                </div>
+                                                <span className="text-[9px] text-indigo-400 font-bold">{s.progress_percent}%</span>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div className="p-4 border-t border-white/5 relative">
@@ -464,32 +685,52 @@ export default function Layout() {
                 </div>
             </aside >
 
-            <main className={`flex-1 ${['/builder', '/roadmap', '/today-task'].includes(location.pathname) ? 'overflow-hidden' : 'overflow-y-auto'} relative w-full pb-16 md:pb-0`}>
-                <div className={`relative ${['/builder', '/roadmap', '/today-task'].includes(location.pathname) ? 'h-full' : 'min-h-full'} flex flex-col ${['/builder', '/roadmap', '/today-task'].includes(location.pathname) ? 'p-0 pt-14 md:pt-0 pb-16 md:pb-0' : 'p-4 md:p-8 pt-20 md:pt-8 pb-20 md:pb-8'}`}>
-                    <div className="flex-1 flex flex-col overflow-hidden">
+            <main className={`flex-1 min-w-0 ${isFullHeight ? 'overflow-hidden pb-0' : 'overflow-y-auto pb-16'} relative w-full md:pb-0`}>
+                <div className={`relative ${isFullHeight ? 'h-full' : 'min-h-full'} flex flex-col ${isFullHeight ? 'pt-14 md:pt-0 px-0 pb-0' : 'p-4 md:p-8 pt-20 md:pt-8 pb-20 md:pb-8'} w-full max-w-full overflow-x-hidden`}>
+                    <div className={`flex-1 flex flex-col ${isFutureEd && (location.pathname !== '/future-education' && location.pathname !== '/future-education/') ? 'overflow-y-auto' : 'overflow-hidden'} min-w-0 min-h-0`}>
                         <Outlet />
                     </div>
                 </div>
             </main>
 
             {/* Mobile Bottom Navigation Bar */}
-            <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#09090b]/90 backdrop-blur-2xl border-t border-white/10 z-[60] flex items-center justify-around px-2 pb-1 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
-                {navItems.map(item => {
-                    const isActive = location.pathname.startsWith(item.path);
-                    return (
-                        <Link
-                            key={item.path}
-                            to={item.path}
-                            className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-all ${isActive ? 'text-indigo-400' : 'text-gray-500 active:text-gray-300'}`}
-                        >
-                            <div className={`${isActive ? 'scale-110 drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]' : 'scale-95'} transition-transform duration-300`}>
-                                {item.icon}
-                            </div>
-                            <span className={`text-[9px] font-bold tracking-wide ${isActive ? 'text-indigo-300' : ''}`}>{item.name === 'Business War Room' ? 'War Room' : item.name === 'Genesis Admin' ? 'Admin' : item.name === 'Today Task' ? 'Tasks' : item.name}</span>
-                        </Link>
-                    )
-                })}
-            </div>
+            {!isFullHeight && (
+                <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#09090b]/95 backdrop-blur-2xl border-t border-white/10 z-[60] flex items-center justify-start overflow-x-auto scrollbar-hide px-3 pb-1 shadow-[0_-10px_40px_rgba(0,0,0,0.6)] gap-1">
+                    {navItems.map(item => {
+                        const isActive = location.pathname.startsWith(item.path);
+                        const getShortName = (name: string) => {
+                            switch (name) {
+                                case "Future Education OS": return "Future Ed";
+                                case "Business War Room": return "War Room";
+                                case "Genesis Admin": return "Admin";
+                                case "Today Task": return "Tasks";
+                                case "Exam Generator": return "Exams";
+                                case "Tutor Chat": return "Chat";
+                                case "Study Roadmaps": return "Roadmaps";
+                                case "Study Tasks": return "Tasks";
+                                case "E-Builder": return "Builder";
+                                case "Practice Exams": return "Exams";
+                                case "Exit Student OS": return "Exit";
+                                default: return name;
+                            }
+                        };
+                        return (
+                            <Link
+                                key={item.path}
+                                to={item.path}
+                                className={`flex flex-col items-center justify-center min-w-[74px] flex-shrink-0 h-full gap-1.5 transition-all ${isActive ? 'text-indigo-400' : 'text-gray-500 active:text-gray-300'}`}
+                            >
+                                <div className={`${isActive ? 'scale-110 drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]' : 'scale-95'} transition-transform duration-300`}>
+                                    {item.icon}
+                                </div>
+                                <span className={`text-[9px] font-bold tracking-wide whitespace-nowrap ${isActive ? 'text-indigo-300' : ''}`}>
+                                    {getShortName(item.name)}
+                                </span>
+                            </Link>
+                        )
+                    })}
+                </div>
+            )}
 
             {/* 📺 Manual Ad Trigger (TokenWall) */}
             <TokenWall

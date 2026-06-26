@@ -18,6 +18,7 @@ export interface Message {
 
 interface AuthContextType {
     user: any;
+    token: string | null;
     isAuthenticated: boolean;
     onboardingCompleted: boolean;
     initialIntent: string;
@@ -34,6 +35,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<any>(null);
+    const [token, setToken] = useState<string | null>(localStorage.getItem('fbrts_token'));
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [onboardingCompleted, setOnboardingCompleted] = useState(false);
     const [initialIntent, setInitialIntent] = useState(localStorage.getItem('fbrts_intent') || '');
@@ -42,16 +44,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     useEffect(() => {
         const initAuth = async () => {
-            const token = localStorage.getItem('fbrts_token');
-            if (token) {
+            const tokenVal = localStorage.getItem('fbrts_token');
+            if (tokenVal) {
                 try {
-                    const res = await authApi.getMe(token);
+                    const res = await authApi.getMe(tokenVal);
                     if (res.success) {
                         setUser(res.user);
                         setIsAuthenticated(true);
                         setOnboardingCompleted(res.user.onboardingCompleted);
+                        setToken(tokenVal);
                     } else {
                         localStorage.removeItem('fbrts_token');
+                        setToken(null);
                     }
                 } catch (err) {
                     console.error("Auth init failed", err);
@@ -62,17 +66,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         initAuth();
     }, []);
 
-    const login = (userData: any, token: string) => {
+    const login = (userData: any, tokenVal: string) => {
         setUser(userData);
         setIsAuthenticated(true);
         setOnboardingCompleted(userData.onboardingCompleted);
-        localStorage.setItem('fbrts_token', token);
+        localStorage.setItem('fbrts_token', tokenVal);
+        setToken(tokenVal);
     };
 
     const logout = () => {
         setUser(null);
         setIsAuthenticated(false);
         localStorage.removeItem('fbrts_token');
+        setToken(null);
     };
 
     const setIntent = (text: string) => {
@@ -93,6 +99,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return (
         <AuthContext.Provider value={{
             user,
+            token,
             isAuthenticated,
             onboardingCompleted,
             initialIntent,

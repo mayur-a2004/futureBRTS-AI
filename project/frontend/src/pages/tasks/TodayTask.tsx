@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/Button";
 import LoadingScreen from "@/components/ui/LoadingScreen";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { sanitizeExternalUrl } from "@/utils/url";
-import { ArrowLeft, CheckCircle2, Circle, Calendar, Lock, BarChart3, ListTodo, AlertCircle, Target, Brain, Zap, Navigation, Flag, Youtube, ExternalLink, ShieldCheck } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Circle, Calendar, Lock, BarChart3, ListTodo, AlertCircle, Target, Brain, Zap, Navigation, Flag, Youtube, ShieldCheck, MessageSquare } from "lucide-react";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from "recharts";
 
 export default function TodayTask() {
@@ -241,6 +241,15 @@ export default function TodayTask() {
         setVerifyingTaskId(taskId);
         setVivaResults(null);
         setUserAnswers({});
+
+        if (task && task.viva) {
+            setVerificationQuestions([
+                ...task.viva.mcqs.map((m: any, i: number) => ({ ...m, id: `mcq-root-${i}`, type: 'MCQ' })),
+                { ...task.viva.shortQuestion, id: `short-root`, type: 'VIVA' }
+            ]);
+            return;
+        }
+
         try {
             const res = await fetch('/api/tasks/verify', {
                 method: 'POST',
@@ -521,6 +530,41 @@ export default function TodayTask() {
 
                         <div className="grid lg:grid-cols-3 gap-8 mt-8">
                             <div className="lg:col-span-2 space-y-6">
+                                {/* Daily RPG Quests Panel */}
+                                <div className="bg-gradient-to-br from-[#120a2e]/60 via-[#060410]/40 to-transparent border border-indigo-500/20 rounded-3xl p-5 shadow-2xl backdrop-blur-md relative overflow-hidden animate-in fade-in duration-300">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none" />
+                                    <h2 className="font-bold text-xs text-indigo-300 mb-3.5 flex items-center gap-1.5 uppercase tracking-wider">
+                                        <span>⚔️</span> Active Daily Quests
+                                    </h2>
+                                    <div className="space-y-2.5">
+                                        {(() => {
+                                            const completedFoundation = tasks.filter(t => t.level === 1 && t.status === 'done').length;
+                                            const completedAccel = tasks.filter(t => t.level === 2 && t.status === 'done').length;
+                                            const completedAudits = tasks.filter(t => t.status === 'done' && t.verification?.isVerified).length;
+
+                                            return [
+                                                { name: 'Complete 2 Foundation Tasks', xp: '+150 XP', gold: '+20 Gold', progress: `${Math.min(completedFoundation, 2)}/2`, done: completedFoundation >= 2 },
+                                                { name: 'Complete 1 Accelerated Task', xp: '+250 XP', gold: '+40 Gold', progress: `${Math.min(completedAccel, 1)}/1`, done: completedAccel >= 1 },
+                                                { name: 'Verify a Task via Knowledge Sync / Viva Audit', xp: '+300 XP', gold: '+60 Gold', progress: completedAudits > 0 ? '1/1' : '0/1', done: completedAudits > 0 },
+                                            ];
+                                        })().map((q, idx) => (
+                                            <div key={idx} className={`flex items-center justify-between p-3 rounded-2xl border ${q.done ? 'bg-emerald-950/5 border-emerald-500/10 opacity-70' : 'bg-black/20 border-white/5'}`}>
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-5 h-5 rounded-md flex items-center justify-center text-xs border ${q.done ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-white/5 border-white/5 text-gray-500'}`}>
+                                                        {q.done ? '✓' : idx + 1}
+                                                    </div>
+                                                    <div className="text-xs font-semibold text-gray-200">{q.name}</div>
+                                                </div>
+                                                <div className="flex items-center gap-3 shrink-0">
+                                                    <span className="text-[10px] font-bold text-indigo-400">{q.xp}</span>
+                                                    <span className="text-[10px] font-bold text-amber-400">🪙 {q.gold}</span>
+                                                    <span className="text-[10px] bg-white/5 px-2 py-0.5 rounded text-gray-400 font-bold">{q.progress}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
                                 <h2 className="text-xl font-bold flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]"></div>Actionable Tasks</h2>
                                 {pendingTasks.length === 0 && <div className="text-gray-500 italic text-sm">No pending tasks available. Great job!</div>}
                                 <div className="space-y-3">
@@ -604,31 +648,29 @@ export default function TodayTask() {
             {/* Task Detail Modal */}
             {selectedTask && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 md:p-4 bg-black/95 backdrop-blur-xl animate-in fade-in duration-200" onClick={() => setSelectedTask(null)}>
-                    <div className="bg-[#111] border border-white/10 rounded-[20px] md:rounded-[32px] w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col" onClick={e => e.stopPropagation()}>
-                        <div className="p-5 md:p-8 border-b border-white/10 shrink-0">
+                    <div className="bg-[#0B0915]/95 border border-white/[0.06] rounded-[20px] md:rounded-[32px] w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col" onClick={e => e.stopPropagation()}>
+                        <div className="p-5 md:p-8 border-b border-white/10 shrink-0 font-inter">
                             <div className="flex justify-between items-start gap-4">
                                 <div className="flex-1 min-w-0">
-                                    <div className="text-[8px] md:text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2 px-2 md:px-3 py-1 bg-indigo-500/10 rounded-lg inline-block border border-indigo-500/20">Tactical Core</div>
-                                    <h2 className="text-xl md:text-3xl font-black italic tracking-tighter uppercase text-white leading-[1.2] pb-1 truncate">{selectedTask.title}</h2>
+                                    <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-2 px-2.5 py-1 bg-indigo-500/10 rounded-lg inline-block border border-indigo-500/20">Tactical Core</div>
+                                    <h2 className="text-lg md:text-xl font-bold text-white leading-[1.2] pb-1 truncate">{selectedTask.title}</h2>
                                 </div>
                                 <button onClick={() => setSelectedTask(null)} className="p-2 hover:bg-white/10 rounded-full text-gray-400 transition-colors">✕</button>
                             </div>
 
-                            <div className="flex flex-wrap items-center gap-2 md:gap-3 mt-4 md:mt-6 bg-white/[0.03] p-1.5 md:p-2 rounded-xl md:rounded-2xl border border-white/5 self-start">
-                                <div className="flex items-center gap-2 px-2 md:px-3 py-1 md:py-1.5 bg-indigo-500/10 rounded-lg md:rounded-xl border border-indigo-500/20">
-                                    <span className="text-[8px] md:text-[10px] items-center gap-1 flex font-black uppercase text-indigo-400 tracking-tighter"><Zap size={10} /> Sync</span>
-                                </div>
+                            <div className="flex items-center gap-2 bg-white/[0.02] border border-white/5 rounded-2xl p-1.5 backdrop-blur-md shadow-lg mt-4 md:mt-6 self-start w-fit">
+                                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider pl-2">🗣️ Translate:</span>
                                 <select
                                     value={targetLanguage}
                                     onChange={(e) => setTargetLanguage(e.target.value)}
-                                    className="bg-transparent text-[10px] md:text-xs text-gray-300 font-bold outline-none cursor-pointer hover:text-white transition-colors px-1"
+                                    className="bg-black/60 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-indigo-500/50 transition-all font-semibold cursor-pointer hover:border-white/20"
                                 >
                                     {languages.map(l => <option key={l} value={l} className="bg-gray-900">{l}</option>)}
                                 </select>
                                 <Button
                                     size="sm"
                                     variant="ghost"
-                                    className="h-7 md:h-8 px-2 md:px-4 text-[9px] md:text-[11px] font-black bg-white/5 hover:bg-white/10 text-white rounded-lg md:rounded-xl border border-white/5"
+                                    className="h-7 px-3 text-[10px] font-semibold bg-white/5 hover:bg-white/10 text-white rounded-xl border border-white/5"
                                     onClick={() => handleTranslate(selectedTask.description, 'task_desc')}
                                     disabled={translating}
                                 >
@@ -638,87 +680,93 @@ export default function TodayTask() {
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-5 md:p-8 custom-scrollbar space-y-6 md:space-y-8 pb-32">
-                            <div className={`p-8 rounded-[32px] border transition-all relative overflow-hidden group/header ${selectedTask.level === 3 ? 'bg-gradient-to-br from-amber-500/20 via-black to-black border-amber-500/30' : 'bg-[#111] border-white/10'}`}>
+                            <div className={`p-6 rounded-3xl border transition-all relative overflow-hidden group/header ${selectedTask.level === 3 ? 'bg-gradient-to-br from-amber-500/20 via-black to-black border-amber-500/30' : 'bg-[#0B0915]/60 border-white/[0.05] shadow-2xl backdrop-blur-2xl'}`}>
                                 {selectedTask.level === 3 && (
                                     <div className="absolute top-0 right-0 p-6 opacity-20"><Target size={80} className="text-amber-500 animate-pulse" /></div>
                                 )}
-                                <div className="flex flex-col gap-4 relative z-10">
+                                <div className="flex flex-col gap-4 relative z-10 font-inter">
                                     <div className="flex items-center justify-between">
-                                        <div className={`text-[10px] font-black tracking-[0.3em] uppercase px-4 py-1 rounded-full border ${selectedTask.level === 3 ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'}`}>
-                                            {selectedTask.level === 3 ? '🔥 LEGENDARY MISSION' : selectedTask.level === 2 ? '⚡ ACCELERATED NODE' : '❄️ FOUNDATION PROTOCOL'}
+                                        <div className={`text-[9px] font-bold tracking-wider uppercase px-3 py-1 rounded-full border ${selectedTask.level === 3 ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'}`}>
+                                            {selectedTask.level === 3 ? '🔥 Legendary Mission' : selectedTask.level === 2 ? '⚡ Accelerated Node' : '❄️ Foundation Protocol'}
                                         </div>
-                                        <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest bg-white/5 px-3 py-1 rounded-lg border border-white/5 italic">Day {selectedTask.dayNumber} Protocol</div>
+                                        <div className="text-[9px] font-bold text-gray-500 uppercase tracking-wider bg-[#0B0915]/40 px-3 py-1 rounded-lg border border-white/5">Day {selectedTask.dayNumber} Protocol</div>
                                     </div>
-                                    <h2 className={`text-3xl md:text-5xl font-black italic tracking-tighter uppercase leading-none ${selectedTask.level === 3 ? 'bg-gradient-to-r from-amber-200 via-amber-400 to-amber-600 bg-clip-text text-transparent' : 'text-white'}`}>{selectedTask.title}</h2>
-                                    <p className="text-sm md:text-base text-gray-400 max-w-2xl leading-relaxed font-medium">{selectedTask.description}</p>
+                                    <h2 className={`text-base md:text-lg font-bold tracking-tight leading-snug ${selectedTask.level === 3 ? 'bg-gradient-to-r from-amber-200 via-amber-400 to-amber-600 bg-clip-text text-transparent' : 'text-white'}`}>{selectedTask.title}</h2>
+                                    <p className="text-xs text-gray-400 max-w-2xl leading-relaxed font-medium">{selectedTask.description}</p>
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
-                                    <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Objective</h4>
-                                    <p className="text-sm text-gray-200 leading-relaxed font-bold">{selectedTask.objective || "Achieve mission mastery."}</p>
+                                <div className="rounded-3xl border border-white/5 bg-white/[0.01] p-5 shadow-xl backdrop-blur-md font-inter">
+                                    <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2.5 pb-2 border-b border-white/5">Objective</div>
+                                    <div className="text-xs text-indigo-300 leading-relaxed font-semibold">{selectedTask.objective || "Achieve mission mastery."}</div>
                                 </div>
-                                <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
-                                    <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Input</h4>
-                                    <p className="text-sm text-gray-200 leading-relaxed font-bold">{selectedTask.input || "Project Brief Assets"}</p>
+                                <div className="rounded-3xl border border-white/5 bg-white/[0.01] p-5 shadow-xl backdrop-blur-md font-inter">
+                                    <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2.5 pb-2 border-b border-white/5">Input</div>
+                                    <div className="text-xs text-emerald-300 leading-relaxed font-semibold">{selectedTask.input || "Project Brief Assets"}</div>
                                 </div>
-                                <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
-                                    <h4 className="text-[10px] font-black text-purple-400 uppercase tracking-widest mb-1">Output</h4>
-                                    <p className="text-sm text-gray-200 leading-relaxed font-bold">{selectedTask.output || "Verified Mission Status"}</p>
+                                <div className="rounded-3xl border border-white/5 bg-white/[0.01] p-5 shadow-xl backdrop-blur-md font-inter">
+                                    <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2.5 pb-2 border-b border-white/5">Output</div>
+                                    <div className="text-xs text-purple-300 leading-relaxed font-semibold">{selectedTask.output || "Verified Mission Status"}</div>
                                 </div>
                             </div>
 
-                            {/* Strategic Context Layer (Roadmap Style) */}
+                            {/* Strategic Context Layer */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {selectedTask.what && (
-                                    <div className="p-4 bg-white/[0.03] border border-white/5 rounded-2xl">
-                                        <div className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
-                                            <div className="w-1 h-1 rounded-full bg-indigo-500" /> WHAT IS THIS?
+                                    <div className="rounded-3xl border border-white/5 bg-white/[0.01] p-5 shadow-xl backdrop-blur-md font-inter">
+                                        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2.5 pb-2 border-b border-white/5 flex items-center gap-2">
+                                            <div className="w-1 h-1 rounded-full bg-indigo-500" /> What is this?
                                         </div>
-                                        <p className="text-[12px] text-gray-300 leading-relaxed font-medium">{selectedTask.what}</p>
+                                        <p className="text-xs text-gray-300 leading-relaxed font-medium">{selectedTask.what}</p>
                                     </div>
                                 )}
                                 {selectedTask.why && (
-                                    <div className="p-4 bg-white/[0.03] border border-white/5 rounded-2xl">
-                                        <div className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
-                                            <div className="w-1 h-1 rounded-full bg-emerald-500" /> WHY IT MATTERS?
+                                    <div className="rounded-3xl border border-white/5 bg-white/[0.01] p-5 shadow-xl backdrop-blur-md font-inter">
+                                        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2.5 pb-2 border-b border-white/5 flex items-center gap-2">
+                                            <div className="w-1 h-1 rounded-full bg-emerald-500" /> Why it matters?
                                         </div>
-                                        <p className="text-[12px] text-gray-300 leading-relaxed font-medium">{selectedTask.why}</p>
+                                        <p className="text-xs text-gray-300 leading-relaxed font-medium">{selectedTask.why}</p>
                                     </div>
                                 )}
                                 {selectedTask.how && (
-                                    <div className="p-4 bg-white/[0.03] border border-white/5 rounded-2xl">
-                                        <div className="text-[8px] font-black text-amber-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
-                                            <div className="w-1 h-1 rounded-full bg-amber-500" /> HOW WE'LL DO IT?
+                                    <div className="rounded-3xl border border-white/5 bg-white/[0.01] p-5 shadow-xl backdrop-blur-md font-inter">
+                                        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2.5 pb-2 border-b border-white/5 flex items-center gap-2">
+                                            <div className="w-1 h-1 rounded-full bg-amber-500" /> How we'll do it?
                                         </div>
-                                        <p className="text-[12px] text-gray-300 leading-relaxed font-medium">{selectedTask.how}</p>
+                                        <p className="text-xs text-gray-300 leading-relaxed font-medium">{selectedTask.how}</p>
                                     </div>
                                 )}
                                 {selectedTask.who && (
-                                    <div className="p-4 bg-white/[0.03] border border-white/5 rounded-2xl">
-                                        <div className="text-[8px] font-black text-purple-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
-                                            <div className="w-1 h-1 rounded-full bg-purple-500" /> WHO IS RESPONSIBLE?
+                                    <div className="rounded-3xl border border-white/5 bg-white/[0.01] p-5 shadow-xl backdrop-blur-md font-inter">
+                                        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2.5 pb-2 border-b border-white/5 flex items-center gap-2">
+                                            <div className="w-1 h-1 rounded-full bg-purple-500" /> Who is responsible?
                                         </div>
-                                        <p className="text-[12px] text-gray-300 leading-relaxed font-medium">{selectedTask.who}</p>
+                                        <p className="text-xs text-gray-300 leading-relaxed font-medium">{selectedTask.who}</p>
                                     </div>
                                 )}
                             </div>
 
-                            <div className="space-y-4">
-                                <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest flex items-center gap-2"><ListTodo size={14} /> Description & Insight</h3>
-                                <div className="p-5 bg-white/[0.03] rounded-2xl border border-white/5 text-gray-300 text-sm leading-relaxed italic">
+                            <div className="space-y-3 font-inter">
+                                <h3 className="font-bold text-xs text-gray-200 flex items-center gap-2 uppercase tracking-wider">
+                                    <ListTodo size={14} />
+                                    Description & Insight
+                                </h3>
+                                <div className="rounded-3xl border border-white/5 bg-white/[0.01] p-5 shadow-xl backdrop-blur-md text-xs text-gray-300 leading-relaxed font-medium">
                                     {selectedTask.description || "No tactical description provided."}
                                 </div>
                             </div>
 
                             {/* 🔗 Root Atomic Concept Map */}
                             {selectedTask.conceptMap && selectedTask.conceptMap.length > 0 && (
-                                <div className="space-y-3">
-                                    <h3 className="text-xs font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2"><Zap size={14} /> Mission Concept Map</h3>
+                                <div className="space-y-3 font-inter">
+                                    <h3 className="font-bold text-xs text-gray-200 flex items-center gap-2 uppercase tracking-wider">
+                                        <Zap size={14} className="text-emerald-400" />
+                                        Mission Concept Map
+                                    </h3>
                                     <div className="flex flex-wrap gap-2">
                                         {selectedTask.conceptMap.map((concept: string, cIdx: number) => (
-                                            <span key={cIdx} className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-[10px] font-black text-emerald-400 uppercase tracking-tight">
+                                            <span key={cIdx} className="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-[10px] font-semibold text-emerald-400 uppercase tracking-wider">
                                                 {concept}
                                             </span>
                                         ))}
@@ -728,18 +776,19 @@ export default function TodayTask() {
 
                             {/* 🧪 Main Point Execution List (Sub-Points) */}
                             {selectedTask.subTasks && selectedTask.subTasks.length > 0 && (
-                                <div className="space-y-4">
-                                    <h3 className="text-xs font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2"><ListTodo size={14} /> Mission Checklist (Sub-Points)</h3>
-                                    <div className="space-y-3">
+                                <div className="space-y-4 font-inter">
+                                    <h3 className="font-bold text-xs text-gray-200 flex items-center gap-2 uppercase tracking-wider">
+                                        <ListTodo size={14} className="text-indigo-400" />
+                                        Mission Checklist (Sub-Points)
+                                    </h3>
+                                    <div className="space-y-4">
                                         {selectedTask.subTasks.map((sub: any, sIdx: number) => (
-                                            <div key={sIdx} className="p-4 bg-white/[0.03] border border-white/5 rounded-2xl flex items-start gap-4 group">
-                                                <div className="w-6 h-6 rounded-lg bg-indigo-500/10 flex items-center justify-center text-[10px] font-black text-indigo-400 border border-indigo-500/20 shrink-0">
-                                                    {sIdx + 1}
+                                            <div key={sIdx} className="rounded-3xl border border-white/5 bg-white/[0.01] p-6 shadow-xl backdrop-blur-md transition-all flex flex-col gap-3">
+                                                <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
+                                                    <div className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Task {sIdx + 1}</div>
                                                 </div>
-                                                <div className="flex-1">
-                                                    <h4 className="font-black text-gray-200 text-sm uppercase italic tracking-tight">{sub.title}</h4>
-                                                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">{sub.description}</p>
-                                                </div>
+                                                <div className="text-xs text-gray-200 leading-relaxed font-semibold">{sub.title}</div>
+                                                <p className="text-xs text-gray-400 leading-relaxed font-medium">{sub.description}</p>
                                             </div>
                                         ))}
                                     </div>
@@ -748,31 +797,31 @@ export default function TodayTask() {
 
                             {/* 🧠 Root Silicon Valley Wisdom */}
                             {selectedTask.siliconValleyWisdom && (
-                                <div className="p-5 bg-indigo-500/5 rounded-[24px] border border-indigo-500/10 relative overflow-hidden group">
+                                <div className="rounded-3xl border border-white/5 bg-white/[0.01] p-5 shadow-xl backdrop-blur-md relative overflow-hidden group font-inter">
                                     <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><Brain size={40} className="text-indigo-500" /></div>
-                                    <span className="text-[9px] font-black text-indigo-400 tracking-widest uppercase block mb-2">Neural Insight: Silicon Valley Wisdom</span>
-                                    <p className="text-sm text-gray-300 italic font-medium leading-relaxed">{selectedTask.siliconValleyWisdom}</p>
+                                    <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-2.5 pb-2 border-b border-white/5 block">Neural Insight: Silicon Valley Wisdom</span>
+                                    <p className="text-xs text-gray-300 leading-relaxed font-medium">{selectedTask.siliconValleyWisdom}</p>
                                 </div>
                             )}
 
                             {/* 🏆 Verification Status / VIVA Trigger */}
                             {selectedTask.status === 'done' ? (
-                                <div className="bg-emerald-500/10 p-6 rounded-[24px] border border-emerald-500/20 text-center space-y-3">
+                                <div className="bg-emerald-950/5 border border-emerald-500/20 p-6 rounded-3xl text-center space-y-3 font-inter">
                                     <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 mx-auto shadow-[0_0_20px_rgba(16,185,129,0.2)]">
                                         <CheckCircle2 size={30} />
                                     </div>
-                                    <h3 className="text-xl font-black italic uppercase tracking-tighter text-white">Mission Secured</h3>
-                                    <p className="text-xs text-emerald-400 font-bold uppercase tracking-widest">Growth Node Synchronized Successfully</p>
+                                    <h3 className="text-base font-bold text-white">Mission Secured</h3>
+                                    <p className="text-xs text-emerald-400 font-bold uppercase tracking-wider">Growth Node Synchronized Successfully</p>
 
                                     {/* Verification History Peek */}
                                     {selectedTask.verification?.results && selectedTask.verification.results.length > 0 && (
                                         <div className="mt-4 pt-4 border-t border-emerald-500/10 text-left">
-                                            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3 text-center">Neural Validation Protocol</p>
+                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-3 text-center">Neural Validation Protocol</p>
                                             <div className="grid grid-cols-2 gap-2 mb-4">
                                                 {selectedTask.conceptMap?.map((c: string, i: number) => (
                                                     <div key={i} className="flex items-center gap-2 px-3 py-2 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
                                                         <ShieldCheck size={12} className="text-emerald-500" />
-                                                        <span className="text-[9px] font-black text-emerald-400 uppercase truncate">{c}</span>
+                                                        <span className="text-[10px] font-bold text-emerald-400 uppercase truncate">{c}</span>
                                                     </div>
                                                 ))}
                                             </div>
@@ -783,14 +832,14 @@ export default function TodayTask() {
                                     )}
                                 </div>
                             ) : selectedTask.viva ? (
-                                <div className="space-y-4">
-                                    <div className="p-5 bg-white/5 border border-white/5 rounded-[24px] text-center space-y-4">
+                                <div className="space-y-4 font-inter">
+                                    <div className="bg-white/[0.01] border border-white/5 rounded-3xl p-6 text-center space-y-4 shadow-xl backdrop-blur-md">
                                         <div className="flex flex-col items-center gap-1">
-                                            <h3 className="text-lg font-black italic uppercase tracking-tighter text-indigo-400">Mission Final Audit</h3>
-                                            <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Verify conceptual mastery to unlock the next node</p>
+                                            <h3 className="text-sm font-bold text-indigo-400">Mission Final Audit</h3>
+                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Verify conceptual mastery to unlock the next node</p>
                                         </div>
                                         <Button
-                                            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-widest h-14 rounded-2xl shadow-lg border-b-4 border-indigo-800 active:border-b-0 active:translate-y-1 transition-all"
+                                            className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:opacity-95 text-white font-bold h-12 rounded-xl transition-all flex items-center justify-center shadow-lg"
                                             onClick={() => {
                                                 setVerifyingTaskId(selectedTask._id);
                                                 setVerificationQuestions([
@@ -806,10 +855,10 @@ export default function TodayTask() {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="p-5 bg-white/5 border border-white/5 rounded-[24px] text-center">
-                                    <p className="text-xs text-gray-500 uppercase font-black tracking-widest">Manual Node Verification Required</p>
+                                <div className="bg-white/[0.01] border border-white/5 rounded-3xl p-6 text-center shadow-xl backdrop-blur-md font-inter">
+                                    <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-4">Manual Node Verification Required</p>
                                     <Button
-                                        className="mt-4 w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest h-12 rounded-xl"
+                                        className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold h-12 rounded-xl transition-all flex items-center justify-center"
                                         onClick={(e) => toggleTask(e, selectedTask._id, 'done', false)}
                                     >
                                         Mark Mission Complete
@@ -818,8 +867,11 @@ export default function TodayTask() {
                             )}
 
                             {selectedTask.learningResources && selectedTask.learningResources.length > 0 && (
-                                <div className="space-y-4 pt-4">
-                                    <h3 className="text-xs font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2"><Youtube size={16} /> Essential Assets (Video Guides)</h3>
+                                <div className="space-y-4 pt-4 font-inter">
+                                    <h3 className="font-bold text-xs text-gray-200 flex items-center gap-2 uppercase tracking-wider">
+                                        <Youtube size={16} className="text-red-500 animate-pulse" />
+                                        Curated YouTube Lessons
+                                    </h3>
                                     <div className="grid grid-cols-1 gap-3">
                                         {selectedTask.learningResources.map((res: any, idx: number) => (
                                             <a
@@ -827,14 +879,16 @@ export default function TodayTask() {
                                                 href={sanitizeExternalUrl(res.url)}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="flex items-center gap-4 p-5 bg-white/[0.03] border border-white/10 rounded-2xl hover:bg-white/[0.08] hover:border-emerald-500/30 transition-all group/res"
+                                                className="flex items-center gap-3 p-4 bg-white/[0.01] hover:bg-white/5 border border-white/5 hover:border-red-500/30 rounded-2xl transition-all group shadow-lg"
                                             >
-                                                <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 group-hover/res:scale-110 transition-transform shadow-lg"><Youtube size={24} /></div>
-                                                <div className="flex-1">
-                                                    <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">Suggestion Link Asset</div>
-                                                    <div className="text-sm font-black text-gray-200 line-clamp-1 italic uppercase tracking-tight">{res.title || "Interactive Guide"}</div>
+                                                <div className="w-10 h-10 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-center text-red-400 flex-shrink-0 group-hover:bg-red-500/20 group-hover:text-red-300 transition-colors">
+                                                    <Youtube size={16} />
                                                 </div>
-                                                <ExternalLink size={14} className="text-gray-600 group-hover/res:text-white transition-colors" />
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-xs font-semibold text-gray-200 group-hover:text-white transition-colors truncate">{res.title || "Interactive Guide"}</div>
+                                                    <div className="text-[10px] text-gray-500 mt-1">Suggestion Link Asset</div>
+                                                </div>
+                                                <span className="text-gray-600 group-hover:text-red-400 transition-colors text-sm">↗</span>
                                             </a>
                                         ))}
                                     </div>
@@ -842,14 +896,22 @@ export default function TodayTask() {
                             )}
 
                             {selectedTask.detailedGuidance && (
-                                <div className="bg-indigo-500/5 p-6 rounded-2xl border border-indigo-500/10 mt-8">
-                                    <h3 className="text-xs font-black text-indigo-300 uppercase tracking-widest mb-4 flex items-center gap-2"><BarChart3 size={16} /> Strategy & Master Guidance</h3>
-                                    <p className="text-gray-300 leading-relaxed text-sm whitespace-pre-line border-l-2 border-indigo-500/20 pl-4">{selectedTask.detailedGuidance}</p>
+                                <div className="bg-white/[0.01] border border-white/5 rounded-3xl p-5 shadow-xl backdrop-blur-md mt-8 font-inter">
+                                    <h3 className="text-xs font-bold text-gray-200 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                        <BarChart3 size={16} /> Strategy & Master Guidance
+                                    </h3>
+                                    <p className="text-gray-300 leading-relaxed text-xs whitespace-pre-line border-l-2 border-indigo-500/20 pl-4">{selectedTask.detailedGuidance}</p>
                                 </div>
                             )}
                         </div>
 
-                        <div className="absolute bottom-0 left-0 right-0 p-5 md:p-8 pt-6 md:pt-12 bg-gradient-to-t from-[#111] via-[#111]/95 to-transparent flex items-center justify-end gap-3 pointer-events-none">
+                        <div className="absolute bottom-0 left-0 right-0 p-5 md:p-8 pt-6 md:pt-12 bg-gradient-to-t from-[#0B0915] via-[#0B0915]/95 to-transparent flex items-center justify-between gap-3 pointer-events-none">
+                            <Button
+                                onClick={() => navigate(`/future-education?askDoubt=${encodeURIComponent(`Mujhe is task mein doubt hai: '${selectedTask.title}'. Description: '${selectedTask.description}'. Iska concept explain kijiye.`)}`)}
+                                className="h-11 md:h-12 px-4 md:px-6 rounded-xl font-bold transition-all pointer-events-auto text-xs bg-white/5 hover:bg-white/10 text-indigo-400 border border-white/5 flex items-center gap-2"
+                            >
+                                <MessageSquare size={14} /> <span>Ask Doubt</span>
+                            </Button>
                             <Button
                                 onClick={(e) => {
                                     if (selectedTask.status === 'done') return;
@@ -857,9 +919,9 @@ export default function TodayTask() {
                                     setSelectedTask(null);
                                 }}
                                 disabled={selectedTask.status === 'done'}
-                                className={`h-12 md:h-14 px-6 md:px-10 rounded-xl md:rounded-2xl font-black italic uppercase tracking-widest shadow-2xl transition-all pointer-events-auto text-[10px] md:text-sm ${selectedTask.status === 'done' ? 'bg-gray-800 text-gray-400 cursor-not-allowed opacity-80' : 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-indigo-600/20'}`}
+                                className={`h-11 md:h-12 px-6 md:px-10 rounded-xl font-bold shadow-2xl transition-all pointer-events-auto text-xs ${selectedTask.status === 'done' ? 'bg-gray-800 text-gray-400 cursor-not-allowed opacity-80' : 'bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 text-white hover:opacity-95 shadow-indigo-600/20'}`}
                             >
-                                {selectedTask.status === 'done' ? 'COMPLETED' : 'COMPLETE'} <CheckCircle2 size={18} className="ml-2" />
+                                {selectedTask.status === 'done' ? 'Completed' : 'Complete'} <CheckCircle2 size={18} className="ml-2 inline" />
                             </Button>
                         </div>
                     </div>
@@ -868,7 +930,7 @@ export default function TodayTask() {
             {/* 🎤 Viva Verification Modal */}
             {isVerifying && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/90 backdrop-blur-3xl animate-in fade-in duration-300">
-                    <div className="bg-[#0a0a0a] border border-white/10 rounded-[32px] w-full max-w-xl overflow-hidden shadow-[0_0_50px_rgba(79,70,229,0.2)] flex flex-col relative">
+                    <div className="bg-[#0a0a0a] border border-white/10 rounded-[32px] w-full max-w-xl overflow-hidden shadow-[0_0_50px_rgba(79,70,229,0.2)] flex flex-col relative font-inter">
                         {/* Status bar */}
                         <div className="absolute top-0 left-0 right-0 h-1 transition-all duration-500 bg-indigo-500/20">
                             <div
@@ -879,10 +941,10 @@ export default function TodayTask() {
 
                         <div className="p-8 border-b border-white/5 flex justify-between items-center">
                             <div>
-                                <h2 className="text-2xl font-black italic tracking-tighter text-white uppercase flex items-center gap-2">
+                                <h2 className="text-lg font-bold text-white flex items-center gap-2">
                                     <Brain size={24} className="text-indigo-500" /> Neural Viva
                                 </h2>
-                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mt-1">Authentic Intelligence Audit</p>
+                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mt-1">Authentic Intelligence Audit</p>
                             </div>
                             <button onClick={() => setIsVerifying(false)} className="p-2 hover:bg-white/5 rounded-full text-gray-600">✕</button>
                         </div>
@@ -891,7 +953,7 @@ export default function TodayTask() {
                             {verificationQuestions.length === 0 ? (
                                 <div className="py-20 flex flex-col items-center justify-center text-center space-y-4">
                                     <div className="w-16 h-16 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
-                                    <p className="text-indigo-400 font-black uppercase tracking-widest text-xs animate-pulse">Scanning Knowledge Matrix...</p>
+                                    <p className="text-indigo-400 font-bold uppercase tracking-wider text-xs animate-pulse">Scanning Knowledge Matrix...</p>
                                 </div>
                             ) : (
                                 <>
@@ -903,11 +965,11 @@ export default function TodayTask() {
                                                     {vivaResults.isPassed ? <CheckCircle2 /> : <AlertCircle />}
                                                 </div>
                                                 <div>
-                                                    <h3 className="font-black text-xl italic uppercase tracking-tighter text-white">
+                                                    <h3 className="font-bold text-sm text-white">
                                                         {vivaResults.isPassed ? 'Node Synchronized' : 'Sync Failed'}
                                                     </h3>
-                                                    <p className={`text-xs font-bold uppercase tracking-widest ${vivaResults.isPassed ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                                        Score: {vivaResults.score}% // {vivaResults.isPassed ? 'PASSED' : 'RETRY REQUIRED'}
+                                                    <p className={`text-xs font-bold uppercase tracking-wider ${vivaResults.isPassed ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                        Score: {vivaResults.score}% // {vivaResults.isPassed ? 'Passed' : 'Retry Required'}
                                                     </p>
                                                 </div>
                                             </div>
@@ -918,10 +980,10 @@ export default function TodayTask() {
                                     {verificationQuestions.map((q, idx) => (
                                         <div key={q.id} className={`space-y-4 group transition-all ${vivaResults ? 'opacity-100' : 'opacity-80 hover:opacity-100'}`}>
                                             <div className="flex gap-4">
-                                                <span className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-[10px] font-black text-indigo-400 border border-white/10">0{idx + 1}</span>
+                                                <span className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-[10px] font-bold text-indigo-400 border border-white/10">0{idx + 1}</span>
                                                 <div className="flex-1">
                                                     <h4 className="text-gray-100 font-bold leading-relaxed">{q.question}</h4>
-                                                    <p className="text-[9px] font-black text-indigo-500/50 uppercase tracking-widest mt-1">{q.type === 'MCQ' ? 'Precise Selection' : 'Conceptual Rationale'}</p>
+                                                    <p className="text-[9px] font-bold text-indigo-500/50 uppercase tracking-wider mt-1">{q.type === 'MCQ' ? 'Precise Selection' : 'Conceptual Rationale'}</p>
                                                 </div>
                                             </div>
 
@@ -969,7 +1031,7 @@ export default function TodayTask() {
                                                 <div className="ml-12 p-4 bg-indigo-500/5 rounded-xl border border-indigo-500/10 flex gap-3 animate-in fade-in slide-in-from-left-2 transition-all">
                                                     <Brain size={16} className="text-indigo-400 shrink-0 mt-0.5" />
                                                     <div className="space-y-1">
-                                                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Growth Perspective</p>
+                                                        <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Growth Perspective</p>
                                                         <p className="text-xs text-indigo-200 leading-relaxed font-bold">
                                                             {vivaResults?.results?.find((r: any) => r.questionId === q.id)?.suggestion}
                                                         </p>
@@ -984,14 +1046,14 @@ export default function TodayTask() {
 
                         <div className="p-8 border-t border-white/5 bg-black/50 flex items-center justify-between gap-4">
                             <div className="hidden md:block">
-                                <p className="text-[9px] font-black text-gray-600 uppercase tracking-[0.3em]">Integrity Protocol // 70% Threshold</p>
+                                <p className="text-[9px] font-bold text-gray-600 uppercase tracking-[0.3em]">Integrity Protocol // 70% Threshold</p>
                             </div>
                             <div className="flex gap-4 w-full md:w-auto">
                                 {!vivaResults && (
                                     <Button
                                         onClick={submitVerification}
                                         disabled={isEvaluating || Object.keys(userAnswers).length < verificationQuestions.length}
-                                        className="flex-1 md:flex-none h-14 px-10 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black italic uppercase tracking-widest shadow-2xl shadow-indigo-600/20 disabled:opacity-30 transition-all"
+                                        className="flex-1 md:flex-none h-12 px-8 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold tracking-wider disabled:opacity-30 transition-all"
                                     >
                                         {isEvaluating ? (
                                             <div className="flex items-center gap-3">
@@ -999,7 +1061,7 @@ export default function TodayTask() {
                                                 Auditing...
                                             </div>
                                         ) : (
-                                            <>Submit Rationale <Navigation size={18} className="ml-2 rotate-90" /></>
+                                            <span className="flex items-center">Submit Rationale <Navigation size={18} className="ml-2 rotate-90" /></span>
                                         )}
                                     </Button>
                                 )}
@@ -1008,13 +1070,13 @@ export default function TodayTask() {
                                         onClick={() => {
                                             if (verifyingTaskId) startVerification(verifyingTaskId);
                                         }}
-                                        className="h-14 px-10 rounded-2xl bg-white text-black hover:bg-gray-200 font-black italic uppercase tracking-widest transition-all"
+                                        className="h-12 px-8 rounded-xl bg-white text-black hover:bg-gray-200 font-bold tracking-wider transition-all"
                                     >
                                         Retry Sync
                                     </Button>
                                 )}
                                 {vivaResults && vivaResults.isPassed && (
-                                    <div className="h-14 px-10 rounded-2xl bg-emerald-500 text-black font-black italic uppercase tracking-widest flex items-center gap-2 animate-bounce">
+                                    <div className="h-12 px-8 rounded-xl bg-emerald-500 text-black font-bold flex items-center gap-2 animate-bounce">
                                         Verified <CheckCircle2 size={18} />
                                     </div>
                                 )}

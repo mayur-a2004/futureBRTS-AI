@@ -125,7 +125,7 @@ def dispatch_task(payload: WorkerRequest):
             low_cmd = command_text.lower()
             if "roadmap" in low_cmd:
                 from pipelines import roadmap_pipeline
-                pipeline_result = roadmap_pipeline.run(command_info, payload.prompt)
+                pipeline_result = roadmap_pipeline.run(command_info, payload.prompt, payload.metadata)
             elif "project" in low_cmd or "generate_project_zip" in low_cmd:
                 from pipelines import collage_project_pipeline
                 pipeline_result = collage_project_pipeline.run(payload.metadata or {}, payload.prompt)

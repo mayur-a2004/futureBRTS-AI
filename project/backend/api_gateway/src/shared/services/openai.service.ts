@@ -122,6 +122,12 @@ NEURAL INFERENCE PROTOCOLS:
     - **AUTHORITY LINKS**: Include direct lesson links from W3Schools, GeeksforGeeks, or MDN.
 4. **EMOTIONAL ANCHORING**: Steps should feel like a 'Bhai' guiding another brother. Use phrases like "Zaroori Hai", "Industry Demand", "Mastery Path".
 
+[SMART ROADMAP EVOLUTION & MERGING PROTOCOL - MANDATORY]
+If an 'EXISTING ROADMAP TO MERGE/EVOLVE' is provided in the user message context:
+1. Do NOT lose completed steps. Any step or microstep marked as completed ("isCompleted": true or "state": "COMPLETED") must be kept exactly as is. Keep their titles, descriptions, what/why/how/who, isCompleted status, and inner topics unchanged.
+2. Integrate new concepts/topics from the chat history and latest user requirements into the roadmap as new steps or microsteps, ordered logically.
+3. Return a single unified roadmap JSON.
+
 OUTPUT SCHEMA (STRICT JSON):
 {
     "title": "Elite Goal Title",
@@ -150,7 +156,7 @@ OUTPUT SCHEMA (STRICT JSON):
                     ],
                     "timeEstimate": "e.g., 40 mins",
                     "innerTopics": [
-                        { "title": "Precision Point", "what": "Internal logic" }
+                        { "title": "Precision Point", "what": "Internal logic", "why": "Criticality", "how": "Implementation path", "who": "Target Role" }
                     ]
                 }
             ]
@@ -207,6 +213,7 @@ EXECUTION PROTOCOLS:
 2. **RESOURCE PRECISION**: Use the studyLinks and youtubeLinks provided in the roadmap. Do NOT be generic.
 3. **HUMAN VIVA**: Verification must feel like a senior developer's review. Questions should be scenario-based (e.g., 'If your user-token expires mid-request, how do you handle it in your current setup?').
 4. **BUSINESS SYNERGY**: If the purpose is BUSINESS, add 'Strategy Wisdom' about cost-saving and market timing.
+5. **DEEP INTEGRATION**: Provide detailed custom definitions for 'what', 'why', 'how', 'who', 'objective', 'input', 'output', and 'validationRule'. Do NOT use generic placeholders like "Project Brief" or "Feature Deployment". Tailor them fully to the specific task mission.
 
 OUTPUT SCHEMA (STRICT JSON):
 {
@@ -215,6 +222,14 @@ OUTPUT SCHEMA (STRICT JSON):
             "dayNumber": number,
             "title": "Mission: [Specific Technical Focus]",
             "description": "Humanized execution brief...",
+            "what": "Detailed description of what is accomplished in this mission day.",
+            "why": "Specific architectural or developmental reason why this day's work is critical.",
+            "how": "Detailed step-by-step implementation instructions and logic.",
+            "who": "Target persona or role responsible (e.g., Backend Security Engineer).",
+            "objective": "The specific technical target of this mission.",
+            "input": "Specific codebase structures, config files, or materials required to start.",
+            "output": "Exact output artifacts, database updates, or routes created by the end of this mission.",
+            "validationRule": "Strict instructions on how to test and verify that this mission was correctly completed.",
             "conceptMap": ["Tool 1", "Tool 2"], 
             "subTasks": [
                 { "title": "Protocol: [Action]", "description": "Humanized detail" }
@@ -432,6 +447,31 @@ export const getProviderResponse = async (
         return response.data;
     } catch (ultraLiteErr: any) {
         console.warn('[AI Fallback-1.5] groq-ultra-lite failed:', ultraLiteErr.response?.data?.error?.message || ultraLiteErr.message);
+    }
+
+    // --- PHASE 2.7: OPENROUTER (google/gemini-2.5-flash — high token limit fallback) ---
+    try {
+        const activeOpenRouterKey = await getAiKey('OPENROUTER');
+        if (activeOpenRouterKey) {
+            console.log('⚡ [FALLBACK-1.7] Trying OpenRouter google/gemini-2.5-flash...');
+            const response = await axios.post(
+                'https://openrouter.ai/api/v1/chat/completions',
+                {
+                    messages,
+                    model: 'google/gemini-2.5-flash',
+                    temperature: options.temperature ?? 0.7,
+                    max_tokens: options.maxTokens || 4096,
+                    response_format: options.jsonMode ? { type: 'json_object' } : undefined
+                },
+                {
+                    headers: { 'Authorization': `Bearer ${activeOpenRouterKey}`, 'Content-Type': 'application/json' },
+                    timeout: 45000
+                }
+            );
+            return response.data;
+        }
+    } catch (orErr: any) {
+        console.warn('[AI Fallback-1.7] OpenRouter failed:', orErr.response?.data?.error?.message || orErr.message);
     }
 
     // --- PHASE 3: FINAL FALLBACK (GEMINI v1beta) ---
@@ -657,6 +697,35 @@ export const getProviderResponseStream = async (
         );
     } catch (err: any) {
         console.warn(`[AI Stream Fallback-1.5] failed:`, err.message);
+    }
+
+    // Phase 2.7: OpenRouter (google/gemini-2.5-flash)
+    try {
+        const activeOpenRouterKey = await getAiKey('OPENROUTER');
+        if (activeOpenRouterKey) {
+            const model = 'google/gemini-2.5-flash';
+            console.log(`⚡ [STREAM-FALLBACK-1.7] Trying OpenRouter ${model}...`);
+            return await requestStreamFromProvider(
+                'openrouter',
+                model,
+                'https://openrouter.ai/api/v1/chat/completions',
+                {
+                    messages,
+                    model,
+                    temperature: options.temperature || 0.7,
+                    max_tokens: options.maxTokens || 4096,
+                    stream: true
+                },
+                {
+                    'Authorization': `Bearer ${activeOpenRouterKey}`,
+                    'Content-Type': 'application/json'
+                },
+                45000,
+                onChunk
+            );
+        }
+    } catch (err: any) {
+        console.warn(`[AI Stream Fallback-1.7] failed:`, err.message);
     }
 
     // Phase 3: Gemini
@@ -1103,7 +1172,11 @@ INSTRUCTIONS:
 
     generateRoadmapJSON: async (sessionContext: string, existingRoadmap?: any, persona: string = 'PROFESSIONAL') => {
         try {
-            const messages = [{ role: 'system', content: SYSTEM_PROMPT_ROADMAP }, { role: 'user', content: sessionContext }];
+            let userPromptContent = sessionContext;
+            if (existingRoadmap) {
+                userPromptContent += `\n\n### EXISTING ROADMAP TO MERGE/EVOLVE (PRESERVE COMPLETED STEPS):\n${JSON.stringify(existingRoadmap.steps || existingRoadmap, null, 2)}`;
+            }
+            const messages = [{ role: 'system', content: SYSTEM_PROMPT_ROADMAP }, { role: 'user', content: userPromptContent }];
             const data = await getProviderResponse(messages, { jsonMode: true, temperature: 0.1 }); // High precision for roadmap
             const content = data?.choices?.[0]?.message?.content || data?.message || data?.output;
             return safeJsonParse(String(content));

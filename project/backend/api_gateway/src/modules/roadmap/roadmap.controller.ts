@@ -13,13 +13,63 @@ export const roadmapController = {
     // Generate Roadmap from Session (Summary Driven)
     generateRoadmap: async (req: Request | any, res: Response) => {
         try {
-            const { sessionId } = req.body;
+            let { sessionId } = req.body;
             const userId = req.user.id;
 
             // --- TOKEN CHARGE: ROADMAP ---
             const charge = await EconomyService.chargeUser(userId, 'TOKEN_COST_ROADMAP', 'Neural Roadmap Generation');
             if (!charge.success) {
                 return res.status(402).json({ success: false, error: charge.error });
+            }
+
+            // If no sessionId, auto-create a Builder Session & ChatSummary first
+            if (!sessionId) {
+                const title = req.body.title || req.body.topic || "Custom Roadmap";
+                const boardVal = req.body.board || 'general';
+                const languageVal = req.body.language || 'english';
+                const promptMsg = `Create a study roadmap course for topic: ${title}. Alignment Board: ${boardVal.toUpperCase()}. Medium of Instruction: ${languageVal}.`;
+                
+                const sessionObj = await Session.create({
+                    userId,
+                    title,
+                    initialPrompt: promptMsg,
+                    messages: [
+                        {
+                            id: `msg-${Date.now()}-user`,
+                            role: 'user',
+                            content: promptMsg,
+                            timestamp: new Date()
+                        },
+                        {
+                            id: `msg-${Date.now()}-assistant`,
+                            role: 'assistant',
+                            content: `Certainly! I will design a structured, board-aligned roadmap for ${title} with ${boardVal.toUpperCase()} alignment in ${languageVal} medium.`,
+                            timestamp: new Date()
+                        }
+                    ],
+                    hasRoadmap: true,
+                    status: 'active',
+                    sessionState: {
+                        mode: 'execution',
+                        questionsRemaining: 0,
+                        isRoadmapGenerated: true
+                    }
+                });
+                
+                sessionId = sessionObj._id;
+                
+                await ChatSummary.create({
+                    sessionId,
+                    userId,
+                    summaryText: `User wants a board-aligned roadmap for topic "${title}". Board: ${boardVal.toUpperCase()}. Medium of Instruction: ${languageVal}.`,
+                    keySignals: {
+                        main_topic: title,
+                        sub_topics: [title],
+                        intended_stack: boardVal,
+                        user_vibe: 'focused'
+                    },
+                    approved: true
+                });
             }
 
             // 0. 🛡️ EVOLUTION & STALE CHECK
@@ -105,7 +155,54 @@ export const roadmapController = {
             let neuralScore = 0;
             let deepData: any = null;
 
-            // 🧠 SMART EVOLUTION: Use the existing roadmap we already fetched at L29
+            // 🧠 SMART EVOLUTION: Sync actual task progress to existing roadmap steps
+            if (existingRoadmap) {
+                try {
+                    const tasksForRoadmap = await Task.find({ roadmapId: existingRoadmap._id, userId });
+                    const completedTasksSet = new Set(
+                        tasksForRoadmap.filter((t: any) => t.status === 'done' || t.status === 'completed').map((t: any) => t.title.trim().toLowerCase())
+                    );
+                    const allTasksSet = new Set(
+                        tasksForRoadmap.map((t: any) => t.title.trim().toLowerCase())
+                    );
+
+                    for (const step of existingRoadmap.steps) {
+                        let allMicroStepsCompleted = true;
+                        let anyMicroStepCompleted = false;
+
+                        if (step.microSteps && step.microSteps.length > 0) {
+                            for (const ms of step.microSteps) {
+                                const msTitleLower = ms.title.trim().toLowerCase();
+                                const hasCompletedTask = completedTasksSet.has(msTitleLower);
+                                const hasAnyTask = allTasksSet.has(msTitleLower);
+
+                                if (hasCompletedTask) {
+                                    ms.isCompleted = true;
+                                } else if (hasAnyTask) {
+                                    ms.isCompleted = false;
+                                }
+
+                                if (ms.isCompleted) {
+                                    anyMicroStepCompleted = true;
+                                } else {
+                                    allMicroStepsCompleted = false;
+                                }
+                            }
+                        } else {
+                            allMicroStepsCompleted = false;
+                        }
+
+                        if (allMicroStepsCompleted) {
+                            step.state = 'COMPLETED';
+                        } else if (anyMicroStepCompleted) {
+                            step.state = 'IN_PROGRESS';
+                        }
+                    }
+                } catch (syncErr: any) {
+                    console.error("Failed to sync task progress to existing roadmap steps:", syncErr.message);
+                }
+            }
+
             const previousRoadmap = existingRoadmap;
             const evolutionContext = previousRoadmap ? JSON.stringify(previousRoadmap.steps) : null;
 
@@ -168,10 +265,13 @@ export const roadmapController = {
                         difficulty_level: ms.difficulty_level || 1,
                         timeEstimate: ms.timeEstimate || ms.suggestedTime || '40 mins',
                         youtubeLink: ms.youtubeLink || '',
-                        isCompleted: false,
+                        isCompleted: ms.isCompleted || false,
                         innerTopics: (ms.innerTopics || []).map((it: any) => ({
                             title: it.title,
-                            what: it.what || it.description || ''
+                            what: it.what || it.description || it.detailedContext || '',
+                            why: it.why || '',
+                            how: it.how || '',
+                            who: it.who || ''
                         }))
                     }))
                 };
@@ -179,16 +279,60 @@ export const roadmapController = {
 
             // --- SAVE LOGIC ---
             let roadmap: any;
-            if (existingRoadmap && isEvolveRequest) {
+            if (existingRoadmap) {
                 console.info(`🧬 [Evolution] Adapting Roadmap: ${existingRoadmap._id}`);
                 existingRoadmap.title = roadmapTitle;
                 existingRoadmap.description = roadmapDescription;
-                existingRoadmap.steps = finalSteps.map((s: any, idx: number) => ({
-                    ...s,
-                    stepNumber: idx + 1,
-                    isLocked: false,
-                    state: 'UNLOCKED'
-                }));
+
+                // Match steps and microsteps by title to preserve _id and isCompleted state
+                const oldStepsMap = new Map();
+                for (const oldStep of existingRoadmap.steps) {
+                    const stepKey = oldStep.title.trim().toLowerCase();
+                    oldStepsMap.set(stepKey, oldStep);
+                }
+
+                existingRoadmap.steps = finalSteps.map((s: any, idx: number) => {
+                    const stepKey = s.title.trim().toLowerCase();
+                    const oldStep = oldStepsMap.get(stepKey);
+
+                    const mSteps = s.microSteps || [];
+                    const updatedMicroSteps = mSteps.map((ms: any) => {
+                        let oldMs = null;
+                        if (oldStep && oldStep.microSteps) {
+                            oldMs = oldStep.microSteps.find((om: any) => om.title.trim().toLowerCase() === ms.title.trim().toLowerCase());
+                        }
+
+                        return {
+                            _id: oldMs ? oldMs._id : undefined,
+                            title: ms.title,
+                            what: ms.what,
+                            why: ms.why,
+                            how: ms.how,
+                            who: ms.who,
+                            difficulty_level: ms.difficulty_level,
+                            timeEstimate: ms.timeEstimate,
+                            youtubeLink: ms.youtubeLink || (oldMs ? oldMs.youtubeLink : ''),
+                            isCompleted: oldMs ? oldMs.isCompleted : (ms.isCompleted || false),
+                            innerTopics: ms.innerTopics
+                        };
+                    });
+
+                    return {
+                        _id: oldStep ? oldStep._id : undefined,
+                        stepNumber: idx + 1,
+                        phase: s.phase,
+                        title: s.title,
+                        description: s.description,
+                        what: s.what,
+                        why: s.why,
+                        how: s.how,
+                        who: s.who,
+                        isLocked: oldStep ? oldStep.isLocked : false,
+                        state: oldStep ? oldStep.state : 'UNLOCKED',
+                        microSteps: updatedMicroSteps
+                    };
+                });
+
                 existingRoadmap.neuralScore = neuralScore || 85;
                 roadmap = await existingRoadmap.save();
             } else {
