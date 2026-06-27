@@ -206,19 +206,6 @@ export default function Contact() {
                     </div>
                 </div>
             </div>
-
-            {/* --- FOOTER STATUS HUD --- */}
-            <section className="text-center py-12 border-t border-white/5 space-y-6">
-                <div className="flex flex-wrap justify-center gap-10 font-black text-[8px] uppercase tracking-[0.6em] text-gray-800 font-mono">
-                    <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-ping" /> UPLINK: ACTIVE</div>
-                    <div>SEC_LEVEL: 04</div>
-                    <div>THROUGHPUT: OPTIMAL</div>
-                    <div>CRC_CHECK: VALID</div>
-                </div>
-                <p className="text-[9px] font-black uppercase tracking-[0.5em] text-gray-700">
-                    Conceptualized by Architect Mayur Savaliya • Built in Earth-Sector_01
-                </p>
-            </section>
         </div>
     )
 }
