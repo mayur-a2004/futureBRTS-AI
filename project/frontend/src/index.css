@@ -66,6 +66,7 @@
         border-color: rgba(255, 255, 255, 0.05);
     }
 
+    html,
     body {
         /* These are valid standard CSS variables or properties */
         background-color: var(--background);
@@ -74,6 +75,7 @@
         font-feature-settings: "cv02", "cv05", "cv08", "cv09", "cv10", "cv11";
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+        overflow-x: hidden;
     }
 
     ::selection {
@@ -266,7 +268,10 @@
 /* Custom Scrollbar using standard CSS */
 ::-webkit-scrollbar {
     width: 8px;
-    height: 8px;
+}
+
+::-webkit-scrollbar:horizontal {
+    display: none;
 }
 
 ::-webkit-scrollbar-track {
