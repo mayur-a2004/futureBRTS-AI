@@ -261,7 +261,10 @@ Return ONLY valid JSON:
 RULES:
 - explanation_simple (Story): MUST be a highly creative, engaging, and simple story or real-life analogy. Explain the core concept using a completely non-technical metaphor (e.g., explaining traffic congestion for resistance, or water flow for current). It must feel like an interesting story, not a textbook paragraph, so that the student can understand it intuitively.
 - explanation_detailed (Theory/Concept): MUST be a detailed, technical, and comprehensive breakdown (500-800 words) in ${lang}. Include formal definitions, equations/derivations (if applicable), working mechanisms, applications, and strict syllabus-aligned concepts. This MUST be completely distinct in content and tone from the simple story analogy.
-- micro_tasks: Generate 3-4 progressive tasks (easy, medium, hard). Ensure tasks are completely unique with no duplicate prompts, covering diverse aspects of the topic (e.g. one conceptual question, one MCQ, one problem-solving task).
+- PYQ SPECIAL RULE: If the node relevance (board_relevance) or title indicates this is a 'Direct PYQ Question', treat it as a past exam paper question to explain.
+  - explanation_simple (Hint): Must be a direct, helpful hint or strategic tip on how to think or approach solving this exact question (instead of a generic story). Keep it simple and encouraging.
+  - explanation_detailed (Step-by-Step Solution): Must be the complete, step-by-step resolved answer/solution to that exact question (instead of generic theory). Show calculations, equations, or structural points clearly.
+- micro_tasks: Generate 3-4 progressive tasks (easy, medium, hard). Ensure tasks are completely unique with no duplicate prompts, covering diverse aspects of the topic (e.g. one conceptual question, one MCQ, one problem-solving task). For PYQ nodes, these should be similar practice questions based on the exam question.
 - homework_tasks: Generate 2-3 tasks, slightly harder than micro_tasks, ensuring completely unique questions.
 - youtube_queries: specific enough to find real educational videos
 - Key formulas: include in proper format (e.g., "F = ma (Force = mass × acceleration)")`
@@ -628,6 +631,79 @@ ${JSON.stringify(questionsAndAnswers, null, 2)}`
         console.error('[gradeExamWrittenAnswers Error]', err);
         return {};
     }
+};
+
+// ─────────────────────────────────────────────
+// 10. GENERATE ROADMAP FROM PREVIOUS YEAR PAPER (PYQ)
+// ─────────────────────────────────────────────
+export const generatePYQRoadmap = async (
+    fileName: string,
+    extractedText: string,
+    studentQuery: string,
+    grade_level: string,
+    board: string,
+    medium: string,
+    language: string = 'english'
+): Promise<any> => {
+    const boardLabel = getBoardLabel(board);
+    const gradeLabel = getGradeLabel(grade_level);
+
+    const messages = [
+        {
+            role: 'system',
+            content: `You are an expert exam curriculum designer and academic evaluator.
+Analyze the provided Previous Year Question (PYQ) Paper or Exam Paper.
+Create a structured preparation path where each node corresponds to a specific question or key topic found in the paper.
+
+Return ONLY valid JSON:
+{
+    "title": "PYQ Prep: [Subject Name] ([Year/Exam if detected])",
+    "subject": "Subject Name",
+    "estimated_hours": number,
+    "board_pattern": "Brief analysis of the exam format from this paper",
+    "nodes": [
+        {
+            "order_index": 1,
+            "title": "Q1: [Brief Question Summary or Topic]",
+            "chapter": "Name of chapter/unit this belongs to",
+            "topic": "Main academic topic",
+            "subtopic": "Specific subtopic",
+            "priority": "HIGH",
+            "priority_reason": "Question direct from uploaded paper",
+            "board_relevance": "Direct PYQ Question from: ${fileName}",
+            "exam_weightage_percent": number,
+            "difficulty": "basic" | "intermediate" | "advanced",
+            "estimated_time_minutes": number,
+            "key_points": [
+                "QUESTION: [Full actual question text extracted from the paper]",
+                "MARKS: [Marks allocated if visible, or null]"
+            ],
+            "key_formulas": ["Any key formulas required to solve this"]
+        }
+    ]
+}
+
+RULES:
+- Parse all questions from the extracted paper text. If there are too many (e.g. >15), group related questions together or select the most critical 10-15 high-weightage questions.
+- Maintain the order from basic/first questions to advanced/final questions.
+- Write ALL JSON fields in the target language: ${language}. For Hinglish, use Romanized Hindi.
+- In key_points, the first item must strictly start with "QUESTION: " followed by the exact question from the paper, so the learning engine knows this is a PYQ node.`
+        },
+        {
+            role: 'user',
+            content: `Document Name: ${fileName}
+Extracted Paper Text:
+"""
+${extractedText.substring(0, 15000)}
+"""
+
+Student Instruction: ${studentQuery}`
+        }
+    ];
+
+    const res = await getProviderResponse(messages, { jsonMode: true, maxTokens: 3000, temperature: 0.3 });
+    const text = res?.choices?.[0]?.message?.content || '{}';
+    return safeJsonParse(text);
 };
 
 

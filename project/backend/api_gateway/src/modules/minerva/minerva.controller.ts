@@ -17,6 +17,7 @@ import {
     generateStudentStudyMaterial,
     translateContent,
     gradeExamWrittenAnswers,
+    generatePYQRoadmap,
 } from './minerva.service';
 
 // ─────────────────────────────────────────────────────────────────
@@ -167,7 +168,17 @@ export const minervaController = {
                                      studentQuery.toLowerCase().includes('schedule') ||
                                      studentQuery.toLowerCase().includes('road map');
 
-            if ((!deep_study || isRoadmapRequest) && (intent.intent === 'create_session' || intent.intent === 'learn_topic')) {
+            const isPYQRequest = filename.toLowerCase().includes('paper') ||
+                                 filename.toLowerCase().includes('pyq') ||
+                                 studentQuery.toLowerCase().includes('paper') ||
+                                 studentQuery.toLowerCase().includes('pyq') ||
+                                 studentQuery.toLowerCase().includes('last year') ||
+                                 studentQuery.toLowerCase().includes('previous year') ||
+                                 studentQuery.toLowerCase().includes('semester') ||
+                                 studentQuery.toLowerCase().includes('sem ') ||
+                                 studentQuery.toLowerCase().includes('prep');
+
+            if ((!deep_study || isRoadmapRequest || isPYQRequest) && (intent.intent === 'create_session' || intent.intent === 'learn_topic' || isPYQRequest)) {
                 // Auto-detect profile info and update
                 if (intent.grade_level && !profile.onboarding_done) {
                     await MinervaStudentProfile.findByIdAndUpdate(profile._id, {
@@ -209,20 +220,28 @@ export const minervaController = {
 
                 // Truncate file content if passing to roadmap to keep it within safe token limits (e.g. max 15000 chars)
                 const sourceContent = fullExtractedText ? fullExtractedText.substring(0, 15000) : undefined;
-                const roadmapData = await generateRoadmap(subject, intent.topic || subject, grade, board, targetLang, sourceContent, targetLang);
+                
+                let roadmapData;
+                if (isPYQRequest && (fullExtractedText || studentQuery.length > 30)) {
+                    const textToUse = fullExtractedText || studentQuery;
+                    const paperName = filename || 'Exam Paper';
+                    roadmapData = await generatePYQRoadmap(paperName, textToUse, studentQuery, grade, board, targetLang, targetLang);
+                } else {
+                    roadmapData = await generateRoadmap(subject, intent.topic || subject, grade, board, targetLang, sourceContent, targetLang);
+                }
 
                 if (roadmapData && roadmapData.nodes?.length > 0) {
                     // Create session
                     const session = await MinervaStudySession.create({
                         userId,
                         title: roadmapData.title || `${subject} Study Session`,
-                        subject,
+                        subject: roadmapData.subject || subject,
                         board,
                         grade_level: grade,
                         education_type: intent.education_type || 'school',
                         medium: targetLang, // store target language as the medium of the session!
-                        source_type: 'chat',
-                        source_content: studentQuery,
+                        source_type: isPYQRequest ? 'pdf' : 'chat',
+                        source_content: fullExtractedText || studentQuery,
                         detected_language: intent.language || 'hi',
                         detected_board: board,
                         detected_grade: grade,
