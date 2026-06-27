@@ -96,11 +96,18 @@ export const minervaApi = {
         return handleRes(res);
     },
 
-    // ── LEARNING ──────────────────────────────────
     learnNode: async (token: string, nodeId: string) => {
         const res = await fetch(`${BASE_URL}/node/${nodeId}/learn`, {
             method: 'POST',
             headers: authHeaders(token),
+        });
+        return handleRes(res);
+    },
+    updateNodePriority: async (token: string, nodeId: string, priority: 'HIGH' | 'MEDIUM' | 'LOW') => {
+        const res = await fetch(`${BASE_URL}/node/${nodeId}/priority`, {
+            method: 'PUT',
+            headers: authHeaders(token),
+            body: JSON.stringify({ priority }),
         });
         return handleRes(res);
     },

@@ -53,6 +53,7 @@ router.get('/session/:id', authMiddleware, minervaController.getSession);
 
 // ─── LEARNING (Node/Topic) ──────────────────────
 router.post('/node/:id/learn', authMiddleware, minervaController.learnNode);
+router.put('/node/:id/priority', authMiddleware, minervaController.updateNodePriority);
 
 // ─── TASKS / HOMEWORK ──────────────────────────
 router.post('/task/:id/submit', authMiddleware, minervaController.submitTask);

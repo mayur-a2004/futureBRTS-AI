@@ -34,6 +34,22 @@ const MinervaSessionPage: React.FC = () => {
         navigate(`/future-education/learn/${node._id}`);
     };
 
+    const handleTogglePriority = async (e: React.MouseEvent, nodeId: string, currentPriority: string) => {
+        e.stopPropagation();
+        const nextPriority = currentPriority === 'HIGH' ? 'MEDIUM' : currentPriority === 'MEDIUM' ? 'LOW' : 'HIGH';
+        try {
+            const res = await minervaApi.updateNodePriority(token, nodeId, nextPriority);
+            if (res.success) {
+                setNodes(prev => prev.map(n => n._id === nodeId ? { ...n, priority: nextPriority } : n));
+            } else {
+                alert(res.error || 'Failed to update priority');
+            }
+        } catch (err) {
+            console.error('Error toggling priority:', err);
+            alert('Failed to update priority');
+        }
+    };
+
     const handleGenerateExam = async () => {
         setExamLoading(true);
         const res = await minervaApi.generateExam(token, { session_id: id!, exam_type: 'chapter_test', total_marks: 50 });
@@ -210,6 +226,16 @@ const MinervaSessionPage: React.FC = () => {
                                                     {node.last_score}% Score
                                                 </div>
                                             )}
+                                            <button
+                                                onClick={(e) => handleTogglePriority(e, node._id, node.priority)}
+                                                title="Click to cycle priority (High -> Medium -> Low)"
+                                                className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-xl transition-all shrink-0 active:scale-95 hover:brightness-125 border
+                                                    ${node.priority === 'HIGH' ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                                                        : node.priority === 'MEDIUM' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                                            : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}
+                                            >
+                                                {node.priority}
+                                            </button>
                                             <div className="text-xs text-gray-500 flex items-center gap-1 font-mono">
                                                 <Clock size={12} className="text-gray-400" /> {node.estimated_time_minutes}m
                                             </div>

@@ -1461,4 +1461,35 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
             return res.status(500).json({ success: false, error: err.message });
         }
     },
+
+    // ──────────────────────────────────────────
+    // 25. UPDATE NODE PRIORITY
+    // PUT /api/future-education/node/:id/priority
+    // ──────────────────────────────────────────
+    updateNodePriority: async (req: Request | any, res: Response) => {
+        try {
+            const userId = req.user?.id || req.user?._id;
+            const { id } = req.params;
+            const { priority } = req.body;
+
+            if (!['HIGH', 'MEDIUM', 'LOW'].includes(priority)) {
+                return res.status(400).json({ success: false, error: 'Invalid priority value. Must be HIGH, MEDIUM, or LOW' });
+            }
+
+            const node = await MinervaKnowledgeNode.findOneAndUpdate(
+                { _id: id, userId },
+                { priority },
+                { new: true }
+            );
+
+            if (!node) {
+                return res.status(404).json({ success: false, error: 'Node not found' });
+            }
+
+            return res.json({ success: true, node });
+        } catch (err: any) {
+            console.error('[Minerva Update Node Priority Error]', err);
+            return res.status(500).json({ success: false, error: err.message });
+        }
+    },
 };
