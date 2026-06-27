@@ -23,9 +23,9 @@ export default function AuthLayout() {
     }
 
     return (
-        <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2 bg-transparent text-white relative font-sans">
+        <div className="min-h-screen lg:h-screen lg:max-h-screen lg:overflow-hidden grid grid-cols-1 lg:grid-cols-2 bg-transparent text-white relative font-sans">
             {/* Left Side - Visual Continuity */}
-            <div className="hidden lg:flex flex-col justify-between p-12 bg-[#020108]/95 relative overflow-hidden border-r border-white/5">
+            <div className="hidden lg:flex flex-col justify-between p-8 h-full max-h-screen overflow-hidden bg-[#020108]/95 relative border-r border-white/5">
                 {/* Ambient Background Glows */}
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/10 via-transparent to-transparent"></div>
                 <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none" />
@@ -33,7 +33,7 @@ export default function AuthLayout() {
 
                 {/* Top Section: Header & Back Button */}
                 <div className="relative z-10">
-                    <Link to="/" className="inline-flex items-center gap-2 text-gray-500 hover:text-white transition text-[10px] font-black uppercase tracking-widest mb-8 group">
+                    <Link to="/" className="inline-flex items-center gap-2 text-gray-500 hover:text-white transition text-[10px] font-black uppercase tracking-widest mb-4 group">
                         <ArrowLeft size={12} className="group-hover:-translate-x-1 transition-transform" /> Back to Home
                     </Link>
                     <div className="flex items-center gap-2.5">
@@ -47,30 +47,30 @@ export default function AuthLayout() {
                 </div>
 
                 {/* Middle Section: Main Text & Holographic Panel */}
-                <div className="relative z-10 max-w-lg my-auto space-y-10">
+                <div className="relative z-10 max-w-lg my-auto space-y-6">
                     {/* Marketing Text */}
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                         {intentText ? (
-                            <div className="space-y-4 animate-in fade-in slide-in-from-left-5 duration-700">
+                            <div className="space-y-3 animate-in fade-in slide-in-from-left-5 duration-700">
                                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/25 text-indigo-400 text-[9px] font-black uppercase tracking-wider">
                                     <Sparkles size={10} className="animate-spin-slow" />
                                     Captured Intent
                                 </div>
-                                <h2 className="text-3xl font-black font-display leading-tight tracking-tight text-white">
+                                <h2 className="text-2xl font-black font-display leading-tight tracking-tight text-white">
                                     We’ve understood your goal: <br />
                                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400">"{intentText}"</span>
                                 </h2>
-                                <p className="text-gray-400 text-xs leading-relaxed max-w-md font-medium">
+                                <p className="text-gray-400 text-[11px] leading-relaxed max-w-md font-medium">
                                     Join our intelligence ecosystem to build your custom roadmap, target weak areas, and unlock complete exams.
                                 </p>
                             </div>
                         ) : (
-                            <div className="space-y-4">
-                                <h2 className="text-3xl font-black font-display leading-tight tracking-tight text-white">
+                            <div className="space-y-3">
+                                <h2 className="text-2xl font-black font-display leading-tight tracking-tight text-white">
                                     Your journey to a <br />
                                     better future <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-500 to-pink-500">starts here.</span>
                                 </h2>
-                                <p className="text-gray-400 text-xs leading-relaxed max-w-md font-medium">
+                                <p className="text-gray-400 text-[11px] leading-relaxed max-w-md font-medium">
                                     Stop guessing. Start building with advanced AI-guided roadmaps, smart homework tasks, and dynamic profile analytics.
                                 </p>
                             </div>
@@ -78,34 +78,34 @@ export default function AuthLayout() {
                     </div>
 
                     {/* Interactive Holographic HUD Panel */}
-                    <div className="bg-[#0b0916]/80 border border-indigo-500/20 rounded-[2rem] p-6 shadow-[0_12px_40px_rgba(0,0,0,0.6)] backdrop-blur-xl relative overflow-hidden group">
+                    <div className="bg-[#0b0916]/80 border border-indigo-500/20 rounded-[1.5rem] p-4 shadow-[0_12px_40px_rgba(0,0,0,0.6)] backdrop-blur-xl relative overflow-hidden group">
                         {/* Scan Line effect */}
                         <div className="absolute inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent top-0 animate-[bounce_4s_infinite]" />
                         <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
                         
-                        <div className="text-[10px] font-black text-indigo-400/80 uppercase tracking-widest mb-4 flex items-center gap-1.5 border-b border-white/5 pb-3">
+                        <div className="text-[10px] font-black text-indigo-400/80 uppercase tracking-widest mb-2 flex items-center gap-1.5 border-b border-white/5 pb-2">
                             <Activity size={12} className="animate-pulse" />
                             Minerva Engine Status
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-0.5">
                                 <div className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">AI Model Mode</div>
                                 <div className="text-xs font-bold text-white flex items-center gap-1">
-                                    <Cpu size={12} className="text-indigo-400 animate-spin-slow" /> Groq Ultra Llama-3
+                                    <Cpu size={12} className="text-indigo-400 animate-spin-slow" /> Groq Llama-3
                                 </div>
                             </div>
-                            <div className="space-y-1">
+                            <div className="space-y-0.5">
                                 <div className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">Storage Protocol</div>
                                 <div className="text-xs font-bold text-white flex items-center gap-1">
                                     <Database size={12} className="text-emerald-400" /> Local AES-256
                                 </div>
                             </div>
-                            <div className="space-y-1">
+                            <div className="space-y-0.5">
                                 <div className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">Language Medium</div>
                                 <div className="text-xs font-bold text-white">English / Hinglish / Auto</div>
                             </div>
-                            <div className="space-y-1">
+                            <div className="space-y-0.5">
                                 <div className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">Sync State</div>
                                 <div className="text-xs font-bold text-emerald-400 flex items-center gap-1">
                                     <span className="relative flex h-1.5 w-1.5">
@@ -120,7 +120,7 @@ export default function AuthLayout() {
                 </div>
 
                 {/* Bottom Section: Footer / Trust info */}
-                <div className="relative z-10 flex items-center gap-2 select-none text-[9px] font-black text-gray-500 tracking-wider uppercase border-t border-white/5 pt-6 mt-6">
+                <div className="relative z-10 flex items-center gap-2 select-none text-[9px] font-black text-gray-500 tracking-wider uppercase border-t border-white/5 pt-4">
                     <span className="relative flex h-1.5 w-1.5">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-indigo-500"></span>
