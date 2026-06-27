@@ -204,7 +204,7 @@ export const minervaController = {
                                  studentQuery.toLowerCase().includes('sem ') ||
                                  studentQuery.toLowerCase().includes('prep');
 
-            if ((!deep_study || isRoadmapRequest || isPYQRequest) && (intent.intent === 'create_session' || intent.intent === 'learn_topic' || isPYQRequest)) {
+            if ((isRoadmapRequest || isPYQRequest) && (intent.intent === 'create_session' || intent.intent === 'learn_topic' || isPYQRequest)) {
                 // Auto-detect profile info and update
                 if (intent.grade_level && !profile.onboarding_done) {
                     await MinervaStudentProfile.findByIdAndUpdate(profile._id, {
