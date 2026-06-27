@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import MinervaStudentProfile from './models/minerva_student_profile.model';
+import { OnboardingProfile } from '../onboarding/onboarding.model';
 import MinervaStudySession from './models/minerva_study_session.model';
 import MinervaKnowledgeNode from './models/minerva_knowledge_node.model';
 import MinervaTask from './models/minerva_task.model';
@@ -26,7 +27,32 @@ import {
 const getOrCreateProfile = async (userId: string) => {
     let profile = await MinervaStudentProfile.findOne({ userId });
     if (!profile) {
-        profile = await MinervaStudentProfile.create({ userId });
+        let education_type = 'college';
+        let grade_level = 'undergraduate';
+        let onboarding_done = false;
+
+        try {
+            const onboarding = await OnboardingProfile.findOne({ userId });
+            if (onboarding) {
+                const stage = onboarding.life_stage;
+                if (stage === 'School (8-10)' || stage === 'High School (11-12)') {
+                    education_type = 'school';
+                    grade_level = stage === 'School (8-10)' ? 'class_10' : 'class_12';
+                } else {
+                    education_type = 'college';
+                    onboarding_done = true; // Non-school users do not need school initialization modal
+                }
+            }
+        } catch (err) {
+            console.error("Failed to query onboarding profile in getOrCreateProfile:", err);
+        }
+
+        profile = await MinervaStudentProfile.create({ 
+            userId, 
+            education_type, 
+            grade_level, 
+            onboarding_done 
+        });
     }
     return profile;
 };
