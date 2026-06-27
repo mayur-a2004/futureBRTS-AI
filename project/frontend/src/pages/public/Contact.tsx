@@ -48,7 +48,7 @@ export default function Contact() {
                             <span className="text-[10px] font-black uppercase tracking-[0.4em] text-purple-500">Dedicated Communication Nodes</span>
                             <h2 className="text-2xl md:text-3xl font-black tracking-tighter italic uppercase text-white leading-none">DIRECT_SYNC.</h2>
                         </div>
-                        <div className="grid md:grid-cols-2 gap-4 pb-8">
+                        <div className="grid sm:grid-cols-2 gap-4 pb-8">
                             <CommsSocket
                                 icon={<Headphones />}
                                 title="CORE_OPS"
@@ -121,7 +121,7 @@ export default function Contact() {
                                     animate={{ opacity: 1 }}
                                     exit={{ opacity: 0 }}
                                 >
-                                    <div className="grid md:grid-cols-2 gap-6">
+                                    <div className="grid sm:grid-cols-2 gap-6">
                                         <div className="space-y-2 group/input">
                                             <label className="block text-[8px] font-black uppercase tracking-[0.4em] text-gray-500 group-focus-within/input:text-purple-400 transition-colors">OPERATOR_ID (NAME)</label>
                                             <input 
@@ -218,15 +218,15 @@ function CommsSocket({ icon, title, desc, label, color }: any) {
         amber: "text-amber-400 group-hover:bg-amber-600",
     }
     return (
-        <div className="p-8 rounded-[2.5rem] bg-[#050508] border border-white/5 hover:border-purple-500/30 transition-all duration-700 group cursor-pointer text-left h-full relative overflow-hidden flex flex-col justify-between">
+        <div className="p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] bg-[#050508] border border-white/5 hover:border-purple-500/30 transition-all duration-700 group cursor-pointer text-left h-full relative overflow-hidden flex flex-col justify-between">
             <div>
-                <div className={`w-12 h-12 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-center mb-6 transition-all duration-500 group-hover:text-white group-hover:scale-105 group-hover:-rotate-12 ${colorMap[color]}`}>{icon}</div>
+                <div className={`w-11 h-11 md:w-12 md:h-12 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-center mb-5 md:mb-6 transition-all duration-500 group-hover:text-white group-hover:scale-105 group-hover:-rotate-12 ${colorMap[color]}`}>{icon}</div>
                 <div className="space-y-3">
-                    <h4 className="font-black text-xl italic tracking-tighter uppercase group-hover:text-white transition-colors">{title}</h4>
+                    <h4 className="font-black text-lg md:text-xl italic tracking-tighter uppercase group-hover:text-white transition-colors">{title}</h4>
                     <p className="text-[11px] text-gray-500 font-medium leading-relaxed text-left group-hover:text-gray-400">{desc}</p>
                 </div>
             </div>
-            <div className="pt-6 flex items-center gap-3">
+            <div className="pt-5 md:pt-6 flex items-center gap-3">
                 <div className="h-px w-6 bg-white/5 group-hover:w-full transition-all duration-1000" />
                 <span className="text-[9px] font-black font-mono uppercase tracking-widest text-purple-400 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">{label}</span>
             </div>
@@ -238,11 +238,11 @@ function RoboFaqItem({ question, answer }: { question: string, answer: string })
     const [isOpen, setIsOpen] = useState(false);
     return (
         <div
-            className="p-8 rounded-[2rem] bg-[#050508] border border-white/5 hover:border-purple-600/20 transition-all cursor-pointer group"
+            className="p-5 md:p-6 rounded-[1.5rem] md:rounded-[2rem] bg-[#050508] border border-white/5 hover:border-purple-600/20 transition-all cursor-pointer group"
             onClick={() => setIsOpen(!isOpen)}
         >
             <div className="flex justify-between items-center gap-4">
-                <h4 className="text-sm md:text-base font-black text-gray-500 group-hover:text-white tracking-tighter uppercase transition-colors italic leading-tight">{question}</h4>
+                <h4 className="text-xs md:text-sm lg:text-base font-black text-gray-500 group-hover:text-white tracking-tighter uppercase transition-colors italic leading-tight">{question}</h4>
                 <div className={`text-purple-500 transition-transform duration-500 ${isOpen ? 'rotate-135' : ''}`}>
                     <Command size={16} />
                 </div>
@@ -251,9 +251,9 @@ function RoboFaqItem({ question, answer }: { question: string, answer: string })
                 {isOpen && (
                     <motion.p
                         initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                        animate={{ opacity: 1, height: 'auto', marginTop: 16 }}
+                        animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
                         exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                        className="text-xs md:text-sm text-gray-500 font-medium leading-relaxed pt-6 border-t border-white/5 text-left border-purple-500/10"
+                        className="text-xs md:text-sm text-gray-500 font-medium leading-relaxed pt-5 md:pt-6 border-t border-white/5 text-left border-purple-500/10"
                     >
                         {answer}
                     </motion.p>
