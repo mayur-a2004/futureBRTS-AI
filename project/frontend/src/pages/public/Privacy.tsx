@@ -183,13 +183,6 @@ export default function Privacy() {
                         CONTACT_DATA_SHIELD <ArrowRight size={16} className="group-hover:translate-x-2 transition-transform" />
                     </span>
                 </Button>
-
-                <div className="flex flex-wrap justify-center gap-10 font-black text-[8px] uppercase tracking-[0.6em] text-gray-800 pt-16 font-mono">
-                    <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" /> CORE_ONLINE</div>
-                    <div>ENCR_READY</div>
-                    <div>MEM_SECURE</div>
-                    <div>SHA_256_STABLE</div>
-                </div>
             </section>
         </div>
     )

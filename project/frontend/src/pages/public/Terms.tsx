@@ -178,13 +178,6 @@ export default function Terms() {
                         CONTACT_LEGAL_TEAM <ArrowRight size={16} className="group-hover:translate-x-2 transition-transform" />
                     </span>
                 </Button>
-
-                <div className="flex flex-wrap justify-center gap-10 font-black text-[8px] uppercase tracking-[0.6em] text-gray-800 pt-16 font-mono">
-                    <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" /> SYS_STABLE</div>
-                    <div>LAWS_SYNCED</div>
-                    <div>USER_BOUND</div>
-                    <div>CRC_VALID</div>
-                </div>
             </section>
         </div>
     )
