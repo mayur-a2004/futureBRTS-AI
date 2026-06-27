@@ -852,16 +852,32 @@ const MinervaHome: React.FC = () => {
                                 </button>
                             )}
 
-                            {/* Dynamic Topic Explainer Questions */}
-                            {getTopicSuggestions().map((sug, sIdx) => (
-                                <button
-                                    key={sIdx}
-                                    onClick={() => sendMessage(sug.prompt)}
-                                    className="bg-white/[0.02] hover:bg-indigo-500/10 border border-white/[0.05] hover:border-indigo-500/30 rounded-full px-3.5 py-1.5 text-[10px] font-bold text-gray-300 hover:text-indigo-200 transition-all flex items-center gap-1 shadow-md active:scale-95 cursor-pointer"
-                                >
-                                    <span>{sug.text}</span>
-                                </button>
-                            ))}
+                            {/* Dynamic LLM-generated or Category-based Suggestions */}
+                            {(() => {
+                                const lastAIMsg = [...messages].reverse().find(m => m.role === 'minerva' && m.metadata?.suggestions?.length > 0);
+                                if (lastAIMsg && lastAIMsg.metadata.suggestions) {
+                                    return lastAIMsg.metadata.suggestions.map((sug: string, sIdx: number) => (
+                                        <button
+                                            key={sIdx}
+                                            onClick={() => sendMessage(sug)}
+                                            className="bg-[#0f0b24]/80 hover:bg-indigo-500/10 border border-indigo-500/20 hover:border-indigo-500/40 rounded-full px-3.5 py-1.5 text-[10px] font-bold text-indigo-300 hover:text-indigo-200 transition-all flex items-center gap-1 shadow-md active:scale-95 cursor-pointer"
+                                        >
+                                            <span>💡</span>
+                                            <span>{sug}</span>
+                                        </button>
+                                    ));
+                                }
+                                // Fallback to category-based suggestions
+                                return getTopicSuggestions().map((sug, sIdx) => (
+                                    <button
+                                        key={sIdx}
+                                        onClick={() => sendMessage(sug.prompt)}
+                                        className="bg-white/[0.02] hover:bg-[#120a2e]/20 border border-white/[0.05] hover:border-indigo-500/25 rounded-full px-3.5 py-1.5 text-[10px] font-bold text-gray-300 hover:text-indigo-200 transition-all flex items-center gap-1 shadow-md active:scale-95 cursor-pointer"
+                                    >
+                                        <span>{sug.text}</span>
+                                    </button>
+                                ));
+                            })()}
                         </div>
                     )}
 

@@ -132,7 +132,37 @@ export const getMinervaChat = async (
 
     const res = await getProviderResponse(messages, { maxTokens: 1200, temperature: 0.75 });
     const reply = res?.choices?.[0]?.message?.content || 'Main samajh nahi paya. Kya aap dobara bata sakte ho?';
-    return { reply, content_type: 'text', metadata: null };
+
+    // Generate 3 contextual follow-up suggestion questions dynamically using LLM
+    let suggestions: string[] = [];
+    try {
+        const suggestionPrompt = [
+            {
+                role: 'system',
+                content: `You are an educational prompt generator. Based on the following tutor explanation, generate exactly 3 short, relevant, highly engaging follow-up questions/prompts that the student can click next to understand the topic more deeply in detail.
+Format the output as a clean JSON array of strings. Example: ["Can you explain the mathematical derivation?", "What are the real-world applications of this concept?", "Give me a practice MCQ question on this."]
+Do NOT include any extra text or reasoning. Return ONLY the JSON array.`
+            },
+            {
+                role: 'user',
+                content: `Tutor Explanation: ${reply}`
+            }
+        ];
+        const sugRes = await getProviderResponse(suggestionPrompt, { maxTokens: 200, temperature: 0.7 });
+        const sugText = sugRes?.choices?.[0]?.message?.content || '[]';
+        const match = sugText.match(/\[[\s\S]*?\]/);
+        if (match) {
+            suggestions = JSON.parse(match[0]);
+        }
+    } catch (e) {
+        console.error("Failed to generate dynamic suggestions:", e);
+    }
+
+    return { 
+        reply, 
+        content_type: 'text', 
+        metadata: suggestions.length > 0 ? { suggestions } : null 
+    };
 };
 
 // ─────────────────────────────────────────────

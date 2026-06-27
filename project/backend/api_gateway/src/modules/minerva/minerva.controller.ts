@@ -343,6 +343,7 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                         !!deep_study
                     );
                     reply = chatRes.reply;
+                    metadata = chatRes.metadata;
                 }
 
             } else if (intent.intent === 'get_homework') {
