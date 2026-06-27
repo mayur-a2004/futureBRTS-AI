@@ -84,7 +84,7 @@ export default function Privacy() {
             </section>
 
             {/* --- SECTION 3: THE VAULT ARCHITECTURE --- */}
-            <section className="bg-[#020204]/90 border border-white/5 rounded-[3rem] p-8 md:p-12 relative overflow-hidden group shadow-[inset_0_0_30px_rgba(16,185,129,0.02)]">
+            <section className="bg-[#020204]/90 border border-white/5 rounded-[2rem] md:rounded-[3rem] p-6 md:p-12 relative overflow-hidden group shadow-[inset_0_0_30px_rgba(16,185,129,0.02)]">
                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-5" />
                 <div className="absolute -top-40 -right-40 w-96 h-96 bg-emerald-600/10 blur-[150px] group-hover:bg-emerald-600/20 transition-all duration-1000" />
 
@@ -101,24 +101,24 @@ export default function Privacy() {
 
                         <div className="grid gap-6">
                             <div className="space-y-1.5 pl-4 border-l-2 border-emerald-500/20">
-                                <h4 className="text-sm font-black italic uppercase text-white tracking-tighter flex items-center gap-2">
-                                    <Lock size={14} className="text-emerald-500" /> AES-256 DATABASE ENCRYPTION
+                                <h4 className="text-sm font-black italic uppercase text-white tracking-tighter text-left">
+                                    <Lock size={14} className="text-emerald-500 inline-block mr-2 align-text-bottom" /> AES-256 DATABASE ENCRYPTION
                                 </h4>
                                 <p className="text-xs text-gray-500 leading-relaxed font-mono">
                                     All documents, profile assets, and structural roadmaps are stored under military-grade AES-256 encryption. Databases are isolated within secured local clusters with strict firewalls preventing external exposure.
                                 </p>
                             </div>
                             <div className="space-y-1.5 pl-4 border-l-2 border-emerald-500/20">
-                                <h4 className="text-sm font-black italic uppercase text-white tracking-tighter flex items-center gap-2">
-                                    <Cpu size={14} className="text-emerald-500" /> STATELESS AI PROCESSING
+                                <h4 className="text-sm font-black italic uppercase text-white tracking-tighter text-left">
+                                    <Cpu size={14} className="text-emerald-500 inline-block mr-2 align-text-bottom" /> STATELESS AI PROCESSING
                                 </h4>
                                 <p className="text-xs text-gray-500 leading-relaxed font-mono">
                                     Data sent to our cognitive logic nodes is compiled on-the-fly and processed statelessly. External LLM endpoints do not persist payload logs, preserving absolute intellectual confidentiality.
                                 </p>
                             </div>
                             <div className="space-y-1.5 pl-4 border-l-2 border-emerald-500/20">
-                                <h4 className="text-sm font-black italic uppercase text-white tracking-tighter flex items-center gap-2">
-                                    <ShieldCheck size={14} className="text-emerald-500" /> NO CLAIMS & GENERAL LIABILITY WAIVER
+                                <h4 className="text-sm font-black italic uppercase text-white tracking-tighter text-left">
+                                    <ShieldCheck size={14} className="text-emerald-500 inline-block mr-2 align-text-bottom" /> NO CLAIMS & GENERAL LIABILITY WAIVER
                                 </h4>
                                 <p className="text-xs text-gray-500 leading-relaxed font-mono">
                                     We make every effort to maintain 100% data integrity. By utilizing this website, users acknowledge that no database transmission is entirely infallible. You agree to waive any legal claims, liabilities, lawsuits, or actions against the platform, Mayur Savaliya, and partners for any data events.

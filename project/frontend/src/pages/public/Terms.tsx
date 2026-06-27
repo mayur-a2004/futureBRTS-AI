@@ -84,7 +84,7 @@ export default function Terms() {
             </section>
 
             {/* --- SECTION 3: DATA & AI PROCESSING PROTOCOL (Strict Liability Shield) --- */}
-            <section className="bg-[#020204]/90 border border-white/5 rounded-[3rem] p-8 md:p-12 relative overflow-hidden group shadow-[inset_0_0_30px_rgba(245,158,11,0.02)]">
+            <section className="bg-[#020204]/90 border border-white/5 rounded-[2rem] md:rounded-[3rem] p-6 md:p-12 relative overflow-hidden group shadow-[inset_0_0_30px_rgba(245,158,11,0.02)]">
                 <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-amber-500/5 blur-[120px] -z-10 group-hover:opacity-100 transition-opacity duration-1000" />
 
                 <div className="grid lg:grid-cols-2 gap-12 items-center relative z-10">
@@ -100,24 +100,24 @@ export default function Terms() {
 
                         <div className="grid gap-6">
                             <div className="space-y-1.5 pl-4 border-l-2 border-amber-500/20">
-                                <h4 className="text-sm font-black italic uppercase text-white tracking-tighter flex items-center gap-2">
-                                    <Cpu size={14} className="text-amber-500" /> AI GENERATION MATRIX
+                                <h4 className="text-sm font-black italic uppercase text-white tracking-tighter text-left">
+                                    <Cpu size={14} className="text-amber-500 inline-block mr-2 align-text-bottom" /> AI GENERATION MATRIX
                                 </h4>
                                 <p className="text-xs text-gray-500 leading-relaxed">
                                     Our platform acts as a predictive learning facilitator. Curriculums, assessments, and roadmap logic are generated via LLM integrations (Groq, OpenAI) using heuristic evaluations. The platform makes no warranties regarding the correctness, completeness, or industry viability of the generated data.
                                 </p>
                             </div>
                             <div className="space-y-1.5 pl-4 border-l-2 border-amber-500/20">
-                                <h4 className="text-sm font-black italic uppercase text-white tracking-tighter flex items-center gap-2">
-                                    <Database size={14} className="text-amber-500" /> DATA RETENTION & ENCRYPTION
+                                <h4 className="text-sm font-black italic uppercase text-white tracking-tighter text-left">
+                                    <Database size={14} className="text-amber-500 inline-block mr-2 align-text-bottom" /> DATA RETENTION & ENCRYPTION
                                 </h4>
                                 <p className="text-xs text-gray-500 leading-relaxed">
                                     Your uploaded resumes, profile attributes, and progress tokens are encrypted at rest (AES-256) and in transit (SSL/TLS). We process data to optimize skill-gap identification and predictive matching algorithms. Data is purged within 30 days of account termination requests.
                                 </p>
                             </div>
                             <div className="space-y-1.5 pl-4 border-l-2 border-amber-500/20">
-                                <h4 className="text-sm font-black italic uppercase text-white tracking-tighter flex items-center gap-2">
-                                    <ShieldCheck size={14} className="text-amber-500" /> CLASS ACTION & LIABILITY WAIVER
+                                <h4 className="text-sm font-black italic uppercase text-white tracking-tighter text-left">
+                                    <ShieldCheck size={14} className="text-amber-500 inline-block mr-2 align-text-bottom" /> CLASS ACTION & LIABILITY WAIVER
                                 </h4>
                                 <p className="text-xs text-gray-500 leading-relaxed">
                                     Users, students, and institutional builders agree that under no circumstances shall FutureBRTS, Mayur Savaliya, or any of its contributors be liable for any direct or indirect damages, career setbacks, financial losses, or failures. By proceeding, you waive any right to file claims, legal cases, or participate in class-action lawsuits against the platform.
