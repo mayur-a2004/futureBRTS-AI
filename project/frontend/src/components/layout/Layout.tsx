@@ -55,32 +55,6 @@ export default function Layout() {
         localStorage.setItem('sidebar_collapsed', String(newState));
     };
 
-    // School student environment redirection guard
-    useEffect(() => {
-        const checkSchoolRedirect = async () => {
-            const token = localStorage.getItem('fbrts_token');
-            if (!token) return;
-            try {
-                const res = await fetch('/api/future-education/profile', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const data = await res.json();
-                if (data.success && data.profile) {
-                    if (data.profile.education_type === 'school') {
-                        if (location.pathname === '/dashboard') {
-                            navigate('/future-education');
-                        } else if (location.pathname === '/builder') {
-                            navigate('/future-education/builder');
-                        }
-                    }
-                }
-            } catch (e) {
-                console.error("School redirect check failed", e);
-            }
-        };
-        checkSchoolRedirect();
-    }, [location.pathname, navigate]);
-
     // Initial Load & URL Sync
     useEffect(() => {
         if (isFutureEd) {
