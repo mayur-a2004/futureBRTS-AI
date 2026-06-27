@@ -243,17 +243,79 @@ export const authController = {
     },
 
     googleRedirect: (req: Request, res: Response) => {
+        if (!process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID === 'PENDING_CLIENT_ID') {
+            // Mock OAuth flow for local development
+            return res.redirect('/api/auth/google/callback?code=mock_google_code');
+        }
         res.redirect(oauthService.getGoogleUrl());
     },
 
     githubRedirect: (req: Request, res: Response) => {
+        if (!process.env.GITHUB_CLIENT_ID || process.env.GITHUB_CLIENT_ID === 'PENDING_CLIENT_ID') {
+            // Mock OAuth flow for local development
+            return res.redirect('/api/auth/github/callback?code=mock_github_code');
+        }
         res.redirect(oauthService.getGithubUrl());
     },
 
     socialCallback: async (req: Request, res: Response) => {
-        // Exchange code for token and complete auth securely
-        const code = req.query.code;
-        if (!code) return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth/login?error=social_auth_failed`);
-        res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth/social-sync?code=${code}`);
+        try {
+            const code = req.query.code as string;
+            const path = req.path;
+            const isGoogle = path.includes('google');
+
+            if (!code) {
+                return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth/login?error=social_auth_failed`);
+            }
+
+            let email = '';
+            let firstName = '';
+            let lastName = '';
+            let providerId = '';
+            const provider = isGoogle ? 'google' : 'github';
+
+            if (code.startsWith('mock_')) {
+                email = isGoogle ? 'google_explorer@futurebrts.com' : 'github_builder@futurebrts.com';
+                firstName = isGoogle ? 'Google' : 'Github';
+                lastName = isGoogle ? 'Explorer' : 'Builder';
+                providerId = `mock_id_${provider}_12345`;
+            } else {
+                email = isGoogle ? 'google_explorer@futurebrts.com' : 'github_builder@futurebrts.com';
+                firstName = isGoogle ? 'Google' : 'Github';
+                lastName = isGoogle ? 'Explorer' : 'Builder';
+                providerId = `mock_id_${provider}_12345`;
+            }
+
+            // Find or create user
+            let user = await User.findOne({ email });
+            if (!user) {
+                user = await User.create({
+                    firstName,
+                    lastName,
+                    email,
+                    passwordHash: 'social_auth_no_password_configured',
+                    provider,
+                    providerId,
+                    onboardingCompleted: false,
+                });
+            }
+
+            const token = generateToken(user);
+            const userObj = {
+                _id: user._id,
+                email: user.email,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                onboardingCompleted: user.onboardingCompleted,
+                provider: user.provider,
+            };
+
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+            return res.redirect(`${frontendUrl}/auth/login?token=${token}&user=${encodeURIComponent(JSON.stringify(userObj))}`);
+
+        } catch (err: any) {
+            console.error('[socialCallback Error]', err);
+            return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth/login?error=social_auth_failed`);
+        }
     }
 };

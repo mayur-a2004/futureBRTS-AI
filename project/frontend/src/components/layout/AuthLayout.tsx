@@ -130,7 +130,7 @@ export default function AuthLayout() {
             </div>
 
             {/* Right Side - Form */}
-            <div className="flex flex-col items-center justify-center p-6 md:p-12 bg-black/10 backdrop-blur-[2px] relative">
+            <div className="flex flex-col items-center justify-center p-6 md:p-12 lg:h-full lg:overflow-y-auto bg-black/10 backdrop-blur-[2px] relative">
                 {/* Mobile Back Button */}
                 <div className="lg:hidden absolute top-6 left-6">
                     <Link to="/" className="text-gray-500 hover:text-white transition-colors">

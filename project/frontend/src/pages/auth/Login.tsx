@@ -28,8 +28,27 @@ export default function Login() {
     const [loading, setLoading] = useState(false);
     const [error] = useState("");
 
-    // 👉 Backend se UI content fetch karne ke liye useEffect
+    // 👉 Backend se UI content fetch karne ke liye useEffect aur social redirection handling
     useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const tokenVal = params.get("token");
+        const userJson = params.get("user");
+
+        if (tokenVal && userJson) {
+            try {
+                const userData = JSON.parse(decodeURIComponent(userJson));
+                login(userData, tokenVal);
+                if (userData.onboardingCompleted) {
+                    navigate("/builder");
+                } else {
+                    navigate("/onboarding");
+                }
+                return;
+            } catch (err) {
+                console.error("Failed to parse user data from social login redirect", err);
+            }
+        }
+
         const loadUI = async () => {
             try {
                 // 👉 Path: GET /api/auth/ui-content
@@ -45,7 +64,7 @@ export default function Login() {
             }
         };
         loadUI();
-    }, []);
+    }, [navigate, login]);
 
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -81,28 +100,28 @@ export default function Login() {
 
     return (
         <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="space-y-3 mb-8 md:mb-10 text-center md:text-left">
-                <h2 className="text-3xl md:text-5xl font-black text-white tracking-tighter leading-tight">{content.heading}</h2>
-                <p className="text-gray-500 font-medium text-base md:text-lg">{content.subtext}</p>
+            <div className="space-y-2 mb-6 text-center md:text-left">
+                <h2 className="text-2xl md:text-3xl font-black text-white tracking-tighter leading-tight">{content.heading}</h2>
+                <p className="text-gray-500 font-medium text-xs md:text-sm">{content.subtext}</p>
             </div>
 
-            <form onSubmit={handleLogin} className="space-y-4 md:space-y-6">
-                <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 ml-1">{content.labels.email}</label>
+            <form onSubmit={handleLogin} className="space-y-4">
+                <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-[0.25em] text-gray-400 ml-1">{content.labels.email}</label>
                     <input
                         type="email"
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder={content.placeholders.email}
-                        className="w-full px-5 py-4 md:px-6 md:py-5 bg-white/[0.03] border border-white/10 rounded-2xl text-white focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-gray-800 font-medium text-sm md:text-base"
+                        className="w-full px-4 py-3 md:px-5 md:py-3.5 bg-white/[0.02] border border-white/10 rounded-xl text-white focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-gray-800 font-medium text-xs md:text-sm"
                     />
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                     <div className="flex justify-between items-center ml-1">
-                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">{content.labels.password}</label>
-                        <Link to="#" className="text-[10px] font-black text-indigo-400 hover:text-indigo-300 transition-colors uppercase tracking-widest">Forgot?</Link>
+                        <label className="text-[9px] font-black uppercase tracking-[0.25em] text-gray-400">{content.labels.password}</label>
+                        <Link to="#" className="text-[9px] font-black text-indigo-400 hover:text-indigo-300 transition-colors uppercase tracking-widest">Forgot?</Link>
                     </div>
                     <input
                         type="password"
@@ -110,37 +129,37 @@ export default function Login() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder={content.placeholders.password}
-                        className="w-full px-5 py-4 md:px-6 md:py-5 bg-white/[0.03] border border-white/10 rounded-2xl text-white focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-gray-800 font-medium text-sm md:text-base"
+                        className="w-full px-4 py-3 md:px-5 md:py-3.5 bg-white/[0.02] border border-white/10 rounded-xl text-white focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-gray-800 font-medium text-xs md:text-sm"
                     />
                 </div>
 
-                {error && <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-500 text-xs font-bold text-center animate-pulse">{error}</div>}
+                {error && <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-500 text-[10px] font-bold text-center animate-pulse">{error}</div>}
 
-                <div className="pt-2 md:pt-4">
+                <div className="pt-2">
                     <Button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-7 md:py-9 text-base md:text-lg bg-white text-black hover:bg-indigo-50 rounded-2xl font-black transition-all shadow-2xl shadow-white/5 active:scale-[0.98] group disabled:opacity-50"
+                        className="w-full py-4.5 md:py-5 text-sm md:text-base bg-white text-black hover:bg-indigo-50 rounded-xl font-black transition-all shadow-xl active:scale-[0.99] group disabled:opacity-50 flex items-center justify-center"
                     >
-                        {loading ? "Verifying..." : content.ctaText} <ArrowRight className="ml-2 w-5 h-5 md:w-6 md:h-6 group-hover:translate-x-1 transition-transform" />
+                        {loading ? "Verifying..." : content.ctaText} <ArrowRight className="ml-2 w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform" />
                     </Button>
                 </div>
             </form>
 
-            <div className="relative my-8 md:my-12 flex items-center gap-4">
+            <div className="relative my-6 flex items-center gap-3">
                 <div className="h-px bg-white/[0.05] flex-1"></div>
-                <span className="text-[8px] md:text-[9px] uppercase tracking-[0.3em] md:tracking-[0.5em] font-black text-gray-700">Encrypted Transition</span>
+                <span className="text-[8px] uppercase tracking-[0.25em] font-black text-gray-700">Encrypted Transition</span>
                 <div className="h-px bg-white/[0.05] flex-1"></div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 md:gap-4">
-                <Button variant="outline" onClick={handleGithubLogin} className="w-full py-6 md:py-8 rounded-2xl border-white/10 bg-white/[0.01] hover:bg-white/[0.05] transition-all text-[8px] md:text-[9px] font-black uppercase tracking-[0.2em]"><Github className="mr-2 h-4 w-4" /> {content.socialText.github}</Button>
-                <Button variant="outline" onClick={handleGoogleLogin} className="w-full py-6 md:py-8 rounded-2xl border-white/10 bg-white/[0.01] hover:bg-white/[0.05] transition-all text-[8px] md:text-[9px] font-black uppercase tracking-[0.2em]"><div className="mr-2 h-3 w-3 md:h-4 md:w-4 rounded-full bg-white flex items-center justify-center text-black font-black text-[7px] md:text-[8px]">G</div> {content.socialText.google}</Button>
+            <div className="grid grid-cols-2 gap-3">
+                <Button variant="outline" onClick={handleGithubLogin} className="w-full py-3.5 md:py-4.5 rounded-xl border-white/10 bg-white/[0.01] hover:bg-white/[0.05] transition-all text-[8px] md:text-[9px] font-black uppercase tracking-[0.15em] flex items-center justify-center"><Github className="mr-2 h-3.5 w-3.5" /> {content.socialText.github}</Button>
+                <Button variant="outline" onClick={handleGoogleLogin} className="w-full py-3.5 md:py-4.5 rounded-xl border-white/10 bg-white/[0.01] hover:bg-white/[0.05] transition-all text-[8px] md:text-[9px] font-black uppercase tracking-[0.15em] flex items-center justify-center"><div className="mr-2 h-3 w-3 rounded-full bg-white flex items-center justify-center text-black font-black text-[7px]">G</div> {content.socialText.google}</Button>
             </div>
 
-            <div className="mt-8 md:mt-12 text-center text-xs md:text-sm text-gray-600 font-medium">
+            <div className="mt-6 text-center text-xs text-gray-500 font-medium">
                 {content.footerActionText} <Link to={content.footerLinkPath} className="text-indigo-400 hover:text-indigo-300 font-bold transition-colors">{content.footerLinkText}</Link>
             </div>
         </div>
-    )
+    );
 }
