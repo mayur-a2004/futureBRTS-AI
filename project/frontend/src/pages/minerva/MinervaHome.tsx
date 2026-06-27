@@ -229,7 +229,8 @@ const MinervaHome: React.FC = () => {
                 setProfile(res.profile);
                 if (!res.profile.onboarding_done) {
                     setShowOnboarding(true);
-                    setStudentName(res.profile.name || user?.name || '');
+                    const signupName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '';
+                    setStudentName(res.profile.name || signupName || user?.name || '');
                     setSchoolName(res.profile.school_name || '');
                     setMobileNumber(res.profile.mobile_number || '');
                     setStandard(res.profile.grade_level || 'class_10');

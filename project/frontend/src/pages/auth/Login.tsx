@@ -4,6 +4,7 @@ import { Github, ArrowRight } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { useState, useEffect } from "react"
 import { authApi } from "../../api/auth.api"
+import { minervaApi } from "../../api/minerva.api"
 import { toast } from "react-toastify";
 
 
@@ -39,7 +40,19 @@ export default function Login() {
                 const userData = JSON.parse(decodeURIComponent(userJson));
                 login(userData, tokenVal);
                 if (userData.onboardingCompleted) {
-                    navigate("/builder");
+                    const checkRedirect = async () => {
+                        try {
+                            const profileRes = await minervaApi.getProfile(tokenVal);
+                            if (profileRes.success && profileRes.profile && profileRes.profile.education_type === 'school') {
+                                navigate("/future-education");
+                            } else {
+                                navigate("/builder");
+                            }
+                        } catch (err) {
+                            navigate("/builder");
+                        }
+                    };
+                    checkRedirect();
                 } else {
                     navigate("/onboarding");
                 }
@@ -77,7 +90,16 @@ export default function Login() {
             login(res.user, res.token);
 
             if (res.user.onboardingCompleted) {
-                navigate("/builder");
+                try {
+                    const profileRes = await minervaApi.getProfile(res.token);
+                    if (profileRes.success && profileRes.profile && profileRes.profile.education_type === 'school') {
+                        navigate("/future-education");
+                    } else {
+                        navigate("/builder");
+                    }
+                } catch (err) {
+                    navigate("/builder");
+                }
             } else {
                 navigate("/onboarding");
             }

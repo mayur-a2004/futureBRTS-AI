@@ -137,6 +137,10 @@ function OnboardingWizard() {
         if (!currentQ1) return base; // Only show Q1 until selected
 
         const branchQs = BRANCHES[currentQ1] || GENERIC_FLOW;
+        // Skip last goal question if user is school or high school student (1st to 12th)
+        if (currentQ1 === "School (8-10)" || currentQ1 === "High School (11-12)") {
+            return [...base, ...branchQs];
+        }
         return [...base, ...branchQs, Q7_FINAL_GOAL];
     };
 
@@ -170,7 +174,7 @@ function OnboardingWizard() {
         const summary = {
             ...answers,
             life_stage: answers['life_stage'],
-            target_outcome: answers['final_goal']
+            target_outcome: answers['final_goal'] || `Study plan for ${answers['life_stage']}`
         };
 
         const token = localStorage.getItem('fbrts_token');
@@ -200,7 +204,9 @@ function OnboardingWizard() {
                 completeOnboardingState();
                 localStorage.setItem('fbrts_onboarding_backup', JSON.stringify(summary));
 
-                if (sessionData.success && sessionData.session?._id) {
+                if (summary.life_stage === "School (8-10)" || summary.life_stage === "High School (11-12)") {
+                    navigate(`/future-education`, { replace: true });
+                } else if (sessionData.success && sessionData.session?._id) {
                     localStorage.setItem('fbrts_active_session', sessionData.session._id);
                     navigate(`/builder`, { replace: true });
                 } else {
@@ -209,7 +215,11 @@ function OnboardingWizard() {
 
             } catch (e) {
                 console.error("Onboarding Handoff Error", e);
-                navigate('/builder');
+                if (summary.life_stage === "School (8-10)" || summary.life_stage === "High School (11-12)") {
+                    navigate(`/future-education`, { replace: true });
+                } else {
+                    navigate('/builder');
+                }
             }
         }
         setLoading(false);
@@ -297,12 +307,12 @@ function OnboardingWizard() {
             </div>
 
             {/* Navigation */}
-            <div className="mt-6 md:mt-8 flex justify-between items-center border-t border-white/5 pt-4">
+            <div className="mt-6 md:mt-8 flex justify-between items-center border-t border-white/5 pt-4 w-full gap-2">
                 <Button
                     variant="ghost"
                     onClick={handleBack}
                     disabled={stepIndex === 0}
-                    className={`text-gray-500 hover:text-white uppercase tracking-wider font-black text-[9px] gap-2 ${stepIndex === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+                    className={`text-gray-500 hover:text-white uppercase tracking-wider font-black text-[8px] sm:text-[9px] gap-1.5 px-2 py-1.5 ${stepIndex === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
                 >
                     <ChevronLeft size={12} /> Back
                 </Button>
@@ -311,17 +321,17 @@ function OnboardingWizard() {
                     <Button
                         onClick={handleNext}
                         disabled={!isCurrentValid()}
-                        className="bg-white text-black hover:bg-gray-200 px-6 py-3 md:py-4 rounded-xl font-black text-xs uppercase tracking-[0.15em] transition-all disabled:opacity-50"
+                        className="bg-white text-black hover:bg-gray-200 px-4 py-2.5 sm:px-6 sm:py-3 md:px-8 md:py-4 rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-[0.1em] sm:tracking-[0.15em] transition-all disabled:opacity-50"
                     >
-                        Next <ChevronRight size={14} className="ml-1" />
+                        Next <ChevronRight size={14} className="ml-0.5 sm:ml-1" />
                     </Button>
                 ) : (
                     <Button
                         onClick={handleFinalSubmit}
                         disabled={!isCurrentValid() || loading}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 md:py-4 rounded-xl font-black text-xs uppercase tracking-[0.15em] transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-70"
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 sm:px-6 sm:py-3 md:px-8 md:py-4 rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-[0.1em] sm:tracking-[0.15em] transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-70"
                     >
-                        {loading ? 'Initializing...' : 'Construct Plan'} <Rocket size={14} className="ml-1" />
+                        {loading ? 'Initializing...' : 'Construct Plan'} <Rocket size={14} className="ml-0.5 sm:ml-1" />
                     </Button>
                 )}
             </div>
