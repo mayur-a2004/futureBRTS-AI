@@ -221,18 +221,24 @@ function OnboardingWizard() {
         return !!ans;
     };
 
+    const getGridCols = (numOptions: number) => {
+        if (numOptions > 8) return "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2";
+        if (numOptions > 4) return "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5";
+        return "grid grid-cols-1 sm:grid-cols-2 gap-3";
+    };
+
     return (
-        <div className="w-full max-w-3xl bg-[#09090b] border border-white/10 rounded-3xl p-5 md:p-12 shadow-2xl relative overflow-hidden flex flex-col min-h-[500px] md:min-h-[600px] animate-in fade-in zoom-in-95 duration-300 mx-2">
+        <div className="w-full max-w-4xl bg-[#09090b] border border-white/10 rounded-3xl p-5 md:p-8 shadow-2xl relative overflow-hidden flex flex-col justify-between animate-in fade-in zoom-in-95 duration-300 mx-2">
 
             {/* Header */}
-            <div className="mb-6 md:mb-10">
-                <div className="flex justify-between items-center mb-4">
+            <div className="mb-4 md:mb-6">
+                <div className="flex justify-between items-center mb-3">
                     <span className="text-[9px] md:text-[10px] font-black tracking-[0.2em] text-indigo-400 uppercase">
                         Question {stepIndex + 1} of {questions.length}
                     </span>
                     <span className="text-[10px] md:text-xs font-bold text-gray-500">{progress}%</span>
                 </div>
-                <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
                     <div
                         className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500 ease-out"
                         style={{ width: `${progress}%` }}
@@ -242,28 +248,28 @@ function OnboardingWizard() {
 
             {/* Question Content */}
             <div className="flex-1 flex flex-col justify-center animate-in slide-in-from-right-8 duration-300 key={stepIndex}">
-                <h2 className="text-2xl md:text-4xl font-black text-white mb-3 leading-tight tracking-tight">
+                <h2 className="text-xl md:text-2xl font-black text-white mb-2 leading-tight tracking-tight">
                     {currentQ.text}
                 </h2>
                 {currentQ.subtext && (
-                    <p className="text-gray-400 mb-6 md:mb-8 text-base md:text-lg italic font-medium">{currentQ.subtext}</p>
+                    <p className="text-gray-400 mb-4 text-xs md:text-sm italic font-medium">{currentQ.subtext}</p>
                 )}
 
-                <div className="mt-4 md:mt-6">
+                <div className="mt-2">
                     {currentQ.type === 'single' && currentQ.options && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 md:gap-3">
+                        <div className={getGridCols(currentQ.options.length)}>
                             {currentQ.options.map(opt => (
                                 <button
                                     key={opt}
                                     onClick={() => handleAnswer(opt)}
-                                    className={`p-4 md:p-5 rounded-xl border text-left font-bold text-sm md:text-base transition-all flex justify-between items-center group
+                                    className={`p-3 md:p-3.5 rounded-xl border text-left font-bold text-xs md:text-sm transition-all flex justify-between items-center group
                                         ${answers[currentQ.id] === opt
                                             ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-500/20'
                                             : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:border-white/20 hover:text-white'
                                         }`}
                                 >
                                     <span className="truncate pr-4">{opt}</span>
-                                    {answers[currentQ.id] === opt && <Check size={16} className="shrink-0 animate-in zoom-in spin-in-90 duration-200" />}
+                                    {answers[currentQ.id] === opt && <Check size={14} className="shrink-0 animate-in zoom-in spin-in-90 duration-200" />}
                                 </button>
                             ))}
                         </div>
@@ -282,40 +288,40 @@ function OnboardingWizard() {
                                     }
                                 }}
                                 placeholder="State your objective..."
-                                className="w-full bg-white/5 border border-white/10 rounded-xl p-4 md:p-5 text-lg md:text-xl text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all placeholder:text-gray-700"
+                                className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm md:text-base text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all placeholder:text-gray-700"
                             />
-                            <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest ml-1">PRESS_ENTER_TO_CONTINUE</p>
+                            <p className="text-[9px] text-gray-600 font-bold uppercase tracking-widest ml-1">PRESS_ENTER_TO_CONTINUE</p>
                         </div>
                     )}
                 </div>
             </div>
 
             {/* Navigation */}
-            <div className="mt-8 md:mt-12 flex justify-between items-center border-t border-white/5 pt-6">
+            <div className="mt-6 md:mt-8 flex justify-between items-center border-t border-white/5 pt-4">
                 <Button
                     variant="ghost"
                     onClick={handleBack}
                     disabled={stepIndex === 0}
-                    className={`text-gray-500 hover:text-white uppercase tracking-wider font-black text-[10px] gap-2 ${stepIndex === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+                    className={`text-gray-500 hover:text-white uppercase tracking-wider font-black text-[9px] gap-2 ${stepIndex === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
                 >
-                    <ChevronLeft size={14} /> Back
+                    <ChevronLeft size={12} /> Back
                 </Button>
 
                 {stepIndex < questions.length - 1 ? (
                     <Button
                         onClick={handleNext}
                         disabled={!isCurrentValid()}
-                        className="bg-white text-black hover:bg-gray-200 px-6 md:px-10 py-5 md:py-6 rounded-xl md:rounded-2xl font-black text-xs md:text-sm uppercase tracking-[0.15em] transition-all disabled:opacity-50"
+                        className="bg-white text-black hover:bg-gray-200 px-6 py-3 md:py-4 rounded-xl font-black text-xs uppercase tracking-[0.15em] transition-all disabled:opacity-50"
                     >
-                        Next <ChevronRight size={16} className="ml-1 md:ml-2" />
+                        Next <ChevronRight size={14} className="ml-1" />
                     </Button>
                 ) : (
                     <Button
                         onClick={handleFinalSubmit}
                         disabled={!isCurrentValid() || loading}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 md:px-12 py-5 md:py-6 rounded-xl md:rounded-2xl font-black text-xs md:text-sm uppercase tracking-[0.15em] transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-70"
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 md:py-4 rounded-xl font-black text-xs uppercase tracking-[0.15em] transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-70"
                     >
-                        {loading ? 'Initializing...' : 'Construct Plan'} <Rocket size={16} className="ml-1 md:ml-2" />
+                        {loading ? 'Initializing...' : 'Construct Plan'} <Rocket size={14} className="ml-1" />
                     </Button>
                 )}
             </div>
