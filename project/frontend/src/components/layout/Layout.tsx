@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom"
-import { LayoutDashboard, Zap, LogOut, Clock, Menu, X, MessageSquare, Map, CheckSquare, Edit2, Check, MoreHorizontal, Trash2, Share2, Pin, Archive, FolderInput, Sparkles, PanelLeftClose, PanelLeftOpen, Settings, User, ChevronRight, Briefcase, ShieldCheck, FileText, GraduationCap } from "lucide-react"
+import { LayoutDashboard, Zap, LogOut, Clock, Menu, X, MessageSquare, Map, CheckSquare, Edit2, Check, MoreHorizontal, Trash2, Share2, Pin, Archive, FolderInput, Sparkles, PanelLeftClose, PanelLeftOpen, Settings, User, ChevronRight, Briefcase, ShieldCheck, FileText, GraduationCap, Award } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { useState, useEffect, useRef } from "react";
 import TokenWall from "@/components/economy/TokenWall";
@@ -343,6 +343,7 @@ export default function Layout() {
         { name: "Study Tasks", path: "/future-education/tasks", icon: <CheckSquare size={20} /> },
         { name: "E-Builder", path: "/future-education/builder", icon: <Zap size={20} /> },
         { name: "Practice Exams", path: "/future-education/exams", icon: <FileText size={20} /> },
+        { name: "Academic Results", path: "/future-education/results", icon: <Award size={20} /> },
         { name: "Exit Student OS", path: "/dashboard", icon: <LogOut size={20} /> },
     ] : [
         { name: "Dashboard", path: "/dashboard", icon: <LayoutDashboard size={20} /> },

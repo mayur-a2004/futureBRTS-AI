@@ -47,6 +47,7 @@ const MinervaExamListPage = lazy(() => import('./pages/minerva/MinervaExamListPa
 const MinervaRoadmapsPage = lazy(() => import('./pages/minerva/MinervaRoadmapsPage'));
 const MinervaTasksPage = lazy(() => import('./pages/minerva/MinervaTasksPage'));
 const MinervaBuilderPage = lazy(() => import('./pages/minerva/MinervaBuilderPage'));
+const MinervaResultsPage = lazy(() => import('./pages/minerva/MinervaResultsPage'));
 
 // Admin Pages
 const AdminLayout = lazy(() => import('./components/layout/AdminLayout'));
@@ -260,6 +261,7 @@ function App() {
                                                             <Route path="future-education/homework" element={<MinervaHomeworkPage />} />
                                                             <Route path="future-education/exams" element={<MinervaExamListPage />} />
                                                             <Route path="future-education/exam/:id" element={<MinervaExamPage />} />
+                                                            <Route path="future-education/results" element={<MinervaResultsPage />} />
                                                             <Route path="future-education/roadmaps" element={<MinervaRoadmapsPage />} />
                                                             <Route path="future-education/tasks" element={<MinervaTasksPage />} />
                                                             <Route path="future-education/builder" element={<MinervaBuilderPage />} />

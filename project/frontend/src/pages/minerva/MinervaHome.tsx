@@ -622,6 +622,16 @@ const MinervaHome: React.FC = () => {
                         <span>Tasks</span>
                     </button>
 
+                    {/* Results Button */}
+                    <button
+                        onClick={() => navigate('/future-education/results')}
+                        title="View academic results transcript"
+                        className="px-3.5 py-2 text-xs font-bold bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-indigo-500/30 text-gray-300 hover:text-white rounded-xl transition-all active:scale-95 flex items-center gap-1.5 shadow-md"
+                    >
+                        <Award size={13} className="text-purple-400" />
+                        <span>Results</span>
+                    </button>
+
                     <div className="h-4 w-px bg-white/10 mx-1" />
 
                     {/* New Chat Button */}
