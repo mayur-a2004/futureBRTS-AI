@@ -11,6 +11,20 @@ const MinervaLearnPage: React.FC = () => {
     const { token } = useAuth() as any;
     const navigate = useNavigate();
 
+    const showChemistryLab = () => {
+        const titleMatch = (node?.title || '').toLowerCase();
+        const subjectMatch = (node?.subject || '').toLowerCase();
+        return titleMatch.includes('chemistry') || titleMatch.includes('chemical') || titleMatch.includes('h2o') || titleMatch.includes('water') || titleMatch.includes('reaction') || 
+               subjectMatch.includes('chemistry') || subjectMatch.includes('science');
+    };
+
+    const showMathLab = () => {
+        const titleMatch = (node?.title || '').toLowerCase();
+        const subjectMatch = (node?.subject || '').toLowerCase();
+        return titleMatch.includes('math') || titleMatch.includes('equation') || titleMatch.includes('graph') || titleMatch.includes('slope') || titleMatch.includes('geometry') ||
+               subjectMatch.includes('math') || subjectMatch.includes('statistics') || subjectMatch.includes('algebra');
+    };
+
     const [node, setNode] = useState<any>(null);
     const [tasks, setTasks] = useState<any[]>([]);
     const [ytLinks, setYtLinks] = useState<any[]>([]);
@@ -112,12 +126,17 @@ const MinervaLearnPage: React.FC = () => {
         const preferredVoice = voices.find(v => v.lang.toLowerCase().includes(langCode)) || 
                                voices.find(v => v.lang.includes('hi') || v.lang.includes('IN')) || 
                                voices.find(v => v.lang.includes('en'));
-        if (preferredVoice) {
-            utterance.voice = preferredVoice;
+
+        const femaleVoice = voices.find(v => v.lang.toLowerCase().includes(langCode) && v.name.toLowerCase().includes('female')) || 
+                            voices.find(v => v.lang.toLowerCase().includes(langCode) && (v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('swara') || v.name.toLowerCase().includes('swar') || v.name.toLowerCase().includes('swar-in') || v.name.toLowerCase().includes('kalpana') || v.name.toLowerCase().includes('heera') || v.name.toLowerCase().includes('susan') || v.name.toLowerCase().includes('hazel') || v.name.toLowerCase().includes('zira'))) ||
+                            preferredVoice;
+
+        if (femaleVoice) {
+            utterance.voice = femaleVoice;
         }
 
-        utterance.rate = 0.95; // Slightly slower for better classroom teaching pace
-        utterance.pitch = 1.0;
+        utterance.rate = 0.82; // Slightly slower pace for proper student understanding as requested
+        utterance.pitch = 1.1; // Higher pitch for a clear, calm female tutor voice
 
         utterance.onstart = () => setIsSpeaking(true);
         utterance.onend = () => setIsSpeaking(false);
@@ -508,6 +527,10 @@ const MinervaLearnPage: React.FC = () => {
                     </div>
                 )}
 
+                {/* Visual Simulation labs for Science & Maths */}
+                {view !== 'viva' && showChemistryLab() && <ChemistryLab />}
+                {view !== 'viva' && showMathLab() && <MathLab />}
+
                 {/* Real World Example Card */}
                 {node.real_world_example && (
                     <div className="bg-emerald-950/5 border border-emerald-500/10 rounded-3xl p-6 shadow-xl backdrop-blur-md">
@@ -711,5 +734,158 @@ const Loader2 = ({ className, size }: { className?: string, size?: number }) => 
         <path d="M21 12a9 9 0 1 1-6.219-8.56" />
     </svg>
 );
+
+const ChemistryLab: React.FC = () => {
+    const [combined, setCombined] = useState(false);
+    const [combining, setCombining] = useState(false);
+
+    const triggerCombination = () => {
+        setCombining(true);
+        setTimeout(() => {
+            setCombined(true);
+            setCombining(false);
+        }, 1500);
+    };
+
+    const resetLab = () => {
+        setCombined(false);
+        setCombining(false);
+    };
+
+    return (
+        <div className="bg-[#05030b] border border-cyan-500/20 rounded-3xl p-5 shadow-xl relative overflow-hidden mt-6">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-500/5 rounded-full blur-xl pointer-events-none" />
+            <h3 className="text-xs font-black text-cyan-400 mb-4 uppercase tracking-wider flex items-center gap-2">
+                🧪 Interactive Chemistry Lab: Synthesis of H₂O
+            </h3>
+            
+            <div className="h-44 bg-black/40 border border-white/5 rounded-2xl relative flex items-center justify-center overflow-hidden mb-4 shadow-inner">
+                {/* Scan line effect */}
+                <div className="absolute inset-x-0 h-px bg-cyan-500/10 top-0 animate-[bounce_3s_infinite]" />
+
+                {combined ? (
+                    <div className="flex flex-col items-center animate-in zoom-in duration-500">
+                        <div className="w-12 h-12 rounded-full bg-blue-500/20 border-2 border-blue-400 flex items-center justify-center text-blue-300 font-black text-xs shadow-[0_0_20px_rgba(59,130,246,0.5)]">
+                            H₂O
+                        </div>
+                        <span className="text-[10px] font-black text-blue-400 mt-2 uppercase tracking-widest">Water Molecule Synthesized</span>
+                    </div>
+                ) : combining ? (
+                    <div className="relative w-full h-full flex items-center justify-center">
+                        {/* Flying atoms */}
+                        <div className="absolute w-8 h-8 rounded-full bg-red-500/20 border border-red-500 flex items-center justify-center text-red-400 font-bold text-xs animate-[ping_1.5s_infinite]">O</div>
+                        <div className="absolute w-6 h-6 rounded-full bg-blue-400/20 border border-blue-400 flex items-center justify-center text-blue-300 font-bold text-xs animate-[bounce_0.5s_infinite]" style={{ left: '20%' }}>H</div>
+                        <div className="absolute w-6 h-6 rounded-full bg-blue-400/20 border border-blue-400 flex items-center justify-center text-blue-300 font-bold text-xs animate-[bounce_0.5s_infinite]" style={{ right: '20%' }}>H</div>
+                        <span className="text-[10px] text-cyan-400 animate-pulse font-bold tracking-widest uppercase">Aligning Electron Shells...</span>
+                    </div>
+                ) : (
+                    <div className="relative w-full h-full flex items-center justify-center gap-8">
+                        {/* Separate Atoms */}
+                        <div className="w-8 h-8 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400 font-bold text-xs animate-pulse">O</div>
+                        <span className="text-gray-600 font-bold">+</span>
+                        <div className="w-6 h-6 rounded-full bg-blue-400/10 border border-blue-400/30 flex items-center justify-center text-blue-300 font-bold text-xs animate-bounce">H</div>
+                        <div className="w-6 h-6 rounded-full bg-blue-400/10 border border-blue-400/30 flex items-center justify-center text-blue-300 font-bold text-xs animate-bounce" style={{ animationDelay: '0.2s' }}>H</div>
+                    </div>
+                )}
+            </div>
+
+            <div className="flex justify-between items-center">
+                <span className="text-[10px] font-mono text-gray-500">Equation: 2H₂ + O₂ → 2H₂O</span>
+                {combined ? (
+                    <button onClick={resetLab} className="bg-white/5 hover:bg-white/10 text-white font-bold text-[10px] px-3.5 py-1.5 rounded-xl border border-white/5 transition-all">
+                        Reset Lab
+                    </button>
+                ) : (
+                    <button onClick={triggerCombination} disabled={combining} className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 text-white font-black text-[10px] uppercase tracking-wider px-4 py-2 rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-50">
+                        {combining ? 'Combining...' : 'Synthesize Molecule'}
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const MathLab: React.FC = () => {
+    const [slope, setSlope] = useState(1);
+    const [intercept, setIntercept] = useState(0);
+
+    return (
+        <div className="bg-[#05030b] border border-indigo-500/20 rounded-3xl p-5 shadow-xl relative overflow-hidden mt-6">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-xl pointer-events-none" />
+            <h3 className="text-xs font-black text-indigo-400 mb-4 uppercase tracking-wider flex items-center gap-2">
+                📐 Interactive Geometry: Linear Equation Grapher
+            </h3>
+
+            <div className="h-44 bg-black/40 border border-white/5 rounded-2xl relative flex items-center justify-center overflow-hidden mb-4 shadow-inner">
+                {/* SVG coordinate plane */}
+                <svg className="w-full h-full" viewBox="0 0 200 200">
+                    {/* Grid lines */}
+                    <line x1="0" y1="100" x2="200" y2="100" stroke="rgba(255,255,255,0.08)" strokeWidth="1.5" />
+                    <line x1="100" y1="0" x2="100" y2="200" stroke="rgba(255,255,255,0.08)" strokeWidth="1.5" />
+                    {[20, 40, 60, 80, 120, 140, 160, 180].map(val => (
+                        <React.Fragment key={val}>
+                            <line x1={val} y1="0" x2={val} y2="200" stroke="rgba(255,255,255,0.02)" strokeWidth="0.5" />
+                            <line x1="0" y1={val} x2="200" y2={val} stroke="rgba(255,255,255,0.02)" strokeWidth="0.5" />
+                        </React.Fragment>
+                    ))}
+                    
+                    {/* Dynamic line y = mx + c */}
+                    <line 
+                        x1="0" 
+                        y1={100 + (slope * 50) - (intercept * 10)} 
+                        x2="200" 
+                        y2={100 - (slope * 50) - (intercept * 10)} 
+                        stroke="#6366f1" 
+                        strokeWidth="2.5" 
+                        className="transition-all duration-300"
+                    />
+
+                    {/* Intersection dot */}
+                    <circle 
+                        cx="100" 
+                        cy={100 - (intercept * 10)} 
+                        r="3.5" 
+                        fill="#f43f5e" 
+                        className="transition-all duration-300"
+                    />
+                </svg>
+                
+                <span className="absolute top-2 left-3 text-[10px] font-mono text-gray-500">Cartesian Plane</span>
+                <span className="absolute top-2 right-3 text-[10px] font-mono text-indigo-400 font-bold bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
+                    y = {slope}x {intercept >= 0 ? `+ ${intercept}` : `- ${Math.abs(intercept)}`}
+                </span>
+            </div>
+
+            <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-bold text-gray-400 w-16 uppercase">Slope (m):</span>
+                    <input 
+                        type="range" 
+                        min="-2" 
+                        max="2" 
+                        step="0.5" 
+                        value={slope} 
+                        onChange={e => setSlope(Number(e.target.value))}
+                        className="flex-1 accent-indigo-500 h-1 bg-white/5 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <span className="text-[10px] font-mono font-bold text-indigo-300 w-6 text-right">{slope}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-bold text-gray-400 w-16 uppercase">Intercept (c):</span>
+                    <input 
+                        type="range" 
+                        min="-5" 
+                        max="5" 
+                        step="1" 
+                        value={intercept} 
+                        onChange={e => setIntercept(Number(e.target.value))}
+                        className="flex-1 accent-indigo-500 h-1 bg-white/5 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <span className="text-[10px] font-mono font-bold text-indigo-300 w-6 text-right">{intercept}</span>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 export default MinervaLearnPage;
