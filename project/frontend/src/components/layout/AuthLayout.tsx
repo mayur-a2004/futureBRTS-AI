@@ -130,7 +130,7 @@ export default function AuthLayout() {
             </div>
 
             {/* Right Side - Form */}
-            <div className="flex flex-col items-center justify-center p-6 md:p-12 lg:h-full lg:overflow-y-auto bg-black/10 backdrop-blur-[2px] relative">
+            <div className="flex flex-col items-center p-6 md:p-12 lg:h-full lg:overflow-y-auto bg-black/10 backdrop-blur-[2px] relative justify-start py-10">
                 {/* Mobile Back Button */}
                 <div className="lg:hidden absolute top-6 left-6">
                     <Link to="/" className="text-gray-500 hover:text-white transition-colors">
@@ -138,7 +138,7 @@ export default function AuthLayout() {
                     </Link>
                 </div>
 
-                <div className="w-full max-w-md space-y-8 flex-1 flex flex-col justify-center">
+                <div className="w-full max-w-md space-y-8 my-auto flex flex-col">
                     <Outlet />
                 </div>
                 <footer className="mt-8 py-4 text-center text-[8px] md:text-[10px] text-gray-700 uppercase tracking-widest font-black">
