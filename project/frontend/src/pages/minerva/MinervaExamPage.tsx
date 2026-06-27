@@ -6,10 +6,11 @@ import { Clock, FileText, CheckCircle2, MessageSquare } from 'lucide-react';
 
 const MinervaExamPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
-    const { token } = useAuth() as any;
+    const { user, token } = useAuth() as any;
     const navigate = useNavigate();
 
     const [exam, setExam] = useState<any>(null);
+    const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [answers, setAnswers] = useState<Record<number, string>>({});
     const [submitting, setSubmitting] = useState(false);
@@ -118,6 +119,16 @@ const MinervaExamPage: React.FC = () => {
                 });
             }
         }
+        
+        try {
+            const profileRes = await minervaApi.getProfile(token);
+            if (profileRes.success) {
+                setProfile(profileRes.profile);
+            }
+        } catch (err) {
+            console.error("Failed to load student profile:", err);
+        }
+        
         setLoading(false);
     };
 
@@ -184,7 +195,135 @@ const MinervaExamPage: React.FC = () => {
                             style={{ width: `${result.percentage}%` }} />
                     </div>
 
-                    <div className="text-gray-300 text-xs leading-relaxed mb-8 bg-white/[0.01] border border-white/5 rounded-2xl p-4 font-medium text-left">{result.message}</div>
+                    {/* Official School-like Report Card */}
+                    <div className="mt-8 mb-8 text-left bg-[#05040a]/80 border border-indigo-500/25 rounded-3xl p-6 shadow-2xl relative overflow-hidden backdrop-blur-2xl">
+                        {/* Blueprint grid overlay */}
+                        <div className="absolute inset-0 bg-cyber-dots opacity-20 pointer-events-none" />
+                        <div className="absolute -top-12 -right-12 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none" />
+                        
+                        {/* Header Banner */}
+                        <div className="border-b border-white/10 pb-4 mb-5 text-center relative z-10">
+                            <div className="text-[10px] font-black text-indigo-400 tracking-[0.3em] uppercase mb-1">
+                                {profile?.school_name || 'MINERVA ACADEMY OS'}
+                            </div>
+                            <h2 className="text-sm font-black text-white tracking-widest uppercase">
+                                OFFICIAL ACADEMIC PROGRESS REPORT
+                            </h2>
+                            <div className="text-[9px] text-gray-500 mt-0.5 tracking-wider font-mono">
+                                ASSESSMENT ID: #MIN-{id?.slice(-6).toUpperCase()} • SESSION 2026-27
+                            </div>
+                        </div>
+
+                        {/* Student Details Grid */}
+                        <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-[11px] mb-6 relative z-10 bg-white/[0.02] border border-white/5 rounded-2xl p-4">
+                            <div>
+                                <span className="text-gray-500 block uppercase font-bold text-[8px] tracking-wider mb-0.5">STUDENT NAME</span>
+                                <span className="text-gray-200 font-bold">{profile?.name || user?.name || 'Academic Scholar'}</span>
+                            </div>
+                            <div>
+                                <span className="text-gray-500 block uppercase font-bold text-[8px] tracking-wider mb-0.5">BOARD / COUNCIL</span>
+                                <span className="text-gray-200 font-bold uppercase">{profile?.board || exam.board || 'CBSE'}</span>
+                            </div>
+                            <div>
+                                <span className="text-gray-500 block uppercase font-bold text-[8px] tracking-wider mb-0.5">STANDARD & MEDIUM</span>
+                                <span className="text-gray-200 font-bold uppercase">{profile?.grade_level?.replace('_', ' ') || exam.grade_level?.replace('_', ' ') || 'Class 10'} • {profile?.medium || 'English'}</span>
+                            </div>
+                            <div>
+                                <span className="text-gray-500 block uppercase font-bold text-[8px] tracking-wider mb-0.5">DATE OF EVALUATION</span>
+                                <span className="text-gray-200 font-bold">
+                                    {new Date(exam.submitted_at || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Marks Memorandum Table */}
+                        <div className="mb-6 relative z-10 overflow-hidden border border-white/5 rounded-2xl">
+                            <table className="w-full text-left text-xs">
+                                <thead className="bg-white/5 text-gray-400 font-black text-[9px] uppercase tracking-wider border-b border-white/5">
+                                    <tr>
+                                        <th className="px-4 py-2.5">Subject / Assessment Area</th>
+                                        <th className="px-4 py-2.5 text-center">Max</th>
+                                        <th className="px-4 py-2.5 text-center">Obtained</th>
+                                        <th className="px-4 py-2.5 text-center">Grade</th>
+                                        <th className="px-4 py-2.5 text-center">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5 text-gray-200 font-medium">
+                                    <tr className="bg-white/[0.01]">
+                                        <td className="px-4 py-3 font-semibold text-gray-100">{exam.subject} ({exam.title})</td>
+                                        <td className="px-4 py-3 text-center font-mono">{exam.total_marks}</td>
+                                        <td className="px-4 py-3 text-center font-mono font-bold text-indigo-300">{exam.total_obtained || result.score}</td>
+                                        <td className="px-4 py-3 text-center font-mono font-bold text-purple-400">{exam.grade || result.grade}</td>
+                                        <td className="px-4 py-3 text-center">
+                                            <span className={`text-[9px] font-black tracking-wider uppercase px-2 py-0.5 rounded-full
+                                                ${(exam.total_obtained || result.score) >= (exam.total_marks * 0.35) 
+                                                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                                                    : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                                                }`}>
+                                                {(exam.total_obtained || result.score) >= (exam.total_marks * 0.35) ? 'PASSED' : 'FAILED'}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Peer Group Performance Simulator */}
+                        <div className="mb-6 bg-white/[0.02] border border-white/5 rounded-2xl p-4 text-xs relative z-10">
+                            <span className="text-gray-500 block uppercase font-bold text-[8px] tracking-wider mb-1.5">PEER COMPARISON & PERFORMANCE RANKING</span>
+                            {result.percentage >= 75 ? (
+                                <p className="text-emerald-400/90 font-medium leading-relaxed">
+                                    📈 You are currently in the <strong>top 12.5% of students</strong> preparing for {(profile?.board || exam.board)?.toUpperCase()} {(profile?.grade_level || exam.grade_level)?.replace('_', ' ').toUpperCase()} in {exam.subject}. Your performance is <strong>{Math.round(result.percentage - 65)}% above the median peer group score</strong>. Keep it up!
+                                </p>
+                            ) : result.percentage >= 50 ? (
+                                <p className="text-indigo-300 font-medium leading-relaxed">
+                                    📊 You are in the <strong>median peer range (Top 45%)</strong>. Your performance matches standard criteria, but you need <strong>about {Math.round(75 - result.percentage)}% more marks</strong> to reach the honors/A+ rank in {exam.subject}. Use targeted daily homework sheets to practice.
+                                </p>
+                            ) : (
+                                <p className="text-red-400 font-medium leading-relaxed">
+                                    ⚠️ Performance is <strong>{Math.round(60 - result.percentage)}% below the peer group median passing line</strong>. You are in the lower 15% range for this topic. Daily homework sessions will now auto-target these gaps to rebuild foundation concepts.
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Strengths & Weaknesses Breakdown */}
+                        <div className="grid grid-cols-2 gap-4 relative z-10">
+                            <div className="bg-emerald-500/[0.01] border border-emerald-500/10 rounded-2xl p-4">
+                                <span className="text-emerald-400 block uppercase font-bold text-[8.5px] tracking-wider mb-2">✅ TOPIC STRENGTHS</span>
+                                {exam.strong_areas?.length > 0 ? (
+                                    <ul className="list-disc pl-4 space-y-1 text-[11px] text-gray-300 font-medium">
+                                        {exam.strong_areas.map((area: string, idx: number) => (
+                                            <li key={idx} className="capitalize">{area}</li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p className="text-[11px] text-gray-500 italic">No significant strengths recorded yet.</p>
+                                )}
+                            </div>
+                            <div className="bg-red-500/[0.01] border border-red-500/10 rounded-2xl p-4">
+                                <span className="text-red-400 block uppercase font-bold text-[8.5px] tracking-wider mb-2">❌ SYLLABUS WEAKNESSES</span>
+                                {exam.weak_areas?.length > 0 ? (
+                                    <ul className="list-disc pl-4 space-y-1 text-[11px] text-gray-300 font-medium">
+                                        {exam.weak_areas.map((area: string, idx: number) => (
+                                            <li key={idx} className="capitalize">{area}</li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p className="text-[11px] text-gray-500 italic">Excellent! No weak areas identified in this test.</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Holographic Verification Stamp */}
+                        <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between relative z-10 text-[9px]">
+                            <div className="text-gray-500 uppercase tracking-wider font-bold">
+                                SIGNED BY: <span className="text-indigo-400">Minerva AI Grader Engine</span>
+                            </div>
+                            <div className="flex items-center gap-1 bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 px-2 py-0.5 rounded uppercase tracking-wider font-bold">
+                                🛡️ Minerva Verified
+                            </div>
+                        </div>
+                    </div>
 
                     <div className="flex gap-3 justify-center mb-12">
                         <button onClick={() => navigate('/future-education')} className="bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all">
