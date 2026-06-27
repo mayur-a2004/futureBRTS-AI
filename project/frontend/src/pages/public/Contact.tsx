@@ -219,23 +219,6 @@ export default function Contact() {
                     Conceptualized by Architect Mayur Savaliya • Built in Earth-Sector_01
                 </p>
             </section>
-
-            {/* --- WHATSAPP FLOATING BUTTON --- */}
-            <a
-                href="https://wa.me/917859828561?text=Hello! I would like to make an inquiry about FutureBRTS."
-                target="_blank"
-                rel="noopener noreferrer"
-                className="fixed bottom-6 right-6 z-50 bg-[#25D366] hover:bg-[#20ba5a] text-white p-4 rounded-full shadow-[0_10px_30px_rgba(37,211,102,0.3)] hover:shadow-[0_15px_40px_rgba(37,211,102,0.5)] transition-all hover:scale-110 flex items-center justify-center group"
-                aria-label="Contact on WhatsApp"
-            >
-                <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
-                    <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.97C16.528 2.012 14.07 1.002 11.477 1.002c-5.434 0-9.858 4.37-9.863 9.8-.001 1.762.47 3.487 1.364 5.014L1.938 20.16l4.709-1.006zM17.52 14.54c-.31-.155-1.833-.895-2.112-.996-.28-.1-.483-.15-.683.15-.2.3-.777.97-.953 1.17-.176.2-.352.223-.662.068-1.036-.52-1.782-.916-2.483-2.115-.175-.3-.175-.589-.025-.74.135-.135.31-.355.465-.53.155-.175.207-.3.31-.5.104-.2.052-.375-.026-.53-.078-.155-.683-1.62-.936-2.225-.246-.59-.497-.51-.683-.52-.176-.01-.377-.01-.579-.01-.202 0-.53.075-.807.375-.278.3-.965.945-.965 2.305 0 1.36.99 2.67 1.13 2.855.14.186 1.947 2.94 4.72 4.115 1.77.75 2.49.8 3.39.67.507-.075 1.564-.63 1.782-1.24.218-.61.218-1.13.154-1.24-.064-.11-.242-.2-.552-.35z"/>
-                </svg>
-                {/* Tooltip */}
-                <span className="absolute right-16 bg-black/90 text-white text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap shadow-xl">
-                    Inquire on WhatsApp
-                </span>
-            </a>
         </div>
     )
 }
