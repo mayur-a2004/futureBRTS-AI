@@ -784,6 +784,39 @@ const MinervaHome: React.FC = () => {
                         </div>
                     )}
 
+                    {/* Active Roadmap Suggestions */}
+                    {!loading && (
+                        <div className="flex flex-wrap gap-2 mb-3 animate-in fade-in slide-in-from-bottom-2 duration-300 max-w-4xl">
+                            {input.trim().length > 3 && (
+                                <button
+                                    onClick={() => {
+                                        const originalInput = input;
+                                        setInput('');
+                                        sendMessage(`Create a roadmap for: ${originalInput}`);
+                                    }}
+                                    className="bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/30 hover:border-indigo-500/50 rounded-full px-3.5 py-1.5 text-[10px] font-black text-indigo-300 uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
+                                >
+                                    <span>🗺️</span>
+                                    <span>Create Study Roadmap for "{input.substring(0, 30)}{input.length > 30 ? '...' : ''}"</span>
+                                </button>
+                            )}
+
+                            {messages.length > 1 && (
+                                <button
+                                    onClick={() => {
+                                        const lastUserMsg = [...messages].reverse().find(m => m.role === 'student');
+                                        const topicText = lastUserMsg?.content || 'this topic';
+                                        sendMessage(`Create a roadmap for: ${topicText}`);
+                                    }}
+                                    className="bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 hover:border-cyan-500/50 rounded-full px-3.5 py-1.5 text-[10px] font-black text-cyan-300 uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
+                                >
+                                    <span>🧭</span>
+                                    <span>Generate Roadmap for this topic</span>
+                                </button>
+                            )}
+                        </div>
+                    )}
+
                     {/* Styled Card Container */}
                     <div className={`flex flex-col gap-3.5 bg-[#0B0915]/60 border ${isDeepStudy ? 'deep-study-gradient-border deep-study-input-glow border-cyan-500/30' : 'border-white/[0.06] shadow-[0_12px_40px_rgba(0,0,0,0.6)]'} rounded-[24px] p-3 backdrop-blur-2xl relative transition-all duration-500`}>
                         {/* Top Row: Mode Toggles */}
