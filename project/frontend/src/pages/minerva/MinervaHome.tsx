@@ -409,6 +409,43 @@ const MinervaHome: React.FC = () => {
         }
     };
 
+    const getTopicSuggestions = () => {
+        if (messages.length <= 1) return [];
+        
+        const lastUserMsg = [...messages].reverse().find(m => m.role === 'student');
+        const topicText = (lastUserMsg?.content || '').toLowerCase();
+
+        if (topicText.includes('h2o') || topicText.includes('co2') || topicText.includes('chemical') || topicText.includes('reaction') || topicText.includes('chemistry') || topicText.includes('science') || topicText.includes('biology') || topicText.includes('physics') || topicText.includes('bio') || topicText.includes('mechanic')) {
+            return [
+                { text: "🧪 Explain the reaction equation step-by-step?", prompt: "Can you explain the chemical reaction equation step-by-step with balanced details?" },
+                { text: "🔬 What are the real-world applications of this?", prompt: "What are the real-world applications and daily life examples of this scientific concept?" },
+                { text: "📝 Show me 3 practice MCQs on this topic?", prompt: "Show me 3 practice multiple-choice questions (MCQs) with answers to test my understanding of this topic." }
+            ];
+        }
+        
+        if (topicText.includes('math') || topicText.includes('equation') || topicText.includes('graph') || topicText.includes('slope') || topicText.includes('geometry') || topicText.includes('algebra') || topicText.includes('statistics') || topicText.includes('calculus')) {
+            return [
+                { text: "📐 Solve a sample problem step-by-step?", prompt: "Can you show and solve a sample mathematical problem on this topic step-by-step?" },
+                { text: "📊 How do we plot this on a graph?", prompt: "How do we plot this equation on a Cartesian graph? Explain the steps." },
+                { text: "📝 Test my understanding with a question?", prompt: "Ask me a math practice question on this topic and grade my answer." }
+            ];
+        }
+
+        if (topicText.includes('account') || topicText.includes('ledger') || topicText.includes('debit') || topicText.includes('credit') || topicText.includes('balance sheet') || topicText.includes('finance') || topicText.includes('economics') || topicText.includes('stat')) {
+            return [
+                { text: "💵 Explain the Golden Rules of Accounting?", prompt: "Explain the Golden Rules of Accounting with simple real-life examples." },
+                { text: "📊 Journal vs Ledger difference?", prompt: "What is the key difference between a Journal entry and a Ledger post? Explain simply." },
+                { text: "📝 Give me a transaction to practice debit/credit?", prompt: "Give me a practice business transaction. I will write the debit and credit journal entry, and you can verify it." }
+            ];
+        }
+
+        return [
+            { text: "🧠 Explain this with a simple analogy?", prompt: "Can you explain this concept using a very simple real-world analogy?" },
+            { text: "🎯 What is the most common board exam question from this?", prompt: "What is the most common question asked in Gujarat Board / CBSE exams from this topic?" },
+            { text: "❓ Ask me a question to test my understanding?", prompt: "Ask me a conceptual question about what we just discussed to test my understanding." }
+        ];
+    };
+
     const quickPrompts = [
         { title: 'Class 10 Science Roadmap', icon: Atom, desc: 'Board patterns, key topics & study times', color: 'from-blue-500/10 to-indigo-500/10 border-indigo-500/20 text-indigo-400' },
         { title: 'UPSC General Studies Preparation', icon: Landmark, desc: 'Indian Polity, History, and geography', color: 'from-amber-500/10 to-orange-500/10 border-orange-500/20 text-amber-400' },
@@ -814,6 +851,17 @@ const MinervaHome: React.FC = () => {
                                     <span>Generate Roadmap for this topic</span>
                                 </button>
                             )}
+
+                            {/* Dynamic Topic Explainer Questions */}
+                            {getTopicSuggestions().map((sug, sIdx) => (
+                                <button
+                                    key={sIdx}
+                                    onClick={() => sendMessage(sug.prompt)}
+                                    className="bg-white/[0.02] hover:bg-indigo-500/10 border border-white/[0.05] hover:border-indigo-500/30 rounded-full px-3.5 py-1.5 text-[10px] font-bold text-gray-300 hover:text-indigo-200 transition-all flex items-center gap-1 shadow-md active:scale-95 cursor-pointer"
+                                >
+                                    <span>{sug.text}</span>
+                                </button>
+                            ))}
                         </div>
                     )}
 
