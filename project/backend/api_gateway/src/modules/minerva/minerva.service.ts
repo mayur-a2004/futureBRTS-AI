@@ -575,4 +575,59 @@ RULES:
     return res?.choices?.[0]?.message?.content || text;
 };
 
+// ─────────────────────────────────────────────
+// 9. GRADE EXAM WRITTEN ANSWERS IN BULK
+// ─────────────────────────────────────────────
+export const gradeExamWrittenAnswers = async (
+    questionsAndAnswers: {
+        question_number: number;
+        question: string;
+        expected_answer?: string;
+        student_answer: string;
+        marks: number;
+        topic: string;
+    }[],
+    language: string
+): Promise<Record<number, { obtained_marks: number; feedback: string; correction: string }>> => {
+    if (questionsAndAnswers.length === 0) return {};
+
+    const messages = [
+        {
+            role: 'system',
+            content: `You are an expert exam evaluator grading student written answers for academic exams.
+You will receive a list of questions, expected reference answers, student answers, and maximum marks.
+Evaluate each answer carefully, award realistic obtained marks (0 to max marks), and provide constructive, warm feedback in ${language}.
+Also provide a short ideal correction/explanation for any points they missed.
+
+Return ONLY a valid JSON object matching this schema:
+{
+    "grades": {
+        "1": {
+            "obtained_marks": number,
+            "feedback": "Warm feedback text",
+            "correction": "Ideal answer explanation"
+        }
+    }
+}
+Note: The keys of "grades" should be the question_number as strings (e.g. "1", "2").
+Ensure strict adherence to JSON formatting. Return nothing else.`
+        },
+        {
+            role: 'user',
+            content: `Grade the following answers:
+${JSON.stringify(questionsAndAnswers, null, 2)}`
+        }
+    ];
+
+    try {
+        const res = await getProviderResponse(messages, { jsonMode: true, maxTokens: 2500, temperature: 0.3 });
+        const text = res?.choices?.[0]?.message?.content || '{}';
+        const parsed = safeJsonParse(text);
+        return parsed?.grades || {};
+    } catch (err) {
+        console.error('[gradeExamWrittenAnswers Error]', err);
+        return {};
+    }
+};
+
 

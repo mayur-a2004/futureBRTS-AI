@@ -16,6 +16,7 @@ import {
     extractProfileFromChat,
     generateStudentStudyMaterial,
     translateContent,
+    gradeExamWrittenAnswers,
 } from './minerva.service';
 
 // ─────────────────────────────────────────────────────────────────
@@ -927,33 +928,112 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
             if (!exam) return res.status(404).json({ success: false, error: 'Exam not found' });
             if (exam.status === 'submitted') return res.json({ success: true, message: 'Already submitted', exam });
 
-            // Simple auto-grading for MCQ, manual for others
+            const profile = await getOrCreateProfile(userId);
+            const language = profile.language_preference || 'hinglish';
+
+            // Gather all written answers to grade via AI in bulk
+            const writtenQuestionsToGrade: any[] = [];
+            for (const question of exam.questions) {
+                const studentAnswer = answers[question.question_number] || '';
+                if (question.type !== 'mcq') {
+                    writtenQuestionsToGrade.push({
+                        question_number: question.question_number,
+                        question: question.question,
+                        expected_answer: question.expected_answer || '',
+                        student_answer: studentAnswer,
+                        marks: question.marks,
+                        topic: question.topic || '',
+                    });
+                }
+            }
+
+            // Grade written questions in bulk using the helper
+            let aiGrades: Record<number, { obtained_marks: number; feedback: string; correction: string }> = {};
+            if (writtenQuestionsToGrade.length > 0) {
+                try {
+                    aiGrades = await gradeExamWrittenAnswers(writtenQuestionsToGrade, language);
+                } catch (gradeErr) {
+                    console.error('[submitExam AI Grading failed, using fallback]', gradeErr);
+                }
+            }
+
             let totalObtained = 0;
             const gradedAnswers: any[] = [];
+            const weak_areas: string[] = [];
+            const strong_areas: string[] = [];
 
             for (const question of exam.questions) {
                 const studentAnswer = answers[question.question_number] || '';
                 let obtained = 0;
+                let feedback = '';
+                let correction = '';
 
                 if (question.type === 'mcq' && question.expected_answer) {
                     const isCorrect = studentAnswer.trim().toLowerCase() === question.expected_answer.trim().toLowerCase();
                     obtained = isCorrect ? question.marks : 0;
-                } else if (studentAnswer.trim().length > 10) {
-                    // Partial credit for written answers (will be AI graded in future)
-                    obtained = Math.round(question.marks * 0.7);
+                    feedback = isCorrect ? 'Correct Answer!' : `Incorrect. Expected: ${question.expected_answer}`;
+                } else {
+                    // Written answer
+                    const aiGrade = aiGrades[question.question_number];
+                    if (aiGrade) {
+                        obtained = Math.min(question.marks, Math.max(0, Number(aiGrade.obtained_marks) || 0));
+                        feedback = aiGrade.feedback || '';
+                        correction = aiGrade.correction || '';
+                    } else if (studentAnswer.trim().length > 10) {
+                        // Fallback partial credit if AI call fails completely
+                        obtained = Math.round(question.marks * 0.7);
+                        feedback = 'Answer recorded (Self-graded fallback).';
+                    } else {
+                        obtained = 0;
+                        feedback = 'Incorrect or empty answer.';
+                    }
                 }
+
                 totalObtained += obtained;
+
+                // Track weak vs strong areas based on score percentage
+                const pct = question.marks > 0 ? (obtained / question.marks) * 100 : 0;
+                if (question.topic) {
+                    if (pct < 70) {
+                        if (!weak_areas.includes(question.topic)) weak_areas.push(question.topic);
+                    } else {
+                        if (!strong_areas.includes(question.topic)) strong_areas.push(question.topic);
+                    }
+                }
+
                 gradedAnswers.push({
                     question_number: question.question_number,
                     student_answer: studentAnswer,
                     obtained_marks: obtained,
                     total_marks: question.marks,
+                    feedback,
+                    correction,
                 });
             }
 
             const percentage = Math.round((totalObtained / exam.total_marks) * 100);
             const grade = percentage >= 90 ? 'A+' : percentage >= 75 ? 'A' : percentage >= 60 ? 'B' :
                 percentage >= 50 ? 'C' : percentage >= 35 ? 'D' : 'F';
+
+            // Generate structured consolidated AI report
+            const ai_report = `### Exam Evaluation Report
+**Subject:** ${exam.subject}
+**Score Obtained:** ${totalObtained} / ${exam.total_marks} (${percentage}%)
+**Final Grade:** ${grade}
+
+#### Topic Performance Summary:
+- **Strong Topics:** ${strong_areas.length > 0 ? strong_areas.join(', ') : 'None'}
+- **Topics Needing Improvement:** ${weak_areas.length > 0 ? weak_areas.join(', ') : 'None'}
+
+#### Section Details:
+${gradedAnswers.map(ans => {
+    const q = exam.questions.find(qu => qu.question_number === ans.question_number);
+    return `**Q${ans.question_number}.** ${q?.question}
+- *Your Answer:* ${ans.student_answer || '(No Answer Provided)'}
+- *Marks Obtained:* ${ans.obtained_marks} / ${ans.total_marks}
+- *Feedback:* ${ans.feedback}
+${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
+}).join('\n\n')}`;
 
             const updatedExam = await MinervaExam.findByIdAndUpdate(id, {
                 status: 'submitted',
@@ -963,12 +1043,34 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                 grade,
                 submitted_at: new Date(),
                 time_taken_minutes: time_taken_minutes || 0,
-                ai_report: `Score: ${totalObtained}/${exam.total_marks} (${percentage}%) — Grade: ${grade}`,
+                ai_report,
+                weak_areas,
+                strong_areas,
             }, { new: true });
 
-            // Update profile exam count
+            // Update profile stats and dynamic weak/strong subjects list
+            const currentWeak = new Set(profile.weak_subjects || []);
+            const currentStrong = new Set(profile.strong_subjects || []);
+
+            // Process weak areas: add to weak, remove from strong
+            for (const area of weak_areas) {
+                currentWeak.add(area);
+                currentStrong.delete(area);
+            }
+            // Process strong areas: add to strong, remove from weak (only if they are not still marked weak by another question in the same exam)
+            for (const area of strong_areas) {
+                if (!weak_areas.includes(area)) {
+                    currentStrong.add(area);
+                    currentWeak.delete(area);
+                }
+            }
+
             await MinervaStudentProfile.findOneAndUpdate({ userId }, {
-                $inc: { total_exams_taken: 1 }
+                $inc: { total_exams_taken: 1 },
+                $set: {
+                    weak_subjects: Array.from(currentWeak),
+                    strong_subjects: Array.from(currentStrong),
+                }
             });
 
             return res.json({
