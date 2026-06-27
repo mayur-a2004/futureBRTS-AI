@@ -3,6 +3,8 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IMinervaStudentProfile extends Document {
     userId: mongoose.Types.ObjectId;
     name: string;
+    school_name: string;
+    mobile_number: string;
     grade_level: string; // 'class_1' to 'phd' | 'upsc' | 'ssc' | 'banking' etc.
     education_type: string; // 'school' | 'college' | 'competitive' | 'professional' | 'govt_exam'
     board: string; // 'cbse' | 'icse' | 'maharashtra_ssc' | 'up_board' | 'gseb' etc.
@@ -26,6 +28,8 @@ export interface IMinervaStudentProfile extends Document {
 const MinervaStudentProfileSchema = new Schema({
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
     name: { type: String, default: '' },
+    school_name: { type: String, default: '' },
+    mobile_number: { type: String, default: '' },
     grade_level: { type: String, default: 'class_10' },
     education_type: { type: String, default: 'school' },
     board: { type: String, default: 'cbse' },

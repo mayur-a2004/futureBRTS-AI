@@ -40,6 +40,16 @@ const MinervaHome: React.FC = () => {
     const [isDeepStudy, setIsDeepStudy] = useState(false);
     const [showHoloAlert, setShowHoloAlert] = useState(false);
 
+    // Onboarding Form States
+    const [profile, setProfile] = useState<any>(null);
+    const [showOnboarding, setShowOnboarding] = useState(false);
+    const [studentName, setStudentName] = useState('');
+    const [schoolName, setSchoolName] = useState('');
+    const [mobileNumber, setMobileNumber] = useState('');
+    const [standard, setStandard] = useState('class_10');
+    const [board, setBoard] = useState('cbse');
+    const [onboardingSubmitting, setOnboardingSubmitting] = useState(false);
+
     const [isListening, setIsListening] = useState(false);
     const [speechLang, setSpeechLang] = useState<'en-IN' | 'hi-IN'>('hi-IN');
     const recognitionRef = useRef<any>(null);
@@ -209,7 +219,58 @@ const MinervaHome: React.FC = () => {
     useEffect(() => {
         if (!token) return;
         loadSessionData();
+        checkProfileOnboarding();
     }, [token, activeSessionId]);
+
+    const checkProfileOnboarding = async () => {
+        try {
+            const res = await minervaApi.getProfile(token);
+            if (res.success && res.profile) {
+                setProfile(res.profile);
+                if (!res.profile.onboarding_done) {
+                    setShowOnboarding(true);
+                    setStudentName(res.profile.name || user?.name || '');
+                    setSchoolName(res.profile.school_name || '');
+                    setMobileNumber(res.profile.mobile_number || '');
+                    setStandard(res.profile.grade_level || 'class_10');
+                    setBoard(res.profile.board || 'cbse');
+                }
+            }
+        } catch (err) {
+            console.error("Failed to check profile onboarding status:", err);
+        }
+    };
+
+    const handleSaveOnboarding = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!studentName.trim() || !schoolName.trim() || !mobileNumber.trim()) {
+            alert("Please fill all required fields.");
+            return;
+        }
+        setOnboardingSubmitting(true);
+        try {
+            const res = await minervaApi.updateProfile(token, {
+                name: studentName,
+                school_name: schoolName,
+                mobile_number: mobileNumber,
+                grade_level: standard,
+                board: board,
+                learning_style: 'mixed',
+                daily_time_minutes: 60,
+            });
+            if (res.success) {
+                setProfile(res.profile);
+                setShowOnboarding(false);
+            } else {
+                alert(res.error || "Failed to save profile details");
+            }
+        } catch (err) {
+            console.error("Failed to update onboarding profile:", err);
+            alert("Error saving onboarding details.");
+        } finally {
+            setOnboardingSubmitting(false);
+        }
+    };
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -531,6 +592,12 @@ const MinervaHome: React.FC = () => {
                         </span>
                         <span>Minerva Active</span>
                     </div>
+
+                    {profile?.board && (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 select-none text-[9px] font-black text-indigo-300 tracking-wider uppercase">
+                            <span>{profile.grade_level?.replace('_', ' ')} ({profile.board?.toUpperCase()})</span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Right: Actions */}
@@ -832,6 +899,121 @@ const MinervaHome: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* First-time Onboarding Modal */}
+            <AnimatePresence>
+                {showOnboarding && (
+                    <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-[#0b0915] border border-indigo-500/30 rounded-[2rem] p-8 max-w-md w-full shadow-[0_0_50px_rgba(79,70,229,0.3)] relative overflow-hidden"
+                        >
+                            {/* Scanning beam animation */}
+                            <div className="absolute inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-indigo-500 to-transparent top-0 animate-bounce" />
+                            
+                            <div className="text-center mb-6">
+                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 flex items-center justify-center text-white mx-auto shadow-[0_0_20px_rgba(99,102,241,0.4)] mb-4">
+                                    <Brain size={24} className="animate-pulse" />
+                                </div>
+                                <h3 className="text-sm font-black bg-clip-text text-transparent bg-gradient-to-r from-white to-indigo-200 tracking-tight uppercase">Minerva System Initialization</h3>
+                                <p className="text-gray-500 text-[10px] mt-1 uppercase tracking-wider">First-time student profile synchronization</p>
+                            </div>
+
+                            <form onSubmit={handleSaveOnboarding} className="space-y-4 text-left">
+                                <div className="space-y-1">
+                                    <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">Student Full Name</label>
+                                    <input 
+                                        type="text" 
+                                        required
+                                        placeholder="Enter your name" 
+                                        value={studentName}
+                                        onChange={e => setStudentName(e.target.value)}
+                                        className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none focus:border-indigo-500/40"
+                                    />
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">School / Institution Name</label>
+                                    <input 
+                                        type="text" 
+                                        required
+                                        placeholder="Enter your school name" 
+                                        value={schoolName}
+                                        onChange={e => setSchoolName(e.target.value)}
+                                        className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none focus:border-indigo-500/40"
+                                    />
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">Mobile Number (Result Alerts)</label>
+                                    <input 
+                                        type="tel" 
+                                        required
+                                        pattern="[0-9]{10}"
+                                        placeholder="Enter 10-digit mobile number" 
+                                        value={mobileNumber}
+                                        onChange={e => setMobileNumber(e.target.value)}
+                                        className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none focus:border-indigo-500/40"
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">Standard / Grade</label>
+                                        <select 
+                                            value={standard} 
+                                            onChange={e => setStandard(e.target.value)}
+                                            className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none"
+                                        >
+                                            {Array.from({ length: 12 }, (_, i) => `class_${i + 1}`).map(cls => (
+                                                <option key={cls} value={cls}>{cls.replace('_', ' ').toUpperCase()}</option>
+                                            ))}
+                                            <option value="undergraduate">Undergraduate</option>
+                                            <option value="postgraduate">Postgraduate</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">Board / Council</label>
+                                        <select 
+                                            value={board} 
+                                            onChange={e => setBoard(e.target.value)}
+                                            className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none"
+                                        >
+                                            <option value="cbse">CBSE</option>
+                                            <option value="gseb">GSEB (Gujarat Board)</option>
+                                            <option value="icse">ICSE</option>
+                                            <option value="up_board">UP Board</option>
+                                            <option value="state_board">Other State Board</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Deep Board preparation warning */}
+                                {(standard === 'class_10' || standard === 'class_12') && (
+                                    <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-2xl text-[9px] text-red-300 font-medium leading-normal animate-pulse flex items-start gap-2">
+                                        <span className="flex-shrink-0">⚠️</span>
+                                        <span>BOARD PREPARATION MODE DETECTED: Minerva will deeply prioritize target board blueprints, syllabus nodes, and exam simulations.</span>
+                                    </div>
+                                )}
+
+                                <button 
+                                    type="submit"
+                                    disabled={onboardingSubmitting}
+                                    className="w-full mt-4 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-500 hover:opacity-90 disabled:opacity-50 text-white font-bold py-3 rounded-2xl transition-all text-xs shadow-lg shadow-indigo-950/20 active:scale-[0.99] flex items-center justify-center gap-1.5"
+                                >
+                                    {onboardingSubmitting ? (
+                                        <Loader2 className="w-4 h-4 animate-spin text-white" />
+                                    ) : (
+                                        <span>Initialize OS Study Nodes</span>
+                                    )}
+                                </button>
+                            </form>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

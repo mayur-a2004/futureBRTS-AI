@@ -393,11 +393,11 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
     updateProfile: async (req: Request | any, res: Response) => {
         try {
             const userId = req.user?.id || req.user?._id;
-            const { grade_level, board, state, medium, language_preference, learning_style, daily_time_minutes, name } = req.body;
+            const { grade_level, board, state, medium, language_preference, learning_style, daily_time_minutes, name, school_name, mobile_number } = req.body;
 
             const profile = await MinervaStudentProfile.findOneAndUpdate(
                 { userId },
-                { grade_level, board, state, medium, language_preference, learning_style, daily_time_minutes, name, onboarding_done: true },
+                { grade_level, board, state, medium, language_preference, learning_style, daily_time_minutes, name, school_name, mobile_number, onboarding_done: true },
                 { new: true, upsert: true }
             );
             return res.json({ success: true, profile });
