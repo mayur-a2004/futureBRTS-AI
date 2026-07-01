@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { minervaApi } from '../../api/minerva.api';
 import { Clock, FileText, CheckCircle2, MessageSquare } from 'lucide-react';
+import { LevelUpModal } from '../../components/ui/LevelUpModal';
 
 const MinervaExamPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -18,6 +19,9 @@ const MinervaExamPage: React.FC = () => {
     const [result, setResult] = useState<any>(null);
     const [timeLeft, setTimeLeft] = useState(0);
     const [tabSwitches, setTabSwitches] = useState(0);
+    const [isLevelUpOpen, setIsLevelUpOpen] = useState(false);
+    const [newLevel, setNewLevel] = useState(1);
+    const [xpGained, setXpGained] = useState(0);
     
     const startTime = useRef(Date.now());
     const timerRef = useRef<any>(null);
@@ -142,6 +146,11 @@ const MinervaExamPage: React.FC = () => {
         if (res.success) {
             setSubmitted(true);
             setResult(res);
+            if (res.levelUp) {
+                setNewLevel(res.currentLevel);
+                setXpGained(res.xpGained);
+                setIsLevelUpOpen(true);
+            }
             // Refresh parent view if any
             window.dispatchEvent(new Event('future-education-refresh-sessions'));
         }
@@ -324,6 +333,37 @@ const MinervaExamPage: React.FC = () => {
                             </div>
                         </div>
                     </div>
+
+                    {/* Parent Notification Banner */}
+                    {user?.parentDetails?.parentEmail && (
+                        <div className="mb-8 p-6 rounded-3xl bg-indigo-950/20 border border-indigo-500/20 text-left flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative overflow-hidden backdrop-blur-xl">
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-xl pointer-events-none" />
+                            <div>
+                                <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                                    <span>👨‍👩‍👦</span> Parent Alert System
+                                </div>
+                                <p className="text-xs text-gray-300">
+                                    {user.parentDetails.parentEmailVerified ? (
+                                        <span>Scorecard has been automatically emailed to <strong className="text-white">{user.parentDetails.parentEmail}</strong>.</span>
+                                    ) : (
+                                        <span>Email verification is pending for <strong className="text-white">{user.parentDetails.parentEmail}</strong>. Scorecard will send after verification.</span>
+                                    )}
+                                </p>
+                            </div>
+                            {user.parentDetails.parentPhone && (
+                                <button
+                                    onClick={() => {
+                                        const phone = user.parentDetails.parentPhone;
+                                        const text = `Dear Parent, I have completed the "${exam.title}" exam on Future Education OS.\nScore: ${result.score || result.total_obtained}/${result.total || exam.total_marks} (${result.percentage || exam.percentage}%)\nGrade: ${result.grade || exam.grade}\nAI Feedback: ${result.message || result.ai_report || 'Exam completed.'}`;
+                                        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
+                                    }}
+                                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all flex items-center gap-2 shrink-0 shadow-lg shadow-emerald-600/10"
+                                >
+                                    <span>📢</span> Share on WhatsApp
+                                </button>
+                            )}
+                        </div>
+                    )}
 
                     <div className="flex gap-3 justify-center mb-12">
                         <button onClick={() => navigate('/future-education')} className="bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all">
@@ -568,6 +608,12 @@ const MinervaExamPage: React.FC = () => {
                     </button>
                 </div>
             </div>
+            <LevelUpModal
+                isOpen={isLevelUpOpen}
+                level={newLevel}
+                xpGained={xpGained}
+                onClose={() => setIsLevelUpOpen(false)}
+            />
         </div>
     );
 };

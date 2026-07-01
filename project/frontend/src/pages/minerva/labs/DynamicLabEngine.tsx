@@ -6,6 +6,7 @@ import TextLab from './modules/TextLab';
 import DiagramLab from './modules/DiagramLab';
 import VideoLab from './modules/VideoLab';
 import { Model3DLab } from './modules/Model3DLab';
+import SandboxLab from './modules/SandboxLab';
 
 
 interface DynamicLabEngineProps {
@@ -148,6 +149,14 @@ export const DynamicLabEngine: React.FC<DynamicLabEngineProps> = ({
             sketchfab_hint={labConfig.sketchfab_hint}
             subject={labConfig.subject}
             sensitivity_level={labConfig.sensitivity_level}
+          />
+        );
+      case 'sandbox':
+        return (
+          <SandboxLab
+            subject={labConfig.subject}
+            topic={labConfig.topic}
+            sandboxConfig={labConfig.sandbox_config}
           />
         );
       default:

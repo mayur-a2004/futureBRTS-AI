@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { minervaApi } from '../../api/minerva.api';
-import { ChevronLeft, CheckCircle2, Send, Sparkles, MessageSquare, FileText } from 'lucide-react';
+import { ChevronLeft, CheckCircle2, Send, Sparkles, MessageSquare, FileText, Loader2 } from 'lucide-react';
+import { LevelUpModal } from '../../components/ui/LevelUpModal';
 
 const MinervaTasksPage: React.FC = () => {
-    const { token } = useAuth() as any;
+    const { user, token } = useAuth() as any;
     const navigate = useNavigate();
 
     const [tasks, setTasks] = useState<any[]>([]);
@@ -17,6 +18,9 @@ const MinervaTasksPage: React.FC = () => {
     const [solvingTaskId, setSolvingTaskId] = useState<string | null>(null);
     const [answer, setAnswer] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [isLevelUpOpen, setIsLevelUpOpen] = useState(false);
+    const [newLevel, setNewLevel] = useState(1);
+    const [xpGained, setXpGained] = useState(0);
 
     useEffect(() => {
         if (token) {
@@ -70,6 +74,11 @@ const MinervaTasksPage: React.FC = () => {
                     ai_correction: res.correction,
                     passed: res.passed
                 } : t));
+                if (res.levelUp) {
+                    setNewLevel(res.currentLevel);
+                    setXpGained(res.xpGained);
+                    setIsLevelUpOpen(true);
+                }
                 setSolvingTaskId(null);
                 setAnswer('');
             } else {
@@ -277,14 +286,33 @@ const MinervaTasksPage: React.FC = () => {
                                             </div>
                                         )}
 
-                                        <div className="flex justify-end pt-2">
-                                            <button
-                                                onClick={() => navigate(`/future-education?askDoubt=${encodeURIComponent(`Maine is task ko solve kiya: '${task.prompt}'. Mera answer tha: '${task.student_answer}'. AI Feedback: '${task.ai_feedback || ''}'. Mujhe is feedback aur answer par clarity chahiye.`)}`)}
-                                                className="px-4 py-2 bg-white/[0.03] hover:bg-white/10 text-indigo-400 border border-white/5 rounded-2xl text-[11px] font-semibold transition-all inline-flex items-center gap-1.5 active:scale-95"
-                                            >
-                                                <MessageSquare size={12} />
-                                                <span>Ask Doubt about Feedback</span>
-                                            </button>
+                                        <div className="flex flex-wrap gap-2 justify-between items-center pt-2">
+                                            {user?.parentDetails?.parentEmail && (
+                                                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                                                    {user.parentDetails.parentEmailVerified ? 'Scorecard Emailed ✅' : 'Email Verification Pending 🟡'}
+                                                </span>
+                                            )}
+                                            <div className="flex gap-2">
+                                                {user?.parentDetails?.parentPhone && (
+                                                    <button
+                                                        onClick={() => {
+                                                            const phone = user.parentDetails.parentPhone;
+                                                            const text = `Dear Parent, I have submitted my homework assignment on Future Education OS.\nTask: ${task.prompt || 'Homework'}\nResult: ${task.passed ? 'PASSED ✅' : 'RETRY REQUIRED ❌'}\nScore: ${task.ai_score || 0}/100\nAI Feedback: ${task.ai_feedback || 'Completed.'}`;
+                                                            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
+                                                        }}
+                                                        className="px-4 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/20 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all inline-flex items-center gap-1.5 active:scale-95 shadow-md shadow-emerald-500/5"
+                                                    >
+                                                        <span>📢 Share to Parent</span>
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => navigate(`/future-education?askDoubt=${encodeURIComponent(`Maine is task ko solve kiya: '${task.prompt}'. Mera answer tha: '${task.student_answer}'. AI Feedback: '${task.ai_feedback || ''}'. Mujhe is feedback aur answer par clarity chahiye.`)}`)}
+                                                    className="px-4 py-2 bg-white/[0.03] hover:bg-white/10 text-indigo-400 border border-white/5 rounded-2xl text-[11px] font-semibold transition-all inline-flex items-center gap-1.5 active:scale-95"
+                                                >
+                                                    <MessageSquare size={12} />
+                                                    <span>Ask Doubt about Feedback</span>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 ) : (
@@ -346,6 +374,12 @@ const MinervaTasksPage: React.FC = () => {
                     )}
                 </div>
             </div>
+            <LevelUpModal
+                isOpen={isLevelUpOpen}
+                level={newLevel}
+                xpGained={xpGained}
+                onClose={() => setIsLevelUpOpen(false)}
+            />
         </div>
     );
 };

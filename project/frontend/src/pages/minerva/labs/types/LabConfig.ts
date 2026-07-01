@@ -14,7 +14,8 @@ export type ContentLayer =
   | 'threejs'
   | 'sketchfab'
   | 'youtube'
-  | 'voice';
+  | 'voice'
+  | 'sandbox';
 
 export interface SliderControl {
   name: string;
@@ -70,6 +71,11 @@ export interface LabConfig {
   auto_open: boolean;
   youtube_video_id?: string; // Enriched by Node.js
   mermaid_schema?: string | null;
+  sandbox_config?: {
+    language: 'javascript' | 'python';
+    default_code: string;
+    expected_output?: string;
+  };
 }
 
 export const SUBJECT_COLORS: Record<SubjectType, {

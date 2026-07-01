@@ -11,6 +11,19 @@ export interface IUser extends Document {
     dateOfBirth?: Date;
     age?: number;
     provider: 'local' | 'google' | 'github';
+    parentDetails?: {
+        parentEmail?: string;
+        parentPhone?: string;
+        parentEmailVerified?: boolean;
+        parentVerificationToken?: string;
+    };
+    xp?: number;
+    level?: number;
+    badges?: Array<{
+        name: string;
+        icon: string;
+        unlockedAt?: Date;
+    }>;
     onboarding_status?: 'NOT_STARTED' | 'IN_PROGRESS' | 'DONE';
     resetPasswordToken?: string;
     resetPasswordExpiry?: Date;
@@ -47,6 +60,19 @@ const UserSchema: Schema = new Schema({
     dateOfBirth: { type: Date },
     age: { type: Number },
     provider: { type: String, enum: ['local', 'google', 'github'], default: 'local' },
+    parentDetails: {
+        parentEmail: { type: String, lowercase: true, default: "" },
+        parentPhone: { type: String, default: "" },
+        parentEmailVerified: { type: Boolean, default: false },
+        parentVerificationToken: { type: String, default: "" }
+    },
+    xp: { type: Number, default: 0 },
+    level: { type: Number, default: 1 },
+    badges: [{
+        name: { type: String },
+        icon: { type: String },
+        unlockedAt: { type: Date, default: Date.now }
+    }],
     onboarding_status: { type: String, enum: ['NOT_STARTED', 'IN_PROGRESS', 'DONE'], default: 'NOT_STARTED' },
     onboardingCompleted: { type: Boolean, default: false },
     profile: {

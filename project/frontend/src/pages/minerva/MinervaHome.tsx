@@ -950,6 +950,16 @@ const MinervaHome: React.FC = () => {
 
                     <div className="hidden md:block h-4 w-px bg-white/10 shrink-0" />
 
+                    {/* Dashboard Button */}
+                    <button
+                        onClick={() => navigate('/future-education/dashboard')}
+                        title="View progress analytics dashboard"
+                        className="px-3 py-1.5 md:px-3.5 md:py-2 text-[10px] md:text-xs font-bold bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-indigo-500/30 text-gray-300 hover:text-white rounded-xl transition-all active:scale-95 flex items-center gap-1.5 shadow-md shrink-0"
+                    >
+                        <Brain size={12} className="text-yellow-400" />
+                        <span>Analytics</span>
+                    </button>
+
                     {/* Roadmaps Button */}
                     <button
                         onClick={() => navigate('/future-education/roadmaps')}

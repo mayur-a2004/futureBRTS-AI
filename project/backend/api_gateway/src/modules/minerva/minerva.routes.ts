@@ -75,5 +75,13 @@ router.post('/exam/:id/submit', authMiddleware, minervaController.submitExam);
 // ─── VIRTUAL LAB ────────────────────────────────
 router.get('/lab/youtube-search', authMiddleware, minervaController.labYoutubeSearch);
 
+// ─── PARENT VERIFICATION ─────────────────────────
+router.put('/parent/details', authMiddleware, minervaController.updateParentDetails);
+router.get('/parent/verify', minervaController.verifyParentEmail);
+router.post('/parent/resend-verification', authMiddleware, minervaController.resendParentVerification);
+
+// ─── PYTHON CODE EXECUTION ───────────────────────
+router.post('/lab/execute-python', authMiddleware, minervaController.executePythonCode);
+
 export default router;
 

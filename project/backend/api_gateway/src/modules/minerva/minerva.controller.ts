@@ -3,6 +3,9 @@ import MinervaStudentProfile from './models/minerva_student_profile.model';
 import { OnboardingProfile } from '../onboarding/onboarding.model';
 import MinervaStudySession from './models/minerva_study_session.model';
 import MinervaKnowledgeNode from './models/minerva_knowledge_node.model';
+import User from '../auth/user.model';
+import { mailService } from '../../shared/services/mail.service';
+import crypto from 'crypto';
 import MinervaTask from './models/minerva_task.model';
 import MinervaExam from './models/minerva_exam.model';
 import MinervaChatMessage from './models/minerva_chat_message.model';
@@ -98,6 +101,133 @@ const generationLocks = new Map<string, Promise<any>>();
 // CONTROLLER EXPORTS
 // ─────────────────────────────────────────────────────────────────
 export const minervaController = {
+
+    // ──────────────────────────────────────────
+    // PARENT DETAILS UPDATE
+    // PUT /api/minerva/parent/details
+    // ──────────────────────────────────────────
+    updateParentDetails: async (req: Request | any, res: Response) => {
+        try {
+            const userId = req.user?.id || req.user?._id;
+            const { parentEmail, parentPhone } = req.body;
+
+            const user = await User.findById(userId);
+            if (!user) return res.status(404).json({ success: false, error: 'User not found' });
+
+            const oldEmail = user.parentDetails?.parentEmail || "";
+            const emailChanged = parentEmail?.trim().toLowerCase() !== oldEmail.trim().toLowerCase();
+
+            user.parentDetails = {
+                parentEmail: parentEmail?.trim().toLowerCase() || "",
+                parentPhone: parentPhone?.trim() || "",
+                parentEmailVerified: emailChanged ? false : (user.parentDetails?.parentEmailVerified || false),
+                parentVerificationToken: emailChanged ? crypto.randomBytes(32).toString('hex') : (user.parentDetails?.parentVerificationToken || "")
+            };
+
+            await user.save();
+
+            if (emailChanged && user.parentDetails.parentEmail) {
+                const domain = req.get('host') || 'localhost:7001';
+                const verificationLink = `${req.protocol}://${domain}/api/minerva/parent/verify?token=${user.parentDetails.parentVerificationToken}`;
+                await mailService.sendParentVerification(
+                    user.parentDetails.parentEmail,
+                    `${user.firstName} ${user.lastName}`,
+                    verificationLink
+                );
+            }
+
+            return res.json({
+                success: true,
+                message: emailChanged ? 'Parent details updated. Verification email sent!' : 'Parent details updated successfully.',
+                parentDetails: user.parentDetails
+            });
+        } catch (err: any) {
+            console.error('[Minerva Parent Update Error]', err);
+            return res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    // ──────────────────────────────────────────
+    // VERIFY PARENT EMAIL
+    // GET /api/minerva/parent/verify
+    // ──────────────────────────────────────────
+    verifyParentEmail: async (req: Request | any, res: Response) => {
+        try {
+            const { token } = req.query;
+            if (!token) {
+                return res.status(400).send('<h2>Verification token is missing.</h2>');
+            }
+
+            const user = await User.findOne({ 'parentDetails.parentVerificationToken': token });
+            if (!user) {
+                return res.status(404).send('<h2>Invalid or expired verification token.</h2>');
+            }
+
+            user.parentDetails.parentEmailVerified = true;
+            user.parentDetails.parentVerificationToken = "";
+            await user.save();
+
+            res.setHeader('Content-Type', 'text/html');
+            return res.send(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Parent Verified - Future Education OS</title>
+                    <style>
+                        body { font-family: sans-serif; background-color: #030209; color: white; text-align: center; padding-top: 100px; }
+                        .card { background-color: #0c0c0e; border: 1px solid #6366f1; border-radius: 12px; max-width: 500px; margin: auto; padding: 40px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); }
+                        h1 { color: #6366f1; }
+                        p { color: #94a3b8; line-height: 1.6; }
+                    </style>
+                </head>
+                <body>
+                    <div class="card">
+                        <h1>Email Verified Successfully! ✅</h1>
+                        <p>Thank you. You have approved alerts for your child's progress. You will now receive automatic notifications for their test scores and homework submissions on Future Education OS.</p>
+                    </div>
+                </body>
+                </html>
+            `);
+        } catch (err: any) {
+            console.error('[Minerva Parent Verify Error]', err);
+            return res.status(500).send(`<h2>Verification failed: ${err.message}</h2>`);
+        }
+    },
+
+    // ──────────────────────────────────────────
+    // RESEND PARENT VERIFICATION EMAIL
+    // POST /api/minerva/parent/resend-verification
+    // ──────────────────────────────────────────
+    resendParentVerification: async (req: Request | any, res: Response) => {
+        try {
+            const userId = req.user?.id || req.user?._id;
+            const user = await User.findById(userId);
+
+            if (!user) return res.status(404).json({ success: false, error: 'User not found' });
+            if (!user.parentDetails?.parentEmail) {
+                return res.status(400).json({ success: false, error: 'No parent email configured.' });
+            }
+            if (user.parentDetails.parentEmailVerified) {
+                return res.status(400).json({ success: false, error: 'Parent email is already verified.' });
+            }
+
+            user.parentDetails.parentVerificationToken = crypto.randomBytes(32).toString('hex');
+            await user.save();
+
+            const domain = req.get('host') || 'localhost:7001';
+            const verificationLink = `${req.protocol}://${domain}/api/minerva/parent/verify?token=${user.parentDetails.parentVerificationToken}`;
+            await mailService.sendParentVerification(
+                user.parentDetails.parentEmail,
+                `${user.firstName} ${user.lastName}`,
+                verificationLink
+            );
+
+            return res.json({ success: true, message: 'Verification email resent successfully.' });
+        } catch (err: any) {
+            console.error('[Minerva Parent Resend Error]', err);
+            return res.status(500).json({ success: false, error: err.message });
+        }
+    },
 
     // ──────────────────────────────────────────
     // 1. MAIN CHAT — Student sends a message
@@ -805,6 +935,37 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                 }
             }
 
+            let xpGained = Math.round(gradingResult.score * 3);
+            let levelUp = false;
+            const user = await User.findById(userId);
+            if (user) {
+                user.xp = (user.xp || 0) + xpGained;
+                let nextLevelXp = (user.level || 1) * 1000;
+                if (user.xp >= nextLevelXp) {
+                    user.xp -= nextLevelXp;
+                    user.level = (user.level || 1) + 1;
+                    levelUp = true;
+                    user.badges.push({
+                        name: `Level ${user.level} Scholar`,
+                        icon: '🎓',
+                        unlockedAt: new Date()
+                    });
+                }
+                await user.save();
+            }
+
+            if (user && user.parentDetails?.parentEmail && user.parentDetails.parentEmailVerified) {
+                mailService.sendHomeworkAlert(
+                    user.parentDetails.parentEmail,
+                    `${user.firstName} ${user.lastName}`,
+                    {
+                        taskTitle: task.prompt || "Homework Task",
+                        passed: gradingResult.passed,
+                        feedback: gradingResult.feedback
+                    }
+                ).catch(err => console.error("Failed to send parent email alert:", err));
+            }
+
             return res.json({
                 success: true,
                 task: updatedTask,
@@ -812,6 +973,11 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                 feedback: gradingResult.feedback,
                 correction: gradingResult.correction,
                 passed: gradingResult.passed,
+                xpGained,
+                currentLevel: user ? user.level : 1,
+                currentXp: user ? user.xp : 0,
+                levelUp,
+                parentDetails: user ? user.parentDetails : null
             });
 
         } catch (err: any) {
@@ -1119,6 +1285,38 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
                 }
             });
 
+            let xpGained = percentage * 10;
+            let levelUp = false;
+            const user = await User.findById(userId);
+            if (user) {
+                user.xp = (user.xp || 0) + xpGained;
+                let nextLevelXp = (user.level || 1) * 1000;
+                if (user.xp >= nextLevelXp) {
+                    user.xp -= nextLevelXp;
+                    user.level = (user.level || 1) + 1;
+                    levelUp = true;
+                    user.badges.push({
+                        name: `Level ${user.level} Scholar`,
+                        icon: '🎓',
+                        unlockedAt: new Date()
+                    });
+                }
+                await user.save();
+            }
+
+            if (user && user.parentDetails?.parentEmail && user.parentDetails.parentEmailVerified) {
+                mailService.sendExamScorecard(
+                    user.parentDetails.parentEmail,
+                    `${user.firstName} ${user.lastName}`,
+                    {
+                        topic: exam.title || "Minerva Exam",
+                        score: percentage,
+                        feedback: ai_report,
+                        correction: ""
+                    }
+                ).catch(err => console.error("Failed to send parent exam scorecard email:", err));
+            }
+
             return res.json({
                 success: true,
                 exam: updatedExam,
@@ -1129,6 +1327,11 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
                 message: percentage >= 60
                     ? `🎉 Bahut accha! ${percentage}% score aaya. Grade: ${grade}`
                     : `📚 ${percentage}% aaya. Revision karo aur dobara try karo. Tu kar sakta hai!`,
+                xpGained,
+                currentLevel: user ? user.level : 1,
+                currentXp: user ? user.xp : 0,
+                levelUp,
+                parentDetails: user ? user.parentDetails : null
             });
 
         } catch (err: any) {
@@ -1603,6 +1806,33 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
                 video_id: null,
                 search_url: `https://www.youtube.com/results?search_query=${encodeURIComponent(req.query.query as string || '')}`,
             });
+        }
+    },
+
+    // ──────────────────────────────────────────
+    // EXECUTE PYTHON CODE
+    // POST /api/minerva/lab/execute-python
+    // ──────────────────────────────────────────
+    executePythonCode: async (req: Request | any, res: Response) => {
+        try {
+            const { code } = req.body;
+            if (!code) {
+                return res.status(400).json({ success: false, error: 'Code is required' });
+            }
+
+            const workerUrl = process.env.PYTHON_WORKER_URL || 'http://127.0.0.1:8000';
+            const nodeFetch = (await import('node-fetch')).default;
+            const response = await nodeFetch(`${workerUrl}/execute-python`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code })
+            });
+
+            const data: any = await response.json();
+            return res.json(data);
+        } catch (err: any) {
+            console.error('[Minerva Python Execution Bridge Error]', err);
+            return res.status(500).json({ success: false, error: 'Python Sandbox Worker is offline.' });
         }
     },
 };

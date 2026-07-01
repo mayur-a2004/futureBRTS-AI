@@ -51,6 +51,41 @@ PROJECTS_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "b
 os.makedirs(PROJECTS_ROOT, exist_ok=True)
 app.mount("/downloads", StaticFiles(directory=PROJECTS_ROOT), name="downloads")
 
+from pydantic import BaseModel
+import subprocess
+
+class CodeExecutionRequest(BaseModel):
+    code: str
+
+@app.post("/execute-python")
+async def execute_python(payload: CodeExecutionRequest):
+    try:
+        # Run code safely in a subprocess with a timeout of 3 seconds to prevent freezing
+        process = subprocess.run(
+            [sys.executable, "-c", payload.code],
+            capture_output=True,
+            text=True,
+            timeout=3
+        )
+        return {
+            "success": True,
+            "stdout": process.stdout,
+            "stderr": process.stderr,
+            "exit_code": process.returncode
+        }
+    except subprocess.TimeoutExpired:
+        return {
+            "success": True,
+            "stdout": "",
+            "stderr": "TimeLimitExpired: Execution exceeded maximum timeout of 3 seconds.",
+            "exit_code": -1
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
 @app.get("/")
 def read_root():
     return {"status": "online", "message": "FUTURE-BRTS TITAN LEGEND V7 Worker Active"}

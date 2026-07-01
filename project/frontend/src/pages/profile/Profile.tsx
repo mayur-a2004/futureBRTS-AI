@@ -12,9 +12,13 @@ export default function Profile() {
     const [stats, setStats] = useState<any>(null);
     const [projects, setProjects] = useState<any[]>([]);
 
+    const [resendingMail, setResendingMail] = useState(false);
+
     const [formData, setFormData] = useState({
         firstName: user?.firstName || '',
         lastName: user?.lastName || '',
+        parentEmail: user?.parentDetails?.parentEmail || '',
+        parentPhone: user?.parentDetails?.parentPhone || '',
         profile: {
             bio: user?.profile?.bio || '',
             location: user?.profile?.location || '',
@@ -29,6 +33,47 @@ export default function Profile() {
     });
 
     useEffect(() => {
+        setFormData({
+            firstName: user?.firstName || '',
+            lastName: user?.lastName || '',
+            parentEmail: user?.parentDetails?.parentEmail || '',
+            parentPhone: user?.parentDetails?.parentPhone || '',
+            profile: {
+                bio: user?.profile?.bio || '',
+                location: user?.profile?.location || '',
+                skills: user?.profile?.skills?.join(', ') || '',
+                socialLinks: {
+                    github: user?.profile?.socialLinks?.github || '',
+                    linkedin: user?.profile?.socialLinks?.linkedin || '',
+                    twitter: user?.profile?.socialLinks?.twitter || '',
+                    website: user?.profile?.socialLinks?.website || ''
+                }
+            }
+        });
+    }, [user]);
+
+    const handleResendParentVerification = async () => {
+        setResendingMail(true);
+        try {
+            const token = localStorage.getItem('fbrts_token');
+            const res = await fetch('/api/minerva/parent/resend-verification', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast.success("Verification email resent successfully! ✉️");
+            } else {
+                toast.error(data.error || "Failed to resend verification.");
+            }
+        } catch (e) {
+            toast.error("Error connecting to notification server.");
+        } finally {
+            setResendingMail(false);
+        }
+    };
+
+    useEffect(() => {
         const fetchProfileData = async () => {
             try {
                 const token = localStorage.getItem('fbrts_token');
@@ -41,7 +86,7 @@ export default function Profile() {
                 
                 const statsData = await statsRes.json();
                 const projData = await projRes.json();
-
+ 
                 if (statsData.success) setStats(statsData.stats);
                 if (projData.success) setProjects(projData.projects.slice(0, 4));
             } catch (e) {
@@ -50,10 +95,12 @@ export default function Profile() {
         };
         fetchProfileData();
     }, []);
-
+ 
     const handleSave = async () => {
         try {
             const token = localStorage.getItem('fbrts_token');
+            
+            // Save core profile
             const res = await fetch('/api/auth/update-profile', {
                 method: 'PUT',
                 headers: {
@@ -70,12 +117,30 @@ export default function Profile() {
                 })
             });
             const data = await res.json();
-            if (data.success) {
-                setUser(data.user);
+
+            // Save parent details
+            const parentRes = await fetch('/api/minerva/parent/details', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    parentEmail: formData.parentEmail,
+                    parentPhone: formData.parentPhone
+                })
+            });
+            const parentData = await parentRes.json();
+
+            if (data.success && parentData.success) {
+                setUser({
+                    ...data.user,
+                    parentDetails: parentData.parentDetails
+                });
                 setIsEditing(false);
-                toast.success("Identity Matrix Updated Successfully! 🚀");
+                toast.success("Identity Matrix & Parent Alerts Sync Successful! 🚀");
             } else {
-                toast.error(data.error || "Update Failed");
+                toast.error(data.error || parentData.error || "Update Failed");
             }
         } catch (e) {
             console.error(e);
@@ -253,6 +318,60 @@ export default function Profile() {
                             </div>
                         </div>
                     )}
+
+                    {/* Parent Alerts Card */}
+                    <div className="bg-black/40 backdrop-blur-3xl border border-white/5 p-8 rounded-[40px] shadow-3xl space-y-6">
+                        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-gray-500 border-b border-white/5 pb-4 italic">Parent Alerts 👨‍👩‍👦</h3>
+                        {isEditing ? (
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Parent Email</label>
+                                    <input
+                                        value={formData.parentEmail}
+                                        onChange={(e) => setFormData({ ...formData, parentEmail: e.target.value })}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none"
+                                        placeholder="parent@example.com"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Parent Phone (WhatsApp)</label>
+                                    <input
+                                        value={formData.parentPhone}
+                                        onChange={(e) => setFormData({ ...formData, parentPhone: e.target.value })}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none"
+                                        placeholder="e.g. 919876543210"
+                                    />
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="flex flex-col gap-1">
+                                    <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Parent Email</span>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm font-bold text-gray-300">{user?.parentDetails?.parentEmail || 'Not Configured'}</span>
+                                        {user?.parentDetails?.parentEmail && (
+                                            <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border ${user.parentDetails.parentEmailVerified ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
+                                                {user.parentDetails.parentEmailVerified ? 'Verified 🟢' : 'Pending Verification 🟡'}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {user?.parentDetails?.parentEmail && !user.parentDetails.parentEmailVerified && (
+                                        <button
+                                            onClick={handleResendParentVerification}
+                                            disabled={resendingMail}
+                                            className="text-[10px] text-indigo-400 hover:text-indigo-300 font-black uppercase text-left mt-2 underline"
+                                        >
+                                            {resendingMail ? 'Resending...' : 'Resend Verification Mail'}
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="flex flex-col gap-1 pt-4 border-t border-white/5">
+                                    <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Parent WhatsApp</span>
+                                    <span className="text-sm font-bold text-gray-300">{user?.parentDetails?.parentPhone || 'Not Configured'}</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Main Content - Activity & Showcase */}

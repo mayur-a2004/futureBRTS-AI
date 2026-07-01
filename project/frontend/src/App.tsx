@@ -48,6 +48,7 @@ const MinervaRoadmapsPage = lazy(() => import('./pages/minerva/MinervaRoadmapsPa
 const MinervaTasksPage = lazy(() => import('./pages/minerva/MinervaTasksPage'));
 const MinervaBuilderPage = lazy(() => import('./pages/minerva/MinervaBuilderPage'));
 const MinervaResultsPage = lazy(() => import('./pages/minerva/MinervaResultsPage'));
+const MinervaDashboardPage = lazy(() => import('./pages/minerva/MinervaDashboardPage'));
 
 // Admin Pages
 const AdminLayout = lazy(() => import('./components/layout/AdminLayout'));
@@ -265,6 +266,7 @@ function App() {
                                                             <Route path="future-education/roadmaps" element={<MinervaRoadmapsPage />} />
                                                             <Route path="future-education/tasks" element={<MinervaTasksPage />} />
                                                             <Route path="future-education/builder" element={<MinervaBuilderPage />} />
+                                                            <Route path="future-education/dashboard" element={<MinervaDashboardPage />} />
                                                             
                                                             {/* Redirect old path to new path recursively */}
                                                             <Route path="minerva" element={<Navigate to="/future-education" replace />} />
