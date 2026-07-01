@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import Session from './session.model';
 import User from '../auth/user.model';
 import { OnboardingProfile } from '../onboarding/onboarding.model';
-import { openaiService } from '../../shared/services/openai.service';
+import { openaiService, getProviderResponse } from '../../shared/services/openai.service';
 import Roadmap from '../roadmap/roadmap.model';
 import Task from '../roadmap/task.model';
 import { LandingIntent } from '../onboarding/landing.intent.model';
@@ -543,7 +543,7 @@ The Neural Engine has synthesized your end-to-end business ecosystem. All files 
                 attachments: assistantAttachments.length > 0 ? assistantAttachments : undefined
             });
 
-            if (session.title === 'New Chat' || session.title === 'Untitled' || !session.title) {
+            if (session.title === 'New Chat' || session.title === 'New Session' || session.title === 'Untitled' || !session.title) {
                 // Strict Rule: Extract first 15 words for the title directly from raw chat input
                 const rawText = req.body.content || "";
                 // Use simply splitting by space to preserve user's language (Hindi, emojis, etc.)
@@ -575,7 +575,7 @@ The Neural Engine has synthesized your end-to-end business ecosystem. All files 
 
     addMessageStream: async (req: Request | any, res: Response) => {
         try {
-            const { content, attachments } = req.body;
+            const { content, attachments, inputMode } = req.body;
             const sessionId = req.params.id;
             const userId = req.user.id;
 
@@ -849,6 +849,220 @@ Provide 15 complex technical questions and high-level enterprise answers.
 
             console.log(`[Builder Stream] Calling AI | Mode: ${aiMode} | Session: ${sessionId}`);
 
+            if (inputMode === 'Deep research') {
+                res.writeHead(200, {
+                    'Content-Type': 'text/event-stream',
+                    'Cache-Control': 'no-cache',
+                    'Connection': 'keep-alive',
+                });
+
+                const urlRegex = /(https?:\/\/[^\s]+)/gi;
+                const urls = content.match(urlRegex);
+
+                let accumulatedScrapedContext = "";
+
+                if (urls && urls.length > 0) {
+                    for (const rawUrl of urls) {
+                        const url = rawUrl.trim();
+                        if (url.toLowerCase().includes("futurebrts.com")) {
+                            res.write(`data: ${JSON.stringify({ type: 'think', token: `[SCRAPING]: Skipping restricted URL: ${url}\n` })}\n\n`);
+                            continue;
+                        }
+
+                        res.write(`data: ${JSON.stringify({ type: 'think', token: `[SCRAPING]: Scanning page: ${url}\n` })}\n\n`);
+                        
+                        try {
+                            const workerUrl = process.env.PYTHON_WORKER_URL || 'http://127.0.0.1:8000';
+                            const workerRes = await axios.post(`${workerUrl}/scrape-leads`, { url });
+                            
+                            if (workerRes.data && workerRes.data.status === 'success') {
+                                const data = workerRes.data;
+                                res.write(`data: ${JSON.stringify({ type: 'think', token: `[READING]: Extracting contact leads & metadata...\n` })}\n\n`);
+                                
+                                const leads = data.leads || {};
+                                let leadsText = `\n\n--- SCRAPED LEADS FOR ${url} ---\n`;
+                                leadsText += `Title: ${data.title}\n`;
+                                leadsText += `Description: ${data.description}\n`;
+                                leadsText += `Emails Found: ${leads.emails?.length > 0 ? leads.emails.join(', ') : 'None'}\n`;
+                                leadsText += `Phones Found: ${leads.phones?.length > 0 ? leads.phones.join(', ') : 'None'}\n`;
+                                leadsText += `Socials Found: ${leads.socials?.length > 0 ? leads.socials.join(', ') : 'None'}\n`;
+                                leadsText += `Text Preview: ${data.text_preview?.substring(0, 1000)}\n`;
+                                leadsText += `------------------------------------\n`;
+                                
+                                accumulatedScrapedContext += leadsText;
+                            } else {
+                                res.write(`data: ${JSON.stringify({ type: 'think', token: `[READING]: Failed to scrape ${url}: ${workerRes.data?.message || 'Unknown error'}\n` })}\n\n`);
+                            }
+                        } catch (err: any) {
+                            res.write(`data: ${JSON.stringify({ type: 'think', token: `[READING]: Failed to contact scraper worker: ${err.message}\n` })}\n\n`);
+                        }
+                    }
+                } else {
+                    res.write(`data: ${JSON.stringify({ type: 'think', token: `[ANALYZING]: Generating research queries...\n` })}\n\n`);
+                    
+                    let queries: string[] = [content];
+                    try {
+                        const fastAnalysisPrompt = [
+                            { role: 'system', content: 'You are a research query generator. Based on the user prompt, generate 2 to 3 distinct search engine queries. Return ONLY a JSON array of strings: ["query1", "query2", ...]' },
+                            { role: 'user', content: content }
+                        ];
+                        const analysisRes = await getProviderResponse(fastAnalysisPrompt, { jsonMode: true, maxTokens: 100 }, 'groq');
+                        const cleanJson = String(analysisRes?.choices?.[0]?.message?.content || analysisRes?.message || analysisRes?.output || "").trim();
+                        const parsed = JSON.parse(cleanJson);
+                        if (Array.isArray(parsed)) {
+                            queries = parsed.slice(0, 3);
+                        }
+                    } catch (err) {
+                        // ignore and use fallback
+                    }
+
+                    const targetUrlsToScrape: string[] = [];
+
+                    for (const query of queries) {
+                        res.write(`data: ${JSON.stringify({ type: 'think', token: `[SEARCH]: Searching the web for: "${query}"\n` })}\n\n`);
+                        try {
+                            const workerUrl = process.env.PYTHON_WORKER_URL || 'http://127.0.0.1:8000';
+                            const workerRes = await axios.post(`${workerUrl}/search`, { query, max_results: 3 });
+                            
+                            if (workerRes.data && workerRes.data.status === 'success' && Array.isArray(workerRes.data.results)) {
+                                res.write(`data: ${JSON.stringify({ type: 'think', token: `[READING]: Found results for: "${query}"\n` })}\n\n`);
+                                const snippets = workerRes.data.results.map((r: any) => `- Source: ${r.href}\n  Title: ${r.title}\n  Snippet: ${r.body}`).join('\n\n');
+                                accumulatedScrapedContext += `\n\n--- SEARCH RESULTS FOR "${query}" ---\n${snippets}\n--------------------------------------\n`;
+                                
+                                // Collect top 2 URLs from this query
+                                const queryUrls = workerRes.data.results
+                                    .map((r: any) => r.href)
+                                    .filter((href: string) => href && href.startsWith('http') && !href.toLowerCase().includes('futurebrts.com'));
+                                
+                                for (const href of queryUrls.slice(0, 2)) {
+                                    if (!targetUrlsToScrape.includes(href)) {
+                                        targetUrlsToScrape.push(href);
+                                    }
+                                }
+                            } else {
+                                res.write(`data: ${JSON.stringify({ type: 'think', token: `[READING]: No results found for: "${query}"\n` })}\n\n`);
+                            }
+                        } catch (err: any) {
+                            res.write(`data: ${JSON.stringify({ type: 'think', token: `[READING]: Search execution failed for "${query}": ${err.message}\n` })}\n\n`);
+                        }
+                    }
+
+                    // Scrape the collected URLs in detail!
+                    if (targetUrlsToScrape.length > 0) {
+                        const urlsToProcess = targetUrlsToScrape.slice(0, 4);
+                        res.write(`data: ${JSON.stringify({ type: 'think', token: `[ANALYZING]: Found ${urlsToProcess.length} websites to crawl. Starting deep scraper loop...\n` })}\n\n`);
+                        
+                        for (const url of urlsToProcess) {
+                            res.write(`data: ${JSON.stringify({ type: 'think', token: `[SCRAPING]: Scanning page: ${url}\n` })}\n\n`);
+                            try {
+                                const workerUrl = process.env.PYTHON_WORKER_URL || 'http://127.0.0.1:8000';
+                                const workerRes = await axios.post(`${workerUrl}/scrape-leads`, { url });
+                                
+                                if (workerRes.data && workerRes.data.status === 'success') {
+                                    const data = workerRes.data;
+                                    res.write(`data: ${JSON.stringify({ type: 'think', token: `[READING]: Extracted leads & text content from: ${url}\n` })}\n\n`);
+                                    
+                                    const leads = data.leads || {};
+                                    let leadsText = `\n\n--- DETAILED SCRAPED CONTENT FOR ${url} ---\n`;
+                                    leadsText += `Title: ${data.title}\n`;
+                                    leadsText += `Description: ${data.description}\n`;
+                                    leadsText += `Emails Found: ${leads.emails?.length > 0 ? leads.emails.join(', ') : 'None'}\n`;
+                                    leadsText += `Phones Found: ${leads.phones?.length > 0 ? leads.phones.join(', ') : 'None'}\n`;
+                                    leadsText += `Socials Found: ${leads.socials?.length > 0 ? leads.socials.join(', ') : 'None'}\n`;
+                                    leadsText += `Text Content Preview:\n${data.text_preview?.substring(0, 1500)}\n`;
+                                    leadsText += `------------------------------------\n`;
+                                    
+                                    accumulatedScrapedContext += leadsText;
+                                } else {
+                                    res.write(`data: ${JSON.stringify({ type: 'think', token: `[READING]: Failed to scrape ${url}: ${workerRes.data?.message || 'Unknown error'}\n` })}\n\n`);
+                                }
+                            } catch (err: any) {
+                                res.write(`data: ${JSON.stringify({ type: 'think', token: `[READING]: Scrape failed for ${url}: ${err.message}\n` })}\n\n`);
+                            }
+                        }
+                    }
+                }
+
+                res.write(`data: ${JSON.stringify({ type: 'think', token: `[ANALYZING]: Synthesizing intelligence report...\n` })}\n\n`);
+
+                const researchContextPrompt = `
+[DEEP RESEARCH RAW INTELLIGENCE DATA]
+${accumulatedScrapedContext || "No search results returned."}
+
+--------------------------------------------------
+USER QUESTION: ${content}
+--------------------------------------------------
+INSTRUCTIONS:
+1. Synthesize a premium intelligence report using the [DEEP RESEARCH RAW INTELLIGENCE DATA] above.
+2. Present any extracted leads (emails, phones, social links) in a beautifully formatted table.
+3. Be highly factual and detailed. Quote sources and links where possible.
+`;
+
+                const aiText = await openaiService.generateResponseStream(
+                    { title: session.title, lastMsg: content },
+                    researchContextPrompt,
+                    (chunk) => {
+                        res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+                    },
+                    { mode: aiMode, sessionState, userContext },
+                    session.messages.slice(0, -1)
+                );
+
+                let cleanedAiText = aiText;
+                let summary = "";
+                let suggestions: string[] = [];
+                const summaryMatch = (aiText || "").match(/\[SUMMARY\]:\s*([\s\S]*?)(?=\[|\|\|SUGGESTIONS_JSON\|\||$)/i);
+                if (summaryMatch) {
+                    summary = summaryMatch[1].trim();
+                    cleanedAiText = cleanedAiText.replace(summaryMatch[0], "").trim();
+                }
+
+                const jsonSuggestionsMatch = (aiText || "").match(/\|\|SUGGESTIONS_JSON\|\|\s*(\[.*\])/i);
+                if (jsonSuggestionsMatch) {
+                    try {
+                        suggestions = JSON.parse(jsonSuggestionsMatch[1]);
+                        cleanedAiText = cleanedAiText.replace(jsonSuggestionsMatch[0], "").trim();
+                    } catch (e) {
+                        console.error("Failed to parse Suggestions JSON", e);
+                    }
+                }
+
+                (session.messages as any).push({
+                    id: crypto.randomUUID(),
+                    role: 'assistant',
+                    content: cleanedAiText,
+                    timestamp: new Date(),
+                    summary: summary || undefined,
+                    suggestions: suggestions.length > 0 ? suggestions : undefined
+                });
+
+                if (session.title === 'New Chat' || session.title === 'New Session' || session.title === 'Untitled' || !session.title) {
+                    const words = content.trim().split(/\s+/).filter(Boolean);
+                    let newTitle = words.slice(0, 15).join(' ');
+                    if (words.length > 15) newTitle += '...';
+                    if (newTitle) {
+                        session.title = newTitle;
+                    }
+                }
+
+                session.updatedAt = new Date();
+                await session.save();
+
+                const updatedUser = await User.findById(userId).select('tokenBalance');
+
+                res.write(`data: ${JSON.stringify({
+                    type: 'metadata',
+                    data: {
+                        messages: session.messages,
+                        title: session.title,
+                        tokenBalance: updatedUser?.tokenBalance
+                    }
+                })}\n\n`);
+
+                res.write(`data: [DONE]\n\n`);
+                return;
+            }
+
             // Set headers for Event-Stream
             res.writeHead(200, {
                 'Content-Type': 'text/event-stream',
@@ -1020,7 +1234,7 @@ The Neural Engine has synthesized your end-to-end business ecosystem. All files 
                 attachments: assistantAttachments.length > 0 ? assistantAttachments : undefined
             });
 
-            if (session.title === 'New Chat' || session.title === 'Untitled' || !session.title) {
+            if (session.title === 'New Chat' || session.title === 'New Session' || session.title === 'Untitled' || !session.title) {
                 const rawText = req.body.content || "";
                 const words = rawText.trim().split(/\s+/).filter(Boolean);
                 let newTitle = words.slice(0, 15).join(' ');

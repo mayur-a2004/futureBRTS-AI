@@ -1519,4 +1519,90 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
             return res.status(500).json({ success: false, error: err.message });
         }
     },
+
+    // ─── VIRTUAL LAB: YouTube Video Search ──────────────────────────────────
+    labYoutubeSearch: async (req: Request, res: Response) => {
+        try {
+            const { query } = req.query as { query: string };
+            if (!query) {
+                return res.status(400).json({ success: false, error: 'query is required' });
+            }
+
+            const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
+
+            if (YOUTUBE_API_KEY) {
+                // Real YouTube Data API v3 search
+                const apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&videoCategoryId=27&safeSearch=strict&maxResults=5&key=${YOUTUBE_API_KEY}`;
+                
+                const fetch = (await import('node-fetch')).default;
+                const apiRes = await fetch(apiUrl);
+                const data: any = await apiRes.json();
+
+                if (data?.items?.length > 0) {
+                    // Educational channel whitelist (prefer these channels)
+                    const whitelistedChannels = [
+                        'UCmqnHMrHaH4Zx7e1wIMbRgA', // NCERT Official
+                        'UCVcrMeNyQbr0RcKFjPqbqNw', // Khan Academy Hindi
+                        'UCiKHcNmFU3Vpp7TR4Ig_JrA', // Physics Wallah
+                        'UCzH2qCEPGTMJT9qFdQDGrMQ', // Vedantu
+                        'UCoQBfH4pK8KVMG1Iw5mWbRg', // Unacademy
+                    ];
+                    
+                    // Prefer whitelisted channels, fallback to first result
+                    let bestVideo = data.items.find((item: any) => 
+                        whitelistedChannels.includes(item.snippet?.channelId)
+                    ) || data.items[0];
+
+                    return res.json({
+                        success: true,
+                        video_id: bestVideo?.id?.videoId,
+                        title: bestVideo?.snippet?.title,
+                        channel: bestVideo?.snippet?.channelTitle,
+                        thumbnail: bestVideo?.snippet?.thumbnails?.high?.url,
+                    });
+                }
+            }
+
+            // Fallback: Scrape YouTube search page HTML to extract the first video ID
+            try {
+                const fetch = (await import('node-fetch')).default;
+                const searchPageUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+                const response = await fetch(searchPageUrl, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
+                        'Accept-Language': 'en-US,en;q=0.9'
+                    }
+                });
+                const html = await response.text();
+                const matches = html.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
+                if (matches && matches[1]) {
+                    const firstVideoId = matches[1];
+                    return res.json({
+                        success: true,
+                        video_id: firstVideoId,
+                        title: query,
+                        channel: 'YouTube Video',
+                        thumbnail: `https://img.youtube.com/vi/${firstVideoId}/hqdefault.jpg`,
+                    });
+                }
+            } catch (scrapeErr) {
+                console.error('[YouTube Scrape Fallback Error]', scrapeErr);
+            }
+
+            return res.json({
+                success: true,
+                video_id: null,
+                search_url: `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`,
+                message: 'YouTube API key not configured and scrape fallback failed',
+            });
+
+        } catch (err: any) {
+            console.error('[Minerva Lab YouTube Search Error]', err);
+            return res.json({
+                success: true,
+                video_id: null,
+                search_url: `https://www.youtube.com/results?search_query=${encodeURIComponent(req.query.query as string || '')}`,
+            });
+        }
+    },
 };

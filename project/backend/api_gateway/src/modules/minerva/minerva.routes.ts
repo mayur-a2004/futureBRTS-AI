@@ -72,4 +72,8 @@ router.post('/exam/generate', authMiddleware, minervaController.generateExam);
 router.get('/exam/:id', authMiddleware, minervaController.getExam);
 router.post('/exam/:id/submit', authMiddleware, minervaController.submitExam);
 
+// ─── VIRTUAL LAB ────────────────────────────────
+router.get('/lab/youtube-search', authMiddleware, minervaController.labYoutubeSearch);
+
 export default router;
+

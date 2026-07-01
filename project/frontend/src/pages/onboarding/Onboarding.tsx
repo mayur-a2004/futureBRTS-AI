@@ -120,7 +120,7 @@ export default function Onboarding() {
 }
 
 function OnboardingWizard() {
-    const { completeOnboardingState } = useAuth();
+    const { completeOnboardingState, logout } = useAuth();
     const navigate = useNavigate();
 
     // State
@@ -184,7 +184,7 @@ function OnboardingWizard() {
                 await onboardingApi.saveStep(summary as any, token);
 
                 // 2. Complete Onboarding
-                await onboardingApi.complete(token);
+                await onboardingApi.complete(summary, token);
 
                 // 3. Create FIRST Session (With Context)
                 // This violates the "Empty Start" rule BUT fulfills the "Onboarding Handoff" rule which takes precedence for the very first interaction.
@@ -246,7 +246,18 @@ function OnboardingWizard() {
                     <span className="text-[9px] md:text-[10px] font-black tracking-[0.2em] text-indigo-400 uppercase">
                         Question {stepIndex + 1} of {questions.length}
                     </span>
-                    <span className="text-[10px] md:text-xs font-bold text-gray-500">{progress}%</span>
+                    <div className="flex items-center gap-3">
+                        <span className="text-[10px] md:text-xs font-bold text-gray-500">{progress}%</span>
+                        <button
+                            onClick={() => {
+                                logout();
+                                navigate('/auth/login', { replace: true });
+                            }}
+                            className="text-[9px] md:text-[10px] font-black tracking-[0.1em] text-red-500 hover:text-red-400 uppercase ml-2 cursor-pointer transition-all bg-transparent border-none outline-none"
+                        >
+                            Logout
+                        </button>
+                    </div>
                 </div>
                 <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
                     <div

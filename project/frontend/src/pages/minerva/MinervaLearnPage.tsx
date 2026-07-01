@@ -98,13 +98,17 @@ const MinervaLearnPage: React.FC = () => {
 
     // Speech Synthesis (TTS) States
     const [isSpeaking, setIsSpeaking] = useState(false);
+    const [isMuted, setIsMuted] = useState<boolean>(() => {
+        return localStorage.getItem('minerva_tts_muted') === 'true';
+    });
     const speechUtteranceRef = React.useRef<SpeechSynthesisUtterance | null>(null);
 
     const speakText = (text: string) => {
         if (!window.speechSynthesis) return;
         window.speechSynthesis.cancel(); // Stop any active speech
 
-        if (!text) return;
+        if (isMuted || !text) return;
+
         // Clean markdown symbols
         const cleanText = text.replace(/[*#_`~]/g, '').trim();
 
@@ -113,17 +117,40 @@ const MinervaLearnPage: React.FC = () => {
         // Find a natural voice matching selectedLanguage
         const voices = window.speechSynthesis.getVoices();
         let langCode = 'en';
-        if (selectedLanguage === 'hindi' || selectedLanguage === 'hinglish') langCode = 'hi';
-        else if (selectedLanguage === 'marathi') langCode = 'mr';
-        else if (selectedLanguage === 'gujarati') langCode = 'gu';
-        else if (selectedLanguage === 'spanish') langCode = 'es';
-        else if (selectedLanguage === 'bengali') langCode = 'bn';
-        else if (selectedLanguage === 'tamil') langCode = 'ta';
-        else if (selectedLanguage === 'telugu') langCode = 'te';
-        else if (selectedLanguage === 'kannada') langCode = 'kn';
-        else if (selectedLanguage === 'punjabi') langCode = 'pa';
+        let fullLangTag = 'en-US';
+        if (selectedLanguage === 'hindi' || selectedLanguage === 'hinglish') {
+            langCode = 'hi';
+            fullLangTag = 'hi-IN';
+        } else if (selectedLanguage === 'marathi') {
+            langCode = 'mr';
+            fullLangTag = 'mr-IN';
+        } else if (selectedLanguage === 'gujarati') {
+            langCode = 'gu';
+            fullLangTag = 'gu-IN';
+        } else if (selectedLanguage === 'spanish') {
+            langCode = 'es';
+            fullLangTag = 'es-ES';
+        } else if (selectedLanguage === 'bengali') {
+            langCode = 'bn';
+            fullLangTag = 'bn-IN';
+        } else if (selectedLanguage === 'tamil') {
+            langCode = 'ta';
+            fullLangTag = 'ta-IN';
+        } else if (selectedLanguage === 'telugu') {
+            langCode = 'te';
+            fullLangTag = 'te-IN';
+        } else if (selectedLanguage === 'kannada') {
+            langCode = 'kn';
+            fullLangTag = 'kn-IN';
+        } else if (selectedLanguage === 'punjabi') {
+            langCode = 'pa';
+            fullLangTag = 'pa-IN';
+        }
+
+        utterance.lang = fullLangTag;
 
         const preferredVoice = voices.find(v => v.lang.toLowerCase().includes(langCode)) || 
+                               voices.find(v => v.lang.toLowerCase().includes(fullLangTag.toLowerCase())) || 
                                voices.find(v => v.lang.includes('hi') || v.lang.includes('IN')) || 
                                voices.find(v => v.lang.includes('en'));
 
@@ -156,8 +183,14 @@ const MinervaLearnPage: React.FC = () => {
     const toggleSpeech = () => {
         if (isSpeaking) {
             stopSpeech();
+            setIsMuted(true);
+            localStorage.setItem('minerva_tts_muted', 'true');
         } else {
-            speakText(getDisplayText());
+            setIsMuted(false);
+            localStorage.setItem('minerva_tts_muted', 'false');
+            setTimeout(() => {
+                speakText(getDisplayText());
+            }, 50);
         }
     };
 
@@ -173,26 +206,17 @@ const MinervaLearnPage: React.FC = () => {
         }
     }, [view, selectedLanguage, node]);
 
-    // Auto-stop speech when view changes, and auto-read in Viva room
+    // Unified voice reproduction and mute effect
     useEffect(() => {
-        stopSpeech();
-        if (view === 'viva') {
+        if (!isMuted && node && !translating) {
             const timer = setTimeout(() => {
                 speakText(getDisplayText());
-            }, 150);
+            }, 600);
             return () => clearTimeout(timer);
+        } else {
+            stopSpeech();
         }
-    }, [view]);
-
-    // Auto-read Viva Question when it changes or translation finishes
-    useEffect(() => {
-        if (view === 'viva' && !translating) {
-            const timer = setTimeout(() => {
-                speakText(getDisplayText());
-            }, 150);
-            return () => clearTimeout(timer);
-        }
-    }, [vivaQuestion, translating]);
+    }, [view, node, isMuted, translating, vivaQuestion]);
 
     // Clean up speech on unmount
     useEffect(() => {
@@ -362,7 +386,13 @@ const MinervaLearnPage: React.FC = () => {
                             </div>
                             <div className="flex items-center gap-2">
                                 <button
-                                    onClick={() => speakText(getDisplayText())}
+                                    onClick={() => {
+                                        setIsMuted(false);
+                                        localStorage.setItem('minerva_tts_muted', 'false');
+                                        setTimeout(() => {
+                                            speakText(getDisplayText());
+                                        }, 50);
+                                    }}
                                     className="p-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-gray-400 hover:text-white transition-all flex items-center justify-center"
                                     title="Replay AI Teacher Question"
                                 >

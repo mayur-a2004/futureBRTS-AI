@@ -29,7 +29,14 @@ export default function Layout() {
     const [systemTime, setSystemTime] = useState(new Date().toLocaleTimeString());
 
     const isFutureEd = location.pathname.startsWith('/future-education');
+    const isMinervaMain = location.pathname === '/future-education' || location.pathname === '/future-education/';
     const isFullHeight = ['/builder', '/roadmap', '/today-task'].includes(location.pathname) || isFutureEd;
+
+    useEffect(() => {
+        const handleToggle = () => setIsMobileMenuOpen(prev => !prev);
+        window.addEventListener('toggle-mobile-menu', handleToggle);
+        return () => window.removeEventListener('toggle-mobile-menu', handleToggle);
+    }, []);
 
     const queryParams = new URLSearchParams(location.search);
     const currentSessionId = queryParams.get('sessionId') || localStorage.getItem('fbrts_active_session') || "";
@@ -370,26 +377,28 @@ export default function Layout() {
 
 
             {/* Mobile Header */}
-            <div className="md:hidden fixed top-0 left-0 right-0 h-14 border-b border-white/5 bg-black/20 backdrop-blur-xl z-40 flex items-center px-4">
-                <button onClick={toggleMobileMenu} className="p-2 text-gray-400 hover:text-white transition-colors">
-                    <Menu size={24} />
-                </button>
-                <div className="ml-3 flex items-center justify-between flex-1">
-                    <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded bg-indigo-600 flex items-center justify-center font-black text-[10px]">{isFutureEd ? "FE" : "FB"}</div>
-                        <span className="text-sm font-black tracking-widest uppercase">{isFutureEd ? "Future Ed" : "FutureBRTS"}</span>
-                    </div>
-
-                    {/* New Chat Button - Mobile/Tablet Only */}
-                    <button
-                        onClick={handleCreateSession}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 active:bg-indigo-700 text-white rounded-lg shadow-lg shadow-indigo-900/20 border border-indigo-400/20 transition-all"
-                    >
-                        <span className="text-lg leading-none mb-0.5">+</span>
-                        <span className="text-xs font-bold tracking-wide">{isFutureEd ? "New Chat" : "New Mission"}</span>
+            {!isMinervaMain && (
+                <div className="md:hidden fixed top-0 left-0 right-0 h-14 border-b border-white/5 bg-black/20 backdrop-blur-xl z-40 flex items-center px-4">
+                    <button onClick={toggleMobileMenu} className="p-2 text-gray-400 hover:text-white transition-colors">
+                        <Menu size={24} />
                     </button>
+                    <div className="ml-3 flex items-center justify-between flex-1">
+                        <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded bg-indigo-600 flex items-center justify-center font-black text-[10px]">{isFutureEd ? "FE" : "FB"}</div>
+                            <span className="text-sm font-black tracking-widest uppercase">{isFutureEd ? "Future Ed" : "FutureBRTS"}</span>
+                        </div>
+
+                        {/* New Chat Button - Mobile/Tablet Only */}
+                        <button
+                            onClick={handleCreateSession}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 active:bg-indigo-700 text-white rounded-lg shadow-lg shadow-indigo-900/20 border border-indigo-400/20 transition-all"
+                        >
+                            <span className="text-lg leading-none mb-0.5">+</span>
+                            <span className="text-xs font-bold tracking-wide">{isFutureEd ? "New Chat" : "New Mission"}</span>
+                        </button>
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Overlay */}
             {isMobileMenuOpen && (
@@ -687,8 +696,8 @@ export default function Layout() {
             </aside >
 
             <main className={`flex-1 min-w-0 ${isFullHeight ? 'overflow-hidden pb-0' : 'overflow-y-auto pb-16'} relative w-full md:pb-0`}>
-                <div className={`relative ${isFullHeight ? 'h-full' : 'min-h-full'} flex flex-col ${isFullHeight ? 'pt-14 md:pt-0 px-0 pb-0' : 'p-4 md:p-8 pt-20 md:pt-8 pb-20 md:pb-8'} w-full max-w-full overflow-x-hidden`}>
-                    <div className={`flex-1 flex flex-col ${isFutureEd && (location.pathname !== '/future-education' && location.pathname !== '/future-education/') ? 'overflow-y-auto' : 'overflow-hidden'} min-w-0 min-h-0`}>
+                <div className={`relative ${isFullHeight ? 'h-full' : 'min-h-full'} flex flex-col ${isFullHeight ? (isMinervaMain ? 'pt-0 px-0 pb-0' : 'pt-14 md:pt-0 px-0 pb-0') : 'p-4 md:p-8 pt-20 md:pt-8 pb-20 md:pb-8'} w-full max-w-full overflow-x-hidden`}>
+                    <div className={`flex-1 flex flex-col ${isFutureEd && !isMinervaMain ? 'overflow-y-auto' : 'overflow-hidden'} min-w-0 min-h-0`}>
                         <Outlet />
                     </div>
                 </div>

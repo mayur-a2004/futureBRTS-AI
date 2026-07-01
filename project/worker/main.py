@@ -296,6 +296,100 @@ async def _run_build_project(payload: dict):
     }
 
 
+@app.post("/search")
+async def web_search(payload: dict):
+    from duckduckgo_search import DDGS
+    query = payload.get("query", "").strip()
+    max_results = payload.get("max_results", 5)
+    if not query:
+        return {"status": "success", "results": []}
+    try:
+        with DDGS() as ddgs:
+            results = list(ddgs.text(query, max_results=max_results))
+            if not results:
+                words = query.lower().split()
+                fillers = {"what", "is", "the", "a", "an", "and", "their", "contact", "emails", "email", "phone", "number", "numbers", "find", "me", "show", "please", "latest", "of", "in", "to", "for", "on"}
+                cleaned = [w for w in words if w not in fillers]
+                if cleaned and len(cleaned) < len(words):
+                    clean_q = " ".join(cleaned)
+                    results = list(ddgs.text(clean_q, max_results=max_results))
+            return {"status": "success", "results": results}
+    except Exception as e:
+        console.print(f"[red]Search Error: {e}[/red]")
+        return {"status": "error", "message": str(e)}
+
+
+@app.post("/scrape-leads")
+async def scrape_leads(payload: dict):
+    import re
+    from bs4 import BeautifulSoup
+    import requests
+    from core.veil import veil
+
+    url = payload.get("url")
+    if not url:
+        return {"status": "error", "message": "No URL provided"}
+
+    # Safety Check: Exclude futurebrts.com
+    if "futurebrts.com" in url.lower():
+        return {"status": "error", "message": "Scraping futurebrts.com is restricted."}
+
+    try:
+        try:
+            headers = veil.anonymize_request(url)
+        except Exception:
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+
+        resp = requests.get(url, timeout=10, headers=headers)
+        if resp.status_code != 200:
+            return {"status": "error", "message": f"HTTP Error {resp.status_code}"}
+
+        soup = BeautifulSoup(resp.text, 'lxml')
+        html_content = resp.text
+
+        # 1. Extract Emails
+        email_pattern = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'
+        emails = list(set(re.findall(email_pattern, html_content)))
+        emails = [email for email in emails if not email.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'))]
+
+        # 2. Extract Phone Numbers
+        phone_pattern = r'(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}'
+        phones = list(set(re.findall(phone_pattern, html_content)))
+
+        # 3. Extract Social Links
+        socials = []
+        for link in soup.find_all('a', href=True):
+            href = link['href'].lower()
+            if any(platform in href for platform in ['linkedin.com', 'instagram.com', 'twitter.com', 'facebook.com', 'youtube.com', 'github.com']):
+                socials.append(link['href'])
+        socials = list(set(socials))
+
+        # 4. General Info
+        title = soup.title.string.strip() if soup.title else url
+        meta_desc_tag = soup.find('meta', attrs={'name': 'description'})
+        description = meta_desc_tag['content'].strip() if meta_desc_tag and meta_desc_tag.get('content') else ""
+
+        # Extract text preview
+        for script in soup(["script", "style", "nav", "footer"]):
+            script.extract()
+        text = " ".join(soup.get_text().split())[:2000]
+
+        return {
+            "status": "success",
+            "title": title,
+            "description": description,
+            "leads": {
+                "emails": emails,
+                "phones": phones,
+                "socials": socials
+            },
+            "text_preview": text
+        }
+    except Exception as e:
+        console.print(f"[red]Scrape Error: {e}[/red]")
+        return {"status": "error", "message": str(e)}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

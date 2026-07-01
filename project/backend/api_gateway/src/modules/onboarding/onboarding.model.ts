@@ -36,11 +36,11 @@ const OnboardingProfileSchema = new Schema({
     languagePreference: { type: String, default: 'Hinglish' },
 
     // completed: { type: Boolean, default: false },
-    field: { type: String, required: true },       // school | graduation | pg | job | business
+    field: { type: String },       // school | graduation | pg | job | business
     final_goal: { type: String },                    // BCA, BBA, Science
     future_interest: { type: String },                   // Final Year, etc.
-    life_stage: { type: String, required: true },           // The main objective
-    phase: { type: String, required: true },     // Time, Money, etc.
+    life_stage: { type: String },           // The main objective
+    phase: { type: String },     // Time, Money, etc.
     problem: { type: String, default: 'Hinglish' },
     project_level: { type: String },
     target_outcome: { type: String },

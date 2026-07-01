@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { User, Copy, RotateCw, ThumbsUp, ThumbsDown, Check, Download, FileText, ExternalLink, Sparkles, Edit2, Search, Rocket, Brain } from 'lucide-react';
+import { User, Copy, RotateCw, ThumbsUp, ThumbsDown, Check, Download, FileText, ExternalLink, Sparkles, Edit2, Search, Rocket, Brain, BookOpen, Cpu, Settings, Loader2, Globe } from 'lucide-react';
 import remarkGfm from 'remark-gfm';
 import { motion } from "framer-motion";
 
@@ -148,6 +148,18 @@ export const MessageBubble = React.memo(({
 
     const [isThinkCollapsed, setIsThinkCollapsed] = useState(!isCurrentlyThinking);
 
+    const seriousKeywords = [
+        'error', 'fail', 'critical', 'security', 'severe', 'unauthorized',
+        'database', 'mongodb', 'sql', 'auth', 'danger', 'warning', 'alert',
+        'vulnerability', 'crash', 'corrupt', 'fatal', 'important', 'serious',
+        'leak', 'exploit', 'breach', 'incident', 'compromise'
+    ];
+    const hasSeriousContent = (text: string) => {
+        const lower = text.toLowerCase();
+        return seriousKeywords.some(kw => lower.includes(kw));
+    };
+    const shouldShowThinking = isCurrentlyThinking || (displayThinking.trim() !== "" && hasSeriousContent(displayThinking));
+
     // Synchronize collapse state with live thinking progress
     React.useEffect(() => {
         if (isCurrentlyThinking) {
@@ -257,7 +269,7 @@ export const MessageBubble = React.memo(({
                     ) : (
                         <>
                             {/* 🧠 Thinking Process Panel */}
-                            {displayThinking && (
+                            {shouldShowThinking && displayThinking && (
                                 <div className="mb-6 rounded-2xl border border-white/5 bg-[#18181b]/35 backdrop-blur-md overflow-hidden shadow-lg transition-all duration-300">
                                     <div 
                                         onClick={() => setIsThinkCollapsed(!isThinkCollapsed)}
@@ -284,11 +296,92 @@ export const MessageBubble = React.memo(({
                                     </div>
 
                                     {!isThinkCollapsed && (
-                                        <div className="p-5 text-xs text-gray-400/90 font-mono whitespace-pre-wrap leading-relaxed bg-[#0b0b0d]/50 max-h-[250px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                                            {displayThinking}
-                                            {isCurrentlyThinking && (
-                                                <span className="inline-block w-1.5 h-3.5 bg-indigo-400 animate-pulse ml-0.5" />
-                                            )}
+                                        <div className="p-5 text-xs text-gray-400/90 leading-relaxed bg-[#0b0b0d]/50 max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                                            {(() => {
+                                                const hasTags = ['[SEARCH]:', '[SCRAPING]:', '[READING]:', '[ANALYZING]:', '[DECISION]:'].some(tag => displayThinking.includes(tag));
+                                                if (hasTags) {
+                                                    const lines = displayThinking.split('\n').filter(Boolean);
+                                                    const steps: { type: string, text: string, status: 'completed' | 'active' }[] = [];
+                                                    
+                                                    lines.forEach((line) => {
+                                                        const trimmed = line.trim();
+                                                        if (!trimmed) return;
+                                                        
+                                                        let type = 'think';
+                                                        let text = trimmed;
+                                                        
+                                                        if (trimmed.startsWith('[SEARCH]:')) {
+                                                            type = 'search';
+                                                            text = trimmed.replace('[SEARCH]:', '').trim();
+                                                        } else if (trimmed.startsWith('[SCRAPING]:')) {
+                                                            type = 'scrape';
+                                                            text = trimmed.replace('[SCRAPING]:', '').trim();
+                                                        } else if (trimmed.startsWith('[READING]:')) {
+                                                            type = 'read';
+                                                            text = trimmed.replace('[READING]:', '').trim();
+                                                        } else if (trimmed.startsWith('[ANALYZING]:')) {
+                                                            type = 'analyze';
+                                                            text = trimmed.replace('[ANALYZING]:', '').trim();
+                                                        } else if (trimmed.startsWith('[DECISION]:')) {
+                                                            type = 'decision';
+                                                            text = trimmed.replace('[DECISION]:', '').trim();
+                                                        }
+                                                        
+                                                        steps.push({ type, text, status: 'completed' });
+                                                    });
+                                                    
+                                                    if (isCurrentlyThinking && steps.length > 0) {
+                                                        steps[steps.length - 1].status = 'active';
+                                                    }
+                                                    
+                                                    return (
+                                                        <div className="flex flex-col gap-3 font-sans text-[13px] text-gray-300">
+                                                            {steps.map((step, idx) => {
+                                                                let icon = <Brain size={14} className="text-indigo-400" />;
+                                                                let color = 'text-gray-400';
+                                                                
+                                                                if (step.type === 'search') {
+                                                                    icon = step.status === 'active' ? <Loader2 size={14} className="animate-spin text-blue-400" /> : <Search size={14} className="text-blue-400" />;
+                                                                    color = step.status === 'active' ? 'text-blue-400 font-semibold' : 'text-gray-300';
+                                                                } else if (step.type === 'scrape') {
+                                                                    icon = step.status === 'active' ? <Loader2 size={14} className="animate-spin text-indigo-400" /> : <Globe size={14} className="text-indigo-400" />;
+                                                                    color = step.status === 'active' ? 'text-indigo-400 font-semibold' : 'text-gray-300';
+                                                                } else if (step.type === 'read') {
+                                                                    icon = step.status === 'active' ? <Loader2 size={14} className="animate-spin text-teal-400" /> : <BookOpen size={14} className="text-teal-400" />;
+                                                                    color = step.status === 'active' ? 'text-teal-400 font-semibold' : 'text-gray-300';
+                                                                } else if (step.type === 'analyze') {
+                                                                    icon = step.status === 'active' ? <Loader2 size={14} className="animate-spin text-purple-400" /> : <Cpu size={14} className="text-purple-400" />;
+                                                                    color = step.status === 'active' ? 'text-purple-400 font-semibold' : 'text-gray-300';
+                                                                } else if (step.type === 'decision') {
+                                                                    icon = step.status === 'active' ? <Loader2 size={14} className="animate-spin text-amber-400" /> : <Settings size={14} className="text-amber-400" />;
+                                                                    color = step.status === 'active' ? 'text-amber-400 font-semibold' : 'text-gray-300';
+                                                                } else {
+                                                                    icon = step.status === 'active' ? <Loader2 size={14} className="animate-spin text-indigo-400" /> : <Brain size={14} className="text-indigo-400" />;
+                                                                    color = step.status === 'active' ? 'text-indigo-400 font-semibold' : 'text-gray-400';
+                                                                }
+                                                                
+                                                                return (
+                                                                    <div key={idx} className="flex items-center gap-3 animate-in fade-in slide-in-from-bottom-1 duration-200">
+                                                                        <div className="flex shrink-0 items-center justify-center w-6 h-6 rounded-full bg-white/[0.02] border border-white/5">
+                                                                            {icon}
+                                                                        </div>
+                                                                        <span className={`${color} leading-relaxed font-medium`}>{step.text}</span>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    );
+                                                }
+                                                
+                                                return (
+                                                    <div className="whitespace-pre-wrap font-mono">
+                                                        {displayThinking}
+                                                        {isCurrentlyThinking && (
+                                                            <span className="inline-block w-1.5 h-3.5 bg-indigo-400 animate-pulse ml-0.5" />
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                     )}
                                 </div>

@@ -924,48 +924,79 @@ export default function Builder() {
                 <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 w-full scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                     {messages.length === 0 && !loading && (
                         <div className="h-full flex flex-col items-center justify-center text-gray-500 opacity-100 max-w-2xl mx-auto w-full gap-6 pt-20 pb-10">
-                            <div className="flex flex-col items-center">
-                                <div className="relative group/logo">
-                                    <div className="absolute inset-0 bg-indigo-500/20 blur-[40px] rounded-full animate-pulse transition-all duration-1000 group-hover/logo:bg-indigo-500/40" />
-                                    <div className="relative w-16 h-16 rounded-[24px] bg-gradient-to-b from-[#131316] to-[#09090b] border border-white/10 flex items-center justify-center shadow-[0_10px_40px_rgba(0,0,0,0.8)] transition-all duration-700 hover:scale-110 hover:border-indigo-500/30">
-                                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.05)_0%,transparent_60%)]" />
-                                        <Rocket size={28} className="text-indigo-400 -rotate-12 transition-transform duration-700 group-hover/logo:rotate-0" />
+                            {inputMode?.label === 'Deep research' ? (
+                                <div className="flex flex-col items-center gap-6 animate-in fade-in zoom-in-95 duration-500">
+                                    <div className="flex flex-col items-center">
+                                        <div className="relative group/logo">
+                                            <div className="absolute inset-0 bg-blue-500/20 blur-[40px] rounded-full animate-pulse transition-all duration-1000 group-hover/logo:bg-blue-500/40" />
+                                            <div className="relative w-16 h-16 rounded-[24px] bg-gradient-to-b from-[#131316] to-[#09090b] border border-blue-500/30 flex items-center justify-center shadow-[0_10px_40px_rgba(0,0,0,0.8)] transition-all duration-700 hover:scale-110 hover:border-blue-500/50">
+                                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.05)_0%,transparent_60%)]" />
+                                                <Globe size={28} className="text-blue-400 transition-transform duration-700 group-hover/logo:rotate-180" />
+                                            </div>
+                                            <div className="absolute -bottom-2 -right-2 w-6 h-6 rounded-lg bg-blue-600/10 border border-blue-500/20 backdrop-blur-md flex items-center justify-center">
+                                                <Search size={12} className="text-blue-400 animate-pulse" />
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="absolute -bottom-2 -right-2 w-6 h-6 rounded-lg bg-indigo-600/10 border border-indigo-500/20 backdrop-blur-md flex items-center justify-center opacity-0 group-hover/logo:opacity-100 transition-opacity duration-500">
-                                        <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse" />
+                                    <h2 className="text-xl font-bold text-white/80 text-center font-sans tracking-tight">Deep Research Workspace</h2>
+                                    <p className="text-center text-gray-400 text-sm max-w-md -mt-2 leading-relaxed">
+                                        Enter a query below to run recursive search engine lookups across the web, or paste any website link to scrape contacts and leads directly.
+                                    </p>
+                                    
+                                    <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/5 border border-blue-500/20 shadow-lg shadow-blue-500/5 animate-pulse">
+                                        <span className="relative flex h-2 w-2">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                                        </span>
+                                        <span className="text-[9px] font-black uppercase tracking-widest text-blue-300">Live Scrapers & Multi-Agent Loops Online</span>
                                     </div>
                                 </div>
-                            </div>
-                            <h2 className="text-xl font-bold text-white/80 text-center">How can I help you build today?</h2>
-
-                            {/* 🚀 ELITE START POINT - Project Architect */}
-                            <div className="relative group mt-2">
-                                <div className="absolute -inset-1.5 bg-indigo-500/50 rounded-[28px] blur-2xl opacity-40 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse" />
-                                <button
-                                    onClick={() => setCollageProjectModalOpen(true)}
-                                    className="relative flex flex-col items-center gap-3 px-8 py-6 rounded-[24px] bg-[#0c0c0e] border border-white/10 text-white hover:border-indigo-500/50 transition-all group overflow-hidden shadow-2xl"
-                                >
-                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50 group-hover:opacity-100 transition-opacity" />
-
-                                    <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center group-hover:scale-110 group-hover:bg-indigo-500 group-hover:text-white transition-all">
-                                        <Rocket size={24} className="text-indigo-400 group-hover:text-white -rotate-12 group-hover:rotate-0 transition-all duration-500" />
+                            ) : (
+                                <>
+                                    <div className="flex flex-col items-center">
+                                        <div className="relative group/logo">
+                                            <div className="absolute inset-0 bg-indigo-500/20 blur-[40px] rounded-full animate-pulse transition-all duration-1000 group-hover/logo:bg-indigo-500/40" />
+                                            <div className="relative w-16 h-16 rounded-[24px] bg-gradient-to-b from-[#131316] to-[#09090b] border border-white/10 flex items-center justify-center shadow-[0_10px_40px_rgba(0,0,0,0.8)] transition-all duration-700 hover:scale-110 hover:border-indigo-500/30">
+                                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.05)_0%,transparent_60%)]" />
+                                                <Rocket size={28} className="text-indigo-400 -rotate-12 transition-transform duration-700 group-hover/logo:rotate-0" />
+                                            </div>
+                                            <div className="absolute -bottom-2 -right-2 w-6 h-6 rounded-lg bg-indigo-600/10 border border-indigo-500/20 backdrop-blur-md flex items-center justify-center opacity-0 group-hover/logo:opacity-100 transition-opacity duration-500">
+                                                <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse" />
+                                            </div>
+                                        </div>
                                     </div>
+                                    <h2 className="text-xl font-bold text-white/80 text-center">How can I help you build today?</h2>
 
-                                    <div className="text-center">
-                                        <p className="text-[9px] font-black uppercase tracking-[0.4em] text-indigo-400 group-hover:text-white transition-colors">Start Titan Mission</p>
-                                        <h3 className="text-lg font-black italic uppercase tracking-tighter mt-0.5 group-hover:scale-105 transition-transform">Project Architect</h3>
+                                    {/* 🚀 ELITE START POINT - Project Architect */}
+                                    <div className="relative group mt-2">
+                                        <div className="absolute -inset-1.5 bg-indigo-500/50 rounded-[28px] blur-2xl opacity-40 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse" />
+                                        <button
+                                            onClick={() => setCollageProjectModalOpen(true)}
+                                            className="relative flex flex-col items-center gap-3 px-8 py-6 rounded-[24px] bg-[#0c0c0e] border border-white/10 text-white hover:border-indigo-500/50 transition-all group overflow-hidden shadow-2xl"
+                                        >
+                                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50 group-hover:opacity-100 transition-opacity" />
+
+                                            <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center group-hover:scale-110 group-hover:bg-indigo-500 group-hover:text-white transition-all">
+                                                <Rocket size={24} className="text-indigo-400 group-hover:text-white -rotate-12 group-hover:rotate-0 transition-all duration-500" />
+                                            </div>
+
+                                            <div className="text-center">
+                                                <p className="text-[9px] font-black uppercase tracking-[0.4em] text-indigo-400 group-hover:text-white transition-colors">Start Titan Mission</p>
+                                                <h3 className="text-lg font-black italic uppercase tracking-tighter mt-0.5 group-hover:scale-105 transition-transform">Project Architect</h3>
+                                            </div>
+
+                                            <div className="flex items-center gap-2 mt-1 px-3 py-1 rounded-full bg-white/5 border border-white/5 group-hover:bg-indigo-500/20 group-hover:border-indigo-500/30 transition-all">
+                                                <Sparkles size={12} className="text-indigo-400 animate-pulse" />
+                                                <span className="text-[8px] font-black uppercase tracking-widest text-gray-500 group-hover:text-indigo-300">Neural Synthesis Ready</span>
+                                            </div>
+                                        </button>
+
+                                        <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                                            <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.6em] animate-bounce">Click to Begin Genesis</p>
+                                        </div>
                                     </div>
-
-                                    <div className="flex items-center gap-2 mt-1 px-3 py-1 rounded-full bg-white/5 border border-white/5 group-hover:bg-indigo-500/20 group-hover:border-indigo-500/30 transition-all">
-                                        <Sparkles size={12} className="text-indigo-400 animate-pulse" />
-                                        <span className="text-[8px] font-black uppercase tracking-widest text-gray-500 group-hover:text-indigo-300">Neural Synthesis Ready</span>
-                                    </div>
-                                </button>
-
-                                <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                                    <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.6em] animate-bounce">Click to Begin Genesis</p>
-                                </div>
-                            </div>
+                                </>
+                            )}
                         </div>
                     )}
 
@@ -1186,12 +1217,42 @@ export default function Builder() {
                     )}
                 </AnimatePresence>
 
+                {/* Floating Deep Research Status Banner */}
+                <AnimatePresence>
+                    {inputMode?.label === 'Deep research' && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 10 }}
+                            className="max-w-4xl mx-auto px-6 mb-2"
+                        >
+                            <div className="bg-blue-950/20 border border-blue-500/20 rounded-2xl px-4 py-3 flex items-center gap-3 text-blue-400 text-xs shadow-lg shadow-blue-500/10">
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                                </span>
+                                <Search size={14} className="animate-pulse" />
+                                <div>
+                                    <span className="font-extrabold uppercase tracking-wider text-[9px] tracking-widest">Deep Research Engaged:</span>
+                                    <span className="text-gray-400 ml-1.5 font-medium">Every prompt will trigger multi-agent web searches, recursive scrapers, and lead extraction.</span>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
                 {/* Smart Input Area */}
                 <div
                     className="p-6 bg-gradient-to-t from-[#09090b]/80 via-[#09090b]/70 to-transparent w-full"
                     onClick={(e) => e.stopPropagation()}
                 >
-                    <div className={`max-w-4xl mx-auto relative bg-[#0d0d0f]/90 border border-white/5 backdrop-blur-2xl rounded-[28px] p-1.5 flex flex-col gap-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all duration-500 ${isListening ? 'ring-2 ring-red-500/50 shadow-[0_0_30px_rgba(239,68,68,0.2)]' : 'focus-within:border-white/20'}`}>
+                    <div className={`max-w-4xl mx-auto relative bg-[#0d0d0f]/90 border backdrop-blur-2xl rounded-[28px] p-1.5 flex flex-col gap-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all duration-500 ${
+                        isListening
+                            ? 'border-red-500/30 ring-2 ring-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.15)]'
+                            : inputMode?.label === 'Deep research'
+                                ? 'border-blue-500/30 ring-2 ring-blue-500/20 shadow-[0_0_30px_rgba(59,130,246,0.15)]'
+                                : 'border-white/5 focus-within:border-white/20'
+                    }`}>
 
 
                         {/* File Previews & Mode Pill inside Input */}
@@ -1227,9 +1288,13 @@ export default function Builder() {
                                 </button>
                                 <button
                                     onClick={() => handleModeSelect('Deep research', '🔭', 'text-blue-400')}
-                                    className="px-2.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-gray-500 hover:bg-white/10 hover:text-white transition-all text-[8px] font-black uppercase tracking-wider flex items-center gap-1.5"
+                                    className={`px-2.5 py-1.5 rounded-full transition-all text-[8px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-lg ${
+                                        inputMode?.label === 'Deep research'
+                                            ? 'bg-blue-500/10 border border-blue-500/30 text-blue-400 shadow-blue-500/10'
+                                            : 'bg-white/5 border border-white/10 text-gray-500 hover:bg-white/10 hover:text-white'
+                                    }`}
                                 >
-                                    <Search size={10} />
+                                    <Search size={10} className={inputMode?.label === 'Deep research' ? 'animate-pulse text-blue-400' : ''} />
                                     Deep Research
                                 </button>
                             </div>

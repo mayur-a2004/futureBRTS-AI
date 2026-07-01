@@ -6,10 +6,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     X, Loader2, Map, CheckSquare,
     FileText, GraduationCap, Award, RefreshCw, Send, Languages,
-    Atom, Landmark, Zap, Dna, Brain, ChevronRight, Mic, Plus
+    Atom, Landmark, Zap, Dna, Brain, ChevronRight, Mic, Plus,
+    Volume2, VolumeX, Menu
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { DynamicLabEngine } from './labs/DynamicLabEngine';
+import { SUBJECT_COLORS, SUBJECT_ICONS, LabConfig } from './labs/types/LabConfig';
+
+
 
 // ── TYPES ────────────────────────────────────────
 interface ChatMessage {
@@ -39,6 +44,174 @@ const MinervaHome: React.FC = () => {
     const [uploadedFile, setUploadedFile] = useState<{ name: string; text: string } | null>(null);
     const [isDeepStudy, setIsDeepStudy] = useState(false);
     const [showHoloAlert, setShowHoloAlert] = useState(false);
+
+    // Voice / TTS States
+    const [isSpeaking, setIsSpeaking] = useState<string | null>(null);
+    const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+    const [isMuted, setIsMuted] = useState<boolean>(() => {
+        return localStorage.getItem('minerva_tts_muted') === 'true';
+    });
+    const isMutedRef = useRef(isMuted);
+    useEffect(() => {
+        isMutedRef.current = isMuted;
+    }, [isMuted]);
+
+    const toggleGlobalMute = () => {
+        const nextMuteState = !isMuted;
+        setIsMuted(nextMuteState);
+        localStorage.setItem('minerva_tts_muted', String(nextMuteState));
+        if (nextMuteState) {
+            if (window.speechSynthesis) {
+                window.speechSynthesis.cancel();
+            }
+            setIsSpeaking(null);
+        }
+    };
+
+
+    const speakText = (text: string, msgId: string, forcedLang?: string) => {
+        if (!window.speechSynthesis) return;
+        window.speechSynthesis.cancel();
+        
+        if (isMutedRef.current || !text) return;
+        
+        setIsSpeaking(msgId);
+
+        const cleanText = text
+            .replace(/[*#`_\-]/g, '')
+            .replace(/\[.*?\]\(.*?\)/g, '')
+            .replace(/\$\$[\s\S]*?\$\$/g, '')
+            .replace(/\$[\s\S]*?\$/g, '')
+            .trim();
+
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        
+        const voices = window.speechSynthesis.getVoices();
+        
+        let langCode = 'en';
+        let fullLangTag = 'en-US';
+        const activeLang = forcedLang || (speechLang === 'en-IN' ? 'en' : 'hi');
+        
+        if (activeLang === 'hindi' || activeLang === 'hinglish' || activeLang === 'hi') {
+            langCode = 'hi';
+            fullLangTag = 'hi-IN';
+        } else if (activeLang === 'marathi' || activeLang === 'mr') {
+            langCode = 'mr';
+            fullLangTag = 'mr-IN';
+        } else if (activeLang === 'gujarati' || activeLang === 'gu') {
+            langCode = 'gu';
+            fullLangTag = 'gu-IN';
+        } else if (activeLang === 'spanish' || activeLang === 'es') {
+            langCode = 'es';
+            fullLangTag = 'es-ES';
+        } else if (activeLang === 'bengali' || activeLang === 'bn') {
+            langCode = 'bn';
+            fullLangTag = 'bn-IN';
+        } else if (activeLang === 'tamil' || activeLang === 'ta') {
+            langCode = 'ta';
+            fullLangTag = 'ta-IN';
+        } else if (activeLang === 'telugu' || activeLang === 'te') {
+            langCode = 'te';
+            fullLangTag = 'te-IN';
+        } else if (activeLang === 'kannada' || activeLang === 'kn') {
+            langCode = 'kn';
+            fullLangTag = 'kn-IN';
+        } else if (activeLang === 'punjabi' || activeLang === 'pa') {
+            langCode = 'pa';
+            fullLangTag = 'pa-IN';
+        } else if (activeLang === 'en' || activeLang === 'en-IN') {
+            langCode = 'en';
+            fullLangTag = 'en-IN';
+        }
+
+        utterance.lang = fullLangTag;
+
+        const preferredVoice = voices.find(v => v.lang.toLowerCase().includes(langCode)) || 
+                               voices.find(v => v.lang.toLowerCase().includes(fullLangTag.toLowerCase())) ||
+                               voices.find(v => v.lang.includes('hi') || v.lang.includes('IN')) || 
+                               voices.find(v => v.lang.includes('en'));
+
+        const femaleVoice = voices.find(v => v.lang.toLowerCase().includes(langCode) && v.name.toLowerCase().includes('female')) ||
+                            voices.find(v => v.lang.toLowerCase().includes(langCode) && (v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('swara') || v.name.toLowerCase().includes('swar') || v.name.toLowerCase().includes('swar-in') || v.name.toLowerCase().includes('kalpana') || v.name.toLowerCase().includes('heera') || v.name.toLowerCase().includes('susan') || v.name.toLowerCase().includes('hazel') || v.name.toLowerCase().includes('zira'))) ||
+                            preferredVoice;
+
+        if (femaleVoice) {
+            utterance.voice = femaleVoice;
+        }
+        utterance.rate = 0.82; // slow female AI voice
+        utterance.pitch = 1.1;
+
+        utterance.onend = () => setIsSpeaking(null);
+        utterance.onerror = () => setIsSpeaking(null);
+
+        speechUtteranceRef.current = utterance;
+        
+        setTimeout(() => {
+            if (!isMutedRef.current && speechUtteranceRef.current === utterance) {
+                window.speechSynthesis.speak(utterance);
+            }
+        }, 100);
+    };
+
+    const stopSpeech = () => {
+        if (window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+        }
+        setIsSpeaking(null);
+    };
+
+    useEffect(() => {
+        return () => {
+            if (window.speechSynthesis) {
+                window.speechSynthesis.cancel();
+            }
+        };
+    }, []);
+
+    // ── VIRTUAL LAB STATE ──────────────────────────────────────────
+    const [activeLabConfig, setActiveLabConfig] = useState<LabConfig | null>(null);
+    const [labPanelOpen, setLabPanelOpen] = useState(false);
+    const [labDetached, setLabDetached] = useState(false);
+
+
+    // Message Translations & Selection States
+    const [messageTranslations, setMessageTranslations] = useState<{[msgId: string]: {[lang: string]: string}}>({});
+    const [messageSelectedLangs, setMessageSelectedLangs] = useState<{[msgId: string]: string}>({});
+    const [translatingMsgId, setTranslatingMsgId] = useState<string | null>(null);
+
+    const translateMessage = async (msgId: string, text: string, lang: string) => {
+        setMessageSelectedLangs(prev => ({ ...prev, [msgId]: lang }));
+        if (lang === 'original') {
+            stopSpeech();
+            return;
+        }
+
+        if (messageTranslations[msgId]?.[lang]) {
+            const cachedText = messageTranslations[msgId][lang];
+            speakText(cachedText, msgId, lang);
+            return;
+        }
+
+        setTranslatingMsgId(msgId);
+        try {
+            const token = localStorage.getItem('token') || '';
+            const res = await minervaApi.translateText(token, text, lang);
+            if (res.success && res.translated) {
+                setMessageTranslations(prev => ({
+                    ...prev,
+                    [msgId]: {
+                        ...(prev[msgId] || {}),
+                        [lang]: res.translated
+                    }
+                }));
+                speakText(res.translated, msgId, lang);
+            }
+        } catch (err) {
+            console.error('[Chat Translation error]', err);
+        } finally {
+            setTranslatingMsgId(null);
+        }
+    };
 
     // Onboarding Form States
     const [profile, setProfile] = useState<any>(null);
@@ -284,10 +457,18 @@ const MinervaHome: React.FC = () => {
                 const res = await minervaApi.getChatSessionMessages(token, activeSessionId);
                 if (res.success) {
                     setMessages(res.messages || []);
+                    // Restore latest virtual lab state from history
+                    if (res.messages) {
+                        const lastLabMsg = [...res.messages].reverse().find(m => m.metadata?.lab_config);
+                        if (lastLabMsg?.metadata?.lab_config) {
+                            setActiveLabConfig(lastLabMsg.metadata.lab_config);
+                        }
+                    }
                 } else {
                     setMessages([]);
                 }
             } else {
+
                 // Welcome message in English by default for new chats
                 setMessages([{
                     role: 'minerva',
@@ -370,6 +551,37 @@ const MinervaHome: React.FC = () => {
                 };
                 setMessages(prev => [...prev, minervaMsg]);
 
+                // Extract & load Virtual Lab Config
+                if (res.metadata?.lab_config) {
+                    const config = res.metadata.lab_config;
+                    setActiveLabConfig(config);
+                    if (config.auto_open) {
+                        setLabPanelOpen(true);
+                    }
+
+                    // Dynamically fetch YouTube video ID if not preset
+                    if (config.youtube_query && !config.youtube_video_id) {
+                        try {
+                            const ytRes = await fetch(`/api/future-education/lab/youtube-search?query=${encodeURIComponent(config.youtube_query)}`, {
+                                headers: { 'Authorization': `Bearer ${token}` }
+                            });
+                            const ytData = await ytRes.json();
+                            if (ytData.success && ytData.video_id) {
+                                setActiveLabConfig((prev: any) => prev ? { ...prev, youtube_video_id: ytData.video_id } : null);
+                            }
+                        } catch (err) {
+                            console.error('Failed to pre-fetch YouTube video ID for lab:', err);
+                        }
+                    }
+                } else {
+                    setActiveLabConfig(null);
+                    setLabPanelOpen(false);
+                }
+
+
+                // Auto-read response removed (manual play only)
+
+
                 // Auto-navigate to session if roadmap created
                 if (res.content_type === 'roadmap' && res.metadata?.session_id) {
                     setTimeout(() => {
@@ -447,10 +659,10 @@ const MinervaHome: React.FC = () => {
     };
 
     const quickPrompts = [
-        { title: 'Class 10 Science Roadmap', icon: Atom, desc: 'Board patterns, key topics & study times', color: 'from-blue-500/10 to-indigo-500/10 border-indigo-500/20 text-indigo-400' },
-        { title: 'UPSC General Studies Preparation', icon: Landmark, desc: 'Indian Polity, History, and geography', color: 'from-amber-500/10 to-orange-500/10 border-orange-500/20 text-amber-400' },
-        { title: 'JEE Physics - Mechanics Practice', icon: Zap, desc: 'Formulas, mock questions & quick revision', color: 'from-red-500/10 to-orange-500/10 border-red-500/20 text-orange-400' },
-        { title: 'NEET Biology - Cell Division', icon: Dna, desc: 'Analogy-rich concepts & diagram breakdowns', color: 'from-emerald-500/10 to-teal-500/10 border-emerald-500/20 text-emerald-400' }
+        { title: 'Class 10 Science Roadmap', prompt: 'Generate a detailed Class 10 Science study roadmap with board patterns, key topics & study times.', icon: Atom, desc: 'Board patterns, key topics & study times', color: 'from-blue-500/10 to-indigo-500/10 border-indigo-500/20 text-indigo-400' },
+        { title: 'UPSC General Studies Prep', prompt: 'Generate a roadmap for UPSC General Studies preparation focusing on Indian Polity, History, and Geography.', icon: Landmark, desc: 'Indian Polity, History, and geography', color: 'from-amber-500/10 to-orange-500/10 border-orange-500/20 text-amber-400' },
+        { title: 'JEE Physics - Mechanics', prompt: 'Provide a revision roadmap for JEE Physics - Mechanics with key formulas and mock questions practice.', icon: Zap, desc: 'Formulas, mock questions & quick revision', color: 'from-red-500/10 to-orange-500/10 border-red-500/20 text-orange-400' },
+        { title: 'NEET Biology - Cell Division', prompt: 'Create a roadmap for NEET Biology starting with Cell Division, providing analogy-rich concepts and diagram breakdowns.', icon: Dna, desc: 'Analogy-rich concepts & diagram breakdowns', color: 'from-emerald-500/10 to-teal-500/10 border-emerald-500/20 text-emerald-400' }
     ];
 
     // ── RENDER MESSAGE ────────────────────────────
@@ -458,7 +670,14 @@ const MinervaHome: React.FC = () => {
         const isAI = msg.role === 'minerva';
         const isError = msg.content_type === 'error';
 
+        const msgId = msg._id || String(idx);
+        const activeLang = messageSelectedLangs[msgId] || 'original';
         let displayContent = msg.content;
+        
+        if (activeLang !== 'original' && messageTranslations[msgId]?.[activeLang]) {
+            displayContent = messageTranslations[msgId][activeLang];
+        }
+
         // Clean raw uploaded PDF rendering if present in DB
         if (displayContent.startsWith('[Uploaded File:')) {
             const fileMatch = displayContent.match(/\[Uploaded File:\s*(.*?)\]/);
@@ -551,6 +770,68 @@ const MinervaHome: React.FC = () => {
                             <Award size={14} /> Take Subject Exam →
                         </button>
                     )}
+
+                    {/* AI Speaker Button */}
+                    {isAI && !isError && (
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/5 gap-1.5 flex-wrap">
+                            {/* Premium Language Translator */}
+                            <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                                <span>🗣️ Translate:</span>
+                                <select
+                                    value={activeLang}
+                                    disabled={translatingMsgId === msgId}
+                                    onChange={(e) => translateMessage(msgId, msg.content, e.target.value)}
+                                    className="bg-black/40 border border-white/10 rounded-md px-1.5 py-0.5 text-[9px] text-white outline-none focus:border-cyan-500/50 transition-all font-semibold cursor-pointer hover:border-white/20"
+                                >
+                                    <option value="original">Original (English)</option>
+                                    <option value="hinglish">Hinglish</option>
+                                    <option value="hindi">Hindi (हिंदी)</option>
+                                    <option value="marathi">Marathi (मराठी)</option>
+                                    <option value="gujarati">Gujarati (ગુજરાતી)</option>
+                                    <option value="bengali">Bengali (বাংলা)</option>
+                                    <option value="tamil">Tamil (தமிழ்)</option>
+                                    <option value="telugu">Telugu (తెలుగు)</option>
+                                    <option value="kannada">Kannada (ಕನ್ನಡ)</option>
+                                    <option value="punjabi">Punjabi (ਪੰਜਾਬੀ)</option>
+                                    <option value="spanish">Spanish (Español)</option>
+                                </select>
+                                {translatingMsgId === msgId && (
+                                    <Loader2 size={10} className="animate-spin text-cyan-400" />
+                                )}
+                            </div>
+
+                            <button
+                                onClick={() => {
+                                    if (isSpeaking === msgId) {
+                                        stopSpeech();
+                                    } else {
+                                        const textToSpeak = activeLang !== 'original' && messageTranslations[msgId]?.[activeLang] 
+                                            ? messageTranslations[msgId][activeLang] 
+                                            : msg.content;
+                                        speakText(textToSpeak, msgId, activeLang);
+                                    }
+                                }}
+                                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all active:scale-95 cursor-pointer
+                                    ${isSpeaking === msgId
+                                        ? 'bg-cyan-500/20 border-cyan-500/30 text-cyan-300 animate-pulse'
+                                        : 'bg-white/5 border-white/5 text-gray-400 hover:text-white'
+                                    }`}
+                                title={isSpeaking === msgId ? "Mute Voice" : "Play Voice"}
+                            >
+                                {isSpeaking === msgId ? (
+                                    <>
+                                        <Volume2 size={11} className="text-cyan-400" />
+                                        <span>Mute</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <VolumeX size={11} />
+                                        <span>Play Voice</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         );
@@ -607,23 +888,53 @@ const MinervaHome: React.FC = () => {
             </AnimatePresence>
 
             {/* Header */}
-            <header className="hidden md:flex items-center justify-between px-6 py-3.5 border-b border-white/[0.06] bg-black/20 backdrop-blur-xl flex-shrink-0 z-10 shadow-lg">
-                {/* Left: Brand Badge & Info */}
-                <div className="flex items-center gap-3">
-                    {/* Brand Title */}
-                    <div className="flex items-center gap-2.5">
-                        <div className="w-6.5 h-6.5 rounded-lg bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 flex items-center justify-center text-white shadow-[0_0_15px_rgba(99,102,241,0.25)] shrink-0">
-                            <Brain size={13} className="animate-pulse" />
+            <header className="flex flex-col md:flex-row md:items-center md:justify-between px-4 md:px-6 py-3 md:py-3.5 border-b border-white/[0.06] bg-black/20 backdrop-blur-xl flex-shrink-0 z-10 shadow-lg gap-3 md:gap-0">
+                {/* Top Row on Mobile, Full Left Side on Desktop */}
+                <div className="flex items-center justify-between md:justify-start gap-3 w-full md:w-auto">
+                    <div className="flex items-center gap-3">
+                        {/* Mobile Menu Button */}
+                        <button
+                            onClick={() => window.dispatchEvent(new Event('toggle-mobile-menu'))}
+                            className="md:hidden p-2 bg-white/[0.03] hover:bg-white/10 border border-white/5 hover:border-indigo-500/30 rounded-xl transition-all text-gray-400 hover:text-white flex items-center justify-center active:scale-95 shrink-0"
+                            title="Toggle menu"
+                        >
+                            <Menu size={16} />
+                        </button>
+
+                        {/* Brand Title */}
+                        <div className="flex items-center gap-2.5">
+                            <div className="w-6.5 h-6.5 rounded-lg bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 flex items-center justify-center text-white shadow-[0_0_15px_rgba(99,102,241,0.25)] shrink-0">
+                                <Brain size={13} className="animate-pulse" />
+                            </div>
+                            <span className="font-display font-black text-xs tracking-[0.15em] uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-100 to-indigo-200 select-none">
+                                Future Education OS
+                            </span>
                         </div>
-                        <span className="font-display font-black text-xs tracking-[0.15em] uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-100 to-indigo-200 select-none">
-                            Future Education OS
-                        </span>
                     </div>
 
-                    <div className="h-4 w-px bg-white/10" />
+                    {/* New Chat & Sync Buttons on Mobile Right Side */}
+                    <div className="flex md:hidden items-center gap-1.5">
+                        <button
+                            onClick={() => navigate('/future-education')}
+                            title="Start a new chat session"
+                            className="p-2 bg-[#0D0B1C] hover:bg-[#14102c] border border-indigo-500/35 text-indigo-300 rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center"
+                        >
+                            <Plus size={14} />
+                        </button>
+                        <button
+                            onClick={loadSessionData}
+                            title="Sync Chat Data"
+                            className="p-2 bg-white/[0.03] hover:bg-white/5 border border-white/5 text-gray-400 hover:text-white rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center"
+                        >
+                            <RefreshCw size={14} />
+                        </button>
+                    </div>
+                </div>
 
+                {/* Badges and Actions Row (Scrollable on Mobile, Flex on Desktop) */}
+                <div className="flex items-center gap-2.5 overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 max-w-[calc(100%+2rem)] md:max-w-none pb-1.5 md:pb-0 shrink-0">
                     {/* Status Badge */}
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.02] border border-white/5 select-none text-[9px] font-black text-gray-400 tracking-wider uppercase">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.02] border border-white/5 select-none text-[9px] font-black text-gray-400 tracking-wider uppercase shrink-0">
                         <span className="relative flex h-1.5 w-1.5">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                             <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
@@ -632,21 +943,20 @@ const MinervaHome: React.FC = () => {
                     </div>
 
                     {profile?.board && (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 select-none text-[9px] font-black text-indigo-300 tracking-wider uppercase">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 select-none text-[9px] font-black text-indigo-300 tracking-wider uppercase shrink-0">
                             <span>{profile.grade_level?.replace('_', ' ')} ({profile.board?.toUpperCase()})</span>
                         </div>
                     )}
-                </div>
 
-                {/* Right: Actions */}
-                <div className="flex items-center gap-2.5">
+                    <div className="hidden md:block h-4 w-px bg-white/10 shrink-0" />
+
                     {/* Roadmaps Button */}
                     <button
                         onClick={() => navigate('/future-education/roadmaps')}
                         title="View study roadmaps"
-                        className="px-3.5 py-2 text-xs font-bold bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-indigo-500/30 text-gray-300 hover:text-white rounded-xl transition-all active:scale-95 flex items-center gap-1.5 shadow-md"
+                        className="px-3 py-1.5 md:px-3.5 md:py-2 text-[10px] md:text-xs font-bold bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-indigo-500/30 text-gray-300 hover:text-white rounded-xl transition-all active:scale-95 flex items-center gap-1.5 shadow-md shrink-0"
                     >
-                        <Map size={13} className="text-indigo-400" />
+                        <Map size={12} className="text-indigo-400" />
                         <span>Roadmaps</span>
                     </button>
 
@@ -654,9 +964,9 @@ const MinervaHome: React.FC = () => {
                     <button
                         onClick={() => navigate('/future-education/tasks')}
                         title="View daily learning tasks"
-                        className="px-3.5 py-2 text-xs font-bold bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-indigo-500/30 text-gray-300 hover:text-white rounded-xl transition-all active:scale-95 flex items-center gap-1.5 shadow-md"
+                        className="px-3 py-1.5 md:px-3.5 md:py-2 text-[10px] md:text-xs font-bold bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-indigo-500/30 text-gray-300 hover:text-white rounded-xl transition-all active:scale-95 flex items-center gap-1.5 shadow-md shrink-0"
                     >
-                        <CheckSquare size={13} className="text-emerald-400" />
+                        <CheckSquare size={12} className="text-emerald-400" />
                         <span>Tasks</span>
                     </button>
 
@@ -664,37 +974,55 @@ const MinervaHome: React.FC = () => {
                     <button
                         onClick={() => navigate('/future-education/results')}
                         title="View academic results transcript"
-                        className="px-3.5 py-2 text-xs font-bold bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-indigo-500/30 text-gray-300 hover:text-white rounded-xl transition-all active:scale-95 flex items-center gap-1.5 shadow-md"
+                        className="px-3 py-1.5 md:px-3.5 md:py-2 text-[10px] md:text-xs font-bold bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-indigo-500/30 text-gray-300 hover:text-white rounded-xl transition-all active:scale-95 flex items-center gap-1.5 shadow-md shrink-0"
                     >
-                        <Award size={13} className="text-purple-400" />
+                        <Award size={12} className="text-purple-400" />
                         <span>Results</span>
                     </button>
 
-                    <div className="h-4 w-px bg-white/10 mx-1" />
+                    {/* Global Voice/Mute Toggle */}
+                    <button
+                        onClick={toggleGlobalMute}
+                        title={isMuted ? "Unmute AI Voice" : "Mute AI Voice"}
+                        className={`px-3 py-1.5 md:px-3.5 md:py-2 text-[10px] md:text-xs font-bold border rounded-xl transition-all active:scale-95 flex items-center gap-1.5 shadow-md cursor-pointer shrink-0
+                            ${isMuted 
+                                ? 'bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20' 
+                                : 'bg-cyan-500/10 border-cyan-500/20 text-cyan-300 hover:bg-cyan-500/20'
+                            }`}
+                    >
+                        {isMuted ? <VolumeX size={12} /> : <Volume2 size={12} />}
+                        <span>{isMuted ? "Muted" : "Voice On"}</span>
+                    </button>
 
-                    {/* New Chat Button */}
+                    <div className="hidden md:block h-4 w-px bg-white/10 mx-1 shrink-0" />
+
+                    {/* New Chat Button - Desktop Only */}
                     <button
                         onClick={() => navigate('/future-education')}
                         title="Start a new chat session"
-                        className="px-4 py-2 text-xs font-black bg-[#0D0B1C] hover:bg-[#14102c] border border-indigo-500/35 hover:border-indigo-500/50 text-indigo-300 rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-1.5"
+                        className="hidden md:flex px-4 py-2 text-xs font-black bg-[#0D0B1C] hover:bg-[#14102c] border border-indigo-500/35 hover:border-indigo-500/50 text-indigo-300 rounded-xl transition-all shadow-md active:scale-95 items-center gap-1.5 shrink-0"
                     >
                         <Plus size={13} className="text-indigo-400" />
                         <span>New Chat</span>
                     </button>
 
-                    {/* Sync Button */}
+                    {/* Sync Button - Desktop Only */}
                     <button
                         onClick={loadSessionData}
                         title="Sync Chat Data"
-                        className="w-8.5 h-8.5 rounded-xl bg-white/[0.03] hover:bg-white/5 border border-white/5 hover:border-indigo-500/25 flex items-center justify-center transition-all text-gray-400 hover:text-white shadow-md active:scale-95"
+                        className="hidden md:flex w-8.5 h-8.5 rounded-xl bg-white/[0.03] hover:bg-white/5 border border-white/5 hover:border-indigo-500/25 items-center justify-center transition-all text-gray-400 hover:text-white shadow-md active:scale-95 shrink-0"
                     >
                         <RefreshCw size={13} className="hover:rotate-180 transition-transform duration-500" />
                     </button>
                 </div>
             </header>
 
-            {/* Messages Space */}
-            <div className="flex-1 overflow-y-auto px-6 pt-6 pb-6 space-y-4">
+            {/* Main Chat + Lab Workspace Container */}
+            <div className="flex-1 flex min-w-0 w-full overflow-hidden relative">
+                {/* Left Side: Active Chat Column */}
+                <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
+                    {/* Messages Space */}
+                    <div className="flex-1 overflow-y-auto px-6 pt-6 pb-6 space-y-4">
                 {/* Welcome screen — only when no messages */}
                 {messages.length <= 1 && (
                     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-700">
@@ -744,7 +1072,7 @@ const MinervaHome: React.FC = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {quickPrompts.map((qp, i) => (
                                     <button key={i}
-                                        onClick={() => { setInput(qp.title); inputRef.current?.focus(); }}
+                                        onClick={() => { setInput(''); sendMessage(qp.prompt); }}
                                         className="text-left text-xs bg-[#0b0813]/40 hover:bg-[#120a2e]/40 border border-white/5 hover:border-indigo-500/30 rounded-2xl p-4 transition-all text-gray-300 hover:text-white shadow-xl flex items-start gap-4 hover:-translate-y-1 duration-300 group backdrop-blur-md"
                                     >
                                         <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${qp.color} flex items-center justify-center shadow-md shrink-0 group-hover:scale-110 transition-transform`}>
@@ -878,6 +1206,7 @@ const MinervaHome: React.FC = () => {
                                     </button>
                                 ));
                             })()}
+
                         </div>
                     )}
 
@@ -908,12 +1237,41 @@ const MinervaHome: React.FC = () => {
                                 Deep Study
                             </button>
 
-                            {isDeepStudy && (
-                                <span className="text-[9px] font-black text-cyan-400/80 uppercase tracking-widest animate-pulse ml-auto flex items-center gap-1">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 inline-block"></span>
-                                    Deep Mentor Active
-                                </span>
-                            )}
+                            <div className="ml-auto flex items-center gap-2">
+                                {activeLabConfig ? (
+                                    <button
+                                        onClick={() => setLabPanelOpen(!labPanelOpen)}
+                                        className={`flex items-center gap-1.5 border rounded-lg px-2.5 py-1.5 text-[10px] font-bold transition-all active:scale-95 ${
+                                            labPanelOpen
+                                                ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.3)]'
+                                                : 'bg-indigo-500/5 hover:bg-indigo-500/10 border-indigo-500/20 text-indigo-400/70 hover:text-indigo-300'
+                                        }`}
+                                        style={labPanelOpen ? {
+                                            backgroundColor: `${SUBJECT_COLORS[activeLabConfig.subject]?.accent}20`,
+                                            borderColor: `${SUBJECT_COLORS[activeLabConfig.subject]?.accent}80`,
+                                            color: SUBJECT_COLORS[activeLabConfig.subject]?.accent,
+                                            boxShadow: `0 0 10px ${SUBJECT_COLORS[activeLabConfig.subject]?.accent}30`
+                                        } : {
+                                            borderColor: `${SUBJECT_COLORS[activeLabConfig.subject]?.accent}30`,
+                                            color: SUBJECT_COLORS[activeLabConfig.subject]?.accent
+                                        }}
+                                        title={`Toggle ${activeLabConfig.subject} Virtual Lab`}
+                                    >
+                                        <span>{SUBJECT_ICONS[activeLabConfig.subject] || '🧪'}</span>
+                                        <span className="capitalize">{activeLabConfig.subject} Lab</span>
+                                    </button>
+                                ) : (
+                                    <button
+                                        disabled
+                                        className="flex items-center gap-1.5 border border-white/5 bg-white/5 rounded-lg px-2.5 py-1.5 text-[10px] font-bold text-gray-600 cursor-not-allowed"
+                                        title="Ask a topic query to unlock the Virtual Lab"
+                                    >
+                                        <span>🧪</span>
+                                        <span>Virtual Lab</span>
+                                    </button>
+                                )}
+                            </div>
+
                         </div>
 
                         {/* Bottom Row: Controls */}
@@ -1007,6 +1365,19 @@ const MinervaHome: React.FC = () => {
                     </div>
                 </div>
             </div>
+        </div>
+
+        {/* Dynamic Virtual Lab Engine (Side or Detached) */}
+        <DynamicLabEngine
+            labConfig={activeLabConfig}
+            isOpen={labPanelOpen}
+            onClose={() => setLabPanelOpen(false)}
+            isDetached={labDetached}
+            onToggleDetach={() => setLabDetached(!labDetached)}
+            isMuted={isMuted}
+        />
+        </div>
+
 
             {/* First-time Onboarding Modal */}
             <AnimatePresence>
@@ -1127,3 +1498,4 @@ const MinervaHome: React.FC = () => {
 };
 
 export default MinervaHome;
+

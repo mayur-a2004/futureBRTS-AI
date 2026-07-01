@@ -13,6 +13,205 @@ const safeJsonParse = (str: string): any => {
 };
 
 // ─────────────────────────────────────────────
+// HELPER: Generate Virtual Lab Config
+// ─────────────────────────────────────────────
+const SUBJECT_KEYWORDS: Record<string, string[]> = {
+    biology: ['cell','mitosis','meiosis','photosynthesis','respiration','digestion','heart','blood','dna','rna','protein','enzyme','reproduction','menstruation','nervous','endocrine','immune','ecosystem','food chain','evolution','genetics','chromosome','ovary','uterus','fertilization','embryo','organ','tissue','bacteria','virus','fungi','algae','sex','physical sex','reproductive'],
+    chemistry: ['h2o','co2','chemical','reaction','acid','base','salt','element','compound','mixture','atom','molecule','bond','covalent','ionic','periodic','oxidation','reduction','redox','haber','catalyst','electrolysis','mole','valency','ph','titration','distillation','combustion','polymer'],
+    physics: ['newton','force','motion','velocity','acceleration','gravity','energy','power','work','momentum','friction','pressure','light','reflection','refraction','lens','mirror','electricity','current','voltage','resistance','ohm','circuit','magnetism','electromagnetic','wave','sound','heat','projectile','parabola','trajectory','pendulum'],
+    mathematics: ['equation','algebra','linear','quadratic','polynomial','trigonometry','sin','cos','tan','geometry','circle','triangle','integration','differentiation','calculus','limit','derivative','matrix','vector','coordinate','slope','intercept','graph','set theory','arithmetic','progression','series'],
+    statistics: ['mean','median','mode','standard deviation','variance','probability','distribution','normal distribution','chi square','regression','correlation','histogram','bar chart','scatter','hypothesis','sampling','data','frequency'],
+    accounting: ['debit','credit','ledger','journal','balance sheet','profit','loss','trial balance','trading account','cash flow','depreciation','asset','liability','equity','revenue','t-account','double entry','bookkeeping','gst','tds'],
+    geography: ['earthquake','volcano','climate','monsoon','river','mountain','plateau','latitude','longitude','continent','ocean','rainfall','erosion','soil','forest'],
+    economics: ['demand','supply','market','gdp','inflation','deflation','monetary','fiscal','budget','tax','trade','unemployment','poverty'],
+};
+
+const SENSITIVITY_KEYWORDS: Record<string, number> = {
+    reproduction: 1, menstruation: 1, fertilization: 1, ovary: 1, uterus: 1, embryo: 1, sex: 1, 'physical sex': 1
+};
+
+const THREE_JS_CONFIGS: Record<string, (msg: string) => any> = {
+    mathematics: (msg) => {
+        const m = msg.toLowerCase();
+        if (m.includes('quadratic') || m.includes('parabola')) return { type: 'quadratic_graph', params: { a: 1, b: 0, c: 0 }, sliders: ['a', 'b', 'c'] };
+        if (m.includes('linear') || m.includes('slope')) return { type: 'linear_graph', params: { m: 1, c: 0 }, sliders: ['m', 'c'] };
+        if (m.includes('trigonometry') || m.includes('sin') || m.includes('cos')) return { type: 'trig_graph', params: { func: 'sin', amplitude: 1, frequency: 1 }, sliders: ['amplitude', 'frequency'] };
+        if (m.includes('circle')) return { type: 'circle_geometry', params: { radius: 5 }, sliders: ['radius'] };
+        return { type: 'function_plotter', params: { expression: 'x^2' }, sliders: [] };
+    },
+    statistics: (msg) => {
+        const m = msg.toLowerCase();
+        if (m.includes('normal') || m.includes('bell') || m.includes('distribution')) return { type: 'normal_distribution', params: { mean: 0, std: 1 }, sliders: ['mean', 'std'] };
+        if (m.includes('histogram')) return { type: 'histogram', params: {}, sliders: [] };
+        if (m.includes('regression')) return { type: 'scatter_regression', params: {}, sliders: [] };
+        return { type: 'bar_chart', params: {}, sliders: [] };
+    },
+    physics: (msg) => {
+        const m = msg.toLowerCase();
+        if (m.includes('projectile') || m.includes('trajectory')) return { type: 'projectile_motion', params: { angle: 45, speed: 20, gravity: 9.8 }, sliders: ['angle', 'speed'] };
+        if (m.includes('wave') || m.includes('sound')) return { type: 'wave_simulation', params: { amplitude: 1, frequency: 1 }, sliders: ['amplitude', 'frequency'] };
+        if (m.includes('pendulum')) return { type: 'pendulum_simulation', params: { length: 1, angle: 30 }, sliders: ['length', 'angle'] };
+        if (m.includes('circuit') || m.includes('ohm')) return { type: 'circuit_simulator', params: { voltage: 12, resistance: 6 }, sliders: ['voltage', 'resistance'] };
+        return { type: 'physics_general', params: {}, sliders: [] };
+    },
+    chemistry: () => ({ type: 'molecule_builder', params: {}, sliders: [] }),
+    accounting: () => ({ type: 'ledger_visual', params: {}, sliders: [] }),
+};
+
+const SKETCHFAB_HINTS: Record<string, string> = {
+    cell: '75f84f707f154ebcb983ba2fe9ad1078', // animal cell
+    heart: '4ea3be23c21a4f00b790d9a691bc8604', // human heart
+    brain: '3079a4de54be49cd87c5cf79a32c694a', // human brain
+    dna: '3d6e5d8a9e7f4c17b5f00e28f3a38ca4', // dna double helix
+    h2o: 'bedd7e47573d47458117765187e1488c', // water molecule (H2O)
+    co2: '7b7c8df81c8541a5b822bb2bcfc23c6f', // carbon dioxide (CO2)
+    benzene: '5ea0c5e3170e42d7aa09df6e6b4f74d0',
+    digestive: 'c64a5959eb4f4cbfa18f9d0c28308eb9',
+    eye: 'e1c1dc0d89004d49a37e89ab32c694f5',
+    ear: '93ba2a48ea234394982a5c79a32c69ea',
+    lungs: 'e8ab32c69ea34394982a5c79a32c69eb',
+    sex: '3d6e5d8a9e7f4c17b5f00e28f3a38ca4',
+    gender: '3d6e5d8a9e7f4c17b5f00e28f3a38ca4',
+    reproduction: '3d6e5d8a9e7f4c17b5f00e28f3a38ca4'
+};
+
+const generateLabConfig = async (message: string, reply: string, studentProfile: any): Promise<any | null> => {
+    if (!message || message.trim().length < 3) return null;
+    const msg = message.toLowerCase();
+
+    // Detect subject
+    let subject = 'general';
+    let maxScore = 0;
+    for (const [subj, keywords] of Object.entries(SUBJECT_KEYWORDS)) {
+        const score = keywords.filter(kw => msg.includes(kw)).length;
+        if (score > maxScore) { maxScore = score; subject = subj; }
+    }
+
+    // Detect sensitivity
+    let sensitivity = 0;
+    for (const [kw, level] of Object.entries(SENSITIVITY_KEYWORDS)) {
+        if (msg.includes(kw)) sensitivity = Math.max(sensitivity, level);
+    }
+
+    // Fallback static config
+    const defaultDiagramType = `${subject}_general_diagram`;
+    const defaultYoutubeQuery = `NCERT ${subject} ${message.substring(0, 40)} explanation animation`;
+    let fallbackSketchfab = '3d6e5d8a9e7f4c17b5f00e28f3a38ca4'; // DNA
+    for (const [kw, hint] of Object.entries(SKETCHFAB_HINTS)) {
+        if (msg.includes(kw)) { fallbackSketchfab = hint; break; }
+    }
+
+    let resultJson: any = null;
+
+    try {
+        const systemPrompt = `You are a Virtual Lab Configurator for an advanced education system.
+Based on the student's message and the tutor's explanation, generate a complete Virtual Lab Configuration in JSON format.
+This configuration will dynamically drive:
+1. An easy-to-understand YouTube video search.
+2. A custom Mermaid.js flowchart or diagram illustrating the concept.
+3. An interactive simulator with sliders and graphs for the student to experiment with the parameters.
+
+You MUST return ONLY a valid JSON object matching the schema below. No conversational text, no markdown formatting (do not wrap in \`\`\`json).
+
+SCHEMA:
+{
+  "subject": "physics" | "chemistry" | "biology" | "mathematics" | "statistics" | "accounting" | "economics" | "geography" | "general",
+  "youtube_query": "specific search query terms optimized for the absolute simplest, animated, easy-to-understand explanation video of this concept",
+  "mermaid_schema": "valid Mermaid.js flowchart code showing the step-by-step process or structural layout of the concept (use TD or LR)",
+  "sketchfab_hint": "Sketchfab 3D model ID (use '3d6e5d8a9e7f4c17b5f00e28f3a38ca4' if not applicable)",
+  "simulation_config": {
+    "type": "unique_simulation_id_lowercase_with_underscores",
+    "title": "Title of the interactive experiment",
+    "description": "Short explanation of what the student can test in this virtual lab.",
+    "controls": [
+      {
+        "name": "slider_variable_name",
+        "label": "Display label for slider",
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "defaultValue": 50,
+        "unit": "e.g., V, kg, %, Celsius"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_variable_name",
+        "label": "Display label for output value",
+        "unit": "e.g., Amps, Joules, Units"
+      }
+    ],
+    "equations": {
+      "output_variable_name": "JS mathematical expression string using control names, e.g., 'slider_var1 * 2'"
+    },
+    "visual_mapping": {
+      "elements": [
+        {
+          "type": "circle" | "rect" | "line" | "particles" | "graph",
+          "color": "#color",
+          "label": "Label text",
+          "sizeExpr": "JS expression mapping slider/output to size/height",
+          "speedExpr": "JS expression mapping slider/output to speed/rate",
+          "glowExpr": "JS expression mapping slider/output to opacity/glow (0 to 1)"
+        }
+      ]
+    }
+  }
+}
+
+Student Query: "${message}"
+Tutor Explanation: "${reply.substring(0, 500)}..."`;
+
+        const llmRes = await getProviderResponse([
+            { role: 'system', content: systemPrompt }
+        ], { maxTokens: 800, temperature: 0.2 });
+
+        const content = llmRes?.choices?.[0]?.message?.content;
+        if (content) {
+            resultJson = safeJsonParse(content);
+        }
+    } catch (err) {
+        console.error("LLM lab config generation failed, using keyword fallback:", err);
+    }
+
+    if (!resultJson) {
+        resultJson = {
+            subject,
+            youtube_query: defaultYoutubeQuery,
+            mermaid_schema: `graph TD\n    A[${message.substring(0, 20)}] --> B[Learn Concept]\n    B --> C[Verify via Lab]`,
+            sketchfab_hint: fallbackSketchfab,
+            simulation_config: null
+        };
+    }
+
+    const content_layers = ['text', 'voice', 'youtube', 'diagram'];
+    const threeJsFn = THREE_JS_CONFIGS[resultJson.subject || subject];
+    const three_js_config = resultJson.simulation_config || (threeJsFn ? threeJsFn(message) : null);
+
+    if (three_js_config) {
+        content_layers.push('threejs');
+    } else {
+        content_layers.push('sketchfab');
+    }
+
+    return {
+        subject: resultJson.subject || subject,
+        topic: message.substring(0, 60),
+        grade_level: studentProfile?.grade_level || 'class_10',
+        board: studentProfile?.board || 'cbse',
+        sensitivity_level: sensitivity,
+        content_layers,
+        diagram_type: resultJson.mermaid_schema ? 'dynamic_mermaid' : defaultDiagramType,
+        mermaid_schema: resultJson.mermaid_schema || null,
+        three_js_config,
+        sketchfab_hint: resultJson.sketchfab_hint || fallbackSketchfab,
+        youtube_query: resultJson.youtube_query || defaultYoutubeQuery,
+        voice_script: reply.substring(0, 500),
+        auto_open: true,
+    };
+};
+
+// ─────────────────────────────────────────────
 // SYSTEM PROMPT — Minerva Tutor Persona
 // ─────────────────────────────────────────────
 const MINERVA_PERSONA = (studentProfile: any) => `
@@ -158,10 +357,15 @@ Do NOT include any extra text or reasoning. Return ONLY the JSON array.`
         console.error("Failed to generate dynamic suggestions:", e);
     }
 
+    const labConfig = await generateLabConfig(message, reply, studentProfile);
+    const finalMetadata: any = {};
+    if (suggestions.length > 0) finalMetadata.suggestions = suggestions;
+    if (labConfig) finalMetadata.lab_config = labConfig;
+
     return { 
         reply, 
         content_type: 'text', 
-        metadata: suggestions.length > 0 ? { suggestions } : null 
+        metadata: Object.keys(finalMetadata).length > 0 ? finalMetadata : null 
     };
 };
 

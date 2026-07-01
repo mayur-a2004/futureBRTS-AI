@@ -52,19 +52,14 @@ export const onboardingApi = {
         });
     },
 
-    complete: async (token: string) => {
+    complete: async (data: any, token: string) => {
         return await safeFetch(`${BASE_URL}/complete`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
-            // Assuming complete might need body later, but current controller doesn't strictly require it if pulling from DB/profile? 
-            // Wait, the controller expects body params? 
-            // "const { sessionId, field, ... } = req.body;" 
-            // We need to pass these! But the original 'complete' function didn't pass data?
-            // Ah, Onboarding.tsx calls it differently.
-            // Let's keep it generic for now, but usually 'complete' implies finalization.
-            // Onboarding.tsx: await onboardingApi.complete(token); -> It sends NO BODY?
-            // Let's check Onboarding.tsx again.
-            body: JSON.stringify({})
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(data || {})
         });
     }
 };

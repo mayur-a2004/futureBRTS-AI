@@ -81,30 +81,30 @@ export const onboardingController = {
                 target_outcome,
             } = req.body;
 
-            if (!field) {
-                return res.status(400).json({ success: false, message: 'Missing required fields (field)' });
-            }
-
             const userId = req.user.id;
             console.log(`[Onboarding] Completing for user: ${userId}`);
 
+            // Build dynamic update object to avoid overwriting existing data with undefined
+            const updateData: any = {
+                onboardingCompleted: true,
+                completedAt: new Date()
+            };
+
+            const fields = [
+                'sessionId', 'field', 'final_goal', 'future_interest', 
+                'life_stage', 'phase', 'problem', 'project_level', 'target_outcome'
+            ];
+
+            fields.forEach(f => {
+                if (req.body[f] !== undefined) {
+                    updateData[f] = req.body[f];
+                }
+            });
+
             // 1. Create/Update Onboarding Profile
             const profile = await OnboardingProfile.findOneAndUpdate(
-                { userId }, // One profile per user for now (or sessionId specific if needed)
-                {
-                    userId,
-                    sessionId: sessionId || null,
-                    field,
-                    final_goal,
-                    future_interest,
-                    life_stage,
-                    phase,
-                    problem,
-                    project_level,
-                    target_outcome,
-                    onboardingCompleted: true, // MANDATORY FLAG
-                    completedAt: new Date()
-                },
+                { userId },
+                { $set: updateData },
                 { new: true, upsert: true }
             );
 

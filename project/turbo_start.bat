@@ -11,7 +11,7 @@ echo [2/3] Starting Unified AI Frontend...
 start "FB: Frontend" cmd /k "cd frontend && npm run dev"
 
 echo [3/3] Starting AI Worker (Python)...
-start "FB: AI Worker" cmd /k "cd worker && uvicorn main:app --port 8000 --reload"
+start "FB: AI Worker" cmd /k "cd worker && venv\Scripts\uvicorn main:app --port 8000 --reload"
 
 echo.
 echo ===================================================
