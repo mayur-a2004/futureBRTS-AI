@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../../context/AuthContext';
 import { useModal } from '../../context/ModalContext';
 import { Button } from '../../components/ui/Button';
-import { Zap, Swords, User, Trophy, Users, Send, ArrowLeft, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { Zap, Swords, Trophy, Users, ArrowLeft, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function MinervaQuizBattlePage() {
@@ -27,7 +27,6 @@ export default function MinervaQuizBattlePage() {
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [selectedOption, setSelectedOption] = useState<number | null>(null);
     const [hasSubmitted, setHasSubmitted] = useState(false);
-    const [opponentProgress, setOpponentProgress] = useState<{ [key: string]: number }>({});
     const [resultMessage, setResultMessage] = useState('');
 
     useEffect(() => {
@@ -53,14 +52,6 @@ export default function MinervaQuizBattlePage() {
 
         newSocket.on('battle_update', (data: { battle: any; answeredBy: string; questionIndex: number; isCorrect: boolean }) => {
             setBattleData(data.battle);
-            
-            // Track opponent's progress dynamically
-            if (data.answeredBy !== user?._id) {
-                setOpponentProgress(prev => ({
-                    ...prev,
-                    [data.questionIndex]: data.isCorrect ? 100 : 0
-                }));
-            }
         });
 
         newSocket.on('battle_finished', (data: { battle: any }) => {

@@ -14,8 +14,8 @@ const MinervaDashboardPage: React.FC = () => {
         total_exams_taken: 0,
         activeRoadmaps: 0,
         averageScore: 85,
-        streak: 5,
-        weeklyMinutes: [45, 60, 30, 90, 75, 40, 50]
+        streak: 0,
+        weeklyMinutes: [0, 0, 0, 0, 0, 0, 0]
     });
     const [dueReviews, setDueReviews] = useState<any[]>([]);
     const [leaderboard, setLeaderboard] = useState<any[]>([]);
@@ -45,8 +45,8 @@ const MinervaDashboardPage: React.FC = () => {
                     total_exams_taken: statsData.stats.total_exams || 0,
                     activeRoadmaps: statsData.stats.active_roadmaps || 0,
                     averageScore: statsData.stats.avg_exam_score || 85,
-                    streak: statsData.stats.study_streak || 5,
-                    weeklyMinutes: statsData.stats.weeklyMinutes || [15, 25, 10, 45, 30, 15, 20]
+                    streak: statsData.stats.study_streak ?? 0,
+                    weeklyMinutes: statsData.stats.weeklyMinutes || [0, 0, 0, 0, 0, 0, 0]
                 }));
             }
 

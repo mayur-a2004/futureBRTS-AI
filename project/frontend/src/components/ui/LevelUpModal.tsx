@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Star, Sparkles, X } from 'lucide-react';
+import { Trophy, Sparkles, X } from 'lucide-react';
 
 interface LevelUpModalProps {
     isOpen: boolean;

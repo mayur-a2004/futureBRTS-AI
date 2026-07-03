@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Play, RotateCcw, Terminal, Code } from 'lucide-react';
-import { SubjectType, SUBJECT_COLORS } from '../types/LabConfig';
+import { SubjectType } from '../types/LabConfig';
 
 interface SandboxLabProps {
   subject: SubjectType;
@@ -13,8 +13,6 @@ interface SandboxLabProps {
 }
 
 export const SandboxLab: React.FC<SandboxLabProps> = ({
-  subject,
-  topic,
   sandboxConfig
 }) => {
   const lang = sandboxConfig?.language || 'javascript';
