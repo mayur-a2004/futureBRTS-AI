@@ -450,6 +450,15 @@ const MinervaHome: React.FC = () => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
+    useEffect(() => {
+        if (inputRef.current) {
+            inputRef.current.style.height = 'auto';
+            const newHeight = Math.min(inputRef.current.scrollHeight, 160);
+            inputRef.current.style.height = `${newHeight}px`;
+            inputRef.current.style.overflowY = inputRef.current.scrollHeight > 160 ? 'auto' : 'hidden';
+        }
+    }, [input]);
+
     const loadSessionData = async () => {
         setLoading(true);
         try {
@@ -1313,7 +1322,7 @@ const MinervaHome: React.FC = () => {
                                 onKeyDown={handleKeyDown}
                                 placeholder={isDeepStudy ? "Ask a doubt, explain in detail..." : "Ask a doubt or request a topic..."}
                                 rows={1}
-                                className={`flex-1 bg-transparent resize-none text-sm placeholder-gray-500 outline-none max-h-32 leading-relaxed py-1.5 transition-colors duration-300 scrollbar-hide ${isDeepStudy ? 'text-cyan-100 caret-cyan-400' : 'text-white'}`}
+                                className={`flex-1 bg-transparent resize-none text-sm placeholder-gray-500 outline-none leading-relaxed py-1.5 transition-colors duration-300 ${isDeepStudy ? 'text-cyan-100 caret-cyan-400' : 'text-white'}`}
                                 style={{ minHeight: '24px' }}
                             />
                             

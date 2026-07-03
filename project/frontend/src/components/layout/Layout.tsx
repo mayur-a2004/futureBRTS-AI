@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom"
-import { LayoutDashboard, Zap, LogOut, Clock, Menu, X, MessageSquare, Map, CheckSquare, Edit2, Check, MoreHorizontal, Trash2, Share2, Pin, Archive, FolderInput, Sparkles, PanelLeftClose, PanelLeftOpen, Settings, User, ChevronRight, Briefcase, ShieldCheck, FileText, GraduationCap, Award } from "lucide-react"
+import { LayoutDashboard, Zap, LogOut, Clock, Menu, X, MessageSquare, Map, CheckSquare, Edit2, Check, MoreHorizontal, Trash2, Share2, Pin, Archive, FolderInput, Sparkles, PanelLeftClose, PanelLeftOpen, Settings, User, ChevronRight, Briefcase, ShieldCheck, FileText, GraduationCap, Award, Swords, Users } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { useState, useEffect, useRef } from "react";
 import TokenWall from "@/components/economy/TokenWall";
@@ -345,9 +345,12 @@ export default function Layout() {
     };
 
     const navItems = isFutureEd ? [
+        { name: "Student Dashboard", path: "/future-education/dashboard", icon: <LayoutDashboard size={20} /> },
         { name: "Tutor Chat", path: "/future-education", icon: <MessageSquare size={20} /> },
         { name: "Study Roadmaps", path: "/future-education/roadmaps", icon: <Map size={20} /> },
         { name: "Study Tasks", path: "/future-education/tasks", icon: <CheckSquare size={20} /> },
+        { name: "1v1 Quiz Battle", path: "/future-education/quiz-battle", icon: <Swords size={20} /> },
+        { name: "Parent Portal", path: "/future-education/parent-dashboard", icon: <Users size={20} /> },
         { name: "E-Builder", path: "/future-education/builder", icon: <Zap size={20} /> },
         { name: "Practice Exams", path: "/future-education/exams", icon: <FileText size={20} /> },
         { name: "Academic Results", path: "/future-education/results", icon: <Award size={20} /> },
@@ -695,7 +698,7 @@ export default function Layout() {
                 </div>
             </aside >
 
-            <main className={`flex-1 min-w-0 ${isFullHeight ? 'overflow-hidden pb-0' : 'overflow-y-auto pb-16'} relative w-full md:pb-0`}>
+            <main className={`flex-1 min-w-0 ${isFullHeight ? 'h-full overflow-hidden pb-0' : 'overflow-y-auto pb-16'} relative w-full md:pb-0`}>
                 <div className={`relative ${isFullHeight ? 'h-full' : 'min-h-full'} flex flex-col ${isFullHeight ? (isMinervaMain ? 'pt-0 px-0 pb-0' : 'pt-14 md:pt-0 px-0 pb-0') : 'p-4 md:p-8 pt-20 md:pt-8 pb-20 md:pb-8'} w-full max-w-full overflow-x-hidden`}>
                     <div className={`flex-1 flex flex-col ${isFutureEd && !isMinervaMain ? 'overflow-y-auto' : 'overflow-hidden'} min-w-0 min-h-0`}>
                         <Outlet />

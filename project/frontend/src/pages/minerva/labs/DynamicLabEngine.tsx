@@ -34,12 +34,12 @@ export const DynamicLabEngine: React.FC<DynamicLabEngineProps> = ({
   const [voiceLang, setVoiceLang] = useState('en');
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-  // Sync state on config load
   useEffect(() => {
     if (labConfig) {
-      // Pick first available layer
-      if (labConfig.content_layers.length > 0) {
-        setActiveLayer(labConfig.content_layers[0]);
+      // Pick first available layer safely
+      const layers = labConfig.content_layers || [];
+      if (layers.length > 0) {
+        setActiveLayer(layers[0]);
       }
       
       // Reset voice
@@ -180,7 +180,7 @@ export const DynamicLabEngine: React.FC<DynamicLabEngineProps> = ({
     >
       <LabControlPanel
         activeLayer={activeLayer}
-        availableLayers={labConfig.content_layers.filter(l => l !== 'voice')}
+        availableLayers={(labConfig.content_layers || []).filter(l => l !== 'voice')}
         onLayerChange={(layer) => {
           setActiveLayer(layer);
           stopSpeech(); // Stop speech when switching modes
