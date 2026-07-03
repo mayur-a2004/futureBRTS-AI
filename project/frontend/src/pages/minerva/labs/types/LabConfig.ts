@@ -114,6 +114,7 @@ export const LAYER_ICONS: Record<ContentLayer, string> = {
   sketchfab: '🧊',
   youtube:   '▶️',
   voice:     '🔊',
+  sandbox:   '💻',
 };
 
 export const LAYER_LABELS: Record<ContentLayer, string> = {
@@ -123,4 +124,5 @@ export const LAYER_LABELS: Record<ContentLayer, string> = {
   sketchfab: '3D Model',
   youtube:   'Video',
   voice:     'Voice',
+  sandbox:   'Sandbox',
 };

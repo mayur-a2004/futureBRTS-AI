@@ -103,6 +103,37 @@ class MailService {
         `;
         await this.sendEmail(parentEmail, subject, html);
     }
+
+    async sendSrsReminderEmail(to: string, studentName: string, dueTopics: { title: string; sessionTitle: string }[]) {
+        const subject = `Review Reminder: You have ${dueTopics.length} topics due for review today!`;
+        const topicsListHtml = dueTopics.map(t => 
+            `<li style="margin-bottom: 8px; color: #334155; font-size: 15px;">
+                <strong>${t.title}</strong> (from <em>${t.sessionTitle}</em>)
+             </li>`
+        ).join('');
+        
+        const html = `
+            <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                <h2 style="color: #6366f1;">Future Education OS - Spaced Repetition Review</h2>
+                <p>Hello ${studentName || 'Student'},</p>
+                <p>According to your personal learning curve, the following topics are due for review today. Reviewing them now will maximize long-term retention by up to 300%!</p>
+                
+                <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #edf2f7; margin: 20px 0;">
+                    <span style="font-size: 11px; color: #64748b; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em;">Due Reviews Today</span>
+                    <ul style="margin: 12px 0 0 0; padding-left: 20px;">
+                        ${topicsListHtml}
+                    </ul>
+                </div>
+                
+                <div style="margin: 24px 0; text-align: center;">
+                    <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/future-education/dashboard" style="background-color: #6366f1; color: white; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Go to Dashboard & Review Now</a>
+                </div>
+                
+                <p style="color: #64748b; font-size: 12px; margin-top: 24px;">This is an automated notification based on the SM-2 Spaced Repetition scheduler. Keep up the active study streak! 🔥</p>
+            </div>
+        `;
+        await this.sendEmail(to, subject, html);
+    }
 }
 
 export const mailService = new MailService();

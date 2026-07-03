@@ -115,6 +115,8 @@ const startServer = async () => {
         }
 
         initCronJobs();
+        const { initSrsCronJobs } = require('./jobs/srsReminder.cron');
+        initSrsCronJobs();
 
         const PORT = Number(process.env.PORT) || 7001;
 

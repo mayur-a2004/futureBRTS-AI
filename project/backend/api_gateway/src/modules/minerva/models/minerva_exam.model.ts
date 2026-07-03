@@ -37,6 +37,7 @@ export interface IMinervaExam extends Document {
     time_taken_minutes: number;
     // PDF
     pdf_path: string;
+    appeals: any[];
     createdAt: Date;
     updatedAt: Date;
 }
@@ -84,6 +85,7 @@ const MinervaExamSchema = new Schema({
     submitted_at: { type: Date, default: null },
     time_taken_minutes: { type: Number, default: 0 },
     pdf_path: { type: String, default: '' },
+    appeals: { type: Schema.Types.Mixed, default: [] },
 }, { timestamps: true });
 
 MinervaExamSchema.index({ userId: 1, status: 1 });

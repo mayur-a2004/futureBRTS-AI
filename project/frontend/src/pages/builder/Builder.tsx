@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
-import { Send, Map, Menu, Zap, Brain, Plus, ArrowRight, RotateCw, Sparkles, X, Loader2, Rocket, Check, FileText, Shield, Search } from "lucide-react";
+import { Send, Map, Menu, Zap, Brain, Plus, ArrowRight, RotateCw, Sparkles, X, Loader2, Rocket, Check, FileText, Shield, Search, Globe } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import TokenWall from "@/components/economy/TokenWall";

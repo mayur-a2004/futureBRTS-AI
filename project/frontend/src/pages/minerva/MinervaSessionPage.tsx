@@ -86,11 +86,15 @@ const MinervaSessionPage: React.FC = () => {
         );
     }
 
+    const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
+
     const highNodes = nodes.filter(n => n.priority === 'HIGH');
     const medNodes = nodes.filter(n => n.priority === 'MEDIUM');
     const lowNodes = nodes.filter(n => n.priority === 'LOW');
     const doneCount = nodes.filter(n => n.status === 'DONE').length;
     const canExam = session.exam_ready || doneCount >= 2;
+
+    const sortedNodes = [...nodes].sort((a, b) => a.order_index - b.order_index);
 
     return (
         <div className="min-h-screen bg-[#030209] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#0f0b29]/40 via-black to-black text-white font-inter relative pb-12">
@@ -120,12 +124,18 @@ const MinervaSessionPage: React.FC = () => {
                     </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 ml-4">
+                    {session.progress_percent === 100 && (
+                        <a href={minervaApi.getCertificateUrl(token, session._id)} download
+                            className="px-3 py-1.5 text-[10px] sm:text-xs bg-gradient-to-r from-emerald-500 to-teal-500 hover:opacity-90 text-white rounded-xl transition-all font-bold flex items-center gap-1 border border-emerald-400/20 cursor-pointer shadow-md">
+                            <Award size={11} className="text-yellow-300 animate-pulse" /> <span>Claim Certificate</span>
+                        </a>
+                    )}
                     <button onClick={() => navigate(`/future-education/builder?sessionId=${session._id}`)}
-                        className="px-3 py-1.5 text-[10px] sm:text-xs bg-white/[0.03] hover:bg-white/10 border border-white/5 hover:border-indigo-500/30 text-indigo-400 hover:text-indigo-300 rounded-xl transition-all font-bold flex items-center gap-1">
+                        className="px-3 py-1.5 text-[10px] sm:text-xs bg-white/[0.03] hover:bg-white/10 border border-white/5 hover:border-indigo-500/30 text-indigo-400 hover:text-indigo-300 rounded-xl transition-all font-bold flex items-center gap-1 cursor-pointer">
                         <Zap size={11} className="text-indigo-400" /> <span className="hidden sm:inline">E-Builder Notes</span><span className="inline sm:hidden">Notes</span>
                     </button>
                     <button onClick={() => navigate('/future-education/homework')}
-                        className="px-3 py-1.5 text-[10px] sm:text-xs bg-white/[0.03] hover:bg-white/10 border border-white/5 hover:border-indigo-500/30 text-gray-300 hover:text-white rounded-xl transition-all font-bold flex items-center gap-1">
+                        className="px-3 py-1.5 text-[10px] sm:text-xs bg-white/[0.03] hover:bg-white/10 border border-white/5 hover:border-indigo-500/30 text-gray-300 hover:text-white rounded-xl transition-all font-bold flex items-center gap-1 cursor-pointer">
                         <CheckSquare size={11} className="text-indigo-400" /> <span>Homework</span>
                     </button>
                     {canExam && (
@@ -159,113 +169,76 @@ const MinervaSessionPage: React.FC = () => {
                     ))}
                 </div>
 
-                {/* Nodes List */}
-                {[
-                    { label: '🔴 High Importance', nodes: highNodes, desc: 'Highest probability of appearing in exams', border: 'border-red-500/20 bg-red-950/5' },
-                    { label: '🟡 Medium Importance', nodes: medNodes, desc: 'Frequently tested subject matter', border: 'border-amber-500/10 bg-amber-950/5' },
-                    { label: '🟢 General Knowledge', nodes: lowNodes, desc: 'Optional or supportive learning topics', border: 'border-emerald-500/10 bg-emerald-950/5' },
-                ].map((group, gi) => group.nodes.length > 0 && (
-                    <div key={gi} className="mb-8 animate-in fade-in duration-300">
-                        <div className="flex items-center gap-2 mb-3">
-                            <h2 className="font-bold text-xs sm:text-sm text-gray-200">{group.label}</h2>
-                            <span className="text-[10px] text-gray-500 font-semibold hidden sm:inline">• {group.desc}</span>
-                            <span className="ml-auto text-[10px] bg-white/5 border border-white/5 px-2.5 py-0.5 rounded-full text-indigo-300 font-bold">{group.nodes.length} Topics</span>
-                        </div>
+                {/* View Mode Switcher */}
+                <div className="flex items-center justify-between mb-8">
+                    <h2 className="text-sm uppercase tracking-widest text-slate-400 font-black">Curriculum Journey</h2>
+                    <div className="flex bg-slate-900/60 border border-slate-800 p-1 rounded-xl">
+                        <button
+                            onClick={() => setViewMode('map')}
+                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${viewMode === 'map' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
+                        >
+                            🗺️ Journey Map
+                        </button>
+                        <button
+                            onClick={() => setViewMode('list')}
+                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${viewMode === 'list' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
+                        >
+                            📋 Importance List
+                        </button>
+                    </div>
+                </div>
 
-                        <div className="space-y-3">
-                            {group.nodes.map((node, ni) => {
+                {/* Visual Zigzag Path Map Mode */}
+                {viewMode === 'map' && (
+                    <div className="relative py-10 flex flex-col items-center">
+                        {/* Wavy Background Timeline Connector Line */}
+                        <div className="absolute top-0 bottom-0 w-[2px] bg-slate-800 z-0"></div>
+                        
+                        <div className="w-full space-y-12 relative z-10">
+                            {sortedNodes.map((node, idx) => {
                                 const isLocked = node.status === 'LOCKED';
                                 const isDone = node.status === 'DONE';
+                                const isEven = idx % 2 === 0;
 
                                 return (
-                                    <div key={ni}
-                                        onClick={() => handleLearnNode(node)}
-                                        className={`flex items-center gap-4 p-4 rounded-3xl border transition-all relative overflow-hidden group
-                                            ${isLocked
-                                                ? 'bg-white/[0.01] border-white/5 cursor-not-allowed opacity-40'
-                                                : 'bg-[#0B0915]/60 border-white/[0.05] hover:bg-[#120e2a]/40 hover:border-indigo-500/35 cursor-pointer shadow-lg hover:shadow-indigo-500/5 hover:-translate-y-0.5 duration-300'
-                                            }`}>
-
-                                        {!isLocked && (
-                                            <div className="absolute top-0 left-0 w-[2px] h-full bg-gradient-to-b from-indigo-500 via-purple-600 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                                        )}
-
-                                        {/* Status Icon Indicator Left */}
-                                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-xs font-bold flex-shrink-0 border transition-all
-                                            ${isDone ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-emerald-500/5'
-                                                : isLocked ? 'bg-white/5 text-gray-600 border-white/5'
-                                                    : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20 shadow-indigo-500/5'}`}>
-                                            {isDone ? '✓' : isLocked ? <Lock size={14} /> : node.order_index}
-                                        </div>
-
-                                        {/* Content info */}
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                <span className={`text-xs sm:text-sm font-semibold truncate ${isLocked ? 'text-gray-500' : 'text-gray-200 group-hover:text-white'}`}>
-                                                    {node.title}
-                                                </span>
-                                                {node.exam_weightage_percent > 0 && (
-                                                    <span className="text-[8px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20 font-bold uppercase tracking-wider shrink-0">
-                                                        {node.exam_weightage_percent}% weightage
-                                                    </span>
-                                                )}
-                                            </div>
-                                            {node.chapter && (
-                                                <div className="text-xs text-gray-500 mt-1 truncate">{node.chapter}</div>
-                                            )}
-                                            {node.board_relevance && (
-                                                <div className="text-[10px] text-indigo-400/70 mt-0.5 truncate">{node.board_relevance}</div>
-                                            )}
-                                        </div>
-
-                                        {/* Right side items */}
-                                        <div className="flex items-center gap-3 flex-shrink-0">
-                                            {node.last_score > 0 && (
-                                                <div className={`text-xs font-black px-2.5 py-1 rounded-lg border
-                                                    ${node.last_score >= 70 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
-                                                    {node.last_score}% Score
+                                    <div key={node._id} className="flex items-center w-full min-h-[140px]">
+                                        {/* Left Column (Card on Even, Placeholder on Odd) */}
+                                        <div className={`w-[45%] flex ${isEven ? 'justify-end pr-8' : 'hidden md:flex'}`}>
+                                            {isEven && (
+                                                <div 
+                                                    onClick={() => handleLearnNode(node)}
+                                                    className={`w-full max-w-sm p-4 rounded-3xl border transition-all text-right relative overflow-hidden group select-none ${isLocked ? 'bg-white/[0.01] border-white/5 cursor-not-allowed opacity-40' : 'bg-[#0B0915]/60 border-white/[0.05] hover:bg-[#120e2a]/40 hover:border-indigo-500/35 cursor-pointer shadow-xl hover:-translate-y-0.5 duration-300'}`}
+                                                >
+                                                    <h3 className="font-bold text-sm text-slate-200 group-hover:text-white truncate">{node.title}</h3>
+                                                    <span className="text-[10px] text-gray-500 mt-1 block">{node.chapter || 'Chapter Unit'}</span>
+                                                    <div className="mt-3 flex items-center justify-end gap-2 text-[10px]">
+                                                        {node.last_score > 0 && <span className="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20">{node.last_score}% score</span>}
+                                                        <span className="bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded border border-indigo-500/20 font-bold">{node.priority}</span>
+                                                    </div>
                                                 </div>
                                             )}
-                                            <button
-                                                onClick={(e) => handleTogglePriority(e, node._id, node.priority)}
-                                                title="Click to cycle priority (High -> Medium -> Low)"
-                                                className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-xl transition-all shrink-0 active:scale-95 hover:brightness-125 border
-                                                    ${node.priority === 'HIGH' ? 'bg-red-500/10 text-red-400 border-red-500/20'
-                                                        : node.priority === 'MEDIUM' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                                                            : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}
-                                            >
-                                                {node.priority}
-                                            </button>
-                                            <div className="text-xs text-gray-500 flex items-center gap-1 font-mono">
-                                                <Clock size={12} className="text-gray-400" /> {node.estimated_time_minutes}m
+                                        </div>
+
+                                        {/* Central Timeline Point Connector */}
+                                        <div className="w-[10%] flex justify-center relative">
+                                            <div className={`w-8 h-8 rounded-full border bg-slate-950 flex items-center justify-center text-xs font-black z-10 transition-all duration-300 shadow-[0_0_15px_rgba(0,0,0,0.5)] ${isDone ? 'border-emerald-500 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : isLocked ? 'border-slate-800 text-slate-600' : 'border-indigo-500 text-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.4)] animate-pulse'}`}>
+                                                {isDone ? '✓' : isLocked ? <Lock size={12} /> : node.order_index}
                                             </div>
-                                            {!isLocked && (
-                                                <a 
-                                                    href={`https://www.youtube.com/results?search_query=${encodeURIComponent(node.title + ' ' + (session.subject || ''))}`}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    title="Watch YouTube lessons for this topic"
-                                                    className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/25 flex items-center justify-center text-red-400 hover:bg-red-500/25 hover:text-red-300 transition-all shrink-0"
+                                        </div>
+
+                                        {/* Right Column (Card on Odd, Placeholder on Even) */}
+                                        <div className={`w-[45%] flex ${!isEven ? 'justify-start pl-8' : 'hidden md:flex'}`}>
+                                            {!isEven && (
+                                                <div 
+                                                    onClick={() => handleLearnNode(node)}
+                                                    className={`w-full max-w-sm p-4 rounded-3xl border transition-all text-left relative overflow-hidden group select-none ${isLocked ? 'bg-white/[0.01] border-white/5 cursor-not-allowed opacity-40' : 'bg-[#0B0915]/60 border-white/[0.05] hover:bg-[#120e2a]/40 hover:border-indigo-500/35 cursor-pointer shadow-xl hover:-translate-y-0.5 duration-300'}`}
                                                 >
-                                                    <Youtube size={12} />
-                                                </a>
-                                            )}
-                                            {!isLocked && (
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        navigate(`/future-education?askDoubt=${encodeURIComponent(`Mujhe topic '${node.title}' mein doubt hai, please help me understand this concept!`)}`);
-                                                    }}
-                                                    title="Ask doubt in Chat"
-                                                    className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/25 flex items-center justify-center text-indigo-400 hover:bg-indigo-500/25 hover:text-indigo-300 transition-all shrink-0"
-                                                >
-                                                    <MessageSquare size={12} />
-                                                </button>
-                                            )}
-                                            {!isLocked && (
-                                                <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/5 flex items-center justify-center text-gray-400 group-hover:text-indigo-400 group-hover:bg-indigo-500/10 group-hover:border-indigo-500/20 transition-all shrink-0">
-                                                    <ArrowRight size={14} />
+                                                    <h3 className="font-bold text-sm text-slate-200 group-hover:text-white truncate">{node.title}</h3>
+                                                    <span className="text-[10px] text-gray-500 mt-1 block">{node.chapter || 'Chapter Unit'}</span>
+                                                    <div className="mt-3 flex items-center justify-start gap-2 text-[10px]">
+                                                        <span className="bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded border border-indigo-500/20 font-bold">{node.priority}</span>
+                                                        {node.last_score > 0 && <span className="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20">{node.last_score}% score</span>}
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
@@ -274,7 +247,129 @@ const MinervaSessionPage: React.FC = () => {
                             })}
                         </div>
                     </div>
-                ))}
+                )}
+
+                {/* Importance List View Mode */}
+                {viewMode === 'list' && (
+                    <div>
+                        {/* Nodes List */}
+                        {[
+                            { label: '🔴 High Importance', nodes: highNodes, desc: 'Highest probability of appearing in exams', border: 'border-red-500/20 bg-red-950/5' },
+                            { label: '🟡 Medium Importance', nodes: medNodes, desc: 'Frequently tested subject matter', border: 'border-amber-500/10 bg-amber-950/5' },
+                            { label: '🟢 General Knowledge', nodes: lowNodes, desc: 'Optional or supportive learning topics', border: 'border-emerald-500/10 bg-emerald-950/5' },
+                        ].map((group, gi) => group.nodes.length > 0 && (
+                            <div key={gi} className="mb-8 animate-in fade-in duration-300">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <h2 className="font-bold text-xs sm:text-sm text-gray-200">{group.label}</h2>
+                                    <span className="text-[10px] text-gray-500 font-semibold hidden sm:inline">• {group.desc}</span>
+                                    <span className="ml-auto text-[10px] bg-white/5 border border-white/5 px-2.5 py-0.5 rounded-full text-indigo-300 font-bold">{group.nodes.length} Topics</span>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {group.nodes.map((node, ni) => {
+                                        const isLocked = node.status === 'LOCKED';
+                                        const isDone = node.status === 'DONE';
+
+                                        return (
+                                            <div key={ni}
+                                                onClick={() => handleLearnNode(node)}
+                                                className={`flex items-center gap-4 p-4 rounded-3xl border transition-all relative overflow-hidden group
+                                                    ${isLocked
+                                                        ? 'bg-white/[0.01] border-white/5 cursor-not-allowed opacity-40'
+                                                        : 'bg-[#0B0915]/60 border-white/[0.05] hover:bg-[#120e2a]/40 hover:border-indigo-500/35 cursor-pointer shadow-lg hover:shadow-indigo-500/5 hover:-translate-y-0.5 duration-300'
+                                                    }`}>
+
+                                                {!isLocked && (
+                                                    <div className="absolute top-0 left-0 w-[2px] h-full bg-gradient-to-b from-indigo-500 via-purple-600 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                                )}
+
+                                                {/* Status Icon Indicator Left */}
+                                                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-xs font-bold flex-shrink-0 border transition-all
+                                                    ${isDone ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-emerald-500/5'
+                                                        : isLocked ? 'bg-white/5 text-gray-600 border-white/5'
+                                                            : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20 shadow-indigo-500/5'}`}>
+                                                    {isDone ? '✓' : isLocked ? <Lock size={14} /> : node.order_index}
+                                                </div>
+
+                                                {/* Content info */}
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <span className={`text-xs sm:text-sm font-semibold truncate ${isLocked ? 'text-gray-500' : 'text-gray-200 group-hover:text-white'}`}>
+                                                            {node.title}
+                                                        </span>
+                                                        {node.exam_weightage_percent > 0 && (
+                                                            <span className="text-[8px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20 font-bold uppercase tracking-wider shrink-0">
+                                                                {node.exam_weightage_percent}% weightage
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {node.chapter && (
+                                                        <div className="text-xs text-gray-500 mt-1 truncate">{node.chapter}</div>
+                                                    )}
+                                                    {node.board_relevance && (
+                                                        <div className="text-[10px] text-indigo-400/70 mt-0.5 truncate">{node.board_relevance}</div>
+                                                    )}
+                                                </div>
+
+                                                {/* Right side items */}
+                                                <div className="flex items-center gap-3 flex-shrink-0">
+                                                    {node.last_score > 0 && (
+                                                        <div className={`text-xs font-black px-2.5 py-1 rounded-lg border
+                                                            ${node.last_score >= 70 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                                                            {node.last_score}% Score
+                                                        </div>
+                                                    )}
+                                                    <button
+                                                        onClick={(e) => handleTogglePriority(e, node._id, node.priority)}
+                                                        title="Click to cycle priority (High -> Medium -> Low)"
+                                                        className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-xl transition-all shrink-0 active:scale-95 hover:brightness-125 border
+                                                            ${node.priority === 'HIGH' ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                                                                : node.priority === 'MEDIUM' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                                                    : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}
+                                                    >
+                                                        {node.priority}
+                                                    </button>
+                                                    <div className="text-xs text-gray-500 flex items-center gap-1 font-mono">
+                                                        <Clock size={12} className="text-gray-400" /> {node.estimated_time_minutes}m
+                                                    </div>
+                                                    {!isLocked && (
+                                                        <a 
+                                                            href={`https://www.youtube.com/results?search_query=${encodeURIComponent(node.title + ' ' + (session.subject || ''))}`}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            title="Watch YouTube lessons for this topic"
+                                                            className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/25 flex items-center justify-center text-red-400 hover:bg-red-500/25 hover:text-red-300 transition-all shrink-0"
+                                                        >
+                                                            <Youtube size={12} />
+                                                        </a>
+                                                    )}
+                                                    {!isLocked && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                navigate(`/future-education?askDoubt=${encodeURIComponent(`Mujhe topic '${node.title}' mein doubt hai, please help me understand this concept!`)}`);
+                                                            }}
+                                                            title="Ask doubt in Chat"
+                                                            className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/25 flex items-center justify-center text-indigo-400 hover:bg-indigo-500/25 hover:text-indigo-300 transition-all shrink-0"
+                                                        >
+                                                            <MessageSquare size={12} />
+                                                        </button>
+                                                    )}
+                                                    {!isLocked && (
+                                                        <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/5 flex items-center justify-center text-gray-400 group-hover:text-indigo-400 group-hover:bg-indigo-500/10 group-hover:border-indigo-500/20 transition-all shrink-0">
+                                                            <ArrowRight size={14} />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 {/* Exam Call To Action Card */}
                 {canExam && (

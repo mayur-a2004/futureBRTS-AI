@@ -50,15 +50,18 @@ router.post('/upload', authMiddleware, upload.single('file'), minervaController.
 // ─── SESSIONS ──────────────────────────────────
 router.get('/sessions', authMiddleware, minervaController.getSessions);
 router.get('/session/:id', authMiddleware, minervaController.getSession);
+router.get('/session/:id/certificate', authMiddleware, minervaController.generateCertificate);
 
 // ─── LEARNING (Node/Topic) ──────────────────────
 router.post('/node/:id/learn', authMiddleware, minervaController.learnNode);
+router.post('/node/:id/regenerate', authMiddleware, minervaController.regenerateNodeContent);
 router.put('/node/:id/priority', authMiddleware, minervaController.updateNodePriority);
 
 // ─── TASKS / HOMEWORK ──────────────────────────
 router.post('/task/:id/submit', authMiddleware, minervaController.submitTask);
 router.get('/homework/today', authMiddleware, minervaController.getTodayHomework);
 router.get('/tasks/list', authMiddleware, minervaController.getTasks);
+router.get('/review/due', authMiddleware, minervaController.getDueReviews);
 
 // ─── E-BUILDER ─────────────────────────────────
 router.post('/builder/generate', authMiddleware, minervaController.generateMaterial);
@@ -71,17 +74,27 @@ router.get('/exams', authMiddleware, minervaController.getExams);
 router.post('/exam/generate', authMiddleware, minervaController.generateExam);
 router.get('/exam/:id', authMiddleware, minervaController.getExam);
 router.post('/exam/:id/submit', authMiddleware, minervaController.submitExam);
+router.post('/exam/:id/appeal', authMiddleware, minervaController.appealExamQuestion);
+router.get('/leaderboard', authMiddleware, minervaController.getLeaderboard);
 
 // ─── VIRTUAL LAB ────────────────────────────────
 router.get('/lab/youtube-search', authMiddleware, minervaController.labYoutubeSearch);
 
-// ─── PARENT VERIFICATION ─────────────────────────
+// ─── PARENT VERIFICATION & PORTAL ────────────────
+import { parentController } from './parent.controller';
 router.put('/parent/details', authMiddleware, minervaController.updateParentDetails);
 router.get('/parent/verify', minervaController.verifyParentEmail);
 router.post('/parent/resend-verification', authMiddleware, minervaController.resendParentVerification);
+router.get('/parent/report/:studentEmail', parentController.getStudentReport);
 
 // ─── PYTHON CODE EXECUTION ───────────────────────
 router.post('/lab/execute-python', authMiddleware, minervaController.executePythonCode);
+
+// ─── QUIZ BATTLE 1v1 ──────────────────────────────
+import { battleController } from './battle.controller';
+router.post('/battle/room', authMiddleware, battleController.createRoom);
+router.get('/battle/room/:roomCode', authMiddleware, battleController.getRoom);
+router.get('/battle/rooms', authMiddleware, battleController.listActiveRooms);
 
 export default router;
 

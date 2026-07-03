@@ -143,11 +143,19 @@ export const minervaApi = {
         const res = await fetch(`${BASE_URL}/exam/${examId}`, { headers: authHeaders(token) });
         return handleRes(res);
     },
-    submitExam: async (token: string, examId: string, answers: Record<number, string>, time_taken_minutes: number) => {
+    submitExam: async (token: string, examId: string, answers: Record<number, string>, time_taken_minutes: number, tab_switches: number) => {
         const res = await fetch(`${BASE_URL}/exam/${examId}/submit`, {
             method: 'POST',
             headers: authHeaders(token),
-            body: JSON.stringify({ answers, time_taken_minutes }),
+            body: JSON.stringify({ answers, time_taken_minutes, tab_switches }),
+        });
+        return handleRes(res);
+    },
+    appealExamQuestion: async (token: string, examId: string, question_number: number, student_reason: string) => {
+        const res = await fetch(`${BASE_URL}/exam/${examId}/appeal`, {
+            method: 'POST',
+            headers: authHeaders(token),
+            body: JSON.stringify({ question_number, student_reason }),
         });
         return handleRes(res);
     },
@@ -177,4 +185,24 @@ export const minervaApi = {
         });
         return handleRes(res);
     },
+
+    // ─── NEW STRATEGY ENDPOINTS ─────────────────────
+    getDueReviews: async (token: string) => {
+        const res = await fetch(`${BASE_URL}/review/due`, { headers: authHeaders(token) });
+        return handleRes(res);
+    },
+    regenerateNodeContent: async (token: string, nodeId: string) => {
+        const res = await fetch(`${BASE_URL}/node/${nodeId}/regenerate`, {
+            method: 'POST',
+            headers: authHeaders(token)
+        });
+        return handleRes(res);
+    },
+    getLeaderboard: async (token: string) => {
+        const res = await fetch(`${BASE_URL}/leaderboard`, { headers: authHeaders(token) });
+        return handleRes(res);
+    },
+    getCertificateUrl: (token: string, sessionId: string) => {
+        return `${BASE_URL}/session/${sessionId}/certificate?token=${encodeURIComponent(token)}`;
+    }
 };

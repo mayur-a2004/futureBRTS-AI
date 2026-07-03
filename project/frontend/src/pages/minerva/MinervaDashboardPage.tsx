@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { minervaApi } from '../../api/minerva.api';
-import { ChevronLeft, Brain, Award, Zap, BookOpen, Clock, Star, Flame, Trophy } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { ChevronLeft, BookOpen, Star, Flame, Trophy } from 'lucide-react';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
 
 const MinervaDashboardPage: React.FC = () => {
     const { user, token } = useAuth() as any;
@@ -17,7 +17,9 @@ const MinervaDashboardPage: React.FC = () => {
         streak: 5,
         weeklyMinutes: [45, 60, 30, 90, 75, 40, 50]
     });
-    const [loading, setLoading] = useState(true);
+    const [dueReviews, setDueReviews] = useState<any[]>([]);
+    const [leaderboard, setLeaderboard] = useState<any[]>([]);
+    const [, setLoading] = useState(true);
 
     useEffect(() => {
         if (token) {
@@ -38,13 +40,26 @@ const MinervaDashboardPage: React.FC = () => {
             });
             const statsData = await statsRes.json();
             if (statsData.success) {
-                setStats(prev => ({
+                setStats((prev: any) => ({
                     ...prev,
                     total_exams_taken: statsData.stats.total_exams || 0,
                     activeRoadmaps: statsData.stats.active_roadmaps || 0,
                     averageScore: statsData.stats.avg_exam_score || 85,
-                    streak: statsData.stats.study_streak || 5
+                    streak: statsData.stats.study_streak || 5,
+                    weeklyMinutes: statsData.stats.weeklyMinutes || [15, 25, 10, 45, 30, 15, 20]
                 }));
+            }
+
+            // Fetch due reviews
+            const reviewsRes = await minervaApi.getDueReviews(token);
+            if (reviewsRes.success) {
+                setDueReviews(reviewsRes.due_nodes || []);
+            }
+
+            // Fetch leaderboard
+            const leaderboardRes = await minervaApi.getLeaderboard(token);
+            if (leaderboardRes.success) {
+                setLeaderboard(leaderboardRes.leaderboard || []);
             }
         } catch (err) {
             console.error("Error loading dashboard metrics:", err);
@@ -68,7 +83,7 @@ const MinervaDashboardPage: React.FC = () => {
         { name: 'First Grade', icon: '🥇', desc: 'Get above 90% in any exam', reqLevel: 1 },
     ];
 
-    const unlockedBadges = user?.badges || [];
+    const unlockedBadges = stats.badges || user?.badges || [];
 
     return (
         <div className="min-h-screen bg-[#030209] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#0f0b29]/40 via-black to-black text-white font-inter relative pb-24 overflow-x-hidden">
@@ -134,62 +149,38 @@ const MinervaDashboardPage: React.FC = () => {
                 <div className="grid lg:grid-cols-3 gap-10">
                     {/* Left Column: Progress Graph */}
                     <div className="lg:col-span-2 space-y-10">
-                        {/* Weekly Study Time Line Chart (SVG) */}
+                        {/* Weekly Study Time Recharts Area Chart */}
                         <div className="bg-black/40 border border-white/5 rounded-[40px] p-8 shadow-3xl">
                             <h3 className="text-xs font-black uppercase tracking-[0.3em] text-indigo-400 border-b border-white/5 pb-4 mb-6 italic">Weekly Engagement Curve</h3>
                             
-                            {/* SVG Chart */}
-                            <div className="relative h-64 w-full">
-                                <svg className="w-full h-full" viewBox="0 0 500 200" preserveAspectRatio="none">
-                                    {/* Grids */}
-                                    <line x1="0" y1="50" x2="500" y2="50" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
-                                    <line x1="0" y1="100" x2="500" y2="100" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
-                                    <line x1="0" y1="150" x2="500" y2="150" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
-
-                                    {/* Line graph path */}
-                                    <path
-                                        d={`M 10 150 L 80 120 L 160 160 L 240 80 L 320 100 L 400 140 L 480 110`}
-                                        fill="none"
-                                        stroke="url(#neonGradient)"
-                                        strokeWidth="3.5"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                    />
-                                    {/* Area Fill */}
-                                    <path
-                                        d={`M 10 150 L 80 120 L 160 160 L 240 80 L 320 100 L 400 140 L 480 110 L 480 190 L 10 190 Z`}
-                                        fill="url(#areaGradient)"
-                                        opacity="0.15"
-                                    />
-
-                                    {/* Dots */}
-                                    <circle cx="80" cy="120" r="4" fill="#6366f1" />
-                                    <circle cx="240" cy="80" r="4" fill="#a855f7" />
-                                    <circle cx="480" cy="110" r="4" fill="#6366f1" />
-
-                                    {/* Gradients */}
-                                    <defs>
-                                        <linearGradient id="neonGradient" x1="0" y1="0" x2="1" y2="0">
-                                            <stop offset="0%" stopColor="#6366f1" />
-                                            <stop offset="100%" stopColor="#a855f7" />
-                                        </linearGradient>
-                                        <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor="#6366f1" />
-                                            <stop offset="100%" stopColor="transparent" />
-                                        </linearGradient>
-                                    </defs>
-                                </svg>
-                            </div>
-
-                            {/* X-Axis labels */}
-                            <div className="flex justify-between px-2 text-[9px] text-gray-500 font-black uppercase mt-4 tracking-widest">
-                                <span>Mon</span>
-                                <span>Tue</span>
-                                <span>Wed</span>
-                                <span>Thu</span>
-                                <span>Fri</span>
-                                <span>Sat</span>
-                                <span>Sun</span>
+                            <div className="h-64 w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart
+                                        data={[
+                                            { name: 'Mon', minutes: stats.weeklyMinutes?.[0] || 45 },
+                                            { name: 'Tue', minutes: stats.weeklyMinutes?.[1] || 60 },
+                                            { name: 'Wed', minutes: stats.weeklyMinutes?.[2] || 30 },
+                                            { name: 'Thu', minutes: stats.weeklyMinutes?.[3] || 90 },
+                                            { name: 'Fri', minutes: stats.weeklyMinutes?.[4] || 75 },
+                                            { name: 'Sat', minutes: stats.weeklyMinutes?.[5] || 40 },
+                                            { name: 'Sun', minutes: stats.weeklyMinutes?.[6] || 50 }
+                                        ]}
+                                        margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                                    >
+                                        <defs>
+                                            <linearGradient id="colorMinutes" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4}/>
+                                                <stop offset="95%" stopColor="#a855f7" stopOpacity={0.0}/>
+                                            </linearGradient>
+                                        </defs>
+                                        <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
+                                        <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
+                                        <Tooltip 
+                                            contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#fff', fontSize: '12px' }}
+                                        />
+                                        <Area type="monotone" dataKey="minutes" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorMinutes)" />
+                                    </AreaChart>
+                                </ResponsiveContainer>
                             </div>
                         </div>
 
@@ -217,10 +208,79 @@ const MinervaDashboardPage: React.FC = () => {
                                 })}
                             </div>
                         </div>
+
+                        {/* Leaderboard panel */}
+                        <div className="bg-black/40 border border-white/5 rounded-[40px] p-8 shadow-3xl space-y-6">
+                            <div className="flex justify-between items-center border-b border-white/5 pb-4">
+                                <h3 className="text-xs font-black uppercase tracking-[0.3em] text-indigo-400 italic flex items-center gap-2">
+                                    <Trophy size={14} className="text-yellow-400" /> Dynamic Student Leaderboard
+                                </h3>
+                                <span className="text-[9px] bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">Top 10 Global</span>
+                            </div>
+                            <div className="space-y-3">
+                                {leaderboard.length > 0 ? (
+                                    leaderboard.map((u: any, idx: number) => {
+                                        const isCurrentUser = u._id === user?.id || u._id === user?._id;
+                                        return (
+                                            <div key={idx} className={`flex items-center justify-between px-5 py-4 rounded-2xl border transition-all ${
+                                                isCurrentUser 
+                                                    ? 'bg-indigo-950/20 border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)]' 
+                                                    : 'bg-white/[0.01] border-white/5 hover:border-white/10'
+                                            }`}>
+                                                <div className="flex items-center gap-3">
+                                                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black uppercase ${
+                                                        idx === 0 ? 'bg-yellow-500 text-black' : idx === 1 ? 'bg-slate-300 text-black' : idx === 2 ? 'bg-amber-600 text-white' : 'bg-white/5 text-gray-400'
+                                                    }`}>
+                                                        {idx + 1}
+                                                    </span>
+                                                    <div>
+                                                        <span className="text-xs font-bold text-gray-200">{u.firstName} {u.lastName}</span>
+                                                        {isCurrentUser && <span className="ml-2 text-[8px] bg-indigo-500 text-white px-1.5 py-0.5 rounded-md font-bold uppercase">You</span>}
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-3 text-right">
+                                                    <div>
+                                                        <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Level {u.level || 1}</div>
+                                                        <div className="text-[9px] font-bold text-indigo-400 mt-0.5">{u.xp || 0} XP</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                ) : (
+                                    <div className="text-center py-6 text-xs text-gray-500 italic">Leaderboard is empty.</div>
+                                )}
+                            </div>
+                        </div>
                     </div>
 
                     {/* Right Column: Strengths and weaknesses */}
                     <div className="space-y-10">
+                        {/* Spaced Repetition Due Reviews */}
+                        <div className="bg-black/40 border border-white/5 rounded-[40px] p-8 shadow-3xl space-y-6">
+                            <h3 className="text-xs font-black uppercase tracking-[0.3em] text-cyan-400 border-b border-white/5 pb-4 italic flex items-center gap-2">
+                                🔁 Review Due Today
+                            </h3>
+                            <div className="space-y-3">
+                                {dueReviews.length > 0 ? (
+                                    dueReviews.map((node: any, i: number) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => navigate(`/future-education/learn/${node._id}`)}
+                                            className="w-full text-left bg-gradient-to-r from-cyan-950/20 to-indigo-950/20 border border-cyan-500/20 hover:border-cyan-500/50 p-4 rounded-2xl transition-all active:scale-95 block shadow-md cursor-pointer"
+                                        >
+                                            <span className="text-xs font-bold text-gray-200 block truncate">{node.title}</span>
+                                            <span className="text-[9px] text-gray-500 font-bold block mt-1 uppercase tracking-wider">{node.topic} • Chapter {node.chapter}</span>
+                                        </button>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-6 text-xs text-gray-500 italic">
+                                        All topics are current! No reviews due. 🎉
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
                         <div className="bg-black/40 border border-white/5 rounded-[40px] p-8 shadow-3xl space-y-6">
                             <h3 className="text-xs font-black uppercase tracking-[0.3em] text-emerald-400 border-b border-white/5 pb-4 italic">🟢 Target Strengths</h3>
                             <div className="space-y-4">

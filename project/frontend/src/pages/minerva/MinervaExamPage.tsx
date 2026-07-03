@@ -22,11 +22,15 @@ const MinervaExamPage: React.FC = () => {
     const [isLevelUpOpen, setIsLevelUpOpen] = useState(false);
     const [newLevel, setNewLevel] = useState(1);
     const [xpGained, setXpGained] = useState(0);
+    const [appealQuestionNum, setAppealQuestionNum] = useState<number | null>(null);
+    const [appealReason, setAppealReason] = useState('');
+    const [appealSubmitting, setAppealSubmitting] = useState(false);
     
     const startTime = useRef(Date.now());
     const timerRef = useRef<any>(null);
     const answersRef = useRef<Record<number, string>>({});
     const isSubmittedRef = useRef(false);
+    const tabSwitchesRef = useRef(0);
 
     useEffect(() => {
         answersRef.current = answers;
@@ -65,6 +69,7 @@ const MinervaExamPage: React.FC = () => {
             if (document.visibilityState === 'hidden') {
                 setTabSwitches(prev => {
                     const nextCount = prev + 1;
+                    tabSwitchesRef.current = nextCount;
                     if (nextCount >= 3) {
                         alert("TAB SWITCHING LIMIT EXCEEDED! You switched tabs 3 times. Your exam has been automatically submitted.");
                         handleSubmitDirect();
@@ -87,7 +92,7 @@ const MinervaExamPage: React.FC = () => {
         return () => {
             if (!isSubmittedRef.current && exam && exam.status !== 'submitted') {
                 const timeTaken = Math.round((Date.now() - startTime.current) / 60000);
-                minervaApi.submitExam(token, id!, answersRef.current, timeTaken).catch(console.error);
+                minervaApi.submitExam(token, id!, answersRef.current, timeTaken, tabSwitchesRef.current).catch(console.error);
             }
         };
     }, [exam, id, token]);
@@ -141,7 +146,7 @@ const MinervaExamPage: React.FC = () => {
         clearInterval(timerRef.current);
         setSubmitting(true);
         const timeTaken = Math.round((Date.now() - startTime.current) / 60000);
-        const res = await minervaApi.submitExam(token, id!, answersRef.current, timeTaken);
+        const res = await minervaApi.submitExam(token, id!, answersRef.current, timeTaken, tabSwitchesRef.current);
         setSubmitting(false);
         if (res.success) {
             setSubmitted(true);
@@ -160,6 +165,34 @@ const MinervaExamPage: React.FC = () => {
         const confirmSubmit = window.confirm("Are you sure you want to submit your exam?");
         if (confirmSubmit) {
             await handleSubmitDirect();
+        }
+    };
+
+    const handleAppealSubmit = async () => {
+        if (!appealQuestionNum || !appealReason.trim()) return;
+        setAppealSubmitting(true);
+        try {
+            const res = await minervaApi.appealExamQuestion(token, id!, appealQuestionNum, appealReason);
+            if (res.success) {
+                alert(res.message);
+                setExam(res.exam);
+                if (res.exam.total_obtained) {
+                    setResult((prev: any) => ({
+                        ...prev,
+                        score: res.exam.total_obtained,
+                        percentage: res.exam.percentage,
+                        grade: res.exam.grade,
+                    }));
+                }
+                setAppealQuestionNum(null);
+                setAppealReason('');
+            } else {
+                alert(res.error || 'Failed to submit appeal.');
+            }
+        } catch (err) {
+            alert('Failed to connect to the server.');
+        } finally {
+            setAppealSubmitting(false);
         }
     };
 
@@ -486,11 +519,102 @@ const MinervaExamPage: React.FC = () => {
                                             )}
                                         </div>
                                     )}
+
+                                    {/* Appeal Panel */}
+                                    {q.type !== 'mcq' && (() => {
+                                        const appeal = exam.appeals?.find((a: any) => a.question_number === q.question_number);
+                                        if (appeal) {
+                                            const isApproved = appeal.status === 'approved';
+                                            return (
+                                                <div className={`ml-11 mt-4 p-4 rounded-2xl border text-xs font-semibold backdrop-blur-md
+                                                    ${isApproved 
+                                                        ? 'bg-emerald-950/10 border-emerald-500/30 text-emerald-400' 
+                                                        : 'bg-rose-950/10 border-rose-500/30 text-rose-400'
+                                                    }`}>
+                                                    <div className="flex items-center gap-1.5 uppercase tracking-widest text-[9px] font-black mb-1">
+                                                        <span>⚖️</span> Grading Appeal {appeal.status}
+                                                    </div>
+                                                    <div className="mb-2 font-normal text-slate-300">
+                                                        <strong>Your Reason:</strong> {appeal.student_reason}
+                                                    </div>
+                                                    <div className="text-white">
+                                                        <strong>AI Grader Response:</strong> {appeal.ai_decision_feedback}
+                                                    </div>
+                                                    {isApproved && (
+                                                        <div className="mt-1.5 font-bold text-[10px] text-emerald-400 uppercase tracking-wider">
+                                                            Score updated to {appeal.new_obtained_marks}/{q.marks} marks!
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        }
+
+                                        // Only show appeal button if the student did not get full marks
+                                        if (obtained < q.marks) {
+                                            return (
+                                                <div className="ml-11 mt-4 text-right">
+                                                    <button
+                                                        onClick={() => setAppealQuestionNum(q.question_number)}
+                                                        className="text-indigo-400 hover:text-indigo-300 text-xs font-bold transition-all flex items-center gap-1 ml-auto bg-indigo-500/5 hover:bg-indigo-500/10 border border-indigo-500/10 px-3.5 py-1.5 rounded-xl active:scale-95"
+                                                    >
+                                                        <span>⚖️</span> Appeal AI Grade
+                                                    </button>
+                                                </div>
+                                            );
+                                        }
+                                        return null;
+                                    })()}
                                 </div>
                             );
                         })}
                     </div>
                 </div>
+
+                {/* Appeal Modal */}
+                {appealQuestionNum !== null && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                        <div className="bg-[#0b0816] border border-white/10 rounded-3xl p-6 w-full max-w-md shadow-2xl relative">
+                            <h3 className="text-lg font-black text-white mb-2 uppercase tracking-wide flex items-center gap-2">
+                                <span>⚖️</span> Appeal AI Grading
+                            </h3>
+                            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+                                Explain why you think the AI graded your answer incorrectly. Your explanation will be reviewed by the Appeals Committee.
+                            </p>
+
+                            <div className="space-y-4 mb-6">
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase text-indigo-400 tracking-widest mb-1.5">Your Explanation / Reason</label>
+                                    <textarea
+                                        value={appealReason}
+                                        onChange={(e) => setAppealReason(e.target.value)}
+                                        placeholder="Explain your steps, formulas used, or why the explanation is correct..."
+                                        rows={4}
+                                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 resize-none"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 justify-end">
+                                <button
+                                    onClick={() => {
+                                        setAppealQuestionNum(null);
+                                        setAppealReason('');
+                                    }}
+                                    className="bg-white/5 hover:bg-white/10 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleAppealSubmit}
+                                    disabled={appealSubmitting || !appealReason.trim()}
+                                    className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all flex items-center gap-2"
+                                >
+                                    {appealSubmitting ? 'Evaluating Appeal...' : 'Submit Appeal'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }

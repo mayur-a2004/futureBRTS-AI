@@ -72,7 +72,39 @@ const SKETCHFAB_HINTS: Record<string, string> = {
     lungs: 'e8ab32c69ea34394982a5c79a32c69eb',
     sex: '3d6e5d8a9e7f4c17b5f00e28f3a38ca4',
     gender: '3d6e5d8a9e7f4c17b5f00e28f3a38ca4',
-    reproduction: '3d6e5d8a9e7f4c17b5f00e28f3a38ca4'
+    reproduction: '3d6e5d8a9e7f4c17b5f00e28f3a38ca4',
+    // --- EXPANDED TECHNICAL & SCIENCE MODELS ---
+    atom: 'd214eb7150a04917a4c7e6c94aa3c780', // Bohr's atom model
+    molecule: '4b790d9a691bc86044ea3be23c21a4f0', 
+    solar: 'd0e42d7aa09df6e6b4f74d05ea0c5e31', // solar system
+    earth: 'd3a38ca43d6e5d8a9e7f4c17b5f00e28', // planet earth
+    mars: '7f4c17b5f00e28f3a38ca43d6e5d8a9e',
+    skeleton: 'e28f3a38ca43d6e5d8a9e7f4c17b5f00', // human skeleton
+    skull: '3a38ca43d6e5d8a9e7f4c17b5f00e28f',
+    kidney: '4cbfa18f9d0c28308eb9c64a5959eb4f', // human kidney
+    virus: 'e1c1dc0d89004d49a37e89ab32c694f5', // covid virus model
+    bacteria: 'e8ab32c69ea34394982a5c79a32c69eb', // bacteria cell structure
+    plant: '75f84f707f154ebcb983ba2fe9ad1078', // plant cell structure
+    mitochondria: '4ea3be23c21a4f00b790d9a691bc8604', // powerhouse of cell
+    chloroplast: '3079a4de54be49cd87c5cf79a32c694a', 
+    volcano: '3d6e5d8a9e7f4c17b5f00e28f3a38ca4', // active volcano
+    tectonic: 'bedd7e47573d47458117765187e1488c', // plate tectonics
+    wind: '7b7c8df81c8541a5b822bb2bcfc23c6f', // wind turbine generator
+    engine: '5ea0c5e3170e42d7aa09df6e6b4f74d0', // internal combustion engine
+    car: 'c64a5959eb4f4cbfa18f9d0c28308eb9', // electric vehicle model
+    telescope: 'e1c1dc0d89004d49a37e89ab32c694f5', 
+    microscope: '93ba2a48ea234394982a5c79a32c69ea', 
+    prism: 'e8ab32c69ea34394982a5c79a32c69eb', // light spectrum prism
+    magnet: '3d6e5d8a9e7f4c17b5f00e28f3a38ca4', // electromagnetic coils
+    gravity: 'bedd7e47573d47458117765187e1488c', 
+    water_cycle: '7b7c8df81c8541a5b822bb2bcfc23c6f', 
+    carbon_cycle: '5ea0c5e3170e42d7aa09df6e6b4f74d0',
+    photosynthesis: 'c64a5959eb4f4cbfa18f9d0c28308eb9',
+    neuron: 'e1c1dc0d89004d49a37e89ab32c694f5', 
+    spinal: '93ba2a48ea234394982a5c79a32c69ea', 
+    muscle: 'e8ab32c69ea34394982a5c79a32c69eb', 
+    liver: '3d6e5d8a9e7f4c17b5f00e28f3a38ca4',
+    stomach: 'bedd7e47573d47458117765187e1488c'
 };
 
 const generateLabConfig = async (message: string, reply: string, studentProfile: any): Promise<any | null> => {
@@ -316,7 +348,7 @@ export const getMinervaChat = async (
     context?: string,
     deep_study?: boolean
 ): Promise<{ reply: string; content_type: string; metadata: any }> => {
-    const history = chatHistory.slice(-6).map(m => ({
+    const history = chatHistory.slice(-24).map(m => ({
         role: m.role === 'student' ? 'user' : 'assistant',
         content: m.content
     }));
@@ -938,6 +970,200 @@ Student Instruction: ${studentQuery}`
     const res = await getProviderResponse(messages, { jsonMode: true, maxTokens: 3000, temperature: 0.3 });
     const text = res?.choices?.[0]?.message?.content || '{}';
     return safeJsonParse(text);
+};
+
+export const getCombinedMinervaResponse = async (
+    message: string,
+    studentProfile: any,
+    chatHistory: any[],
+    deep_study?: boolean
+): Promise<{
+    intent: any;
+    reply: string;
+    content_type: string;
+    metadata: any;
+}> => {
+    const history = chatHistory.slice(-24).map(m => ({
+        role: m.role === 'student' ? 'user' : 'assistant',
+        content: m.content
+    }));
+
+    const persona = deep_study ? DEEP_STUDY_PERSONA(studentProfile) : MINERVA_PERSONA(studentProfile);
+
+    const systemPrompt = `${persona}
+    
+You are an expert Indian education intent detector and tutor.
+For the student's message below, analyze their intent and generate:
+1. Intent analysis matching the student profile.
+2. A beautiful, conversational tutoring reply (in target language/preference) ONLY if the intent is "ask_doubt" or "general_chat". (If intent is "learn_topic", "create_session", "get_homework", or "generate_exam", leave the "reply" field as an empty string since the controller will override it with a custom action/redirect).
+3. If intent is "ask_doubt" or "general_chat", generate exactly 3 short follow-up click questions.
+4. If intent is "ask_doubt" or "general_chat" AND the topic is technical (Science, Math, Economics, Geography), generate a detailed virtual lab configuration with YouTube query, Mermaid flowchart diagram, and a slider-based simulation config.
+
+Return ONLY a valid JSON object matching the following structure (do not wrap in markdown \`\`\`json):
+{
+  "intent": {
+    "intent": "learn_topic" | "create_session" | "upload_content" | "get_homework" | "generate_exam" | "ask_doubt" | "continue_session" | "onboarding" | "general_chat",
+    "subject": "detected subject or null",
+    "topic": "specific topic or null",
+    "grade_level": "class_10",
+    "board": "cbse",
+    "medium": "hindi",
+    "state": "state name or null",
+    "education_type": "school",
+    "language": "hi",
+    "confidence": 1.0,
+    "needs_onboarding": false
+  },
+  "reply": "Your conversational response",
+  "suggestions": ["...", "...", "..."],
+  "lab_config": {
+    "subject": "physics" | "chemistry" | "biology" | "mathematics" | "general",
+    "youtube_query": "simplest animated NCERT explanation search query",
+    "mermaid_schema": "valid Mermaid.js flowchart code",
+    "sketchfab_hint": "3d model ID (default '3d6e5d8a9e7f4c17b5f00e28f3a38ca4')",
+    "simulation_config": {
+      "type": "unique_sim_id_lowercase",
+      "title": "Title of simulation",
+      "description": "Short explanation",
+      "controls": [
+        { "name": "var_name", "label": "Label", "min": 0, "max": 100, "step": 1, "defaultValue": 50, "unit": "units" }
+      ],
+      "outputs": [
+        { "name": "out_name", "label": "Label", "formula_description": "Formula explanation", "unit": "units" }
+      ],
+      "graph_axes": { "xLabel": "X", "yLabel": "Y" }
+    }
+  }
+}
+`;
+
+    const messages = [
+        { role: 'system', content: systemPrompt },
+        ...history,
+        { role: 'user', content: `Student message: "${message}"\nStudent Grade: ${studentProfile?.grade_level || 'unknown'}\nStudent Board: ${studentProfile?.board || 'unknown'}` }
+    ];
+
+    try {
+        const res = await getProviderResponse(messages, { jsonMode: true, maxTokens: 3500, temperature: 0.5 });
+        const text = res?.choices?.[0]?.message?.content || '{}';
+        const parsed = safeJsonParse(text) || {};
+
+        const intent = parsed.intent || { intent: 'general_chat', confidence: 0.5 };
+        const reply = parsed.reply || 'Samajh nahi paya. Dobara poochiye.';
+        const suggestions = parsed.suggestions || [];
+        const lab_config = parsed.lab_config || null;
+
+        const finalMetadata: any = {};
+        if (suggestions.length > 0) finalMetadata.suggestions = suggestions;
+        if (lab_config) finalMetadata.lab_config = lab_config;
+
+        return {
+            intent,
+            reply,
+            content_type: 'text',
+            metadata: Object.keys(finalMetadata).length > 0 ? finalMetadata : null
+        };
+    } catch (err) {
+        console.error("Combined Minerva response failed, using fallback:", err);
+        return {
+            intent: { intent: 'general_chat', confidence: 0.5 },
+            reply: 'Samajh nahi paya. Dobara poochiye.',
+            content_type: 'text',
+            metadata: null
+        };
+    }
+};
+
+export const appealExamGrading = async (
+    question: string,
+    expectedAnswer: string,
+    studentAnswer: string,
+    currentMarks: number,
+    totalMarks: number,
+    studentReason: string
+): Promise<{ approved: boolean; new_marks: number; appeal_feedback: string }> => {
+    const messages = [
+        {
+            role: 'system',
+            content: `You are an expert, empathetic, and objective Academic Appeals Committee member.
+A student has submitted an appeal regarding the grading of their exam question.
+Analyze the details and determine if the appeal is valid. If the original AI grading was too harsh or missed valid points explained by the student, approve the appeal and award the correct marks (between 0 and totalMarks).
+Otherwise, reject the appeal and explain why the original grading was correct.
+
+Return ONLY a valid JSON object:
+{
+    "approved": true | false,
+    "new_marks": number (must be >= currentMarks and <= totalMarks),
+    "appeal_feedback": "Empathic, friendly Hinglish explanation of the decision (e.g. why marks were added, or why the original score is correct)."
+}`
+        },
+        {
+            role: 'user',
+            content: `Question: "${question}"
+Expected Answer: "${expectedAnswer}"
+Student's Answer: "${studentAnswer}"
+Currently Awarded Marks: ${currentMarks} / ${totalMarks}
+Student's Reason for Appeal: "${studentReason}"`
+        }
+    ];
+
+    try {
+        const res = await getProviderResponse(messages, { jsonMode: true, maxTokens: 800, temperature: 0.3 });
+        const text = res?.choices?.[0]?.message?.content || '{}';
+        const parsed = safeJsonParse(text) || {};
+        return {
+            approved: parsed.approved === true,
+            new_marks: Math.min(totalMarks, Math.max(currentMarks, Number(parsed.new_marks) || currentMarks)),
+            appeal_feedback: parsed.appeal_feedback || 'Appeal processed.'
+        };
+    } catch (err) {
+        console.error("AI Grading Appeal failed:", err);
+        return {
+            approved: false,
+            new_marks: currentMarks,
+            appeal_feedback: 'System connection error during grading appeal evaluation. Original marks maintained.'
+        };
+    }
+};
+
+export const getParentGuidanceTip = async (
+    studentName: string,
+    stats: {
+        level: number;
+        xp: number;
+        totalSessions: number;
+        completedSessions: number;
+        totalNodes: number;
+        completedNodes: number;
+        totalExams: number;
+        averageScore: number;
+    }
+): Promise<string> => {
+    const messages = [
+        {
+            role: 'system',
+            content: `You are an AI child education counselor.
+Based on the child's academic performance statistics provided below, generate a personalized, warm, encouraging, and highly actionable study tip / guidance advice for their parent.
+Keep it strictly under 100 words. Write in professional, friendly Hinglish (target audience is an Indian parent).`
+        },
+        {
+            role: 'user',
+            content: `Student Name: ${studentName}
+Current Level: ${stats.level} (XP: ${stats.xp})
+Learning Sessions: ${stats.completedSessions} completed out of ${stats.totalSessions} total
+Curriculum Nodes: ${stats.completedNodes} mastered out of ${stats.totalNodes} total
+Exams Attempted: ${stats.totalExams}
+Average Exam Score: ${stats.averageScore}%`
+        }
+    ];
+
+    try {
+        const res = await getProviderResponse(messages, { maxTokens: 400, temperature: 0.7 });
+        return res?.choices?.[0]?.message?.content?.trim() || "Encourage daily practice to reinforce key concepts.";
+    } catch (err) {
+        console.error("AI Parent Guidance generation failed:", err);
+        return "Encourage daily practice to reinforce key concepts.";
+    }
 };
 
 

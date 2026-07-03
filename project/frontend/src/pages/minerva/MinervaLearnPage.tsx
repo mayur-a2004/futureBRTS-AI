@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { minervaApi } from '../../api/minerva.api';
-import { ChevronLeft, BookOpen, Sparkles, Youtube, Lightbulb, Play, Check, MessageSquare, Zap, Mic, Volume2, VolumeX } from 'lucide-react';
+import { ChevronLeft, BookOpen, Sparkles, Youtube, Lightbulb, Play, Check, MessageSquare, Zap, Mic, Volume2, VolumeX, RefreshCw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -32,6 +32,7 @@ const MinervaLearnPage: React.FC = () => {
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const [results, setResults] = useState<Record<string, any>>({});
     const [submitting, setSubmitting] = useState<string | null>(null);
+    const [regenerating, setRegenerating] = useState(false);
     const [view, setView] = useState<'simple' | 'detailed' | 'viva'>('simple');
     const [memoryTrick, setMemoryTrick] = useState('');
     const [boardNote, setBoardNote] = useState('');
@@ -252,6 +253,25 @@ const MinervaLearnPage: React.FC = () => {
         }
         setLoading(false);
     };
+    
+    const handleRegenerate = async () => {
+        if (!window.confirm("Kya aap sach me AI content ko dobara generate karna chahte hain? Isse aapke purane tasks reset ho jayenge.")) return;
+        setRegenerating(true);
+        try {
+            const res = await minervaApi.regenerateNodeContent(token, id!);
+            if (res.success) {
+                alert("Content regenerated successfully!");
+                await loadNode();
+            } else {
+                alert(res.error || "Regeneration failed.");
+            }
+        } catch (err) {
+            console.error("Regeneration error:", err);
+            alert("Connection error during regeneration.");
+        } finally {
+            setRegenerating(false);
+        }
+    };
 
     const submitTask = async (taskId: string) => {
         const answer = answers[taskId];
@@ -309,6 +329,14 @@ const MinervaLearnPage: React.FC = () => {
                         </div>
                     </div>
                     <div className="flex gap-2">
+                        <button
+                            onClick={handleRegenerate}
+                            disabled={regenerating}
+                            className="text-xs bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 px-3 py-1.5 rounded-xl transition-all font-semibold flex items-center gap-1.5 text-yellow-400 disabled:opacity-40 cursor-pointer"
+                        >
+                            <RefreshCw size={13} className={regenerating ? 'animate-spin' : ''} />
+                            <span>{regenerating ? 'Regenerating...' : 'Regenerate'}</span>
+                        </button>
                         <button
                             onClick={() => navigate(`/future-education?askDoubt=${encodeURIComponent(`Mujhe topic '${node.title}' mein doubt hai, iska explanation aur reference topics clear karo.`)}`)}
                             className="text-xs bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 px-3 py-1.5 rounded-xl transition-all font-semibold flex items-center gap-1.5 text-indigo-400"
