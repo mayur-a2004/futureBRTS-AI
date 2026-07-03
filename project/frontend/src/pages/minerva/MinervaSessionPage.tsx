@@ -13,6 +13,7 @@ const MinervaSessionPage: React.FC = () => {
     const [nodes, setNodes] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [examLoading, setExamLoading] = useState(false);
+    const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
 
     useEffect(() => {
         if (!token || !id) return;
@@ -86,7 +87,6 @@ const MinervaSessionPage: React.FC = () => {
         );
     }
 
-    const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
 
     const highNodes = nodes.filter(n => n.priority === 'HIGH');
     const medNodes = nodes.filter(n => n.priority === 'MEDIUM');
