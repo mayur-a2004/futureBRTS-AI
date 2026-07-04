@@ -35,10 +35,7 @@ const MinervaDashboardPage: React.FC = () => {
                 setProfile(profileRes.profile);
             }
             
-            const statsRes = await fetch('/api/minerva/stats', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const statsData = await statsRes.json();
+            const statsData = await minervaApi.getStats(token);
             if (statsData.success) {
                 setStats((prev: any) => ({
                     ...prev,

@@ -1039,7 +1039,7 @@ const MinervaHome: React.FC = () => {
             {/* Main Chat + Lab Workspace Container */}
             <div className="flex-1 flex min-w-0 w-full overflow-hidden relative">
                 {/* Left Side: Active Chat Column */}
-                <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
+                <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
                     {/* Messages Space */}
                     <div className="flex-1 overflow-y-auto px-6 pt-6 pb-6 space-y-4">
                 {/* Welcome screen — only when no messages */}
