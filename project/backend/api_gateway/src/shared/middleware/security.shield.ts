@@ -31,9 +31,15 @@ export const securityShield = (req: Request, res: Response, next: NextFunction) 
         return res.status(403).json({ error: 'Security violation detected' });
     }
 
-    // Chat and Builder routes often contain technical keywords like "select", "update", "delete", "../"
-    // We should skip these checks for AI conversation routes to allow technical discussion.
-    const skipCheckRoutes = ['/api/auth/', '/api/builder/', '/api/roadmap/', '/api/tasks/', '/api/guest/'];
+    const skipCheckRoutes = [
+        '/api/auth/', 
+        '/api/builder/', 
+        '/api/roadmap/', 
+        '/api/tasks/', 
+        '/api/guest/',
+        '/api/minerva/',
+        '/api/future-education/'
+    ];
     const isSkipRoute = skipCheckRoutes.some(route => req.originalUrl.startsWith(route));
 
     if (!isSkipRoute) {

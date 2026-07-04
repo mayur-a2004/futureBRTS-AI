@@ -312,8 +312,17 @@ export const minervaController = {
             // Get student profile
             const profile = await getOrCreateProfile(userId);
 
-            // Determine active chat session ID
+            // Determine active chat session ID & sanitize input to avoid CastErrors
             let activeChatSessionId = chat_session_id;
+            if (activeChatSessionId && !/^[0-9a-fA-F]{24}$/.test(activeChatSessionId)) {
+                activeChatSessionId = null;
+            }
+
+            let activeSessionId = session_id;
+            if (activeSessionId && !/^[0-9a-fA-F]{24}$/.test(activeSessionId)) {
+                activeSessionId = null;
+            }
+
             if (!activeChatSessionId) {
                 const newSession = await MinervaChatSession.create({
                     userId,
@@ -359,7 +368,7 @@ export const minervaController = {
                 'student',
                 cleanDisplayContent,
                 'text',
-                session_id,
+                activeSessionId,
                 fullExtractedText ? { file_text: fullExtractedText, filename } : null,
                 activeChatSessionId
             );
@@ -564,7 +573,7 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
             }
 
             // Save Minerva reply
-            const savedReply = await saveChatMessage(userId, 'minerva', reply, content_type, session_id, metadata, activeChatSessionId);
+            const savedReply = await saveChatMessage(userId, 'minerva', reply, content_type, activeSessionId, metadata, activeChatSessionId);
 
             return res.json({
                 success: true,
@@ -1670,6 +1679,10 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
             const userId = req.user?.id || req.user?._id;
             const { id } = req.params;
 
+            if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+                return res.status(400).json({ success: false, error: 'Invalid chat session ID format' });
+            }
+
             const session = await MinervaChatSession.findOne({ _id: id, userId });
             if (!session) {
                 return res.status(404).json({ success: false, error: 'Chat session not found' });
@@ -1696,6 +1709,10 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
             const userId = req.user?.id || req.user?._id;
             const { id } = req.params;
             const { title } = req.body;
+
+            if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+                return res.status(400).json({ success: false, error: 'Invalid chat session ID format' });
+            }
 
             if (!title?.trim()) {
                 return res.status(400).json({ success: false, error: 'Title is required' });
@@ -1726,6 +1743,10 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
             const userId = req.user?.id || req.user?._id;
             const { id } = req.params;
 
+            if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+                return res.status(400).json({ success: false, error: 'Invalid chat session ID format' });
+            }
+
             const session = await MinervaChatSession.findOneAndDelete({ _id: id, userId });
             if (!session) {
                 return res.status(404).json({ success: false, error: 'Chat session not found' });
@@ -1748,6 +1769,10 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
         try {
             const userId = req.user?.id || req.user?._id;
             const { id } = req.params;
+
+            if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+                return res.status(400).json({ success: false, error: 'Invalid chat session ID format' });
+            }
 
             const session = await MinervaChatSession.findOne({ _id: id, userId });
             if (!session) {
