@@ -1,3 +1,4 @@
+// Trigger reload
 import express from 'express';
 import { minervaController } from './minerva.controller';
 import { authMiddleware } from '../../shared/middleware/auth.middleware';
@@ -79,6 +80,7 @@ router.get('/leaderboard', authMiddleware, minervaController.getLeaderboard);
 
 // ─── VIRTUAL LAB ────────────────────────────────
 router.get('/lab/youtube-search', authMiddleware, minervaController.labYoutubeSearch);
+router.get('/lab/sketchfab-search', authMiddleware, minervaController.labSketchfabSearch);
 
 // ─── PARENT VERIFICATION & PORTAL ────────────────
 import { parentController } from './parent.controller';
@@ -90,11 +92,11 @@ router.get('/parent/report/:studentEmail', parentController.getStudentReport);
 // ─── PYTHON CODE EXECUTION ───────────────────────
 router.post('/lab/execute-python', authMiddleware, minervaController.executePythonCode);
 
-// ─── QUIZ BATTLE 1v1 ──────────────────────────────
+// ─── QUIZ ARENA (Team Battle) ──────────────────────────────
 import { battleController } from './battle.controller';
 router.post('/battle/room', authMiddleware, battleController.createRoom);
+router.post('/battle/room/join', authMiddleware, battleController.joinRoom);
 router.get('/battle/room/:roomCode', authMiddleware, battleController.getRoom);
 router.get('/battle/rooms', authMiddleware, battleController.listActiveRooms);
 
 export default router;
-

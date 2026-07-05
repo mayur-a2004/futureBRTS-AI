@@ -34,8 +34,15 @@ export const DynamicLabEngine: React.FC<DynamicLabEngineProps> = ({
   const [voiceLang, setVoiceLang] = useState('en');
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
+  const [translatedText, setTranslatedText] = useState<string>('');
+  const [isTranslating, setIsTranslating] = useState(false);
+  const translationsCache = useRef<Record<string, string>>({});
+
   useEffect(() => {
+    translationsCache.current = {};
     if (labConfig) {
+      setTranslatedText(labConfig.voice_script || '');
+      
       // Pick first available layer safely
       const layers = labConfig.content_layers || [];
       if (layers.length > 0) {
@@ -43,9 +50,65 @@ export const DynamicLabEngine: React.FC<DynamicLabEngineProps> = ({
       }
       
       // Reset voice
+      setVoiceLang('en');
       stopSpeech();
     }
   }, [labConfig]);
+
+  const handleLanguageChange = async (targetLang: string) => {
+    setVoiceLang(targetLang);
+    if (!labConfig?.voice_script) return;
+
+    if (targetLang === 'en') {
+      setTranslatedText(labConfig.voice_script);
+      if (voicePlaying) {
+        setTimeout(() => startSpeech(labConfig.voice_script, 'en'), 50);
+      }
+      return;
+    }
+
+    const langMap: Record<string, string> = {
+      hi: 'hindi',
+      mr: 'marathi',
+      gu: 'gujarati',
+      ta: 'tamil'
+    };
+    const mappedLang = langMap[targetLang] || targetLang;
+
+    if (translationsCache.current[targetLang]) {
+      const cached = translationsCache.current[targetLang];
+      setTranslatedText(cached);
+      if (voicePlaying) {
+        setTimeout(() => startSpeech(cached, targetLang), 50);
+      }
+      return;
+    }
+
+    setIsTranslating(true);
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('fbrts_token') || '';
+      const res = await fetch('/api/minerva/translate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ text: labConfig.voice_script, targetLanguage: mappedLang })
+      });
+      const data = await res.json();
+      if (data.success && data.translated) {
+        translationsCache.current[targetLang] = data.translated;
+        setTranslatedText(data.translated);
+        if (voicePlaying) {
+          setTimeout(() => startSpeech(data.translated, targetLang), 50);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to translate lab voice script:', err);
+    } finally {
+      setIsTranslating(false);
+    }
+  };
 
   // Clean speech on unmount
   useEffect(() => {
@@ -68,12 +131,14 @@ export const DynamicLabEngine: React.FC<DynamicLabEngineProps> = ({
     setVoicePlaying(false);
   };
 
-  const startSpeech = () => {
-    if (!window.speechSynthesis || !labConfig?.voice_script || isMuted) return;
+  const startSpeech = (textToSpeak?: string, langCode?: string) => {
+    const text = textToSpeak || translatedText || labConfig?.voice_script;
+    const currentLang = langCode || voiceLang;
+    if (!window.speechSynthesis || !text || isMuted) return;
     
     stopSpeech();
     
-    const cleanText = labConfig.voice_script
+    const cleanText = text
       .replace(/[*#`_\-]/g, '')
       .replace(/\[.*?\]\(.*?\)/g, '')
       .trim();
@@ -83,10 +148,10 @@ export const DynamicLabEngine: React.FC<DynamicLabEngineProps> = ({
     
     // Choose correct voice locale
     let locale = 'en-US';
-    if (voiceLang === 'hi') locale = 'hi-IN';
-    else if (voiceLang === 'mr') locale = 'mr-IN';
-    else if (voiceLang === 'gu') locale = 'gu-IN';
-    else if (voiceLang === 'ta') locale = 'ta-IN';
+    if (currentLang === 'hi') locale = 'hi-IN';
+    else if (currentLang === 'mr') locale = 'mr-IN';
+    else if (currentLang === 'gu') locale = 'gu-IN';
+    else if (currentLang === 'ta') locale = 'ta-IN';
     
     utterance.lang = locale;
 
@@ -107,7 +172,7 @@ export const DynamicLabEngine: React.FC<DynamicLabEngineProps> = ({
     if (voicePlaying) {
       stopSpeech();
     } else {
-      startSpeech();
+      startSpeech(translatedText, voiceLang);
     }
   };
 
@@ -119,7 +184,7 @@ export const DynamicLabEngine: React.FC<DynamicLabEngineProps> = ({
       case 'text':
         return (
           <TextLab
-            content={labConfig.voice_script}
+            content={isTranslating ? "## 🗣️ Translating explanation, please wait...\nGenerating high-quality academic translation..." : (translatedText || labConfig.voice_script)}
             topic={labConfig.topic}
             subject={labConfig.subject}
           />
@@ -192,19 +257,12 @@ export const DynamicLabEngine: React.FC<DynamicLabEngineProps> = ({
           speed: voiceSpeed,
           onSpeedChange: (s) => {
             setVoiceSpeed(s);
-            // restart speech if active
             if (voicePlaying) {
-              setTimeout(startSpeech, 50);
+              setTimeout(() => startSpeech(translatedText, voiceLang), 50);
             }
           },
           language: voiceLang,
-          onLanguageChange: (l) => {
-            setVoiceLang(l);
-            // restart speech if active
-            if (voicePlaying) {
-              setTimeout(startSpeech, 50);
-            }
-          },
+          onLanguageChange: handleLanguageChange,
         }}
       />
 

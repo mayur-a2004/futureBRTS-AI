@@ -54,7 +54,7 @@ const THREE_JS_CONFIGS: Record<string, (msg: string) => any> = {
         if (m.includes('circuit') || m.includes('ohm')) return { type: 'circuit_simulator', params: { voltage: 12, resistance: 6 }, sliders: ['voltage', 'resistance'] };
         return { type: 'physics_general', params: {}, sliders: [] };
     },
-    chemistry: () => ({ type: 'molecule_builder', params: {}, sliders: [] }),
+    chemistry: () => ({ type: 'molecule_builder', params: { pour: 0, temperature: 25 }, sliders: ['pour', 'temperature'] }),
     accounting: () => ({ type: 'ledger_visual', params: {}, sliders: [] }),
 };
 
@@ -127,7 +127,7 @@ const generateLabConfig = async (message: string, reply: string, studentProfile:
 
     // Fallback static config
     const defaultDiagramType = `${subject}_general_diagram`;
-    const defaultYoutubeQuery = `NCERT ${subject} ${message.substring(0, 40)} explanation animation`;
+    const defaultYoutubeQuery = `${message.substring(0, 40)} simple animated explanation tutorial`;
     let fallbackSketchfab = '3d6e5d8a9e7f4c17b5f00e28f3a38ca4'; // DNA
     for (const [kw, hint] of Object.entries(SKETCHFAB_HINTS)) {
         if (msg.includes(kw)) { fallbackSketchfab = hint; break; }
@@ -148,8 +148,9 @@ You MUST return ONLY a valid JSON object matching the schema below. No conversat
 SCHEMA:
 {
   "subject": "physics" | "chemistry" | "biology" | "mathematics" | "statistics" | "accounting" | "economics" | "geography" | "general",
-  "youtube_query": "specific search query terms optimized for the absolute simplest, animated, easy-to-understand explanation video of this concept",
-  "mermaid_schema": "valid Mermaid.js flowchart code showing the step-by-step process or structural layout of the concept (use TD or LR)",
+  "voice_script": "Detailed, structured masterclass academic explanation (300-500 words) using clean markdown formatting (headings like ##, ###, bullets like -, formulas). Walk through basic definitions, advanced deep dives, real-world examples, and step-by-step mechanisms to take the student from beginner to advanced. MUST be in Hinglish or target language.",
+  "youtube_query": "specific search query terms optimized for the absolute simplest, animated, easy-to-understand explanation video of this concept (DO NOT include terms like NCERT, CBSE, class, short, or demo. Optimize for clean concept visualization)",
+  "mermaid_schema": "valid Mermaid.js flowchart code starting strictly with 'graph TD' or 'graph LR'. Do NOT include any descriptive text, class definitions, pseudocode, JSON or explanations inside this field. It must be strictly parsable Mermaid flowchart syntax showing the relationships or steps. Example: 'graph TD\\n    A[Artificial Intelligence] --> B[Machine Learning]\\n    B --> C[Deep Learning]'",
   "sketchfab_hint": "Sketchfab 3D model ID (use '3d6e5d8a9e7f4c17b5f00e28f3a38ca4' if not applicable)",
   "simulation_config": {
     "type": "unique_simulation_id_lowercase_with_underscores",
@@ -238,7 +239,7 @@ Tutor Explanation: "${reply.substring(0, 500)}..."`;
         three_js_config,
         sketchfab_hint: resultJson.sketchfab_hint || fallbackSketchfab,
         youtube_query: resultJson.youtube_query || defaultYoutubeQuery,
-        voice_script: reply.substring(0, 500),
+        voice_script: resultJson.voice_script || reply,
         auto_open: true,
     };
 };
@@ -353,7 +354,13 @@ export const getMinervaChat = async (
         content: m.content
     }));
 
-    const persona = deep_study ? DEEP_STUDY_PERSONA(studentProfile) : MINERVA_PERSONA(studentProfile);
+    const isExplicitDetail = message.toLowerCase().includes('deep dive') || 
+                             message.toLowerCase().includes('detail') || 
+                             message.toLowerCase().includes('explain in-depth') ||
+                             message.toLowerCase().includes('samjhao') ||
+                             message.toLowerCase().includes('expln') ||
+                             message.toLowerCase().includes('masterclass');
+    const persona = (deep_study || isExplicitDetail) ? DEEP_STUDY_PERSONA(studentProfile) : MINERVA_PERSONA(studentProfile);
 
     const messages = [
         { role: 'system', content: persona + (context ? `\n\nCONTEXT: ${context}` : '') },
@@ -526,7 +533,7 @@ Return ONLY valid JSON:
 
 RULES:
 - explanation_simple (Story): MUST be a highly creative, engaging, and simple story or real-life analogy. Explain the core concept using a completely non-technical metaphor (e.g., explaining traffic congestion for resistance, or water flow for current). It must feel like an interesting story, not a textbook paragraph, so that the student can understand it intuitively.
-- explanation_detailed (Theory/Concept): MUST be a detailed, technical, and comprehensive breakdown (500-800 words) in ${lang}. Include formal definitions, equations/derivations (if applicable), working mechanisms, applications, and strict syllabus-aligned concepts. This MUST be completely distinct in content and tone from the simple story analogy.
+- explanation_detailed (Theory/Concept): MUST be an extremely detailed, technical, and comprehensive academic breakdown (500-800 words) in ${lang}. This must take the student from basic definitions all the way to advanced masterclass details, showing step-by-step mechanisms, equations/derivations (if applicable), practical applications, and syllabus alignments. DO NOT output simple or generic definitions.
 - PYQ SPECIAL RULE: If the node relevance (board_relevance) or title indicates this is a 'Direct PYQ Question', treat it as a past exam paper question to explain.
   - explanation_simple (Hint): Must be a direct, helpful hint or strategic tip on how to think or approach solving this exact question (instead of a generic story). Keep it simple and encouraging.
   - explanation_detailed (Step-by-Step Solution): Must be the complete, step-by-step resolved answer/solution to that exact question (instead of generic theory). Show calculations, equations, or structural points clearly.
@@ -988,7 +995,13 @@ export const getCombinedMinervaResponse = async (
         content: m.content
     }));
 
-    const persona = deep_study ? DEEP_STUDY_PERSONA(studentProfile) : MINERVA_PERSONA(studentProfile);
+    const isExplicitDetail = message.toLowerCase().includes('deep dive') || 
+                             message.toLowerCase().includes('detail') || 
+                             message.toLowerCase().includes('explain in-depth') ||
+                             message.toLowerCase().includes('samjhao') ||
+                             message.toLowerCase().includes('expln') ||
+                             message.toLowerCase().includes('masterclass');
+    const persona = (deep_study || isExplicitDetail) ? DEEP_STUDY_PERSONA(studentProfile) : MINERVA_PERSONA(studentProfile);
 
     const systemPrompt = `${persona}
     
@@ -1018,8 +1031,9 @@ Return ONLY a valid JSON object matching the following structure (do not wrap in
   "suggestions": ["...", "...", "..."],
   "lab_config": {
     "subject": "physics" | "chemistry" | "biology" | "mathematics" | "general",
+    "voice_script": "Detailed, structured masterclass explanation (300-500 words) using clean markdown formatting (headings like ##, ###, bullets like -, formulas). Walk through basic definitions, advanced deep dives, real-world examples, and step-by-step mechanisms to take the student from beginner to advanced. MUST be in Hinglish or target language.",
     "youtube_query": "simplest animated NCERT explanation search query",
-    "mermaid_schema": "valid Mermaid.js flowchart code",
+    "mermaid_schema": "valid Mermaid.js flowchart code starting strictly with 'graph TD' or 'graph LR'. Do NOT include any descriptive text, class definitions, pseudocode, JSON or explanations inside this field. It must be strictly parsable Mermaid flowchart syntax.",
     "sketchfab_hint": "3d model ID (default '3d6e5d8a9e7f4c17b5f00e28f3a38ca4')",
     "simulation_config": {
       "type": "unique_sim_id_lowercase",
@@ -1052,6 +1066,13 @@ Return ONLY a valid JSON object matching the following structure (do not wrap in
         const reply = parsed.reply || 'Samajh nahi paya. Dobara poochiye.';
         const suggestions = parsed.suggestions || [];
         const lab_config = parsed.lab_config || null;
+        if (lab_config) {
+            const threeJsFn = THREE_JS_CONFIGS[lab_config.subject];
+            const three_js_config = lab_config.simulation_config || (threeJsFn ? threeJsFn(message) : null);
+            if (three_js_config) {
+                lab_config.three_js_config = three_js_config;
+            }
+        }
 
         const finalMetadata: any = {};
         if (suggestions.length > 0) finalMetadata.suggestions = suggestions;

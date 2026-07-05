@@ -116,9 +116,32 @@ const VideoLab: React.FC<VideoLabProps> = ({
   const [minimised, setMinimised] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [activeVideoId, setActiveVideoId] = useState<string | undefined>(youtube_video_id);
+  const [loading, setLoading] = useState(!youtube_video_id);
 
-  const embedUrl = youtube_video_id
-    ? `https://www.youtube.com/embed/${youtube_video_id}?autoplay=0&rel=0&modestbranding=1&color=white`
+  useEffect(() => {
+    if (!youtube_video_id && youtube_query) {
+      setLoading(true);
+      const token = localStorage.getItem('fbrts_token');
+      fetch(`/api/future-education/lab/youtube-search?query=${encodeURIComponent(youtube_query)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success && data.video_id) {
+            setActiveVideoId(data.video_id);
+          }
+        })
+        .catch(err => console.error('YouTube dynamic search failed:', err))
+        .finally(() => setLoading(false));
+    } else {
+      setActiveVideoId(youtube_video_id);
+      setLoading(false);
+    }
+  }, [youtube_video_id, youtube_query]);
+
+  const embedUrl = activeVideoId
+    ? `https://www.youtube.com/embed/${activeVideoId}?autoplay=1&rel=0&modestbranding=1&color=white`
     : null;
 
   const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(youtube_query)}`;
@@ -145,7 +168,7 @@ const VideoLab: React.FC<VideoLabProps> = ({
           </svg>
           <div>
             <p className="text-xs text-white/70 font-medium">{topic}</p>
-            <p className="text-xs text-white/30">Filtered for NCERT/educational channels only</p>
+            <p className="text-xs text-white/30">Filtered for educational channels only</p>
           </div>
         </div>
         <button
@@ -160,7 +183,12 @@ const VideoLab: React.FC<VideoLabProps> = ({
 
       {/* Video area */}
       <div className="flex-1 flex flex-col p-4 gap-4 overflow-y-auto">
-        {embedUrl ? (
+        {loading ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3">
+            <div className="w-12 h-12 rounded-full border-2 border-[#ff0000]/40 border-t-[#ff0000] animate-spin" />
+            <p className="text-white/30 text-xs">Searching educational video…</p>
+          </div>
+        ) : embedUrl ? (
           <>
             {/* Loading state */}
             {!iframeLoaded && (
@@ -233,7 +261,7 @@ const VideoLab: React.FC<VideoLabProps> = ({
             <div className="w-full max-w-sm px-3 py-2 rounded-lg bg-green-500/10 border border-green-500/20 flex items-start gap-2">
               <span className="text-green-400 text-xs mt-0.5">✓</span>
               <p className="text-green-300/60 text-xs leading-relaxed">
-                Results filtered for NCERT, Khan Academy, Unacademy, Vedantu and other verified educational channels.
+                Results filtered for Khan Academy, Unacademy, Vedantu and other verified educational channels.
               </p>
             </div>
           </div>

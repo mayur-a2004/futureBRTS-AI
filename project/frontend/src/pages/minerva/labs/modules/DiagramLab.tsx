@@ -328,7 +328,7 @@ const DiagramPlaceholder: React.FC<{ diagramType: string; topic: string }> = ({
   diagramType, topic,
 }) => {
   const searchUrl = `https://commons.wikimedia.org/w/index.php?search=${encodeURIComponent(
-    topic + ' diagram'
+    (topic || '') + ' diagram'
   )}&title=Special:MediaSearch&type=image`;
 
   return (
@@ -417,7 +417,7 @@ const DiagramLab: React.FC<DiagramLabProps> = ({
     }
 
     // Otherwise, fetch dynamically from Wikimedia Commons!
-    let searchQuery = topic.replace(/[?._\-]/g, '').trim();
+    let searchQuery = (topic || '').replace(/[?._\-]/g, '').trim();
     const lowerTopic = searchQuery.toLowerCase();
     
     // Safety & NCERT filter overrides for dynamic searches
@@ -464,7 +464,7 @@ const DiagramLab: React.FC<DiagramLabProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-white/80">{topic}</h3>
+          <h3 className="text-sm font-semibold text-white/80">{topic || 'Diagram'}</h3>
           {entry && (
             <p className="text-xs text-white/40 mt-0.5">{entry.label}</p>
           )}
@@ -500,7 +500,7 @@ const DiagramLab: React.FC<DiagramLabProps> = ({
           </div>
         </>
       ) : (
-        <DiagramPlaceholder diagramType={diagram_type ?? 'unknown'} topic={topic} />
+        <DiagramPlaceholder diagramType={diagram_type ?? 'unknown'} topic={topic || ''} />
       )}
 
       {/* Hidden img to pre-detect failure if entry exists */}

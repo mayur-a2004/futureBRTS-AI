@@ -572,6 +572,41 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                 // Response is already populated by getCombinedMinervaResponse
             }
 
+            // Enrich lab_config if present in metadata to fit frontend schema
+            if (metadata && metadata.lab_config) {
+                const lab = metadata.lab_config;
+                if (!lab.topic) {
+                    lab.topic = intent.topic || studentQuery || 'general';
+                }
+                if (!lab.voice_script) {
+                    lab.voice_script = reply;
+                }
+                if (lab.auto_open === undefined) {
+                    lab.auto_open = true;
+                }
+                if (lab.simulation_config && !lab.three_js_config) {
+                    lab.three_js_config = lab.simulation_config;
+                }
+                if (!lab.content_layers || lab.content_layers.length === 0) {
+                    const layers = ['text'];
+                    if (lab.mermaid_schema && lab.mermaid_schema.trim().length > 10) {
+                        layers.push('diagram');
+                    }
+                    if (lab.youtube_query) {
+                        layers.push('youtube');
+                    }
+                    if (lab.three_js_config) {
+                        layers.push('threejs');
+                    } else if (lab.sketchfab_hint) {
+                        layers.push('sketchfab');
+                    }
+                    if (lab.simulation_config) {
+                        layers.push('sandbox');
+                    }
+                    lab.content_layers = layers;
+                }
+            }
+
             // Save Minerva reply
             const savedReply = await saveChatMessage(userId, 'minerva', reply, content_type, activeSessionId, metadata, activeChatSessionId);
 
@@ -1912,7 +1947,6 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
                 if (data?.items?.length > 0) {
                     // Educational channel whitelist (prefer these channels)
                     const whitelistedChannels = [
-                        'UCmqnHMrHaH4Zx7e1wIMbRgA', // NCERT Official
                         'UCVcrMeNyQbr0RcKFjPqbqNw', // Khan Academy Hindi
                         'UCiKHcNmFU3Vpp7TR4Ig_JrA', // Physics Wallah
                         'UCzH2qCEPGTMJT9qFdQDGrMQ', // Vedantu
@@ -1974,6 +2008,45 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
                 video_id: null,
                 search_url: `https://www.youtube.com/results?search_query=${encodeURIComponent(req.query.query as string || '')}`,
             });
+        }
+    },
+
+    labSketchfabSearch: async (req: Request, res: Response) => {
+        try {
+            const { query } = req.query as { query: string };
+            if (!query) {
+                return res.status(400).json({ success: false, error: 'query is required' });
+            }
+
+            const fetch = (await import('node-fetch')).default;
+            const searchUrl = `https://api.sketchfab.com/v3/search?type=models&q=${encodeURIComponent(query)}`;
+            
+            const response = await fetch(searchUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+                }
+            });
+            const data: any = await response.json();
+
+            if (data?.results?.length > 0) {
+                const bestModel = data.results.find((item: any) => !item.isAgeRestricted) || data.results[0];
+                return res.json({
+                    success: true,
+                    model_id: bestModel.uid,
+                    name: bestModel.name,
+                    viewer_url: bestModel.viewerUrl,
+                    thumbnail: bestModel.thumbnails?.images?.[0]?.url || null
+                });
+            }
+
+            return res.json({
+                success: false,
+                error: 'No Sketchfab models found for the query'
+            });
+
+        } catch (err: any) {
+            console.error('[Minerva Lab Sketchfab Search Error]', err);
+            return res.status(500).json({ success: false, error: err.message });
         }
     },
 

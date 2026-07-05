@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Play, RotateCcw, Terminal, Code } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Play, RotateCcw, Terminal, Code, Maximize2, Minimize2 } from 'lucide-react';
 import { SubjectType } from '../types/LabConfig';
 
 interface SandboxLabProps {
@@ -23,11 +23,54 @@ export const SandboxLab: React.FC<SandboxLabProps> = ({
   const [code, setCode] = useState(defaultCode);
   const [consoleOutput, setConsoleOutput] = useState('');
   const [running, setRunning] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [consoleHeight, setConsoleHeight] = useState(176); // default h-44 is 176px
+
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const lineNumbersRef = useRef<HTMLDivElement | null>(null);
+
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    document.addEventListener('mousemove', resize);
+    document.addEventListener('mouseup', stopResize);
+  };
+
+  const resize = (e: MouseEvent) => {
+    const newHeight = window.innerHeight - e.clientY;
+    if (newHeight > 60 && newHeight < window.innerHeight * 0.7) {
+      setConsoleHeight(newHeight);
+    }
+  };
+
+  const stopResize = () => {
+    document.removeEventListener('mousemove', resize);
+    document.removeEventListener('mouseup', stopResize);
+  };
 
   useEffect(() => {
     setCode(defaultCode);
     setConsoleOutput('');
   }, [sandboxConfig, defaultCode]);
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullScreen) {
+        setIsFullScreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => {
+      window.removeEventListener('keydown', handleEsc);
+      document.removeEventListener('mousemove', resize);
+      document.removeEventListener('mouseup', stopResize);
+    };
+  }, [isFullScreen]);
+
+  const handleScroll = () => {
+    if (textareaRef.current && lineNumbersRef.current) {
+      lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+  };
 
   const handleReset = () => {
     setCode(defaultCode);
@@ -111,7 +154,11 @@ export const SandboxLab: React.FC<SandboxLabProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#05040a] border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
+    <div className={
+      isFullScreen 
+        ? "fixed inset-0 z-[99999] m-4 flex flex-col bg-[#05040a] border border-white/10 rounded-3xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+        : "flex flex-col h-full bg-[#05040a] border border-white/5 rounded-3xl overflow-hidden shadow-2xl"
+    }>
       <div className="flex justify-between items-center px-6 py-4 border-b border-white/5 bg-black/40">
         <div className="flex items-center gap-2">
           <Code className="text-indigo-400 w-4 h-4" />
@@ -120,6 +167,14 @@ export const SandboxLab: React.FC<SandboxLabProps> = ({
           </span>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={() => setIsFullScreen(!isFullScreen)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all"
+            title={isFullScreen ? "Exit Fullscreen (Esc)" : "Fullscreen Mode"}
+          >
+            {isFullScreen ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+            <span>{isFullScreen ? 'Exit Full' : 'Fullscreen'}</span>
+          </button>
           <button
             onClick={handleReset}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all"
@@ -139,22 +194,27 @@ export const SandboxLab: React.FC<SandboxLabProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 grid grid-rows-3 md:grid-rows-1 md:grid-cols-2 overflow-hidden">
-        <div className="row-span-2 md:row-span-1 border-b md:border-b-0 md:border-r border-white/5 flex flex-col min-h-0">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 border-b border-white/5 flex flex-col min-h-0">
           <div className="px-4 py-2 bg-black/20 text-[9px] font-black uppercase tracking-widest text-gray-500 border-b border-white/5 flex justify-between">
             <span>Editor</span>
             <span>Tab = 4 Spaces</span>
           </div>
-          <div className="flex-1 relative flex min-h-0">
-            <div className="w-10 bg-black/40 text-right pr-2.5 py-4 font-mono text-[11px] text-gray-600 select-none border-r border-white/[0.02]">
+          <div className="flex-1 relative flex min-h-0 overflow-hidden">
+            <div 
+              ref={lineNumbersRef}
+              className="w-10 bg-black/40 text-right pr-2.5 py-4 font-mono text-[11px] text-gray-600 select-none border-r border-white/[0.02] overflow-hidden"
+            >
               {Array.from({ length: Math.max(15, code.split('\n').length + 5) }).map((_, i) => (
                 <div key={i} className="leading-5 h-5">{i + 1}</div>
               ))}
             </div>
             <textarea
+              ref={textareaRef}
               value={code}
               onChange={(e) => setCode(e.target.value)}
               onKeyDown={handleKeyDown}
+              onScroll={handleScroll}
               className="flex-1 bg-transparent px-4 py-4 font-mono text-[12px] text-indigo-100 leading-5 outline-none resize-none overflow-y-auto"
               spellCheck={false}
               placeholder="Write your code here..."
@@ -162,8 +222,17 @@ export const SandboxLab: React.FC<SandboxLabProps> = ({
           </div>
         </div>
 
-        <div className="flex flex-col min-h-0 bg-[#020205]">
-          <div className="px-4 py-2 bg-black/20 text-[9px] font-black uppercase tracking-widest text-gray-500 border-b border-white/5 flex items-center gap-1.5">
+        {/* Resizer Splitter */}
+        <div 
+          onMouseDown={startResize}
+          className="h-1.5 bg-white/5 hover:bg-indigo-500/50 active:bg-indigo-500 cursor-ns-resize transition-all flex items-center justify-center relative select-none shrink-0 border-y border-white/5"
+          title="Drag to resize console"
+        >
+          <div className="w-8 h-[2px] bg-white/20 rounded-full" />
+        </div>
+
+        <div style={{ height: `${consoleHeight}px` }} className="flex flex-col min-h-0 bg-[#020205] shrink-0">
+          <div className="px-4 py-2 bg-black/20 text-[9px] font-black uppercase tracking-widest text-gray-500 border-b border-white/5 flex items-center gap-1.5 select-none">
             <Terminal size={10} />
             <span>Console Output</span>
           </div>

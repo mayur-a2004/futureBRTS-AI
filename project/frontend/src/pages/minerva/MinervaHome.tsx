@@ -11,8 +11,51 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import mermaid from 'mermaid';
 import { DynamicLabEngine } from './labs/DynamicLabEngine';
 import { SUBJECT_COLORS, SUBJECT_ICONS, LabConfig } from './labs/types/LabConfig';
+
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'dark',
+  securityLevel: 'loose',
+});
+
+const MermaidChatRenderer: React.FC<{ chart: string }> = ({ chart }) => {
+  const [svgHtml, setSvgHtml] = useState<string>('');
+  const [error, setError] = useState<boolean>(false);
+
+  useEffect(() => {
+    setError(false);
+    const id = `mermaid-chat-${Math.floor(Math.random() * 100000)}`;
+    
+    mermaid.render(id, chart)
+      .then(({ svg }) => {
+        setSvgHtml(svg);
+      })
+      .catch((err) => {
+        console.error('Mermaid rendering error in chat:', err);
+        setError(true);
+      });
+  }, [chart]);
+
+  if (error) {
+    return (
+      <pre className="p-3 bg-zinc-950/80 rounded-xl border border-zinc-800 font-mono text-[10px] text-zinc-400 overflow-x-auto max-w-full my-2">
+        {chart}
+      </pre>
+    );
+  }
+
+  return (
+    <div className="w-full flex items-center justify-center p-3 my-2 bg-zinc-950/40 border border-white/5 rounded-xl overflow-auto max-h-[300px] scrollbar-thin">
+      <div 
+        className="w-full max-w-full flex justify-center [&_svg]:max-w-full [&_svg]:h-auto"
+        dangerouslySetInnerHTML={{ __html: svgHtml }}
+      />
+    </div>
+  );
+};
 
 
 
@@ -741,7 +784,15 @@ const MinervaHome: React.FC = () => {
                                         rel="noopener noreferrer" 
                                         className="text-cyan-400 hover:text-cyan-300 underline font-semibold inline-flex items-center gap-1"
                                     />
-                                )
+                                ),
+                                code: ({ node, inline, className, children, ...props }: any) => {
+                                    const match = /language-(\w+)/.exec(className || '');
+                                    const lang = match ? match[1] : '';
+                                    if (!inline && lang === 'mermaid') {
+                                        return <MermaidChatRenderer chart={String(children).replace(/\n$/, '')} />;
+                                    }
+                                    return <code className={className} {...props}>{children}</code>;
+                                }
                             }}
                         >
                             {displayContent}

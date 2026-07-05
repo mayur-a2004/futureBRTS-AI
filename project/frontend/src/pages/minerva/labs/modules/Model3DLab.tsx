@@ -29,13 +29,39 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
   three_js_config,
   sketchfab_hint,
   subject: _subject,
-  sensitivity_level,
+  sensitivity_level: _sensitivity_level,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [params, setParams] = useState<Record<string, number>>({});
   const [sketchfabLoading, setSketchfabLoading] = useState(true);
+  const [activeModelId, setActiveModelId] = useState<string | null>(sketchfab_hint);
   const animationRef = useRef<number | null>(null);
   const projectileStateRef = useRef({ x: 0, y: 0, vx: 0, vy: 0, t: 0, path: [] as { x: number; y: number }[] });
+
+  useEffect(() => {
+    if (sketchfab_hint === '3d6e5d8a9e7f4c17b5f00e28f3a38ca4' || !sketchfab_hint) {
+      setSketchfabLoading(true);
+      const token = localStorage.getItem('fbrts_token');
+      const searchQuery = three_js_config?.title || _subject || 'science';
+      fetch(`/api/future-education/lab/sketchfab-search?query=${encodeURIComponent(searchQuery)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success && data.model_id) {
+            setActiveModelId(data.model_id);
+          } else {
+            setActiveModelId('8f3b207555804362a26563604f37803a'); // Verified Working DNA model
+          }
+        })
+        .catch(err => {
+          console.error('Sketchfab dynamic search failed:', err);
+          setActiveModelId('8f3b207555804362a26563604f37803a');
+        });
+    } else {
+      setActiveModelId(sketchfab_hint);
+    }
+  }, [sketchfab_hint, three_js_config, _subject]);
 
   // Initialize parameters from config
   useEffect(() => {
@@ -466,6 +492,117 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
         ctx.fillStyle = '#3b82f6';
         ctx.fillText('Balance c/d: $5,300', width / 2 + 40, 210);
       }
+      else if (type === 'molecule_builder' || type === 'chemical_reaction') {
+        drawGrid(ctx, cx, cy + 40);
+
+        const pour = params.pour ?? 0;
+        const temp = params.temperature ?? 25;
+        const bubbleSpeed = 1 + temp * 0.05;
+
+        // Beaker 1 (Left: Pouring)
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 4;
+        
+        ctx.save();
+        const b1x = cx - 120;
+        const b1y = cy + 50;
+        ctx.translate(b1x, b1y);
+        
+        const tiltAngle = (pour * 45 / 100) * Math.PI / 180;
+        ctx.rotate(tiltAngle);
+        
+        // Draw beaker 1
+        ctx.beginPath();
+        ctx.moveTo(-30, -40);
+        ctx.lineTo(-30, 40);
+        ctx.lineTo(30, 40);
+        ctx.lineTo(30, -40);
+        ctx.stroke();
+        
+        const liquidHeight = Math.max(0, 50 - (pour * 0.5));
+        ctx.fillStyle = '#38bdf8'; 
+        ctx.fillRect(-28, 40 - liquidHeight, 56, liquidHeight);
+        ctx.restore();
+
+        // Pouring liquid stream
+        if (pour > 5) {
+          ctx.strokeStyle = '#38bdf8';
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          const startX = b1x + 20 + (pour * 0.2);
+          const startY = b1y - 10 + (pour * 0.1);
+          const endX = cx + 80;
+          const endY = cy + 40;
+          
+          ctx.moveTo(startX, startY);
+          ctx.quadraticCurveTo((startX + endX) / 2, startY + 50, endX, endY);
+          ctx.stroke();
+        }
+
+        // Beaker 2 (Right: Receiving)
+        const b2x = cx + 80;
+        const b2y = cy + 50;
+        ctx.save();
+        ctx.translate(b2x, b2y);
+        
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(-40, -50);
+        ctx.lineTo(-40, 50);
+        ctx.lineTo(40, 50);
+        ctx.lineTo(40, -50);
+        ctx.stroke();
+        
+        const recHeight = Math.min(80, 20 + (pour * 0.6));
+        
+        // Color transition from green-ish to pink/purple reaction product
+        const r = Math.floor(16 + (pour * 2.2));
+        const g = Math.floor(185 - (pour * 1.5));
+        const b = Math.floor(129 + (pour * 0.5));
+        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+        ctx.fillRect(-38, 50 - recHeight, 76, recHeight);
+
+        // Bubbles
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        const bubbleCount = Math.floor(pour * 0.3 * bubbleSpeed);
+        const timeSeed = Date.now() * 0.003;
+        for (let i = 0; i < bubbleCount; i++) {
+          const bx = Math.sin(i * 4.3 + timeSeed) * 30;
+          const by = 50 - ((i * 12 + timeSeed * 30 * bubbleSpeed) % recHeight);
+          if (by > 50 - recHeight) {
+            ctx.beginPath();
+            ctx.arc(bx, by, 2 + (i % 3), 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        ctx.restore();
+
+        // Info
+        ctx.fillStyle = '#fafafa';
+        ctx.font = 'bold 15px sans-serif';
+        ctx.fillText('Interactive Chemical Reaction Lab', 25, 40);
+        
+        ctx.font = '12px monospace';
+        ctx.fillStyle = '#a1a1aa';
+        ctx.fillText('Equation: H₂O (Liquid) + CO₂ (Gas) ⇌ H₂CO₃ (Carbonic Acid)', 25, 70);
+        ctx.fillText(`Reaction Temp: ${temp}°C`, 25, 90);
+        ctx.fillText(`Pouring State: ${pour.toFixed(0)}%`, 25, 110);
+        
+        if (pour > 80) {
+          ctx.fillStyle = '#f43f5e';
+          ctx.font = 'bold 12px sans-serif';
+          ctx.fillText('✨ Reaction Complete: Carbonic Acid Formed!', 25, 140);
+        } else if (pour > 10) {
+          ctx.fillStyle = '#f59e0b';
+          ctx.font = 'bold 12px sans-serif';
+          ctx.fillText('⚡ Reacting: Synthesizing Carbonic Acid...', 25, 140);
+        } else {
+          ctx.fillStyle = '#3b82f6';
+          ctx.font = 'bold 12px sans-serif';
+          ctx.fillText('ℹ️ Use "Pour Amount" slider to start reaction.', 25, 140);
+        }
+      }
       else {
         ctx.fillStyle = '#a1a1aa';
         ctx.font = '14px sans-serif';
@@ -509,7 +646,7 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
     setParams((prev) => ({ ...prev, [key]: val }));
   };
 
-  const isSketchfab = sketchfab_hint && sensitivity_level === 0;
+  const isSketchfab = !!sketchfab_hint;
 
   return (
     <div className="w-full h-full flex flex-col bg-zinc-950/60 rounded-xl border border-zinc-800 overflow-hidden backdrop-blur-md">
@@ -530,7 +667,7 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
               </div>
             )}
             <iframe
-              src={`https://sketchfab.com/models/${sketchfab_hint}/embed?autostart=1&ui_theme=dark&preload=1`}
+              src={`https://sketchfab.com/models/${activeModelId}/embed?autostart=1&ui_theme=dark&preload=1`}
               title="3D Model Viewer"
               className="w-full h-full border-none"
               onLoad={() => setSketchfabLoading(false)}
@@ -597,6 +734,8 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
             else if (sliderKey === 'gravity') { min = 2; max = 25; step = 0.2; label = 'Gravity (g)' }
             else if (sliderKey === 'voltage') { min = 2; max = 24; step = 1; label = 'Voltage (V)' }
             else if (sliderKey === 'resistance') { min = 1; max = 20; step = 0.5; label = 'Resistance (R)' }
+            else if (sliderKey === 'pour') { min = 0; max = 100; step = 1; label = 'Pour Amount (%)' }
+            else if (sliderKey === 'temperature') { min = 0; max = 100; step = 1; label = 'Reaction Temp (°C)' }
 
             const val = params[sliderKey] ?? 0;
 
