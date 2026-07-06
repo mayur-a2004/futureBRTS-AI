@@ -335,7 +335,10 @@ export default function MinervaQuizBattlePage() {
                 setView('WAITING');
                 socket?.emit('join_arena_lobby', { roomCode: d.room.roomCode, userId: user?._id });
             } else showAlert('Error', d.message || 'Failed to create room');
-        } catch { showAlert('Error', 'Connection failed'); }
+        } catch (err: any) { 
+            console.error("Room creation error:", err);
+            showAlert('Error', `Connection failed: ${err.message || 'Server returned invalid response. Make sure backend is running.'}`); 
+        }
         finally { setLoading(false); }
     };
 
@@ -355,7 +358,10 @@ export default function MinervaQuizBattlePage() {
                 setView('WAITING');
                 socket?.emit('join_arena_lobby', { roomCode: joinCode.toUpperCase(), userId: user?._id });
             } else showAlert('Error', d.message || 'Room not found or full');
-        } catch { showAlert('Error', 'Connection failed'); }
+        } catch (err: any) { 
+            console.error("Room join error:", err);
+            showAlert('Error', `Connection failed: ${err.message || 'Server returned invalid response. Make sure backend is running.'}`); 
+        }
         finally { setLoading(false); }
     };
 

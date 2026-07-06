@@ -990,7 +990,7 @@ export const getCombinedMinervaResponse = async (
     content_type: string;
     metadata: any;
 }> => {
-    const history = chatHistory.slice(-24).map(m => ({
+    const history = chatHistory.slice(-6).map(m => ({
         role: m.role === 'student' ? 'user' : 'assistant',
         content: m.content
     }));
@@ -1058,7 +1058,7 @@ Return ONLY a valid JSON object matching the following structure (do not wrap in
     ];
 
     try {
-        const res = await getProviderResponse(messages, { jsonMode: true, maxTokens: 3500, temperature: 0.5 });
+        const res = await getProviderResponse(messages, { jsonMode: true, maxTokens: 1500, temperature: 0.5 });
         const text = res?.choices?.[0]?.message?.content || '{}';
         const parsed = safeJsonParse(text) || {};
 
