@@ -40,6 +40,29 @@ interface ArenaRoom {
     invitedStudentIds?: string[];
 }
 
+// ─── Utility Helpers ─────────────────────────────────────────────────────────
+const formatTopic = (topicStr?: string) => {
+    if (!topicStr) return 'General Quiz';
+    try {
+        if (topicStr.trim().startsWith('[') || topicStr.trim().startsWith('{')) {
+            const parsed = JSON.parse(topicStr);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                const first = parsed[0];
+                if (typeof first === 'object' && first !== null) {
+                    return Object.values(first).join(' - ');
+                }
+                return String(parsed[0]);
+            }
+            if (typeof parsed === 'object' && parsed !== null) {
+                return Object.values(parsed).join(' - ');
+            }
+        }
+    } catch (e) {
+        // Fallback
+    }
+    return topicStr;
+};
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 const MODES = [
     { id: 'SOLO_VS_AI',    label: 'Solo vs AI',    icon: '🤖', desc: 'Battle Minerva AI' },
@@ -1944,7 +1967,7 @@ export default function MinervaQuizBattlePage() {
                                                             <span className="px-1.5 py-0.5 bg-violet-500/20 text-violet-400 text-[8px] font-black rounded uppercase">Classroom</span>
                                                         )}
                                                     </div>
-                                                    <div className="text-xs font-black text-white mt-1 truncate">📌 {r.topicConcept || r.topic || 'General Quiz'}</div>
+                                                    <div className="text-xs font-black text-white mt-1 truncate">📌 {formatTopic(r.topicConcept) || r.topic || 'General Quiz'}</div>
                                                     <div className="text-[10px] text-slate-400 mt-0.5">{r.subject} • Class/Grade {r.standard}</div>
                                                     <div className="text-[9px] mt-1 font-black flex flex-wrap gap-2">
                                                         {r.battleStyle === 'ALTERNATING'
@@ -2321,7 +2344,7 @@ export default function MinervaQuizBattlePage() {
                             
                             {/* Topic Banner */}
                             <div className="mb-4 text-sm font-black text-indigo-300">
-                                📌 Topic: <span className="text-white">{room.topicConcept || room.topic || 'General Quiz'}</span>
+                                📌 Topic: <span className="text-white">{formatTopic(room.topicConcept) || room.topic || 'General Quiz'}</span>
                             </div>
 
                             <div className="inline-flex items-center gap-3 bg-[#0a0d18] border border-slate-800 rounded-2xl px-5 py-3 shadow-lg mb-3">
@@ -2547,7 +2570,7 @@ export default function MinervaQuizBattlePage() {
                             <div className="flex items-center justify-between mb-4 relative z-10 border-b border-slate-900 pb-3">
                                 <div>
                                     <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Round {currentRound + 1} / {room.totalRounds}</div>
-                                    <div className="text-xs font-black text-indigo-400 mt-0.5">📌 {room.topicConcept || room.topic || 'General Quiz'}</div>
+                                    <div className="text-xs font-black text-indigo-400 mt-0.5">📌 {formatTopic(room.topicConcept) || room.topic || 'General Quiz'}</div>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     {room.roomType === 'TEACHER_ROOM' && isHost ? (

@@ -71,6 +71,56 @@ async function simulateAIAnswer(
 
 export class SocketService {
     private static io: Server;
+    // ─── Server-side round timers (auto-advance if players don't answer) ───────
+    private static roundTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+
+    private static startRoundTimer(roomCode: string, roundIndex: number, io: Server) {
+        // Clear any existing timer for this room
+        const existingKey = `${roomCode}:${roundIndex}`;
+        const prev = SocketService.roundTimers.get(existingKey);
+        if (prev) clearTimeout(prev);
+
+        const timer = setTimeout(async () => {
+            try {
+                SocketService.roundTimers.delete(existingKey);
+                const room = await ArenaRoom.findOne({ roomCode });
+                if (!room || room.status !== 'ACTIVE') return;
+                if (room.currentRound !== roundIndex) return; // Already advanced
+
+                const roundState = room.roundStates.find((r: any) => r.roundIndex === roundIndex);
+                if (!roundState) return;
+                if ((roundState as any).finishedAt) return; // Already finished
+
+                logger.info(`[Arena] ⏱️ Server auto-advancing round ${roundIndex} for room ${roomCode} (timer expired)`);
+
+                // Force-complete this round
+                const roundComplete = await SocketService._evaluateRoundComplete(room, roundIndex, roomCode, io, true);
+
+                if (roundComplete) {
+                    io.to(roomCode).emit('arena_update', {
+                        room: room.toJSON(),
+                        event: 'TIMEOUT_ADVANCE',
+                        roundComplete: true,
+                        team: null,
+                        isCorrect: false,
+                        damage: 0,
+                        selfDamage: 0,
+                        answeredBy: 'SERVER_TIMEOUT',
+                        activeTurn: room.currentTurn
+                    });
+
+                    // Start timer for next round if battle continues
+                    if (room.status === 'ACTIVE') {
+                        SocketService.startRoundTimer(roomCode, room.currentRound, io);
+                    }
+                }
+            } catch (err: any) {
+                logger.error('[Arena] Round auto-advance error:', err.message);
+            }
+        }, 22000); // 22 seconds (15s question + 7s buffer for slow connections)
+
+        SocketService.roundTimers.set(existingKey, timer);
+    }
 
     // ─── Unified Round Evaluator ──────────────────────────────────────────────
     private static async _evaluateRoundComplete(room: any, roundIndex: number, roomCode: string, io: Server, forceComplete: boolean = false) {
@@ -119,6 +169,9 @@ export class SocketService {
                 if (room.mode === 'SOLO_VS_AI' && room.aiDifficulty) {
                     simulateAIAnswer(roomCode, nextRound, room.aiDifficulty as any, io);
                 }
+                // Start server-side auto-advance timer for next round
+                SocketService.startRoundTimer(roomCode, nextRound, io);
+
             } else if (!winnerTeam) {
                 // All rounds done — determine winner by HP
                 winnerTeam = room.teamA.hp > room.teamB.hp ? 'A' : room.teamB.hp > room.teamA.hp ? 'B' : 'DRAW';
@@ -214,6 +267,9 @@ export class SocketService {
 
                     this.io.to(roomCode).emit('arena_started', { room: room.toJSON() });
 
+                    // Start server-side round timer to auto-advance if players don't answer
+                    SocketService.startRoundTimer(roomCode, 0, this.io);
+
                     // If AI mode, start AI simulation for round 0
                     if (room.mode === 'SOLO_VS_AI' && room.aiDifficulty) {
                         simulateAIAnswer(roomCode, 0, room.aiDifficulty as any, this.io);
@@ -239,6 +295,13 @@ export class SocketService {
                     // Mark room as cancelled
                     room.status = 'CANCELLED' as any;
                     await room.save();
+
+                    // Clear server-side round timers for this room
+                    for (let i = 0; i < (room.totalRounds || 10); i++) {
+                        const key = `${roomCode}:${i}`;
+                        const t = SocketService.roundTimers.get(key);
+                        if (t) { clearTimeout(t); SocketService.roundTimers.delete(key); }
+                    }
 
                     // Broadcast to ALL players in the room — they will see the stop screen and redirect
                     this.io.to(roomCode).emit('arena_teacher_stopped', {
