@@ -223,7 +223,37 @@ export class SocketService {
                 }
             });
 
-            // ─── SUBMIT ANSWER (Speed Race + Alternating Dual Logic) ──────────
+            // ─── TEACHER FORCE STOP QUIZ ──────────────────────────────────────────
+            socket.on('teacher_stop_quiz', async (data: { roomCode: string; userId: string }) => {
+                const { roomCode, userId } = data;
+                try {
+                    const room = await ArenaRoom.findOne({ roomCode });
+                    if (!room) return;
+                    // Only the host (teacher) can stop the quiz
+                    if (room.hostId.toString() !== userId) {
+                        socket.emit('arena_error', { message: 'Only the host teacher can stop this quiz.' });
+                        return;
+                    }
+                    if (room.status === 'CANCELLED' || room.status === 'FINISHED') return;
+
+                    // Mark room as cancelled
+                    room.status = 'CANCELLED' as any;
+                    await room.save();
+
+                    // Broadcast to ALL players in the room — they will see the stop screen and redirect
+                    this.io.to(roomCode).emit('arena_teacher_stopped', {
+                        roomCode,
+                        message: 'Quiz has been stopped by the teacher. You are being redirected.',
+                        stoppedAt: new Date().toISOString()
+                    });
+
+                    logger.info(`[Arena Socket] Teacher stopped quiz room: ${roomCode}`);
+                } catch (err: any) {
+                    logger.error('[Arena Socket] teacher_stop_quiz error:', err.message);
+                }
+            });
+
+
             socket.on('submit_arena_answer', async (data: {
                 roomCode: string;
                 userId: string;

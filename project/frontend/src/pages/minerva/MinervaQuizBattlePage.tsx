@@ -657,7 +657,7 @@ export default function MinervaQuizBattlePage() {
     };
 
     // Views
-    const [view, setView] = useState<'LOBBY' | 'CREATE' | 'JOIN' | 'WAITING' | 'BATTLE' | 'RESULTS'>('LOBBY');
+    const [view, setView] = useState<'LOBBY' | 'CREATE' | 'JOIN' | 'WAITING' | 'BATTLE' | 'RESULTS' | 'TEACHER_STOPPED'>('LOBBY');
     const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'ARENA'>('DASHBOARD');
 
     // Stats & History
@@ -975,6 +975,16 @@ export default function MinervaQuizBattlePage() {
             setView('CREATE');
             resetBattleState();
         });
+
+        // ─── TEACHER FORCE STOPPED ─────────────────────────────────────────────
+        s.on('arena_teacher_stopped', () => {
+            clearInterval(timerRef.current!);
+            setRoom(null);
+            resetBattleState();
+            setView('TEACHER_STOPPED');
+        });
+
+
 
         s.on('arena_combo', (d: { message: string }) => {
             setComboMsg(d.message);
@@ -1406,6 +1416,28 @@ export default function MinervaQuizBattlePage() {
             resetBattleState();
         } catch (err: any) {
             showAlert('Error', 'Failed to leave battle properly');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleTeacherStopQuiz = async () => {
+        if (!room) return;
+        const confirmed = await confirm({
+            title: '🛑 Stop & Terminate Quiz?',
+            message: 'Are you sure you want to stop this quiz? This will immediately end the battle for all students and kick them out.',
+            confirmText: 'Yes, Stop Quiz',
+            cancelText: 'No, Keep Running',
+            type: 'confirm'
+        });
+
+        if (!confirmed) return;
+
+        setLoading(true);
+        try {
+            socket?.emit('teacher_stop_quiz', { roomCode: room.roomCode, userId: user?._id });
+        } catch (err) {
+            showAlert('Error', 'Failed to send stop command.');
         } finally {
             setLoading(false);
         }
@@ -2385,13 +2417,23 @@ export default function MinervaQuizBattlePage() {
                             </div>
                         )}
 
-                        <button
-                            onClick={leaveLobby}
-                            disabled={loading}
-                            className="w-full mt-3 py-3 bg-slate-900/60 hover:bg-rose-950/25 border border-slate-800 hover:border-rose-900/40 text-slate-400 hover:text-rose-400 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                        >
-                            {isHost ? 'Cancel Battle & Close Lobby' : 'Leave Lobby & Exit'}
-                        </button>
+                        {room.roomType === 'TEACHER_ROOM' && isHost ? (
+                            <button
+                                onClick={handleTeacherStopQuiz}
+                                disabled={loading}
+                                className="w-full mt-3 py-3 bg-rose-900/40 hover:bg-rose-900/60 border border-rose-800 hover:border-rose-700 text-rose-250 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                                🛑 Stop Quiz & Terminate Room
+                            </button>
+                        ) : (
+                            <button
+                                onClick={leaveLobby}
+                                disabled={loading}
+                                className="w-full mt-3 py-3 bg-slate-900/60 hover:bg-rose-950/25 border border-slate-800 hover:border-rose-900/40 text-slate-400 hover:text-rose-400 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                                {isHost ? 'Cancel Battle & Close Lobby' : 'Leave Lobby & Exit'}
+                            </button>
+                        )}
                     </motion.div>
                 )}
 
@@ -2508,12 +2550,21 @@ export default function MinervaQuizBattlePage() {
                                     <div className="text-xs font-black text-indigo-400 mt-0.5">📌 {room.topicConcept || room.topic || 'General Quiz'}</div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={handleLeaveBattle}
-                                        className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border border-rose-500/40 bg-rose-950/20 hover:bg-rose-900/40 text-rose-450 transition-all duration-200 cursor-pointer shadow-lg hover:shadow-rose-950/50"
-                                    >
-                                        🏃 Leave
-                                    </button>
+                                    {room.roomType === 'TEACHER_ROOM' && isHost ? (
+                                        <button
+                                            onClick={handleTeacherStopQuiz}
+                                            className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border border-rose-500 bg-rose-900/60 hover:bg-rose-800 text-white transition-all duration-200 cursor-pointer shadow-lg shadow-rose-950/50"
+                                        >
+                                            🛑 Stop Quiz
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={handleLeaveBattle}
+                                            className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border border-rose-500/40 bg-rose-950/20 hover:bg-rose-900/40 text-rose-450 transition-all duration-200 cursor-pointer shadow-lg hover:shadow-rose-950/50"
+                                        >
+                                            🏃 Leave
+                                        </button>
+                                    )}
                                     <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black border ${
                                         (room.battleStyle === 'ALTERNATING' && room.mode !== 'SOLO_VS_AI' && activeTurn !== myTeam) ? 'border-amber-500/30 bg-amber-900/10 text-amber-400' :
                                         timerFrozen ? 'border-blue-500/30 bg-blue-900/20 text-blue-400' : 
@@ -2869,6 +2920,37 @@ export default function MinervaQuizBattlePage() {
                     </motion.div>
                 )}
 
+                {/* ═══ TEACHER STOPPED VIEW ════════════════════════════════════ */}
+                {view === 'TEACHER_STOPPED' && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="max-w-md mx-auto bg-[#090b14]/90 border border-red-500/20 rounded-3xl p-8 text-center shadow-2xl relative overflow-hidden"
+                    >
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(239,68,68,0.05),transparent)] pointer-events-none" />
+                        
+                        <div className="w-20 h-20 mx-auto bg-rose-500/10 border border-rose-500/20 rounded-full flex items-center justify-center mb-6">
+                            <span className="text-4xl">🛑</span>
+                        </div>
+
+                        <h2 className="text-2xl font-black text-white mb-3">Quiz Terminated</h2>
+                        
+                        <p className="text-slate-400 text-sm leading-relaxed mb-8">
+                            This battle has been stopped by the host teacher. All active participants have been disconnected and the room is closed.
+                        </p>
+
+                        <motion.button
+                            whileTap={{ scale: 0.97 }}
+                            onClick={() => {
+                                setView('CREATE');
+                            }}
+                            className="w-full py-4 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white rounded-2xl font-black text-sm transition-all shadow-lg shadow-rose-950/30"
+                        >
+                            Return to Dashboard
+                        </motion.button>
+                    </motion.div>
+                )}
 
             </div>
         </div>

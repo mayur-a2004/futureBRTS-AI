@@ -108,6 +108,7 @@ router.post('/battle/normalize-topic', authMiddleware, battleController.normaliz
 router.get('/battle/teacher/rooms', authMiddleware, battleController.listTeacherRooms);
 router.get('/battle/teacher/room/:roomCode/results', authMiddleware, battleController.classroomResults);
 router.get('/battle/teacher/search-students', authMiddleware, battleController.searchStudents);
+router.post('/battle/teacher/room/:roomCode/stop', authMiddleware, battleController.stopRoom);
 
 
 // ─── SCHOOL LEADERBOARD (Public + City-filtered) ───────────────────────────

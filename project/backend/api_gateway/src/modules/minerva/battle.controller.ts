@@ -1068,7 +1068,47 @@ export const battleController = {
         } catch (err: any) {
             res.status(500).json({ success: false, message: err.message });
         }
+    },
+
+    // ─── TEACHER FORCE STOP QUIZ ─────────────────────────────────────────────
+    stopRoom: async (req: Request, res: Response) => {
+        try {
+            const { roomCode } = req.params;
+            const teacher = (req as any).user;
+
+            const room = await ArenaRoom.findOne({ roomCode });
+            if (!room) {
+                return res.status(404).json({ success: false, message: 'Room not found.' });
+            }
+            if (room.hostId.toString() !== (teacher._id || teacher.id).toString()) {
+                return res.status(403).json({ success: false, message: 'Only the host teacher can stop this quiz.' });
+            }
+            if (room.status === 'CANCELLED' || room.status === 'FINISHED') {
+                return res.status(400).json({ success: false, message: 'Room is already closed.' });
+            }
+
+            // Cancel the room
+            room.status = 'CANCELLED' as any;
+            await room.save();
+
+            // Broadcast via Socket.io to all players so they get kicked out in real-time
+            const { SocketService } = require('../../services/socket.service');
+            SocketService.emitToSession(roomCode, 'arena_teacher_stopped', {
+                roomCode,
+                message: 'Quiz has been stopped by the teacher.',
+                stoppedAt: new Date().toISOString()
+            });
+
+            logger.info(`[Arena] Teacher stopped room: ${roomCode} by ${teacher._id || teacher.id}`);
+            res.status(200).json({ success: true, message: 'Quiz stopped and all students have been removed.' });
+        } catch (err: any) {
+            logger.error('[Arena] stopRoom error:', err);
+            res.status(500).json({ success: false, message: err.message });
+        }
     }
 };
+
+
+
 
 
