@@ -66,7 +66,7 @@ export interface IRoundState {
 export interface IArenaRoom extends Document {
     roomCode: string;
     hostId: mongoose.Types.ObjectId;
-    status: 'WAITING' | 'LOBBY_READY' | 'ACTIVE' | 'FINISHED';
+    status: 'WAITING' | 'LOBBY_READY' | 'ACTIVE' | 'FINISHED' | 'CANCELLED';
     roomType: 'OPEN_ARENA' | 'TEACHER_ROOM';   // ← NEW
     mode: 'SOLO_VS_AI' | 'SOLO_VS_SOLO' | 'SOLO_VS_DUO' | 'SOLO_VS_TRIO' | 'SOLO_VS_SQUAD'
         | 'DUO_VS_DUO' | 'DUO_VS_TRIO' | 'DUO_VS_SQUAD'
@@ -163,7 +163,7 @@ const ArenaQuestionSchema = new Schema({
 const ArenaRoomSchema: Schema = new Schema({
     roomCode: { type: String, required: true, unique: true, index: true },
     hostId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    status: { type: String, enum: ['WAITING', 'LOBBY_READY', 'ACTIVE', 'FINISHED'], default: 'WAITING' },
+    status: { type: String, enum: ['WAITING', 'LOBBY_READY', 'ACTIVE', 'FINISHED', 'CANCELLED'], default: 'WAITING' },
     mode: {
         type: String,
         enum: ['SOLO_VS_AI','SOLO_VS_SOLO','SOLO_VS_DUO','SOLO_VS_TRIO','SOLO_VS_SQUAD',
