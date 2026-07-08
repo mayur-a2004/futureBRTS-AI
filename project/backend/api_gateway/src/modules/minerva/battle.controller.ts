@@ -91,7 +91,8 @@ Rules:
   "fotosinthesis" → "Photosynthesis"
   "binary tree and bst" → "Binary Trees and BST"`;
         const result = await callSwarmAIHelper(prompt);
-        return result.trim().replace(/^["']|["']$/g, ''); // strip surrounding quotes if any
+        const clean = result.trim().replace(/^["']|["']$/g, ''); // strip surrounding quotes if any
+        return clean.length > 0 ? clean : rawTopic; // fallback if AI returned empty
     } catch {
         return rawTopic; // fallback to original if AI fails
     }
@@ -364,8 +365,8 @@ export const battleController = {
                 subject,
                 standard: String(hostGrade),
                 board: board,
-                topic: normalized,
-                topicConcept: normalized,
+                topic: normalized || topic.trim(),
+                topicConcept: normalized || topic.trim(),
                 topicRaw: topic.trim(),
                 semester: semester || undefined,
                 roomType: roomType || 'OPEN_ARENA',

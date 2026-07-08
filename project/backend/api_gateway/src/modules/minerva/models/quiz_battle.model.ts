@@ -180,7 +180,7 @@ const ArenaRoomSchema: Schema = new Schema({
     standard: { type: String, required: true },          // ← NEW
     board: { type: String, required: true },             // ← NEW (mandatory room-level board)
     topic: { type: String },                             // legacy keep
-    topicConcept: { type: String, required: true },      // ← NEW: AI-normalized topic
+    topicConcept: { type: String, required: false, default: '' },      // AI-normalized topic (optional fallback)
     topicRaw: { type: String },                          // ← NEW: raw user input
     semester: { type: String },                          // ← NEW: for higher-ed
     invitedStudentIds: [{ type: Schema.Types.ObjectId, ref: 'User' }], // ← NEW: teacher room
