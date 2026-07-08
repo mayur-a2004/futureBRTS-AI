@@ -31,5 +31,6 @@ router.post('/upload', upload.fields([
 ]), examGeneratorController.generateExam);
 router.get('/list', examGeneratorController.getExams);
 router.get('/:id/pdf', examGeneratorController.downloadPdf);
+router.put('/:id', examGeneratorController.updateExam);
 
 export default router;

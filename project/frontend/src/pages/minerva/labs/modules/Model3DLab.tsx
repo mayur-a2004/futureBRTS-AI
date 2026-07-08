@@ -35,6 +35,9 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
   const [params, setParams] = useState<Record<string, number>>({});
   const [sketchfabLoading, setSketchfabLoading] = useState(true);
   const [activeModelId, setActiveModelId] = useState<string | null>(sketchfab_hint);
+  const [show2DInterpretation, setShow2DInterpretation] = useState(false);
+  const [selectedPart, setSelectedPart] = useState<string | null>(null);
+  const mouseRef = useRef({ x: 0, y: 0, click: false, clickX: 0, clickY: 0 });
   const animationRef = useRef<number | null>(null);
   const projectileStateRef = useRef({ x: 0, y: 0, vx: 0, vy: 0, t: 0, path: [] as { x: number; y: number }[] });
 
@@ -93,9 +96,25 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
   // Handle Canvas Render Loop
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !three_js_config) return;
+    if (!canvas || (!three_js_config && !show2DInterpretation)) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseRef.current.x = e.clientX - rect.left;
+      mouseRef.current.y = e.clientY - rect.top;
+    };
+
+    const handleMouseClick = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseRef.current.click = true;
+      mouseRef.current.clickX = e.clientX - rect.left;
+      mouseRef.current.clickY = e.clientY - rect.top;
+    };
+
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('click', handleMouseClick);
 
     let width = canvas.width = canvas.clientWidth;
     let height = canvas.height = canvas.clientHeight;
@@ -108,7 +127,7 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
     });
     resizeObserver.observe(canvas);
 
-    const type = three_js_config.type;
+    const type = three_js_config?.type;
 
     // Reset projectile state if type changes
     if (type === 'projectile_motion') {
@@ -162,7 +181,7 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
       // ─────────────────────────────────────────────
       // DYNAMIC VISUAL ELEMENTS ENGINE
       // ─────────────────────────────────────────────
-      if (three_js_config.visual_mapping?.elements) {
+      if (three_js_config?.visual_mapping?.elements) {
         const evalContext: Record<string, number> = { ...params, time: Date.now() * 0.001 };
         
         // Evaluate equations
@@ -255,13 +274,13 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
         ctx.fillStyle = '#f8fafc';
         ctx.font = 'bold 13px sans-serif';
         let textY = 40;
-        if (three_js_config.title) {
+        if (three_js_config?.title) {
           ctx.fillText(three_js_config.title, 25, textY);
           textY += 24;
         }
         ctx.font = '12px monospace';
         Object.entries(computedOutputs).forEach(([key, val]) => {
-          const outDef = three_js_config.outputs?.find(o => o.name === key);
+          const outDef = three_js_config?.outputs?.find(o => o.name === key);
           const label = outDef?.label || key;
           const unit = outDef?.unit || '';
           ctx.fillText(`${label}: ${val.toFixed(2)} ${unit}`, 25, textY);
@@ -604,9 +623,266 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
         }
       }
       else {
-        ctx.fillStyle = '#a1a1aa';
-        ctx.font = '14px sans-serif';
-        ctx.fillText(`Dynamic Simulation: ${type}`, 40, 50);
+        // Draw interactive fallback
+        ctx.fillStyle = '#06050b';
+        ctx.fillRect(0, 0, width, height);
+
+        // Grid background
+        drawGrid(ctx, cx, cy);
+
+        const lowerSubject = _subject.toLowerCase();
+        const lowerTitle = (three_js_config?.title || sketchfab_hint || '').toLowerCase();
+        
+        if (lowerSubject.includes('biology') || lowerSubject.includes('fungi') || lowerSubject.includes('life') || lowerTitle.includes('fungi') || lowerTitle.includes('mushroom')) {
+          // --- BIOLOGY/FUNGI INTERACTIVE SIMULATION ---
+          const mx = cx;
+          const my = cy + 40;
+          
+          // Draw mycelium roots underground (flowing lines)
+          ctx.strokeStyle = '#3f3f46';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(mx - 150, my + 80);
+          ctx.lineTo(mx + 150, my + 80);
+          ctx.stroke();
+
+          // Mycelium roots branching
+          const time = Date.now() * 0.002;
+          ctx.strokeStyle = '#818cf8';
+          ctx.lineWidth = 1.5;
+          for (let i = 0; i < 8; i++) {
+            ctx.beginPath();
+            ctx.moveTo(mx + (i - 3.5) * 15, my + 80);
+            let rx = mx + (i - 3.5) * 15;
+            let ry = my + 80;
+            for (let step = 0; step < 5; step++) {
+              const angle = Math.PI/2 + Math.sin(time + i + step) * 0.4 + (i - 3.5) * 0.15;
+              const len = 15;
+              rx += Math.cos(angle) * len;
+              ry += Math.sin(angle) * len;
+              ctx.lineTo(rx, ry);
+            }
+            ctx.stroke();
+          }
+
+          // Draw stem (Stipe)
+          ctx.fillStyle = '#e2e8f0';
+          ctx.beginPath();
+          ctx.moveTo(mx - 20, my + 80);
+          ctx.quadraticCurveTo(mx - 15, my + 20, mx - 25, my - 20);
+          ctx.lineTo(mx + 25, my - 20);
+          ctx.quadraticCurveTo(mx + 15, my + 20, mx + 20, my + 80);
+          ctx.closePath();
+          ctx.fill();
+
+          // Draw gills (Hymenium)
+          ctx.fillStyle = '#fda4af';
+          ctx.beginPath();
+          ctx.ellipse(mx, my - 20, 70, 15, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Draw mushroom cap (Pileus)
+          ctx.fillStyle = '#ef4444'; // Red cap
+          ctx.beginPath();
+          ctx.arc(mx, my - 22, 75, Math.PI, 0);
+          ctx.closePath();
+          ctx.fill();
+
+          // Draw spots on cap
+          ctx.fillStyle = '#ffffff';
+          const spots = [
+            { x: -40, y: -45, r: 8 },
+            { x: 40, y: -45, r: 8 },
+            { x: 0, y: -65, r: 10 },
+            { x: -20, y: -30, r: 6 },
+            { x: 20, y: -30, r: 6 },
+          ];
+          spots.forEach(s => {
+            ctx.beginPath();
+            ctx.arc(mx + s.x, my - 22 + s.y, s.r, 0, Math.PI * 2);
+            ctx.fill();
+          });
+
+          // Floating Spores (Particles)
+          ctx.fillStyle = '#fef08a'; // Yellow spores
+          const wind = params.wind ?? 10; // wind speed
+          const releaseRate = params.rate ?? 50; // release rate
+          
+          for (let i = 0; i < releaseRate; i++) {
+            const seed = i * 19.3;
+            const t = (Date.now() * 0.001 + seed) % 6; // cycle 6 seconds
+            const sx = mx - 50 + (seed % 100) + (t * wind * 2);
+            const sy = my - 15 - (t * 25) + Math.sin(t * 3 + seed) * 10;
+            
+            if (sy < my - 20 && sx > 0 && sx < width) {
+              ctx.beginPath();
+              ctx.arc(sx, sy, 2 + (i % 2), 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+
+          // Hover / Select check
+          const m = mouseRef.current;
+          let activeLabel = null;
+          
+          const distToCap = Math.hypot(m.x - mx, m.y - (my - 50));
+          if (distToCap < 75 && m.y < my - 20) {
+            activeLabel = 'Cap (Pileus)';
+          } else if (Math.abs(m.x - mx) < 25 && m.y > my - 20 && m.y < my + 80) {
+            activeLabel = 'Stem (Stipe)';
+          } else if (Math.hypot(m.x - mx, m.y - (my - 20)) < 70 && m.y >= my - 22 && m.y <= my - 5) {
+            activeLabel = 'Gills (Hymenium)';
+          } else if (m.y > my + 80) {
+            activeLabel = 'Mycelium Network';
+          }
+
+          if (m.click) {
+            if (activeLabel) {
+              setSelectedPart(activeLabel);
+            } else {
+              setSelectedPart(null);
+            }
+            m.click = false; // consume click
+          }
+
+          const currentPart = selectedPart || activeLabel;
+          const currentDesc = currentPart === 'Cap (Pileus)' ? 'The protective top shield of the mushroom. In many species, it features bright warning colors or defensive structures.'
+            : currentPart === 'Stem (Stipe)' ? 'Supports the cap and elevates the spore-bearing surface (gills) off the ground to allow wind to carry spores further.'
+            : currentPart === 'Gills (Hymenium)' ? 'The ribbed underside where millions of microscopic spores (Basidiospores) are generated and released into the air.'
+            : currentPart === 'Mycelium Network' ? 'The actual vegetative body of the fungus, consisting of a vast branching network of thread-like hyphae absorbing nutrients from the soil.'
+            : '';
+
+          // Render interactive guide panel on canvas
+          ctx.fillStyle = 'rgba(15, 12, 30, 0.85)';
+          ctx.strokeStyle = '#4f46e5';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.roundRect(15, 15, width - 30, 80, 16);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 13px sans-serif';
+          ctx.fillText(currentPart ? `Interactive Label: ${currentPart}` : '💡 Click/Hover parts of the Fungi to explore functions', 30, 38);
+          
+          ctx.fillStyle = '#a1a1aa';
+          ctx.font = '11px sans-serif';
+          const wrappedDesc = currentDesc || 'Explore the vegetative mycelium, supportive stipe, protective pileus, and spore-producing hymenium gills.';
+          ctx.fillText(wrappedDesc.slice(0, 95), 30, 58);
+          if (wrappedDesc.length > 95) {
+            ctx.fillText(wrappedDesc.slice(95), 30, 74);
+          }
+        }
+        else if (lowerSubject.includes('chemistry') || lowerTitle.includes('molecule') || lowerTitle.includes('atom') || lowerTitle.includes('reaction')) {
+          // --- CHEMISTRY/ATOM INTERACTIVE BUILDER ---
+          const mx = cx;
+          const my = cy + 20;
+          
+          const protons = params.protons ?? 6;
+          const electrons = params.electrons ?? 6;
+          const energyState = params.energy ?? 1;
+
+          // Draw orbital shells
+          ctx.lineWidth = 1.5;
+          for (let shell = 1; shell <= 3; shell++) {
+            ctx.strokeStyle = shell === energyState ? '#818cf8' : 'rgba(255,255,255,0.06)';
+            ctx.beginPath();
+            ctx.arc(mx, my, 40 * shell, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+
+          // Draw nucleus (Protons & Neutrons clustered)
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = '#f43f5e';
+          for (let i = 0; i < protons; i++) {
+            const angle = (i * 2 * Math.PI) / protons + (Date.now() * 0.001);
+            const radius = 6 + (i % 2) * 3;
+            const nx = mx + Math.cos(angle) * radius;
+            const ny = my + Math.sin(angle) * radius;
+            ctx.fillStyle = i % 2 === 0 ? '#ef4444' : '#3b82f6';
+            ctx.beginPath();
+            ctx.arc(nx, ny, 6, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.shadowBlur = 0;
+
+          // Draw orbiting electrons
+          const time = Date.now() * 0.0015;
+          ctx.fillStyle = '#10b981';
+          for (let i = 0; i < electrons; i++) {
+            const shellIndex = i < 2 ? 1 : i < 8 ? 2 : 3;
+            const shellElecCount = shellIndex === 1 ? 2 : shellIndex === 2 ? 6 : 8;
+            const angle = (i * 2 * Math.PI) / shellElecCount + time * (1.5 / shellIndex);
+            
+            const ex = mx + Math.cos(angle) * (40 * shellIndex);
+            const ey = my + Math.sin(angle) * (40 * shellIndex);
+            
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = '#10b981';
+            ctx.beginPath();
+            ctx.arc(ex, ey, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+          }
+
+          // Interactive feedback
+          ctx.fillStyle = 'rgba(15, 12, 30, 0.85)';
+          ctx.strokeStyle = '#10b981';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.roundRect(15, 15, width - 30, 70, 16);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 13px sans-serif';
+          ctx.fillText(`Interactive Bohr Model • Element: ${protons === 1 ? 'Hydrogen' : protons === 2 ? 'Helium' : protons === 6 ? 'Carbon' : protons === 8 ? 'Oxygen' : 'Custom Isotope'}`, 30, 38);
+          
+          ctx.fillStyle = '#a1a1aa';
+          ctx.font = '11px sans-serif';
+          ctx.fillText(`Protons/Neutrons: ${protons} • Electrons: ${electrons} • Shell state: energy shell ${energyState} active`, 30, 58);
+        }
+        else {
+          // --- DEFAULT PHYSICS/CONCEPT PARTICLE MODEL ---
+          const gravity = params.gravity ?? 9.8;
+          const particlesCount = 25;
+          ctx.fillStyle = '#6366f1';
+          
+          for (let i = 0; i < particlesCount; i++) {
+            const seed = i * 23.4;
+            const speed = 0.5 + (seed % 3) * 0.3;
+            const t = Date.now() * 0.001 * speed;
+            const px = ((seed + t * 50) % (width - 60)) + 30;
+            const bounceHeight = 80 - (gravity * 3);
+            const py = cy + 40 + Math.abs(Math.sin(t + seed)) * -bounceHeight;
+            
+            ctx.beginPath();
+            ctx.arc(px, py, 4 + (i % 4), 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          ctx.strokeStyle = '#4338ca';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(20, cy + 42);
+          ctx.lineTo(width - 20, cy + 42);
+          ctx.stroke();
+
+          ctx.fillStyle = 'rgba(15, 12, 30, 0.85)';
+          ctx.strokeStyle = '#4f46e5';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.roundRect(15, 15, width - 30, 70, 16);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 13px sans-serif';
+          ctx.fillText('Interactive 2D Particle Kinetics Simulator', 30, 38);
+          ctx.fillStyle = '#a1a1aa';
+          ctx.font = '11px sans-serif';
+          ctx.fillText(`Adjust slider controls to modify local gravitational pull (${gravity} m/s²).`, 30, 58);
+        }
       }
 
       animationRef.current = requestAnimationFrame(render);
@@ -658,7 +934,20 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
       )}
 
       <div className="flex-1 min-h-[300px] relative">
-        {isSketchfab ? (
+        {/* Switch button overlay for Sketchfab models */}
+        {isSketchfab && (
+          <div className="absolute top-3 left-3 z-20">
+            <button
+              type="button"
+              onClick={() => setShow2DInterpretation(!show2DInterpretation)}
+              className="px-3.5 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-lg shadow-black/50 active:scale-95 border border-indigo-400/20"
+            >
+              {show2DInterpretation ? "🔬 Switch to 3D View" : "🎨 Switch to Interactive 2D Simulation"}
+            </button>
+          </div>
+        )}
+
+        {isSketchfab && !show2DInterpretation ? (
           <div className="w-full h-full relative">
             {sketchfabLoading && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950 z-10">
@@ -674,7 +963,7 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
               allow="autoplay; fullscreen; xr-spatial-tracking"
             />
           </div>
-        ) : three_js_config ? (
+        ) : (three_js_config || show2DInterpretation) ? (
           <canvas ref={canvasRef} className="w-full h-full block cursor-pointer" />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-950/80">
@@ -688,10 +977,10 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
       </div>
 
       {/* Control sliders */}
-      {three_js_config && (
+      {(three_js_config || show2DInterpretation) && (
         <div className="p-4 bg-zinc-900/80 border-t border-zinc-800 flex flex-col gap-3">
-          {/* 1. Dynamic Sliders */}
-          {three_js_config.controls && three_js_config.controls.map((control) => {
+          {/* 1. Dynamic Sliders from config */}
+          {three_js_config?.controls && three_js_config.controls.map((control) => {
             const val = params[control.name] ?? control.defaultValue;
             return (
               <div key={control.name} className="flex flex-col gap-1">
@@ -715,7 +1004,7 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
           })}
 
           {/* 2. Legacy fallback sliders */}
-          {!three_js_config.controls && three_js_config.sliders && three_js_config.sliders.map((sliderKey) => {
+          {three_js_config && !three_js_config.controls && three_js_config.sliders && three_js_config.sliders.map((sliderKey) => {
             let min = 0;
             let max = 100;
             let step = 1;
@@ -757,6 +1046,83 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
               </div>
             );
           })}
+
+          {/* 3. Custom interactive 2D Simulation sliders (when no config) */}
+          {!three_js_config && show2DInterpretation && (() => {
+            const lowerSubject = _subject.toLowerCase();
+            const lowerTitle = (sketchfab_hint || '').toLowerCase();
+            const isFungi = lowerSubject.includes('biology') || lowerSubject.includes('fungi') || lowerTitle.includes('fungi') || lowerTitle.includes('mushroom');
+            const isChem = lowerSubject.includes('chemistry') || lowerTitle.includes('molecule') || lowerTitle.includes('atom');
+
+            if (isFungi) {
+              const rateVal = params.rate ?? 50;
+              const windVal = params.wind ?? 10;
+              return (
+                <>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
+                      <span>Spore Release Rate</span>
+                      <span className="text-indigo-400 font-mono">{rateVal.toFixed(0)}</span>
+                    </div>
+                    <input type="range" min="10" max="100" step="5" value={rateVal} onChange={e => handleSliderChange('rate', parseFloat(e.target.value))}
+                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
+                      <span>Wind Velocity</span>
+                      <span className="text-indigo-400 font-mono">{windVal.toFixed(0)} m/s</span>
+                    </div>
+                    <input type="range" min="0" max="40" step="2" value={windVal} onChange={e => handleSliderChange('wind', parseFloat(e.target.value))}
+                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
+                  </div>
+                </>
+              );
+            }
+            if (isChem) {
+              const protVal = params.protons ?? 6;
+              const elecVal = params.electrons ?? 6;
+              const energyVal = params.energy ?? 1;
+              return (
+                <>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
+                      <span>Protons / Neutrons</span>
+                      <span className="text-indigo-400 font-mono">{protVal.toFixed(0)}</span>
+                    </div>
+                    <input type="range" min="1" max="10" step="1" value={protVal} onChange={e => handleSliderChange('protons', parseFloat(e.target.value))}
+                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
+                      <span>Electrons Count</span>
+                      <span className="text-indigo-400 font-mono">{elecVal.toFixed(0)}</span>
+                    </div>
+                    <input type="range" min="1" max="10" step="1" value={elecVal} onChange={e => handleSliderChange('electrons', parseFloat(e.target.value))}
+                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
+                      <span>Excitation Level</span>
+                      <span className="text-indigo-400 font-mono">Shell {energyVal.toFixed(0)}</span>
+                    </div>
+                    <input type="range" min="1" max="3" step="1" value={energyVal} onChange={e => handleSliderChange('energy', parseFloat(e.target.value))}
+                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
+                  </div>
+                </>
+              );
+            }
+            const gravVal = params.gravity ?? 9.8;
+            return (
+              <div className="flex flex-col gap-1">
+                <div className="flex justify-between text-xs font-semibold text-zinc-400">
+                  <span>Gravitational Acceleration</span>
+                  <span className="text-indigo-400 font-mono">{gravVal.toFixed(1)} m/s²</span>
+                </div>
+                <input type="range" min="1" max="25" step="0.5" value={gravVal} onChange={e => handleSliderChange('gravity', parseFloat(e.target.value))}
+                  className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>

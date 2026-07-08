@@ -10,6 +10,9 @@ export interface IUser extends Document {
     passwordHash?: string;
     dateOfBirth?: Date;
     age?: number;
+    grade?: number;            // Class 6-12 — for quiz battle grade matching
+    schoolName?: string;       // e.g. "DPS Gandhinagar" — for school leaderboard
+    city?: string;             // e.g. "Gandhinagar" — for city-wise leaderboard
     provider: 'local' | 'google' | 'github';
     parentDetails?: {
         parentEmail?: string;
@@ -19,6 +22,14 @@ export interface IUser extends Document {
     };
     xp?: number;
     level?: number;
+    battleStats?: {
+        totalBattles?: number;
+        wins?: number;
+        losses?: number;
+        draws?: number;
+        totalDamageDealt?: number;
+        longestStreak?: number;
+    };
     badges?: Array<{
         name: string;
         icon: string;
@@ -40,7 +51,7 @@ export interface IUser extends Document {
             website?: string;
         };
     };
-    role: 'user' | 'admin';
+    role: 'user' | 'admin' | 'teacher';
     status: 'active' | 'inactive';
     tokenBalance: number;
     isPremium: boolean;
@@ -49,6 +60,16 @@ export interface IUser extends Document {
     lastTokenRefreshedAt: Date;
     adConsumptionCount: number;
     lastActiveAt: Date;
+    lastDailyChallengePlayedAt?: Date; // To track daily challenge limit
+    teacherDetails?: {
+        schoolName?: string;
+        teacherId?: string;
+        schoolAddress?: string;
+        subject?: string;
+        roleInSchool?: string;
+        gender?: string;
+        whatsappNumber?: string;
+    };
     createdAt: Date;
 }
 
@@ -59,6 +80,9 @@ const UserSchema: Schema = new Schema({
     passwordHash: { type: String },
     dateOfBirth: { type: Date },
     age: { type: Number },
+    grade: { type: Number, default: 10 },          // Class 6-12
+    schoolName: { type: String, default: '' },      // "DPS Gandhinagar"
+    city: { type: String, default: '' },            // "Gandhinagar"
     provider: { type: String, enum: ['local', 'google', 'github'], default: 'local' },
     parentDetails: {
         parentEmail: { type: String, lowercase: true, default: "" },
@@ -68,6 +92,14 @@ const UserSchema: Schema = new Schema({
     },
     xp: { type: Number, default: 0 },
     level: { type: Number, default: 1 },
+    battleStats: {
+        totalBattles: { type: Number, default: 0 },
+        wins: { type: Number, default: 0 },
+        losses: { type: Number, default: 0 },
+        draws: { type: Number, default: 0 },
+        totalDamageDealt: { type: Number, default: 0 },
+        longestStreak: { type: Number, default: 0 }
+    },
     badges: [{
         name: { type: String },
         icon: { type: String },
@@ -87,7 +119,7 @@ const UserSchema: Schema = new Schema({
             website: { type: String }
         }
     },
-    role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    role: { type: String, enum: ['user', 'admin', 'teacher'], default: 'user' },
     status: { type: String, enum: ['active', 'inactive'], default: 'active' },
     tokenBalance: { type: Number, default: 1000 }, // 1000 for new users as requested
     isPremium: { type: Boolean, default: false },
@@ -96,8 +128,19 @@ const UserSchema: Schema = new Schema({
     lastTokenRefreshedAt: { type: Date, default: Date.now },
     adConsumptionCount: { type: Number, default: 0 },
     lastActiveAt: { type: Date, default: Date.now },
+    lastDailyChallengePlayedAt: { type: Date },
     resetPasswordToken: { type: String },
+
     resetPasswordExpiry: { type: Date },
+    teacherDetails: {
+        schoolName: { type: String, default: '' },
+        teacherId: { type: String, default: '' },
+        schoolAddress: { type: String, default: '' },
+        subject: { type: String, default: '' },
+        roleInSchool: { type: String, default: '' },
+        gender: { type: String, default: '' },
+        whatsappNumber: { type: String, default: '' }
+    },
     createdAt: { type: Date, default: Date.now }
 });
 

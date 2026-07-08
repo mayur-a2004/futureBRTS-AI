@@ -10,6 +10,8 @@ const router = express.Router();
 router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.post('/google', authController.googleAuth);
+router.post('/teacher/register', authController.registerTeacher);
+router.post('/teacher/login', authController.loginTeacher);
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', authController.resetPassword);
 

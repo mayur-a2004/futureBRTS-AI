@@ -124,5 +124,5 @@ export const LAYER_LABELS: Record<ContentLayer, string> = {
   sketchfab: '3D Model',
   youtube:   'Video',
   voice:     'Voice',
-  sandbox:   'Sandbox',
+  sandbox:   'Computer Tech',
 };

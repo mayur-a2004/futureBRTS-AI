@@ -50,6 +50,7 @@ app.use(cors());
 // Serve static compiled assets like ZIP and PDF
 import path from 'path';
 app.use('/downloads', express.static(path.join(__dirname, '../../public/downloads')));
+app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
 
 // 👉 GLOBAL REQUEST LOGGER (Enhanced)
 app.use((req, res, next) => {

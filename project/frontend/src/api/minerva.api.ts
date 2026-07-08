@@ -175,6 +175,10 @@ export const minervaApi = {
         });
         return handleRes(res);
     },
+    getMaterialHistory: async (token: string) => {
+        const res = await fetch(`${BASE_URL}/builder/history`, { headers: authHeaders(token) });
+        return handleRes(res);
+    },
 
     // ─── TRANSLATOR ─────────────────────────────────
     translateText: async (token: string, text: string, targetLanguage: string) => {

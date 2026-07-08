@@ -25,13 +25,16 @@ export interface IMinervaTask extends Document {
     is_homework: boolean;
     due_date: Date | null;
     homework_date: string; // 'YYYY-MM-DD'
+    attachmentName?: string;
+    attachmentPath?: string;
+    attachmentType?: string;
     createdAt: Date;
     updatedAt: Date;
 }
 
 const MinervaTaskSchema = new Schema({
-    node_id: { type: Schema.Types.ObjectId, ref: 'MinervaKnowledgeNode', required: true },
-    session_id: { type: Schema.Types.ObjectId, ref: 'MinervaStudySession', required: true },
+    node_id: { type: Schema.Types.ObjectId, ref: 'MinervaKnowledgeNode', required: false },
+    session_id: { type: Schema.Types.ObjectId, ref: 'MinervaStudySession', required: false },
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     type: { 
         type: String, 
@@ -60,6 +63,9 @@ const MinervaTaskSchema = new Schema({
     is_homework: { type: Boolean, default: false },
     due_date: { type: Date, default: null },
     homework_date: { type: String, default: '' },
+    attachmentName: { type: String, default: '' },
+    attachmentPath: { type: String, default: '' },
+    attachmentType: { type: String, default: '' },
 }, { timestamps: true });
 
 MinervaTaskSchema.index({ userId: 1, is_homework: 1, submitted: 1 });

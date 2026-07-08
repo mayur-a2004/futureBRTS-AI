@@ -15,9 +15,14 @@ export const parentController = {
                 return res.status(400).json({ success: false, message: 'Student email is required.' });
             }
 
-            const student = await User.findOne({ email: studentEmail.toLowerCase() });
+            const student = await User.findOne({
+                $or: [
+                    { email: studentEmail.toLowerCase() },
+                    { 'parentDetails.parentEmail': studentEmail.toLowerCase() }
+                ]
+            });
             if (!student) {
-                return res.status(404).json({ success: false, message: 'Student not found.' });
+                return res.status(404).json({ success: false, message: 'No student found registered with this email or linked to this parent email.' });
             }
 
             // Fetch session progress

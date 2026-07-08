@@ -6,14 +6,14 @@ import ArenaRoom from '../modules/minerva/models/quiz_battle.model';
 // â”€â”€â”€ Damage calculation based on answer speed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function calculateDamage(timeMs: number, isDoubleStrike: boolean): number {
     let base = 0;
-    if (timeMs <= 3000)       base = 300; // âš¡ Critical Hit
-    else if (timeMs <= 7000)  base = 200; // âš”ï¸ Strong Hit
-    else if (timeMs <= 15000) base = 100; // ðŸŽ¯ Weak Hit
+    if (timeMs <= 3000)       base = 300; // ⚡ Critical Hit
+    else if (timeMs <= 7000)  base = 200; // ⚔️ Strong Hit
+    else if (timeMs <= 15000) base = 100; // 🎯 Weak Hit
     else                      base = 75;  // Late hit
     return isDoubleStrike ? base * 2 : base;
 }
 
-// â”€â”€â”€ AI Bot response simulator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── AI Bot response simulator ────────────────────────────────────────────────
 async function simulateAIAnswer(
     roomCode: string,
     roundIndex: number,
@@ -36,47 +36,109 @@ async function simulateAIAnswer(
 
     // AI is always on Team B in SOLO_VS_AI
     const opponentTeam = 'B';
-    const playerTeam = 'A';
 
     const damage = isCorrect ? calculateDamage(timeMs, false) : 0;
     const selfDamage = !isCorrect ? 150 : 0;
 
+    const roundState = room.roundStates.find((r: any) => r.roundIndex === roundIndex);
+    if (!roundState) return;
+
     if (isCorrect) {
         room.teamA.hp = Math.max(0, room.teamA.hp - damage);
+        (roundState.teamBCorrectlyClaimed as any) = true;
     } else {
         room.teamB.hp = Math.max(0, room.teamB.hp - selfDamage);
     }
 
-    // Check win condition
-    let winnerTeam: string | null = null;
-    if (room.teamA.hp <= 0) winnerTeam = 'B';
-    else if (room.teamB.hp <= 0) winnerTeam = 'A';
+    // Record AI answer in Mongoose Map
+    (roundState.teamBAnswers as any).set('AI', { option: isCorrect ? 0 : 1, isCorrect, timeMs });
 
-    if (winnerTeam) {
-        room.status = 'FINISHED';
-        room.winnerTeam = winnerTeam as any;
-    }
-
-    await room.save();
+    // Call unified evaluator
+    const roundComplete = await (SocketService as any)._evaluateRoundComplete(room, roundIndex, roomCode, io);
 
     io.to(roomCode).emit('arena_update', {
-        room,
+        room: room.toJSON(),
         event: 'AI_ANSWER',
         answeredBy: 'AI',
         team: opponentTeam,
         roundIndex,
         isCorrect,
         damage: isCorrect ? damage : selfDamage,
-        timeMs
+        timeMs,
+        roundComplete
     });
-
-    if (winnerTeam) {
-        io.to(roomCode).emit('arena_finished', { room });
-    }
 }
 
 export class SocketService {
     private static io: Server;
+
+    // ─── Unified Round Evaluator ──────────────────────────────────────────────
+    private static async _evaluateRoundComplete(room: any, roundIndex: number, roomCode: string, io: Server, forceComplete: boolean = false) {
+        const roundState = room.roundStates.find((r: any) => r.roundIndex === roundIndex);
+        if (!roundState) return false;
+
+        let roundComplete = false;
+        if (forceComplete) {
+            roundComplete = true;
+        } else if (room.battleStyle === 'ALTERNATING') {
+            roundComplete = false;
+        } else {
+            const allTeamADone = room.players.filter((p: any) => p.team === 'A').every(
+                (p: any) => !!(roundState.teamAAnswers as any).get((p.userId._id || p.userId).toString())
+            );
+            let allTeamBDone = false;
+            if (room.mode === 'SOLO_VS_AI') {
+                allTeamBDone = !!(roundState.teamBAnswers as any).get('AI');
+            } else {
+                allTeamBDone = room.players.filter((p: any) => p.team === 'B').every(
+                    (p: any) => !!(roundState.teamBAnswers as any).get((p.userId._id || p.userId).toString())
+                );
+            }
+            roundComplete = allTeamADone && allTeamBDone;
+        }
+
+        let winnerTeam: string | null = null;
+        if (room.teamA.hp <= 0) winnerTeam = 'B';
+        else if (room.teamB.hp <= 0) winnerTeam = 'A';
+
+        if (roundComplete) {
+            (roundState as any).finishedAt = new Date();
+            const nextRound = roundIndex + 1;
+            if (nextRound < room.totalRounds && !winnerTeam) {
+                room.currentRound = nextRound;
+                room.currentTurn = (room.battleStyle === 'ALTERNATING') ? (nextRound % 2 === 0 ? 'A' : 'B') : 'A';
+                room.roundStates.push({
+                    roundIndex: nextRound,
+                    teamAAnswers: {} as any,
+                    teamBAnswers: {} as any,
+                    teamACorrectlyClaimed: false,
+                    teamBCorrectlyClaimed: false,
+                    startedAt: new Date()
+                } as any);
+                // Trigger AI for next round
+                if (room.mode === 'SOLO_VS_AI' && room.aiDifficulty) {
+                    simulateAIAnswer(roomCode, nextRound, room.aiDifficulty as any, io);
+                }
+            } else if (!winnerTeam) {
+                // All rounds done — determine winner by HP
+                winnerTeam = room.teamA.hp > room.teamB.hp ? 'A' : room.teamB.hp > room.teamA.hp ? 'B' : 'DRAW';
+            }
+        }
+
+        if (winnerTeam) {
+            room.status = 'FINISHED';
+            room.winnerTeam = winnerTeam as any;
+            await SocketService._awardXP(room);
+        }
+
+        await room.save();
+
+        if (winnerTeam) {
+            io.to(roomCode).emit('arena_finished', { room: room.toJSON() });
+        }
+
+        return roundComplete;
+    }
 
     public static init(httpServer: HttpServer) {
         this.io = new Server(httpServer, {
@@ -91,7 +153,7 @@ export class SocketService {
                 socket.join(sessionId);
             });
 
-            // â”€â”€â”€ JOIN ARENA LOBBY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ─── JOIN ARENA LOBBY ─────────────────────────────────────────────────
             socket.on('join_arena_lobby', async (data: { roomCode: string; userId: string }) => {
                 const { roomCode, userId } = data;
                 socket.join(roomCode);
@@ -101,21 +163,34 @@ export class SocketService {
                     if (!room) return;
 
                     // Update socket ID for this player
-                    const player = room.players.find((p: any) => p.userId.toString() === userId);
+                    const player = room.players.find((p: any) => (p.userId._id || p.userId).toString() === userId);
                     if (player) {
                         (player as any).socketId = socket.id;
                         (player as any).isConnected = true;
                     }
                     await room.save();
 
-                    const updated = await ArenaRoom.findOne({ roomCode });
+                    const updated = await ArenaRoom.findOne({ roomCode })
+                        .populate('players.userId', 'firstName lastName grade')
+                        .populate('hostId', 'firstName lastName');
+
                     this.io.to(roomCode).emit('arena_lobby_update', { room: updated ? updated.toJSON() : null });
                 } catch (err: any) {
                     logger.error('[Arena Socket] join_arena_lobby error:', err.message);
                 }
             });
 
-            // â”€â”€â”€ HOST STARTS THE GAME â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ─── TEACHER TOURNAMENT BROADCAST INVITATION ─────────────────────────
+            socket.on('broadcast_tournament_invite', (data: { roomCode: string; subject: string; topic?: string }) => {
+                this.io.emit('student_tournament_invite', {
+                    roomCode: data.roomCode,
+                    subject: data.subject,
+                    topic: data.topic,
+                    sender: 'Teacher'
+                });
+            });
+
+            // ─── HOST STARTS THE GAME ─────────────────────────────────────────────
             socket.on('start_arena_match', async (data: { roomCode: string; userId: string }) => {
                 const { roomCode, userId } = data;
                 try {
@@ -148,7 +223,7 @@ export class SocketService {
                 }
             });
 
-            // â”€â”€â”€ SUBMIT ANSWER (Core Team Ownership Logic) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ─── SUBMIT ANSWER (Speed Race + Alternating Dual Logic) ──────────
             socket.on('submit_arena_answer', async (data: {
                 roomCode: string;
                 userId: string;
@@ -162,59 +237,64 @@ export class SocketService {
                     const room = await ArenaRoom.findOne({ roomCode });
                     if (!room || room.status !== 'ACTIVE') return;
 
-                    const player = room.players.find((p: any) => p.userId.toString() === userId);
+                    const player = room.players.find((p: any) => (p.userId._id || p.userId).toString() === userId);
                     if (!player) return;
 
                     const team = (player as any).team as 'A' | 'B';
                     const roundState = room.roundStates.find((r: any) => r.roundIndex === roundIndex);
                     if (!roundState) return;
 
-                    // Check if this player already answered this round
                     const teamAnswers = team === 'A'
                         ? (roundState.teamAAnswers as any)
                         : (roundState.teamBAnswers as any);
 
-                    if (teamAnswers[userId]) return; // Already answered
+                    if (teamAnswers.get(userId)) return; // Already answered
+
+                    // ─────────────────────────────────────────────────────────
+                    // ALTERNATING MODE: Only currentTurn team can answer
+                    // ─────────────────────────────────────────────────────────
+                    if ((room as any).battleStyle === 'ALTERNATING' && room.mode !== 'SOLO_VS_AI') {
+                        const currentTurn = (room as any).currentTurn as 'A' | 'B';
+                        // If it's not this player's team's turn AND they have not been given a defender turn
+                        const isDefenderPhase = !!(roundState.teamAAnswers as any).size && currentTurn === 'B' && team === 'B' ||
+                                                !!(roundState.teamBAnswers as any).size && currentTurn === 'A' && team === 'A';
+                        if (team !== currentTurn && !isDefenderPhase) return; // Not your turn, blocked
+                    }
 
                     // Get player's questions
                     const playerQs = (room.playerQuestions as any).get(userId);
                     if (!playerQs || !playerQs[roundIndex]) return;
 
                     const question = playerQs[roundIndex];
-                    const isCorrect = question.correctAnswer === selectedOption;
+                    const isCorrect = selectedOption !== -1 && question.correctAnswer === selectedOption;
 
-                    // â”€â”€â”€ Team Ownership Rule â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                    // ─── Team Ownership Rule ──────────────────────────────────
                     const teamAlreadyClaimed = team === 'A'
                         ? roundState.teamACorrectlyClaimed
                         : roundState.teamBCorrectlyClaimed;
 
-                    // If team already got a correct answer, this player's answer is just recorded but has no effect
                     if (teamAlreadyClaimed && isCorrect) {
-                        // Still record but no damage (already claimed)
-                        teamAnswers[userId] = { option: selectedOption, isCorrect, timeMs, alreadyClaimed: true };
+                        teamAnswers.set(userId, { option: selectedOption, isCorrect, timeMs, alreadyClaimed: true });
                         await room.save();
                         socket.emit('arena_answer_ack', { alreadyClaimed: true, isCorrect, roundIndex });
                         return;
                     }
 
-                    // ————————————————————————————————————————————————————————————————————————
                     let damage = 0;
                     let selfDamage = 0;
                     let shieldUsed = false;
 
                     if (isCorrect) {
-                        const useDoubleStrike = (player as any).powerups.doubleStrike && (player as any).powerupsUsed.includes('doubleStrike_used') === false;
-                        damage = calculateDamage(timeMs, false); // we check explicitly below
+                        damage = calculateDamage(timeMs, false);
 
                         // Streak bonus
                         (player as any).streakCount += 1;
                         if ((player as any).streakCount >= 3) {
-                            damage += 250; // Ultimate combo bonus
+                            damage += 250;
                             (player as any).streakCount = 0;
                             this.io.to(roomCode).emit('arena_combo', { userId, team, message: '🔥 COMBO STRIKE! +250 bonus damage!' });
                         }
 
-                        // Deduct from opponent team HP
                         if (team === 'A') {
                             room.teamB.hp = Math.max(0, room.teamB.hp - damage);
                             (roundState.teamACorrectlyClaimed as any) = true;
@@ -223,13 +303,11 @@ export class SocketService {
                             (roundState.teamBCorrectlyClaimed as any) = true;
                         }
                     } else {
-                        // Wrong answer — check shield
                         (player as any).streakCount = 0;
                         if ((player as any).powerups.shield && !(player as any).powerupsUsed.includes('shield')) {
                             shieldUsed = true;
                             (player as any).powerups.shield = false;
                             (player as any).powerupsUsed.push('shield');
-                            // Shield absorbs damage — no HP loss
                         } else {
                             selfDamage = 150;
                             if (team === 'A') {
@@ -253,9 +331,7 @@ export class SocketService {
                     }
 
                     // Record answer
-                    teamAnswers[userId] = { option: selectedOption, isCorrect, timeMs };
-
-                    // Record in player's history
+                    teamAnswers.set(userId, { option: selectedOption, isCorrect, timeMs });
                     (player as any).answersRecord.push({
                         questionId: roundIndex,
                         selectedOption,
@@ -265,56 +341,106 @@ export class SocketService {
                     });
                     (player as any).score += isCorrect ? damage : 0;
 
-                    // ─── Check Win Condition ──────────────────────────────────
-                    let winnerTeam: string | null = null;
-                    if (room.teamA.hp <= 0) winnerTeam = 'B';
-                    else if (room.teamB.hp <= 0) winnerTeam = 'A';
-
-                    // ─── Advance Round (if all active players on both teams answered) ──
-                    const allTeamADone = room.players.filter((p: any) => p.team === 'A').every(
-                        (p: any) => !!(roundState.teamAAnswers as any)[p.userId.toString()]
-                    );
-                    const allTeamBDone = room.players.filter((p: any) => p.team === 'B').every(
-                        (p: any) => !!(roundState.teamBAnswers as any)[p.userId.toString()]
-                    );
-
-                    const roundComplete = allTeamADone && allTeamBDone;
-                    if (roundComplete) {
-                        (roundState as any).finishedAt = new Date();
-                        const nextRound = roundIndex + 1;
-                        if (nextRound < room.totalRounds && !winnerTeam) {
-                            room.currentRound = nextRound;
-                            room.roundStates.push({
-                                roundIndex: nextRound,
-                                teamAAnswers: {} as any,
-                                teamBAnswers: {} as any,
-                                teamACorrectlyClaimed: false,
-                                teamBCorrectlyClaimed: false,
-                                startedAt: new Date()
-                            } as any);
-                            // Trigger AI for next round
-                            if (room.mode === 'SOLO_VS_AI' && room.aiDifficulty) {
-                                simulateAIAnswer(roomCode, nextRound, room.aiDifficulty as any, this.io);
+                    // ─────────────────────────────────────────────────────────
+                    // SPEED_RACE: First correct answer = instant round advance
+                    // ─────────────────────────────────────────────────────────
+                    let forceRoundEnd = false;
+                    if ((room as any).battleStyle === 'SPEED_RACE' || room.mode === 'SOLO_VS_AI') {
+                        if (isCorrect) {
+                            // Mark other team's slot as done too so round evaluator fires
+                            const oppAnswers = team === 'A' ? (roundState.teamBAnswers as any) : (roundState.teamAAnswers as any);
+                            const oppPlayers = room.players.filter((p: any) => p.team !== team);
+                            if (room.mode !== 'SOLO_VS_AI') {
+                                oppPlayers.forEach((p: any) => {
+                                    const pIdStr = (p.userId._id || p.userId).toString();
+                                    if (!oppAnswers.get(pIdStr)) {
+                                        oppAnswers.set(pIdStr, { option: -1, isCorrect: false, timeMs: 0, skippedBySpeedRace: true });
+                                    }
+                                });
                             }
-                        } else if (!winnerTeam) {
-                            // All rounds done — determine winner by HP
-                            winnerTeam = room.teamA.hp > room.teamB.hp ? 'A' : room.teamB.hp > room.teamA.hp ? 'B' : 'DRAW';
+                            forceRoundEnd = true;
                         }
                     }
 
-                    if (winnerTeam) {
-                        room.status = 'FINISHED';
-                        room.winnerTeam = winnerTeam as any;
-                        await this._awardXP(room);
+                    // ─────────────────────────────────────────────────────────
+                    // ALTERNATING: Wrong/timeout → switch turn to opponent
+                    // ─────────────────────────────────────────────────────────
+                    let turnSwitched = false;
+                    let newTurn: 'A' | 'B' = (room as any).currentTurn;
+
+                    if ((room as any).battleStyle === 'ALTERNATING' && room.mode !== 'SOLO_VS_AI') {
+                        const currentTurn = (room as any).currentTurn as 'A' | 'B';
+                        const opponentTeam: 'A' | 'B' = currentTurn === 'A' ? 'B' : 'A';
+
+                        if (team === currentTurn) {
+                            if (!isCorrect) {
+                                // Attacker got it wrong → switch turn to defender
+                                (room as any).currentTurn = opponentTeam;
+                                newTurn = opponentTeam;
+                                turnSwitched = true;
+                            } else {
+                                // Attacker got it right → round ends, alternate who starts next round
+                                forceRoundEnd = true;
+                                // Mark opponent as answered (skipped)
+                                const oppAnswers = opponentTeam === 'A' ? (roundState.teamAAnswers as any) : (roundState.teamBAnswers as any);
+                                const oppPlayers = room.players.filter((p: any) => p.team === opponentTeam);
+                                oppPlayers.forEach((p: any) => {
+                                     const pIdStr = (p.userId._id || p.userId).toString();
+                                     if (!oppAnswers.get(pIdStr)) {
+                                         oppAnswers.set(pIdStr, { option: -1, isCorrect: false, timeMs: 0, skippedByAttacker: true });
+                                     }
+                                 });
+                            }
+                        } else {
+                            // Defender answered → round always ends after defender responds
+                            forceRoundEnd = true;
+                        }
                     }
 
-                    await room.save();
+                    // Emit turn switch if needed (before evaluating round)
+                    if (turnSwitched) {
+                        await room.save();
+                        this.io.to(roomCode).emit('arena_turn_switch', {
+                            roomCode,
+                            roundIndex,
+                            activeTurn: newTurn,
+                            reason: 'ATTACKER_WRONG',
+                            timerSeconds: 10 // Defender gets 10 seconds
+                        });
+                        this.io.to(roomCode).emit('arena_update', {
+                            room: room.toJSON(),
+                            event: 'ANSWER',
+                            answeredBy: userId,
+                            playerName: (player as any).firstName,
+                            team,
+                            roundIndex,
+                            isCorrect,
+                            damage: 0,
+                            selfDamage,
+                            shieldUsed,
+                            xpDeducted: !isCorrect && !shieldUsed ? 10 : 0,
+                            roundComplete: false
+                        });
+                        return; // Don't evaluate round yet — wait for defender
+                    }
+
+                    // If force round end (Speed Race correct or Alternating complete), auto-close round
+                    let roundComplete = false;
+                    if (forceRoundEnd) {
+                        roundComplete = await SocketService._evaluateRoundComplete(room, roundIndex, roomCode, this.io, true);
+                    } else {
+                        roundComplete = await SocketService._evaluateRoundComplete(room, roundIndex, roomCode, this.io, false);
+                    }
+
+                    if (roundComplete && (room as any).battleStyle === 'ALTERNATING') {
+                        newTurn = (room as any).currentTurn;
+                    }
 
                     this.io.to(roomCode).emit('arena_update', {
                         room: room.toJSON(),
                         event: 'ANSWER',
                         answeredBy: userId,
-                        playerName: player.firstName,
+                        playerName: (player as any).firstName,
                         team,
                         roundIndex,
                         isCorrect,
@@ -322,14 +448,10 @@ export class SocketService {
                         selfDamage,
                         shieldUsed,
                         xpDeducted: !isCorrect && !shieldUsed ? 10 : 0,
-                        roundComplete
+                        roundComplete,
+                        activeTurn: newTurn
                     });
 
-                    if (winnerTeam) {
-                        this.io.to(roomCode).emit('arena_finished', { room: room.toJSON() });
-                    }
-
-                    // Broadcast wrong answer visibility to teammates (so they can see what was selected)
                     if (!isCorrect) {
                         this.io.to(roomCode).emit('arena_teammate_wrong', {
                             userId,
@@ -344,12 +466,13 @@ export class SocketService {
             });
 
             // â”€â”€â”€ USE POWER-UP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ─────────────────────────────────────────────────────────── USE POWER-UP ───────────────────────────────────────────────────────────
             socket.on('use_arena_powerup', async (data: { roomCode: string; userId: string; powerup: string }) => {
                 const { roomCode, userId, powerup } = data;
                 try {
                     const room = await ArenaRoom.findOne({ roomCode });
                     if (!room || room.status !== 'ACTIVE') return;
-                    const player = room.players.find((p: any) => p.userId.toString() === userId);
+                    const player = room.players.find((p: any) => (p.userId._id || p.userId).toString() === userId);
                     if (!player) return;
                     if ((player as any).powerupsUsed.includes(powerup)) return;
 
@@ -378,7 +501,54 @@ export class SocketService {
                 }
             });
 
-            // â”€â”€â”€ DISCONNECT / FORFEIT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ─── LEAVE BATTLE UI EVENT ──────────────────────────────────────────
+            socket.on('leave_arena_battle', async (data: { roomCode: string; userId: string }) => {
+                logger.info(`[Arena Socket] Player left arena battle via UI: ${data.userId} in room ${data.roomCode}`);
+                try {
+                    const room = await ArenaRoom.findOne({
+                        roomCode: data.roomCode,
+                        status: 'ACTIVE'
+                    });
+                    if (!room) return;
+
+                    const leavingPlayer = room.players.find((p: any) => (p.userId._id || p.userId).toString() === data.userId);
+                    if (!leavingPlayer) return;
+
+                    (leavingPlayer as any).isConnected = false;
+
+                    // Check if all players from one team disconnected/forfeited
+                    const teamAConnected = room.players.filter((p: any) => p.team === 'A' && (p as any).isConnected).length;
+                    const teamBConnected = room.players.filter((p: any) => p.team === 'B' && (p as any).isConnected).length;
+
+                    if (room.mode === 'SOLO_VS_AI') {
+                        room.status = 'FINISHED';
+                        room.winnerTeam = 'B' as any; // AI wins
+                    } else if (teamAConnected === 0 && teamBConnected > 0) {
+                        room.status = 'FINISHED';
+                        room.winnerTeam = 'B' as any;
+                        await SocketService._awardXP(room);
+                    } else if (teamBConnected === 0 && teamAConnected > 0) {
+                        room.status = 'FINISHED';
+                        room.winnerTeam = 'A' as any;
+                        await SocketService._awardXP(room);
+                    } else if (teamAConnected === 0 && teamBConnected === 0) {
+                        room.status = 'FINISHED';
+                        room.winnerTeam = 'DRAW' as any;
+                    }
+
+                    await room.save();
+
+                    this.io.to(room.roomCode).emit('arena_forfeit', {
+                        room: room.toJSON(),
+                        forfeitedBy: (leavingPlayer as any).userId,
+                        forfeitedTeam: (leavingPlayer as any).team
+                    });
+                } catch (err: any) {
+                    logger.error('[Arena Socket] leave_arena_battle error:', err.message);
+                }
+            });
+
+            // ─── DISCONNECT / FORFEIT ───────────────────────────────────────────
             socket.on('disconnect', async () => {
                 logger.info(`Socket Disconnected: ${socket.id}`);
                 try {
@@ -423,11 +593,12 @@ export class SocketService {
         });
     }
 
-    // â”€â”€â”€ XP Award Logic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    private static async _awardXP(room: any) {
+    // ─── XP Award + Badge + Battle Stats Logic ────────────────────────────────
+    public static async _awardXP(room: any) {
         try {
             const { default: User } = require('../modules/auth/user.model');
             const winnerTeam = room.winnerTeam;
+            const isDaily = room.roomCode && room.roomCode.startsWith('DAILY-');
 
             for (const player of room.players) {
                 const isWinner = player.team === winnerTeam;
@@ -445,7 +616,110 @@ export class SocketService {
                     }
                 }
 
-                await User.findByIdAndUpdate(player.userId, { $inc: { xp } });
+                // Double XP for Daily Challenges
+                if (isDaily) {
+                    xp = xp * 2;
+                }
+
+                // Build battleStats update
+                const statsInc: any = {
+                    xp,
+                    'battleStats.totalBattles': 1,
+                    'battleStats.totalDamageDealt': player.score || 0
+                };
+                if (isDraw) statsInc['battleStats.draws'] = 1;
+                else if (isWinner) statsInc['battleStats.wins'] = 1;
+                else statsInc['battleStats.losses'] = 1;
+
+                const streak = player.streakCount || 0;
+
+                // ─── Badge Check ───────────────────────────────────────────────
+                const userDoc = await User.findById(player.userId).select('xp badges battleStats schoolName');
+                if (userDoc) {
+                    const existingBadges = (userDoc.badges || []).map((b: any) => b.name);
+                    const newBadges: { name: string; icon: string }[] = [];
+
+                    const totalBattles = (userDoc.battleStats?.totalBattles || 0) + 1;
+                    const totalWins = (userDoc.battleStats?.wins || 0) + (isWinner ? 1 : 0);
+                    const correctAnswers = player.answersRecord?.filter((a: any) => a.isCorrect).length || 0;
+                    const totalAnswers = player.answersRecord?.length || 0;
+                    const newXP = (userDoc.xp || 0) + xp;
+
+                    // 🏆 First Victory
+                    if (isWinner && totalWins === 1 && !existingBadges.includes('First Victory'))
+                        newBadges.push({ name: 'First Victory', icon: '🏆' });
+
+                    // ⚡ Speed Demon — answered 10+ times in < 3 seconds total
+                    const fastAnswers = player.answersRecord?.filter((a: any) => a.isCorrect && a.timeMs <= 3000).length || 0;
+                    if (fastAnswers >= 3 && !existingBadges.includes('Speed Demon'))
+                        newBadges.push({ name: 'Speed Demon', icon: '⚡' });
+
+                    // 📚 Perfect Score — 10/10 correct
+                    if (totalAnswers >= 10 && correctAnswers === totalAnswers && !existingBadges.includes('Perfect Score'))
+                        newBadges.push({ name: 'Perfect Score', icon: '📚' });
+
+                    // 🔥 Combo King — 5+ streak in one battle
+                    if ((player.streakCount || 0) >= 5 && !existingBadges.includes('Combo King'))
+                        newBadges.push({ name: 'Combo King', icon: '🔥' });
+
+                    // 🤖 AI Destroyer — beat Grandmaster AI
+                    if (isWinner && room.mode === 'SOLO_VS_AI' && room.aiDifficulty === 'GRANDMASTER' && !existingBadges.includes('AI Destroyer'))
+                        newBadges.push({ name: 'AI Destroyer', icon: '🤖' });
+
+                    // 👊 Giant Slayer — Solo team won against larger team
+                    const myTeamSize = player.team === 'A' ? room.teamASizeTarget : room.teamBSizeTarget;
+                    const oppTeamSize = player.team === 'A' ? room.teamBSizeTarget : room.teamASizeTarget;
+                    if (isWinner && myTeamSize === 1 && oppTeamSize >= 3 && !existingBadges.includes('Giant Slayer'))
+                        newBadges.push({ name: 'Giant Slayer', icon: '👊' });
+
+                    // Rank badges
+                    if (newXP >= 500 && (userDoc.xp || 0) < 500 && !existingBadges.includes('Scholar Rank'))
+                        newBadges.push({ name: 'Scholar Rank', icon: '📖' });
+                    if (newXP >= 3000 && (userDoc.xp || 0) < 3000 && !existingBadges.includes('Champion Rank'))
+                        newBadges.push({ name: 'Champion Rank', icon: '🏆' });
+
+                    // Update user with XP, stats and new badges
+                    const updateOp: any = { $inc: statsInc };
+                    if (newBadges.length > 0) {
+                        updateOp.$push = {
+                            badges: { $each: newBadges.map(b => ({ ...b, unlockedAt: new Date() })) }
+                        };
+                    }
+                    
+                    // Use $max for longestStreak
+                    if (streak > 0) {
+                        updateOp.$max = { 'battleStats.longestStreak': streak };
+                    }
+
+                    // Mark daily challenge played
+                    if (isDaily) {
+                        updateOp.lastDailyChallengePlayedAt = new Date();
+                    }
+
+                    await User.findByIdAndUpdate(player.userId, updateOp);
+
+                    // Emit badge unlock notification
+                    if (newBadges.length > 0 && this.io) {
+                        this.io.to(room.roomCode).emit('arena_badge_unlocked', {
+                            userId: player.userId.toString(),
+                            playerName: player.firstName,
+                            badges: newBadges
+                        });
+                    }
+
+                    if (isDaily && this.io) {
+                        this.io.to(room.roomCode).emit('arena_daily_complete', {
+                            userId: player.userId.toString(),
+                            doubleXpEarned: xp
+                        });
+                    }
+                } else {
+                    const updateOp: any = { $inc: statsInc };
+                    if (isDaily) {
+                        updateOp.lastDailyChallengePlayedAt = new Date();
+                    }
+                    await User.findByIdAndUpdate(player.userId, updateOp);
+                }
             }
         } catch (err: any) {
             logger.error('[Arena] XP award error:', err.message);

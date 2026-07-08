@@ -5,6 +5,10 @@ const ExamGeneratorPage: React.FC = () => {
     const [referenceFile, setReferenceFile] = useState<File | null>(null);
     
     // States
+    const [sourceType, setSourceType] = useState<'file' | 'text'>('file');
+    const [pastedText, setPastedText] = useState('');
+    const [inputMode, setInputMode] = useState<'syllabus' | 'old_paper'>('syllabus');
+
     const [examScope, setExamScope] = useState('Full Subject');
     const [standard, setStandard] = useState('10th');
     const [stream, setStream] = useState('Science'); // New state for 11th/12th
@@ -34,29 +38,44 @@ const ExamGeneratorPage: React.FC = () => {
     };
 
     const handleGenerate = async () => {
-        if (!pdfFile || !subject || !board || !standard || !marks) {
-            setErrorMsg('Please fill all required fields and upload the Study Material PDF.');
+        if (sourceType === 'file' && !pdfFile) {
+            setErrorMsg('Please upload the Study Material PDF or Question Paper Image.');
+            return;
+        }
+        if (sourceType === 'text' && (!pastedText || pastedText.trim().length < 10)) {
+            setErrorMsg('Please paste the Old Question Paper text.');
+            return;
+        }
+        if (!subject || !board || !standard || !marks) {
+            setErrorMsg('Please fill all required fields.');
             return;
         }
 
-        if (examScope === 'Chapter Wise' && !chapter) {
-            setErrorMsg('Please enter the Chapter name.');
-            return;
-        }
-        if (examScope === 'Specific Topic' && !topic) {
-            setErrorMsg('Please enter the Topic name.');
-            return;
+        if (inputMode === 'syllabus') {
+            if (examScope === 'Chapter Wise' && !chapter) {
+                setErrorMsg('Please enter the Chapter name.');
+                return;
+            }
+            if (examScope === 'Specific Topic' && !topic) {
+                setErrorMsg('Please enter the Topic name.');
+                return;
+            }
         }
 
         setLoading(true);
         setErrorMsg('');
 
         const formData = new FormData();
-        formData.append('pdfFile', pdfFile);
+        if (sourceType === 'file' && pdfFile) {
+            formData.append('pdfFile', pdfFile);
+        }
         if (referenceFile) {
             formData.append('referenceFile', referenceFile);
         }
-        formData.append('examScope', examScope);
+        formData.append('sourceType', sourceType);
+        formData.append('pastedText', pastedText);
+        formData.append('inputMode', inputMode);
+        formData.append('examScope', inputMode === 'old_paper' ? 'Old Paper Solution' : examScope);
         formData.append('standard', standard);
         if (standard === '11th' || standard === '12th') {
             formData.append('stream', stream);
@@ -131,17 +150,50 @@ const ExamGeneratorPage: React.FC = () => {
             {!generatedExam ? (
                 <div className="bg-slate-800 p-8 rounded-lg border border-slate-700">
                     {errorMsg && <div className="text-red-400 bg-red-900/20 p-3 rounded mb-6 border border-red-500/30">{errorMsg}</div>}
+
+                    {/* Mode Selectors */}
+                    <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3 border-b border-slate-700 pb-6">
+                        <div>
+                            <label className="block font-semibold mb-2 text-blue-300">Generation Goal</label>
+                            <div className="flex gap-2">
+                                <button type="button" onClick={() => setInputMode('syllabus')}
+                                    className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-black transition-all ${inputMode === 'syllabus' ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-900 text-slate-400 hover:text-white'}`}>
+                                    📚 Syllabus Material
+                                </button>
+                                <button type="button" onClick={() => setInputMode('old_paper')}
+                                    className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-black transition-all ${inputMode === 'old_paper' ? 'bg-purple-600 text-white shadow-md' : 'bg-slate-900 text-slate-400 hover:text-white'}`}>
+                                    📝 Solve & Predict Old Paper
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block font-semibold mb-2 text-blue-300">Input Source Type</label>
+                            <div className="flex gap-2">
+                                <button type="button" onClick={() => setSourceType('file')}
+                                    className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-black transition-all ${sourceType === 'file' ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-900 text-slate-400 hover:text-white'}`}>
+                                    📁 File Upload (PDF/Image)
+                                </button>
+                                <button type="button" onClick={() => setSourceType('text')}
+                                    className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-black transition-all ${sourceType === 'text' ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-900 text-slate-400 hover:text-white'}`}>
+                                    ✍️ Paste Paper Text
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                        {/* 1. Exam Scope */}
-                        <div className="md:col-span-2 border-b border-slate-700 pb-4 mb-2">
-                            <label className="block font-semibold mb-2 text-blue-300 text-lg">1. Exam Scope*</label>
-                            <select value={examScope} onChange={e => {setExamScope(e.target.value); setChapter(''); setTopic('');}} className="w-full p-3 rounded bg-slate-900 border border-slate-600 text-white focus:outline-none focus:border-blue-500">
-                                <option value="Full Subject">Full Subject (Entire Book/Material)</option>
-                                <option value="Chapter Wise">Chapter Wise</option>
-                                <option value="Specific Topic">Specific Topic</option>
-                            </select>
-                        </div>
+                        {/* 1. Exam Scope (Syllabus Mode Only) */}
+                        {inputMode === 'syllabus' && (
+                            <div className="md:col-span-2 border-b border-slate-700 pb-4 mb-2">
+                                <label className="block font-semibold mb-2 text-blue-300 text-lg">1. Exam Scope*</label>
+                                <select value={examScope} onChange={e => {setExamScope(e.target.value); setChapter(''); setTopic('');}} className="w-full p-3 rounded bg-slate-900 border border-slate-600 text-white focus:outline-none focus:border-blue-500">
+                                    <option value="Full Subject">Full Subject (Entire Book/Material)</option>
+                                    <option value="Chapter Wise">Chapter Wise</option>
+                                    <option value="Specific Topic">Specific Topic</option>
+                                </select>
+                            </div>
+                        )}
 
                         {/* Standard */}
                         <div>
@@ -209,21 +261,20 @@ const ExamGeneratorPage: React.FC = () => {
                                 </optgroup>
                             </select>
                         </div>
-
-                        {/* Conditional Inputs based on Scope */}
-                        {examScope === 'Chapter Wise' && (
+                                           {/* Conditional Inputs based on Scope */}
+                        {inputMode === 'syllabus' && examScope === 'Chapter Wise' && (
                             <div>
                                 <label className="block font-semibold mb-2 text-slate-300">Chapter Name*</label>
                                 <input type="text" value={chapter} onChange={e => setChapter(e.target.value)} placeholder="e.g. Chapter 4: Carbon" className="w-full p-3 rounded bg-slate-900 border border-slate-600 text-white focus:outline-none focus:border-blue-500" />
                             </div>
                         )}
-                        {examScope === 'Specific Topic' && (
+                        {inputMode === 'syllabus' && examScope === 'Specific Topic' && (
                             <div>
                                 <label className="block font-semibold mb-2 text-slate-300">Topic Name*</label>
                                 <input type="text" value={topic} onChange={e => setTopic(e.target.value)} placeholder="e.g. Covalent Bonds" className="w-full p-3 rounded bg-slate-900 border border-slate-600 text-white focus:outline-none focus:border-blue-500" />
                             </div>
                         )}
-                        {examScope === 'Full Subject' && <div className="hidden md:block"></div>}
+                        {(inputMode !== 'syllabus' || examScope === 'Full Subject') && <div className="hidden md:block"></div>}
 
                         {/* Total Marks */}
                         <div>
@@ -249,12 +300,34 @@ const ExamGeneratorPage: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* File Uploads */}
-                    <div className="mb-6 p-4 border border-dashed border-slate-500 rounded bg-slate-900/50">
-                        <label className="block font-semibold mb-2 text-blue-300">Upload Study Material (PDF)*</label>
-                        <p className="text-sm text-slate-400 mb-3">Any language is supported (Hindi, Gujarati, English). The AI will auto-detect it.</p>
-                        <input type="file" accept="application/pdf" onChange={handlePdfChange} className="w-full text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700" />
-                    </div>
+                    {/* File Uploads vs Text Paste Area */}
+                    {sourceType === 'file' ? (
+                        <div className="mb-6 p-4 border border-dashed border-slate-500 rounded bg-slate-900/50">
+                            <label className="block font-semibold mb-2 text-blue-300">
+                                {inputMode === 'old_paper' ? 'Upload Old Question Paper (PDF or Photo)*' : 'Upload Study Material (PDF)*'}
+                            </label>
+                            <p className="text-sm text-slate-400 mb-3">
+                                {inputMode === 'old_paper' 
+                                    ? 'Upload a PDF or an Image photo of the old question paper. The AI will extract the questions and create a predicted model paper!' 
+                                    : 'Any language is supported (Hindi, Gujarati, English). The AI will auto-detect it.'}
+                            </p>
+                            <input type="file" accept="application/pdf, image/png, image/jpeg, image/jpg" onChange={handlePdfChange} className="w-full text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700" />
+                        </div>
+                    ) : (
+                        <div className="mb-6 p-4 border border-dashed border-slate-500 rounded bg-slate-900/50">
+                            <label className="block font-semibold mb-2 text-blue-300">
+                                {inputMode === 'old_paper' ? 'Paste Old Question Paper Text*' : 'Paste Study Material / Syllabus Text*'}
+                            </label>
+                            <p className="text-sm text-slate-400 mb-3">Copy and paste the text content directly into the box below:</p>
+                            <textarea 
+                                value={pastedText} 
+                                onChange={e => setPastedText(e.target.value)}
+                                placeholder={inputMode === 'old_paper' ? "Paste questions from old papers here..." : "Paste syllabus content or chapter chapters here..."}
+                                rows={8}
+                                className="w-full p-3 rounded bg-slate-950 border border-slate-700 text-white outline-none focus:border-blue-500 text-sm"
+                            />
+                        </div>
+                    )}
 
                     {/* Reference File Upload */}
                     <div className="mb-8 p-4 border border-dashed border-slate-500 rounded bg-slate-900/50">

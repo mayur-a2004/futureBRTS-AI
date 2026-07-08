@@ -12,36 +12,57 @@ const success = (res: Response, message: string, data: any) => res.status(200).j
 export const examGeneratorController = {
     generateExam: async (req: Request, res: Response) => {
         try {
-            const { subject, board, standard, stream, examScope, chapter, topic, marks, difficulty } = req.body;
-            const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+            const { 
+                subject, board, standard, stream, examScope, chapter, topic, marks, difficulty,
+                sourceType = 'file', pastedText = '', inputMode = 'syllabus'
+            } = req.body;
             
+            const files = req.files as { [fieldname: string]: Express.Multer.File[] };
             const pdfFile = files?.pdfFile?.[0];
             const referenceFile = files?.referenceFile?.[0];
-
-            if (!pdfFile) return error(res, "Please upload a Study Material PDF file.", "VALIDATION_FAILED");
 
             if (!subject || !board || !standard || !examScope || !marks || !difficulty) {
                 return error(res, "Missing required parameters (subject, board, standard, examScope, marks, difficulty).", "VALIDATION_FAILED");
             }
 
-            // Read the uploaded Study Material PDF
-            const dataBuffer = fs.readFileSync(pdfFile.path);
-            
-            let parsedPdf;
-            try {
-                parsedPdf = await pdfParse(dataBuffer);
-            } catch (err) {
-                console.error("PDF Parse Error:", err);
-                return error(res, "Failed to parse Study Material PDF. Please ensure it is a valid text-based PDF.", "PARSE_ERROR");
+            let textContent = "";
+
+            if (sourceType === 'text') {
+                if (!pastedText || pastedText.trim().length < 10) {
+                    return error(res, "Please paste the old exam paper or syllabus text content.", "VALIDATION_FAILED");
+                }
+                textContent = pastedText.trim();
+            } else {
+                if (!pdfFile) {
+                    return error(res, "Please upload a Syllabus PDF, Old Question Paper, or Image file.", "VALIDATION_FAILED");
+                }
+
+                // Read uploaded file (PDF or Image)
+                try {
+                    if (pdfFile.mimetype === 'application/pdf') {
+                        const dataBuffer = fs.readFileSync(pdfFile.path);
+                        const parsedPdf = await pdfParse(dataBuffer);
+                        textContent = parsedPdf.text.trim();
+                    } else if (pdfFile.mimetype.startsWith('image/')) {
+                        console.log("Starting OCR for primary image file...");
+                        const { data: { text } } = await Tesseract.recognize(pdfFile.path, 'eng');
+                        textContent = text.trim();
+                        console.log("OCR completed on primary image.");
+                    } else {
+                        return error(res, "Unsupported file format. Please upload a PDF or an Image.", "VALIDATION_FAILED");
+                    }
+                } catch (err: any) {
+                    console.error("File Parse Error:", err);
+                    return error(res, `Failed to parse file: ${err.message}`, "PARSE_ERROR");
+                }
             }
 
-            let textContent = parsedPdf.text.trim();
-            if (textContent.length < 50) {
-                return error(res, "Study Material PDF contains too little text. Scanned images are not supported yet.", "PARSE_ERROR");
+            if (textContent.length < 20) {
+                return error(res, "Provided study material or old paper content contains too little text. Please provide more content.", "PARSE_ERROR");
             }
 
-            if (textContent.length > 15000) {
-                textContent = textContent.substring(0, 15000) + '...';
+            if (textContent.length > 20000) {
+                textContent = textContent.substring(0, 20000) + '...';
             }
 
             // Handle Reference File if provided
@@ -53,10 +74,18 @@ export const examGeneratorController = {
                         const parsedRef = await pdfParse(refBuffer);
                         referenceText = parsedRef.text.trim();
                     } else if (referenceFile.mimetype.startsWith('image/')) {
-                        console.log("Starting OCR for reference image...");
-                        const { data: { text } } = await Tesseract.recognize(referenceFile.path, 'eng');
+                        console.log("Starting OCR for reference image (eng+hin+guj)...");
+                        let text = "";
+                        try {
+                            const result = await Tesseract.recognize(referenceFile.path, 'eng+hin+guj');
+                            text = result.data.text;
+                        } catch (ocrErr) {
+                            console.warn("Multi-language OCR failed, falling back to English:", ocrErr);
+                            const result = await Tesseract.recognize(referenceFile.path, 'eng');
+                            text = result.data.text;
+                        }
                         referenceText = text.trim();
-                        console.log("OCR completed.");
+                        console.log("OCR completed on reference image.");
                     }
                 } catch (e) {
                     console.error("Reference file parse error:", e);
@@ -67,7 +96,34 @@ export const examGeneratorController = {
                 }
             }
 
-let prompt = `You are an Expert Academic Examiner and Paper Setter for ${board} board, ${standard} standard.
+            let prompt = `You are an Expert Academic Examiner and Paper Setter for ${board} board, ${standard} standard.`;
+
+            if (inputMode === 'old_paper') {
+                prompt += `
+                
+SMART LANGUAGE DETECTION:
+Analyze the language of the Past/Old Question Paper below (e.g. Hindi, Gujarati, English). You MUST generate the entire Exam Question Paper and the detailed solutions/answers exactly in that same language.
+
+Your task is to:
+1. Identify all questions in the provided Past/Old Question Paper.
+2. Formulate a set of Highly Important Predicted Questions (similar in type, style, syllabus scope, and marks weightage to the old paper) to prepare the student.
+3. Solve all predicted questions with comprehensive, detailed answers.
+
+Parameters:
+- Board: ${board}
+- Subject: ${subject}
+- Standard: ${standard}
+${stream ? `- Stream: ${stream}` : ''}
+- Total Marks: ${marks}
+- Difficulty: ${difficulty}
+
+Past/Old Question Paper Content:
+"""
+${textContent}
+"""
+`;
+            } else {
+                prompt += `
 
 SMART LANGUAGE DETECTION: 
 Analyze the language of the Syllabus/Textbook Material below (e.g. Hindi, Gujarati, English). You MUST generate the entire Exam Question Paper exactly in that same language. Do NOT translate the output to English if the input is in Hindi or Gujarati. Use the same language for the JSON structure values (like questions, options, section names) as the input material.
@@ -85,20 +141,12 @@ ${examScope === 'Specific Topic' ? `- Topic Focus: ${topic}` : ''}
 - Total Marks: ${marks}
 - Difficulty: ${difficulty}
 
-CRITICAL MARKS REQUIREMENT:
-The sum of all individual question marks MUST equal exactly ${marks}. Do not generate a paper with 49 or 51 marks if 50 is requested. Mathematically verify that the distribution perfectly sums to ${marks}.
-
-
-Scope Enforcement:
-${examScope === 'Chapter Wise' ? 'STRICT INSTRUCTION: Only generate questions from the specified Chapter. Do not include questions from other parts of the syllabus.' : ''}
-${examScope === 'Specific Topic' ? 'STRICT INSTRUCTION: Only generate questions specifically related to the given Topic. Ignore the rest of the text.' : ''}
-${examScope === 'Full Subject' ? 'Generate questions covering the entire provided material evenly.' : ''}
-
 Syllabus/Textbook Material:
 """
 ${textContent}
 """
 `;
+            }
 
             if (referenceText) {
                 prompt += `
@@ -106,7 +154,13 @@ Reference Exam Format:
 """
 ${referenceText}
 """
-IMPORTANT: The user has provided a Reference Exam. You MUST strictly follow the exact structure, section distribution, and style of the Reference Exam. Do NOT deviate from its formatting.
+IMPORTANT: The user has provided a Reference Exam template/format. You MUST strictly follow the exact structure, section distribution, and style of the Reference Exam.
+Specifically:
+1. Identify all sections in the Reference Exam (e.g. "Section A", "Section B", "Part I"). Keep the same section names and the same number of sections.
+2. For each section, count the number of questions. Your generated paper MUST have the exact same number of questions in each section.
+3. Keep the exact same marks allocation per question in each section (e.g. if Q1-Q10 are 1 mark each in the template, your Q1-Q10 must be 1 mark each).
+4. Match the question types (e.g. MCQs, fill-in-the-blanks, true/false, short answers, long numericals) of each section.
+Do NOT deviate from this template format. Regenerate questions matching these constraints using the syllabus material provided above.
 `;
             }
 
@@ -115,7 +169,7 @@ Instructions:
 1. Generate a structured JSON response containing the exact questions. 
 2. The JSON MUST follow this exact structure:
 {
-  "title": "Exam Paper",
+  "title": "${inputMode === 'old_paper' ? `Important Predicted Paper: ${subject}` : `Exam Paper: ${subject}`}",
   "subject": "${subject}",
   "standard": "${standard}",
   "marks": "${marks}",
@@ -134,8 +188,9 @@ Instructions:
     }
   ]
 }
-3. Adjust the number of sections and questions based on the Total Marks and Difficulty (and the Reference Exam Format if provided).
-4. ONLY return the JSON. No markdown wrappers, no conversational text.`;
+${referenceText ? '3. DO NOT change the sections count, questions count, or marks allocation. Strictly use the structure parsed from the Reference Exam Format.' : '3. Adjust the number of sections and questions based on the Total Marks and Difficulty.'}
+4. CRITICAL MARKS REQUIREMENT: The sum of all individual question marks MUST equal exactly ${marks}. Do not generate a paper with 49 or 51 marks if 50 is requested. Mathematically verify that the distribution perfectly sums to ${marks}.
+5. ONLY return the JSON. No markdown wrappers, no conversational text.`;
 
             // Completely bypass Groq and ONLY use Gemini 2.5 Flash for exams
             console.log("Routing Exam Generator strictly to Gemini 2.5 Flash...");
@@ -164,13 +219,13 @@ Instructions:
                 subject,
                 board,
                 standard,
-                examScope,
+                examScope: inputMode === 'old_paper' ? 'Old Paper Solution' : examScope,
                 chapter,
                 topic,
                 marks,
                 difficulty,
-                fileName: pdfFile.originalname,
-                filePath: pdfFile.path,
+                fileName: pdfFile ? pdfFile.originalname : 'Pasted Text Input',
+                filePath: pdfFile ? pdfFile.path : 'N/A',
                 referenceFileName: referenceFile ? referenceFile.originalname : undefined,
                 referenceFilePath: referenceFile ? referenceFile.path : undefined,
                 generatedPaper
@@ -299,6 +354,36 @@ Instructions:
         } catch (err: any) {
             console.error("PDF Export Error:", err);
             res.status(500).json({ status: 'error', message: err.message });
+        }
+    },
+    
+    updateExam: async (req: Request, res: Response) => {
+        try {
+            const { id } = req.params;
+            const { generatedPaper } = req.body;
+            
+            if (!generatedPaper) {
+                return error(res, "Missing generatedPaper body payload.", "VALIDATION_FAILED");
+            }
+            
+            const exam = await ExamPaper.findById(id);
+            if (!exam) {
+                return error(res, "Exam paper not found.", "NOT_FOUND");
+            }
+            
+            if (generatedPaper.subject) exam.subject = generatedPaper.subject;
+            if (generatedPaper.board) exam.board = generatedPaper.board;
+            if (generatedPaper.standard) exam.standard = generatedPaper.standard;
+            if (generatedPaper.marks) exam.marks = String(generatedPaper.marks);
+            
+            exam.generatedPaper = generatedPaper;
+            exam.markModified('generatedPaper');
+            
+            await exam.save();
+            success(res, "Exam paper updated successfully", { exam });
+        } catch (err: any) {
+            console.error("Exam Update Error:", err);
+            error(res, err.message, "SERVER_ERROR");
         }
     }
 };

@@ -26,8 +26,8 @@ const ExamPaperSchema: Schema = new Schema({
     topic: { type: String, required: false },
     marks: { type: String, required: true },
     difficulty: { type: String, required: true },
-    fileName: { type: String, required: true },
-    filePath: { type: String, required: true },
+    fileName: { type: String, required: false },
+    filePath: { type: String, required: false },
     referenceFileName: { type: String, required: false },
     referenceFilePath: { type: String, required: false },
     generatedPaper: { type: Schema.Types.Mixed }, // Store the complete AI JSON output

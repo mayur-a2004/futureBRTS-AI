@@ -1,9 +1,11 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom"
-import { LayoutDashboard, Zap, LogOut, Clock, Menu, X, MessageSquare, Map, CheckSquare, Edit2, Check, MoreHorizontal, Trash2, Share2, Pin, Archive, FolderInput, Sparkles, PanelLeftClose, PanelLeftOpen, Settings, User, ChevronRight, Briefcase, ShieldCheck, FileText, GraduationCap, Award, Swords, Users } from "lucide-react"
+import { LayoutDashboard, Zap, LogOut, Clock, Menu, X, MessageSquare, Map, CheckSquare, Edit2, Check, MoreHorizontal, Trash2, Share2, Pin, Archive, FolderInput, Sparkles, PanelLeftClose, PanelLeftOpen, Settings, User, ChevronRight, Briefcase, ShieldCheck, FileText, GraduationCap, Award, Swords } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { useState, useEffect, useRef } from "react";
 import TokenWall from "@/components/economy/TokenWall";
 import { useModal } from "@/context/ModalContext";
+import { io } from "socket.io-client";
+import { motion } from "framer-motion";
 
 
 export default function Layout() {
@@ -27,6 +29,20 @@ export default function Layout() {
         return localStorage.getItem('sidebar_collapsed') === 'true';
     });
     const [systemTime, setSystemTime] = useState(new Date().toLocaleTimeString());
+    const [activeInvite, setActiveInvite] = useState<{ roomCode: string; subject: string; topic?: string } | null>(null);
+
+    useEffect(() => {
+        const s = io(window.location.hostname === 'localhost' ? 'http://localhost:7001' : window.location.origin);
+        s.on('student_tournament_invite', (data) => {
+            setActiveInvite(data);
+            setTimeout(() => {
+                setActiveInvite(prev => prev?.roomCode === data.roomCode ? null : prev);
+            }, 20000);
+        });
+        return () => {
+            s.disconnect();
+        };
+    }, []);
 
     const isFutureEd = location.pathname.startsWith('/future-education');
     const isMinervaMain = location.pathname === '/future-education' || location.pathname === '/future-education/';
@@ -350,10 +366,10 @@ export default function Layout() {
         { name: "Study Roadmaps", path: "/future-education/roadmaps", icon: <Map size={20} /> },
         { name: "Study Tasks", path: "/future-education/tasks", icon: <CheckSquare size={20} /> },
         { name: "1v1 Quiz Battle", path: "/future-education/quiz-battle", icon: <Swords size={20} /> },
-        { name: "Parent Portal", path: "/future-education/parent-dashboard", icon: <Users size={20} /> },
         { name: "E-Builder", path: "/future-education/builder", icon: <Zap size={20} /> },
         { name: "Practice Exams", path: "/future-education/exams", icon: <FileText size={20} /> },
         { name: "Academic Results", path: "/future-education/results", icon: <Award size={20} /> },
+        { name: "Teacher & Parent Hub", path: "/future-education/teacher-dashboard", icon: <GraduationCap size={20} /> },
         { name: "Exit Student OS", path: "/dashboard", icon: <LogOut size={20} /> },
     ] : [
         { name: "Dashboard", path: "/dashboard", icon: <LayoutDashboard size={20} /> },
@@ -743,6 +759,32 @@ export default function Layout() {
                         )
                     })}
                 </div>
+            )}
+
+            {/* 📢 Floating Teacher Tournament Invitation Popup */}
+            {activeInvite && (
+                <motion.div initial={{ opacity: 0, y: -50, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+                    className="fixed top-5 right-5 z-[9999] bg-[#0c0a21]/95 border-2 border-indigo-500 rounded-3xl p-5 shadow-2xl max-w-sm w-full backdrop-blur-xl">
+                    <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-xl shrink-0">⚔️</div>
+                        <div className="flex-1 min-w-0 text-left">
+                            <h4 className="text-xs font-black uppercase tracking-widest text-indigo-400">Class Tournament Invite</h4>
+                            <p className="text-sm font-black text-white mt-1">Live match started for {activeInvite.subject}!</p>
+                            {activeInvite.topic && <p className="text-[11px] text-slate-400 mt-0.5 truncate">{activeInvite.topic}</p>}
+                            <div className="flex gap-2 mt-4">
+                                <button onClick={() => {
+                                    setActiveInvite(null);
+                                    navigate(`/future-education/quiz-battle?join=${activeInvite.roomCode}`);
+                                }} className="flex-1 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl text-xs font-black transition-all text-center">
+                                    Join Battle
+                                </button>
+                                <button onClick={() => setActiveInvite(null)} className="px-3 py-2 bg-slate-900 border border-slate-800 hover:bg-slate-850 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition-all">
+                                    Dismiss
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </motion.div>
             )}
 
             {/* 📺 Manual Ad Trigger (TokenWall) */}

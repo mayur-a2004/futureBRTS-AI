@@ -4,6 +4,22 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hide Mermaid default syntax error DOM containers */
+.mermaid-err-message,
+.mermaid-error,
+.error-icon,
+[id^="mermaid-"] .error,
+[id^="d3-"] .error,
+.mermaidTooltip {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    height: 0 !important;
+    width: 0 !important;
+    overflow: hidden !important;
+}
+
 @layer base {
     :root {
         --background: #020203;

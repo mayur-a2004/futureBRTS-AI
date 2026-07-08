@@ -19,6 +19,8 @@ const MinervaDashboardPage: React.FC = () => {
     });
     const [dueReviews, setDueReviews] = useState<any[]>([]);
     const [leaderboard, setLeaderboard] = useState<any[]>([]);
+    const [battleProfile, setBattleProfile] = useState<any>(null);
+    const [battleHistory, setBattleHistory] = useState<any[]>([]);
     const [, setLoading] = useState(true);
 
     useEffect(() => {
@@ -58,11 +60,26 @@ const MinervaDashboardPage: React.FC = () => {
             if (leaderboardRes.success) {
                 setLeaderboard(leaderboardRes.leaderboard || []);
             }
+
+            // Fetch battle stats
+            try {
+                const res = await fetch('/api/minerva/battle/my-stats', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const d = await res.json();
+                if (d.success) {
+                    setBattleProfile(d.profile);
+                    setBattleHistory(d.recentBattles || []);
+                }
+            } catch (battleErr) {
+                console.error("Error loading battle stats:", battleErr);
+            }
         } catch (err) {
             console.error("Error loading dashboard metrics:", err);
         } finally {
             setLoading(false);
         }
+
     };
 
     // Calculate level metrics
@@ -253,8 +270,75 @@ const MinervaDashboardPage: React.FC = () => {
 
                     {/* Right Column: Strengths and weaknesses */}
                     <div className="space-y-10">
+                        {/* ⚔️ Quiz Battle Command Card */}
+                        {battleProfile && (
+                            <div className="bg-black/40 border border-indigo-500/10 rounded-[40px] p-8 shadow-3xl space-y-6">
+                                <div className="flex justify-between items-center border-b border-white/5 pb-4">
+                                    <h3 className="text-xs font-black uppercase tracking-[0.3em] text-indigo-400 italic flex items-center gap-2">
+                                        ⚔️ Battle Command Card
+                                    </h3>
+                                    <span className="text-[10px] font-black text-yellow-450 uppercase tracking-wider">{battleProfile.rank}</span>
+                                </div>
+
+                                {/* Stats Block */}
+                                <div className="grid grid-cols-2 gap-3 text-center">
+                                    <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-3">
+                                        <div className="text-lg font-black text-white">{battleProfile.battleStats?.totalBattles || 0}</div>
+                                        <div className="text-[8px] font-bold text-gray-500 uppercase tracking-wider mt-0.5">Total Battles</div>
+                                    </div>
+                                    <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-3">
+                                        <div className="text-lg font-black text-indigo-400">
+                                            {battleProfile.battleStats?.totalBattles > 0
+                                                ? Math.round(((battleProfile.battleStats?.wins || 0) / battleProfile.battleStats?.totalBattles) * 100)
+                                                : 0}%
+                                        </div>
+                                        <div className="text-[8px] font-bold text-gray-500 uppercase tracking-wider mt-0.5">Win Rate</div>
+                                    </div>
+                                    <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-3">
+                                        <div className="text-lg font-black text-emerald-450">{battleProfile.battleStats?.wins || 0}</div>
+                                        <div className="text-[8px] font-bold text-gray-500 uppercase tracking-wider mt-0.5">Wins</div>
+                                    </div>
+                                    <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-3">
+                                        <div className="text-lg font-black text-rose-500">{battleProfile.battleStats?.longestStreak || 0} 🔥</div>
+                                        <div className="text-[8px] font-bold text-gray-500 uppercase tracking-wider mt-0.5">Best Streak</div>
+                                    </div>
+                                </div>
+
+                                {/* Recent Battles list */}
+                                {battleHistory.length > 0 && (
+                                    <div className="space-y-2">
+                                        <h4 className="text-[9px] font-black uppercase text-slate-500 tracking-wider">Recent Battle Activity</h4>
+                                        <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                                            {battleHistory.map((b, idx) => (
+                                                <div key={idx} className="flex justify-between items-center bg-white/[0.01] border border-white/5 px-3 py-2 rounded-xl text-[10px]">
+                                                    <div>
+                                                        <span className="font-bold text-slate-200">{b.subject}</span>
+                                                        <span className="text-slate-500 block text-[9px]">{b.mode?.replace(/_/g, ' ')}</span>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <span className={`font-black ${b.result === 'WIN' ? 'text-emerald-450' : b.result === 'DRAW' ? 'text-amber-500' : 'text-rose-500'}`}>
+                                                            {b.result}
+                                                        </span>
+                                                        <span className="text-[9px] text-indigo-400 block mt-0.5">{b.score} pts</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <button
+                                    onClick={() => navigate('/future-education/quiz-battle')}
+                                    className="w-full py-3 bg-gradient-to-r from-indigo-600/20 to-violet-600/20 hover:from-indigo-600/30 hover:to-violet-600/30 border border-indigo-500/20 hover:border-indigo-500/40 rounded-2xl text-[10px] font-black uppercase tracking-wider text-indigo-300 transition-all active:scale-95"
+                                >
+                                    Enter Quiz Arena ⚔️
+                                </button>
+                            </div>
+                        )}
+
                         {/* Spaced Repetition Due Reviews */}
                         <div className="bg-black/40 border border-white/5 rounded-[40px] p-8 shadow-3xl space-y-6">
+
                             <h3 className="text-xs font-black uppercase tracking-[0.3em] text-cyan-400 border-b border-white/5 pb-4 italic flex items-center gap-2">
                                 🔁 Review Due Today
                             </h3>

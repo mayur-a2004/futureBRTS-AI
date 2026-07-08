@@ -1,4 +1,4 @@
-// Trigger reload
+// Trigger reload 2
 import express from 'express';
 import { minervaController } from './minerva.controller';
 import { authMiddleware } from '../../shared/middleware/auth.middleware';
@@ -60,12 +60,14 @@ router.put('/node/:id/priority', authMiddleware, minervaController.updateNodePri
 
 // ─── TASKS / HOMEWORK ──────────────────────────
 router.post('/task/:id/submit', authMiddleware, minervaController.submitTask);
+router.post('/task/custom', authMiddleware, upload.single('attachment'), minervaController.createCustomTask);
 router.get('/homework/today', authMiddleware, minervaController.getTodayHomework);
 router.get('/tasks/list', authMiddleware, minervaController.getTasks);
 router.get('/review/due', authMiddleware, minervaController.getDueReviews);
 
 // ─── E-BUILDER ─────────────────────────────────
 router.post('/builder/generate', authMiddleware, minervaController.generateMaterial);
+router.get('/builder/history', authMiddleware, minervaController.getMaterialHistory);
 
 // ─── TRANSLATOR ──────────────────────────────
 router.post('/translate', authMiddleware, minervaController.translateText);
@@ -96,7 +98,22 @@ router.post('/lab/execute-python', authMiddleware, minervaController.executePyth
 import { battleController } from './battle.controller';
 router.post('/battle/room', authMiddleware, battleController.createRoom);
 router.post('/battle/room/join', authMiddleware, battleController.joinRoom);
+router.post('/battle/room/leave', authMiddleware, battleController.leaveRoom);
+router.get('/battle/active', authMiddleware, battleController.myActiveRoom);
 router.get('/battle/room/:roomCode', authMiddleware, battleController.getRoom);
 router.get('/battle/rooms', authMiddleware, battleController.listActiveRooms);
+router.get('/battle/room/:roomCode/monitor', authMiddleware, battleController.monitorRoom);
+router.get('/battle/daily-status', authMiddleware, battleController.getDailyChallengeStatus);
+router.post('/battle/normalize-topic', authMiddleware, battleController.normalizeTopic);
+router.get('/battle/teacher/rooms', authMiddleware, battleController.listTeacherRooms);
+router.get('/battle/teacher/room/:roomCode/results', authMiddleware, battleController.classroomResults);
+router.get('/battle/teacher/search-students', authMiddleware, battleController.searchStudents);
+
+
+// ─── SCHOOL LEADERBOARD (Public + City-filtered) ───────────────────────────
+router.get('/school/leaderboard', battleController.getSchoolLeaderboard); // Public — no auth needed
+router.get('/school/cities', battleController.getCities);
+router.get('/school/by-city', battleController.getSchoolsByCity);
+router.get('/battle/my-stats', authMiddleware, battleController.getMyBattleStats);
 
 export default router;

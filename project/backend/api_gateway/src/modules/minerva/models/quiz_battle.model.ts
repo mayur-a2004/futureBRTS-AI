@@ -5,10 +5,12 @@ export interface IArenaQuestion {
     question: string;
     options: string[];
     correctAnswer: number;     // Index 0-3
-    grade: number;             // Class 8, 9, 10 etc.
+    grade: string | number;             // Class 8, 9, 10, JEE, NEET etc.
     subject: string;
     explanation?: string;
     difficulty: 'Easy' | 'Medium' | 'Hard';
+    board?: string;            // Which board this question is from
+    topicRef?: string;         // Chapter/topic reference
 }
 
 // ─── Per-Player State ────────────────────────────────────────────────────────
@@ -16,7 +18,8 @@ export interface IArenaPlayer {
     userId: mongoose.Types.ObjectId;
     socketId?: string;
     firstName: string;
-    grade: number;
+    grade: string | number;
+    board: string;             // ← NEW: player's own board (GSEB, CBSE, MSBSHSE etc.)
     team: 'A' | 'B';
     hp: number;
     score: number;
@@ -38,6 +41,7 @@ export interface IArenaPlayer {
     hasFinished: boolean;
     isConnected: boolean;
 }
+
 
 // ─── Team State ──────────────────────────────────────────────────────────────
 export interface IArenaTeam {
@@ -63,14 +67,24 @@ export interface IArenaRoom extends Document {
     roomCode: string;
     hostId: mongoose.Types.ObjectId;
     status: 'WAITING' | 'LOBBY_READY' | 'ACTIVE' | 'FINISHED';
+    roomType: 'OPEN_ARENA' | 'TEACHER_ROOM';   // ← NEW
     mode: 'SOLO_VS_AI' | 'SOLO_VS_SOLO' | 'SOLO_VS_DUO' | 'SOLO_VS_TRIO' | 'SOLO_VS_SQUAD'
         | 'DUO_VS_DUO' | 'DUO_VS_TRIO' | 'DUO_VS_SQUAD'
         | 'TRIO_VS_TRIO' | 'TRIO_VS_SQUAD'
         | 'SQUAD_VS_SQUAD' | 'CLASSROOM';
+    battleStyle: 'SPEED_RACE' | 'ALTERNATING';
+    currentTurn: 'A' | 'B';
     teamASizeTarget: number;
     teamBSizeTarget: number;
     subject: string;
-    topic?: string;
+    difficulty: string;        // ← NEW
+    standard: string;          // ← NEW: "10" | "12_SCI_A" | "undergrad" etc.
+    board: string;             // ← NEW: room-level board (TEACHER_ROOM uses this for all; OPEN_ARENA = host's board)
+    topic?: string;            // legacy
+    topicConcept: string;      // ← NEW: AI-normalized topic (required)
+    topicRaw?: string;         // ← NEW: original user-typed topic
+    semester?: string;         // ← NEW: "sem3" | "year2" | "foundation" | "prelims" etc.
+    invitedStudentIds?: mongoose.Types.ObjectId[];  // ← NEW: teacher room invite list
     playerQuestions: Record<string, IArenaQuestion[]>;
     sharedQuestionSets: Record<string, IArenaQuestion[]>;
     players: IArenaPlayer[];
@@ -93,7 +107,8 @@ const ArenaPlayerSchema = new Schema({
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     socketId: { type: String },
     firstName: { type: String, required: true },
-    grade: { type: Number, required: true },
+    grade: { type: Schema.Types.Mixed, required: true },
+    board: { type: String, default: 'NCERT' },  // ← NEW: per-player board
     team: { type: String, enum: ['A', 'B'], required: true },
     hp: { type: Number, default: 1000 },
     score: { type: Number, default: 0 },
@@ -137,10 +152,12 @@ const ArenaQuestionSchema = new Schema({
     question: { type: String, required: true },
     options: [{ type: String, required: true }],
     correctAnswer: { type: Number, required: true },
-    grade: { type: Number, required: true },
+    grade: { type: Schema.Types.Mixed, required: true },
     subject: { type: String, required: true },
     explanation: { type: String },
-    difficulty: { type: String, enum: ['Easy', 'Medium', 'Hard'], default: 'Medium' }
+    difficulty: { type: String, enum: ['Easy', 'Medium', 'Hard'], default: 'Medium' },
+    board: { type: String },    // ← NEW: which board these questions are for
+    topicRef: { type: String }  // ← NEW: which topic/chapter
 }, { _id: false });
 
 const ArenaRoomSchema: Schema = new Schema({
@@ -154,10 +171,20 @@ const ArenaRoomSchema: Schema = new Schema({
                'SQUAD_VS_SQUAD','CLASSROOM'],
         required: true
     },
+    battleStyle: { type: String, enum: ['SPEED_RACE', 'ALTERNATING'], default: 'SPEED_RACE' },
+    currentTurn: { type: String, enum: ['A', 'B'], default: 'A' },
     teamASizeTarget: { type: Number, required: true },
     teamBSizeTarget: { type: Number, required: true },
     subject: { type: String, required: true },
-    topic: { type: String },
+    difficulty: { type: String, default: 'Medium' },     // ← NEW
+    standard: { type: String, required: true },          // ← NEW
+    board: { type: String, required: true },             // ← NEW (mandatory room-level board)
+    topic: { type: String },                             // legacy keep
+    topicConcept: { type: String, required: true },      // ← NEW: AI-normalized topic
+    topicRaw: { type: String },                          // ← NEW: raw user input
+    semester: { type: String },                          // ← NEW: for higher-ed
+    invitedStudentIds: [{ type: Schema.Types.ObjectId, ref: 'User' }], // ← NEW: teacher room
+    roomType: { type: String, enum: ['OPEN_ARENA', 'TEACHER_ROOM'], default: 'OPEN_ARENA' }, // ← NEW
     playerQuestions: { type: Map, of: [ArenaQuestionSchema], default: {} },
     sharedQuestionSets: { type: Map, of: [ArenaQuestionSchema], default: {} },
     players: [ArenaPlayerSchema],

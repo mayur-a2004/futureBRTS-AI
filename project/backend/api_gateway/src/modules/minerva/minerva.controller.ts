@@ -10,6 +10,7 @@ import MinervaTask from './models/minerva_task.model';
 import MinervaExam from './models/minerva_exam.model';
 import MinervaChatMessage from './models/minerva_chat_message.model';
 import MinervaChatSession from './models/minerva_chat_session.model';
+import MinervaBuilderMaterial from './models/minerva_builder_material.model';
 import {
     detectStudentIntent,
     getMinervaChat,
@@ -654,11 +655,31 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                 { grade_level, board, state, medium, language_preference, learning_style, daily_time_minutes, name, school_name, mobile_number, onboarding_done: true },
                 { new: true, upsert: true }
             );
+
+            // Sync with User document for Quiz Battle & School Leaderboard
+            try {
+                const User = require('../auth/user.model').default;
+                let numericGrade = 10;
+                if (grade_level) {
+                    const match = grade_level.match(/\d+/);
+                    if (match) numericGrade = parseInt(match[0]);
+                }
+                await User.findByIdAndUpdate(userId, {
+                    schoolName: school_name || '',
+                    city: state || 'Gandhinagar', // Fallback to Gandhinagar (our main launch target)
+                    grade: numericGrade
+                });
+            } catch (syncErr: any) {
+                console.error('[Minerva Profile Sync] Error syncing User document:', syncErr.message);
+            }
+
+
             return res.json({ success: true, profile });
         } catch (err: any) {
             return res.status(500).json({ success: false, error: err.message });
         }
     },
+
 
     // ──────────────────────────────────────────
     // 4. GET ALL SESSIONS
@@ -1843,6 +1864,63 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
     },
 
     // ──────────────────────────────────────────
+    // 22b. CREATE CUSTOM STUDY TASK (Custom Homework)
+    // POST /api/future-education/task/custom
+    // ──────────────────────────────────────────
+    createCustomTask: async (req: Request | any, res: Response) => {
+        try {
+            const userId = req.user?.id || req.user?._id;
+            const { prompt, topic_title, subject, marks = 5, due_date, difficulty = 'medium' } = req.body;
+            const file = req.file;
+
+            if (!prompt?.trim()) {
+                return res.status(400).json({ success: false, error: 'Homework prompt description is required' });
+            }
+            if (!topic_title?.trim()) {
+                return res.status(400).json({ success: false, error: 'Topic title is required' });
+            }
+            if (!subject?.trim()) {
+                return res.status(400).json({ success: false, error: 'Subject is required' });
+            }
+
+            const today = new Date().toISOString().split('T')[0];
+
+            let attachmentName = '';
+            let attachmentPath = '';
+            let attachmentType = '';
+
+            if (file) {
+                attachmentName = file.originalname;
+                attachmentPath = `/uploads/${file.filename}`;
+                attachmentType = file.mimetype.startsWith('image/') ? 'image' : 'pdf';
+            }
+
+            const task = new MinervaTask({
+                userId,
+                type: 'text_answer',
+                task_type: 'homework',
+                prompt: prompt.trim(),
+                topic_title: topic_title.trim(),
+                subject: subject.trim(),
+                marks: Number(marks),
+                difficulty: difficulty.toLowerCase(),
+                is_homework: true,
+                due_date: due_date ? new Date(due_date) : null,
+                homework_date: today,
+                attachmentName,
+                attachmentPath,
+                attachmentType
+            });
+
+            await task.save();
+            return res.json({ success: true, task });
+        } catch (err: any) {
+            console.error('[Minerva Task Create Custom Error]', err);
+            return res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    // ──────────────────────────────────────────
     // 23. GENERATE STUDY MATERIAL (E-Builder)
     // POST /api/future-education/builder/generate
     // ──────────────────────────────────────────
@@ -1870,9 +1948,42 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
                 profile.board || 'cbse'
             );
 
-            return res.json({ success: true, material });
+            // Save generated material to user's history
+            const docData: any = {
+                session_id,
+                userId,
+                type,
+                language,
+                topic_title: session.title,
+                subject: session.subject
+            };
+
+            if (type === 'flashcards') {
+                docData.flashcards = material;
+            } else {
+                docData.materialText = material;
+            }
+
+            const savedDoc = await MinervaBuilderMaterial.create(docData);
+
+            return res.json({ success: true, material, docId: savedDoc._id });
         } catch (err: any) {
             console.error('[Minerva E-Builder Error]', err);
+            return res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    // ──────────────────────────────────────────
+    // 23b. GET STUDY MATERIALS HISTORY (E-Builder)
+    // GET /api/future-education/builder/history
+    // ──────────────────────────────────────────
+    getMaterialHistory: async (req: Request | any, res: Response) => {
+        try {
+            const userId = req.user?.id || req.user?._id;
+            const history = await MinervaBuilderMaterial.find({ userId }).sort({ createdAt: -1 });
+            return res.json({ success: true, history });
+        } catch (err: any) {
+            console.error('[Minerva E-Builder History Error]', err);
             return res.status(500).json({ success: false, error: err.message });
         }
     },

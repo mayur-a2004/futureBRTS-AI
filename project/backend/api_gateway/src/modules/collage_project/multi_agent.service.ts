@@ -244,9 +244,9 @@ export const callGroqAI = async (prompt: string, projectId: string, retries = 3)
 
   for (let i = 0; i < retries; i++) {
     try {
-      // Use 8b model for exam generator to avoid strict 12k TPM free tier limits
-      const model = projectId === 'exam_generator' ? 'llama-3.1-8b-instant' : 'llama-3.3-70b-versatile';
-      const maxTokens = projectId === 'exam_generator' ? 4000 : 8192;
+      // Use 8b model for exam generator and quiz battle to avoid strict 12k TPM free tier limits
+      const model = (projectId === 'exam_generator' || projectId === 'quiz_battle') ? 'llama-3.1-8b-instant' : 'llama-3.3-70b-versatile';
+      const maxTokens = (projectId === 'exam_generator' || projectId === 'quiz_battle') ? 4000 : 8192;
 
       const response = await axios.post(
         'https://api.groq.com/openai/v1/chat/completions',
@@ -259,6 +259,8 @@ export const callGroqAI = async (prompt: string, projectId: string, retries = 3)
                 ? `You are a brilliant Architectural AI Assistant conducting a Discovery Chat with a client. Be conversational, proactive, use the exact language they speak (Hindi/English), and output exactly as requested.`
                 : projectId === 'exam_generator'
                 ? `You are an Expert Academic Examiner.`
+                : projectId === 'quiz_battle'
+                ? `You are a CBSE/NCERT Expert Quiz Master. You generate highly accurate, curriculum-aligned multiple-choice questions matching NCERT syllabus guidelines. Output strictly valid JSON array. No markdown, no code block backticks.`
                 : `You are an ELITE DESIGN ENGINEER & FULL STACK ARCHITECT. 
 You ONLY write complete, working, production-quality code.
 NEVER write placeholder comments like "// Add logic here".

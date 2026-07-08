@@ -317,5 +317,67 @@ export const authController = {
             console.error('[socialCallback Error]', err);
             return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth/login?error=social_auth_failed`);
         }
+    },
+
+    registerTeacher: async (req: Request, res: Response) => {
+        try {
+            const { 
+                email, password, name, schoolName, teacherId, 
+                schoolAddress, subject, roleInSchool, gender, whatsappNumber 
+            } = req.body;
+            
+            const existingUser = await User.findOne({ email: email.toLowerCase() });
+            if (existingUser) return res.status(400).json({ success: false, error: 'User already exists' });
+
+            const nameParts = (name || 'Teacher User').trim().split(' ');
+            const firstName = nameParts[0];
+            const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Teacher';
+
+            const passwordHash = await bcrypt.hash(password, 10);
+            const user = await User.create({
+                firstName,
+                lastName,
+                email: email.toLowerCase(),
+                passwordHash,
+                role: 'teacher',
+                provider: 'local',
+                onboardingCompleted: true,
+                teacherDetails: {
+                    schoolName,
+                    teacherId,
+                    schoolAddress,
+                    subject,
+                    roleInSchool,
+                    gender,
+                    whatsappNumber
+                }
+            });
+
+            res.status(201).json({ success: true, token: generateToken(user), user });
+        } catch (err: any) {
+            res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    loginTeacher: async (req: Request, res: Response) => {
+        try {
+            const { email, password } = req.body;
+            const user = await User.findOne({ email: email.toLowerCase() });
+            if (!user || !user.passwordHash || !(await bcrypt.compare(password, user.passwordHash))) {
+                return res.status(401).json({ success: false, error: 'Invalid credentials' });
+            }
+
+            if (user.role !== 'teacher') {
+                return res.status(403).json({ success: false, error: 'Access denied. You are not registered as a teacher.' });
+            }
+
+            if (user.status !== 'active') {
+                return res.status(403).json({ success: false, error: 'Account is blocked or inactive. Contact Admin.' });
+            }
+
+            res.json({ success: true, token: generateToken(user), user });
+        } catch (err: any) {
+            res.status(500).json({ success: false, error: err.message });
+        }
     }
 };
