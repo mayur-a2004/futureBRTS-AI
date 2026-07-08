@@ -71,8 +71,10 @@ async function simulateAIAnswer(
 
 export class SocketService {
     private static io: Server;
-    // ─── Server-side round timers (auto-advance if players don't answer) ───────
+    // ─── Per-round auto-advance timers ───────────────────────────────────────
     private static roundTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+    // ─── Global session expiry timers (1 per room) ───────────────────────────
+    private static globalSessionTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
 
     private static startRoundTimer(roomCode: string, roundIndex: number, io: Server) {
         // Clear any existing timer for this room
@@ -84,42 +86,94 @@ export class SocketService {
             try {
                 SocketService.roundTimers.delete(existingKey);
                 const room = await ArenaRoom.findOne({ roomCode });
-                if (!room || room.status !== 'ACTIVE') return;
-                if (room.currentRound !== roundIndex) return; // Already advanced
-
+                if (!room || (room.status !== 'ACTIVE' && room.status !== 'WAITING')) return;
+                
                 const roundState = room.roundStates.find((r: any) => r.roundIndex === roundIndex);
                 if (!roundState) return;
                 if ((roundState as any).finishedAt) return; // Already finished
 
-                logger.info(`[Arena] ⏱️ Server auto-advancing round ${roundIndex} for room ${roomCode} (timer expired)`);
+                logger.info(`[Arena] ⏱️ Server timer expired. Terminating room ${roomCode} immediately to prevent stuck state.`);
 
-                // Force-complete this round
-                const roundComplete = await SocketService._evaluateRoundComplete(room, roundIndex, roomCode, io, true);
+                // Mark the room as cancelled/terminated
+                room.status = 'CANCELLED' as any;
+                await room.save();
 
-                if (roundComplete) {
-                    io.to(roomCode).emit('arena_update', {
-                        room: room.toJSON(),
-                        event: 'TIMEOUT_ADVANCE',
-                        roundComplete: true,
-                        team: null,
-                        isCorrect: false,
-                        damage: 0,
-                        selfDamage: 0,
-                        answeredBy: 'SERVER_TIMEOUT',
-                        activeTurn: room.currentTurn
-                    });
+                // Clear ALL server-side timers for this room (per-round + global session)
+                SocketService.clearAllRoomTimers(roomCode, room.totalRounds || 15);
 
-                    // Start timer for next round if battle continues
-                    if (room.status === 'ACTIVE') {
-                        SocketService.startRoundTimer(roomCode, room.currentRound, io);
-                    }
-                }
+                // Broadcast to ALL players in the room — they will see the stop screen and redirect
+                io.to(roomCode).emit('arena_teacher_stopped', {
+                    roomCode,
+                    message: 'Quiz has been terminated automatically due to round inactivity or stuck state.',
+                    stoppedAt: new Date().toISOString(),
+                    reason: 'ROUND_STUCK'
+                });
             } catch (err: any) {
-                logger.error('[Arena] Round auto-advance error:', err.message);
+                logger.error('[Arena] Round auto-termination error:', err.message);
             }
         }, 22000); // 22 seconds (15s question + 7s buffer for slow connections)
 
         SocketService.roundTimers.set(existingKey, timer);
+    }
+
+    // ─── Clear ALL timers for a room (per-round + global) ────────────────────
+    private static clearAllRoomTimers(roomCode: string, totalRounds: number = 15) {
+        // Clear per-round timers
+        for (let i = 0; i < totalRounds; i++) {
+            const key = `${roomCode}:${i}`;
+            const t = SocketService.roundTimers.get(key);
+            if (t) { clearTimeout(t); SocketService.roundTimers.delete(key); }
+        }
+        // Clear global session timer
+        const gt = SocketService.globalSessionTimers.get(roomCode);
+        if (gt) { clearTimeout(gt); SocketService.globalSessionTimers.delete(roomCode); }
+    }
+
+    // ─── Global session expiry timer ─────────────────────────────────────────
+    // Fires after (totalRounds × 22s) from game start.
+    // This is the absolute safety net — if the quiz is stuck for ANY reason,
+    // (AI hang, all players unresponsive, multiple consecutive round stucks)
+    // the session is forcefully terminated and all users are kicked.
+    private static startGlobalSessionTimer(roomCode: string, totalRounds: number, io: Server) {
+        // Clear any existing global timer for this room
+        const prev = SocketService.globalSessionTimers.get(roomCode);
+        if (prev) { clearTimeout(prev); }
+
+        // Total allowed time = (totalRounds rounds × 22s per round) + 10s grace
+        const totalMs = (totalRounds * 22000) + 10000;
+
+        logger.info(`[Arena] 🕐 Global session timer started for room ${roomCode} — expires in ${Math.ceil(totalMs / 1000)}s`);
+
+        const timer = setTimeout(async () => {
+            try {
+                SocketService.globalSessionTimers.delete(roomCode);
+                const room = await ArenaRoom.findOne({ roomCode });
+                if (!room) return;
+                // Only act if still active (not already finished/cancelled)
+                if (room.status === 'FINISHED' || room.status === 'CANCELLED') return;
+
+                logger.warn(`[Arena] ⚠️ GLOBAL SESSION TIMER EXPIRED for room ${roomCode}. Force-terminating quiz.`);
+
+                // Mark room cancelled
+                room.status = 'CANCELLED' as any;
+                await room.save();
+
+                // Clear per-round timers too
+                SocketService.clearAllRoomTimers(roomCode, room.totalRounds || 15);
+
+                // Broadcast termination to ALL connected clients
+                io.to(roomCode).emit('arena_teacher_stopped', {
+                    roomCode,
+                    message: 'Quiz session time has expired. The quiz has ended automatically.',
+                    stoppedAt: new Date().toISOString(),
+                    reason: 'SESSION_EXPIRED'
+                });
+            } catch (err: any) {
+                logger.error('[Arena] Global session timer error:', err.message);
+            }
+        }, totalMs);
+
+        SocketService.globalSessionTimers.set(roomCode, timer);
     }
 
     // ─── Unified Round Evaluator ──────────────────────────────────────────────
@@ -181,6 +235,8 @@ export class SocketService {
         if (winnerTeam) {
             room.status = 'FINISHED';
             room.winnerTeam = winnerTeam as any;
+            // Game finished cleanly — cancel global session timer
+            SocketService.clearAllRoomTimers(roomCode, room.totalRounds || 15);
             await SocketService._awardXP(room);
         }
 
@@ -270,6 +326,11 @@ export class SocketService {
                     // Start server-side round timer to auto-advance if players don't answer
                     SocketService.startRoundTimer(roomCode, 0, this.io);
 
+                    // ─── Start GLOBAL session expiry timer ───────────────────────────
+                    // Absolute safety net: if quiz is stuck for (totalRounds × 22s) total,
+                    // forcefully terminate and kick all users — regardless of mode or stuck type.
+                    SocketService.startGlobalSessionTimer(roomCode, room.totalRounds || 10, this.io);
+
                     // If AI mode, start AI simulation for round 0
                     if (room.mode === 'SOLO_VS_AI' && room.aiDifficulty) {
                         simulateAIAnswer(roomCode, 0, room.aiDifficulty as any, this.io);
@@ -296,12 +357,8 @@ export class SocketService {
                     room.status = 'CANCELLED' as any;
                     await room.save();
 
-                    // Clear server-side round timers for this room
-                    for (let i = 0; i < (room.totalRounds || 10); i++) {
-                        const key = `${roomCode}:${i}`;
-                        const t = SocketService.roundTimers.get(key);
-                        if (t) { clearTimeout(t); SocketService.roundTimers.delete(key); }
-                    }
+                    // Clear ALL server-side timers for this room (per-round + global session)
+                    SocketService.clearAllRoomTimers(roomCode, room.totalRounds || 15);
 
                     // Broadcast to ALL players in the room — they will see the stop screen and redirect
                     this.io.to(roomCode).emit('arena_teacher_stopped', {

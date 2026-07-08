@@ -43,24 +43,41 @@ interface ArenaRoom {
 // ─── Utility Helpers ─────────────────────────────────────────────────────────
 const formatTopic = (topicStr?: string) => {
     if (!topicStr) return 'General Quiz';
+    let str = topicStr.trim();
     try {
-        if (topicStr.trim().startsWith('[') || topicStr.trim().startsWith('{')) {
-            const parsed = JSON.parse(topicStr);
+        if (str.startsWith('[') || str.startsWith('{')) {
+            const parsed = JSON.parse(str);
             if (Array.isArray(parsed) && parsed.length > 0) {
                 const first = parsed[0];
-                if (typeof first === 'object' && first !== null) {
-                    return Object.values(first).join(' - ');
+                if (first && typeof first === 'object') {
+                    // e.g. [{"html": "HTML"}] → pick the longest value (most descriptive)
+                    const vals = Object.values(first).filter(v => typeof v === 'string') as string[];
+                    return vals.reduce((a, b) => b.length > a.length ? b : a, vals[0] || '');
                 }
-                return String(parsed[0]);
+                return String(first);
             }
             if (typeof parsed === 'object' && parsed !== null) {
-                return Object.values(parsed).join(' - ');
+                const vals = Object.values(parsed).filter(v => typeof v === 'string') as string[];
+                return vals.reduce((a, b) => b.length > a.length ? b : a, vals[0] || '');
             }
         }
     } catch (e) {
         // Fallback
     }
-    return topicStr;
+    // Strip any stray JSON characters
+    return str.replace(/[\[\]{}"]/g, '').trim() || 'General Quiz';
+};
+
+// ─── Clean stray JSON artifacts from question text (backward compat) ─────────
+const cleanQuestionText = (text?: string): string => {
+    if (!text) return '';
+    // Pattern: "[BOARD GRADE – [ JSON ] ] Actual question text"
+    // Strip everything inside the leading bracket prefix if it contains JSON chars
+    return text.replace(/^\[.*?\]\s*/s, (match) => {
+        // Keep the prefix only if it looks clean (no { } chars indicating JSON)
+        if (match.includes('{') || match.includes('[{"') || match.includes('[ {')) return '';
+        return match;
+    });
 };
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -680,7 +697,7 @@ export default function MinervaQuizBattlePage() {
     };
 
     // Views
-    const [view, setView] = useState<'LOBBY' | 'CREATE' | 'JOIN' | 'WAITING' | 'BATTLE' | 'RESULTS' | 'TEACHER_STOPPED'>('LOBBY');
+    const [view, setView] = useState<'LOBBY' | 'CREATE' | 'JOIN' | 'WAITING' | 'BATTLE' | 'RESULTS' | 'TEACHER_STOPPED' | 'HISTORY'>('LOBBY');
     const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'ARENA'>('DASHBOARD');
 
     // Stats & History
@@ -693,7 +710,10 @@ export default function MinervaQuizBattlePage() {
         totalXp?: number;
     } | null>(null);
     const [history, setHistory] = useState<any[]>([]);
+    const [historyFilterStatus, setHistoryFilterStatus] = useState<'ALL' | 'WIN' | 'LOSS' | 'DRAW'>('ALL');
+    const [historySearchQuery, setHistorySearchQuery] = useState('');
     const [loadingStats, setLoadingStats] = useState(false);
+    const [sprintSlideIndex, setSprintSlideIndex] = useState(0);
 
     // Dynamic countdown timer for upcoming tournaments
     const [currentTime, setCurrentTime] = useState(new Date());
@@ -807,6 +827,56 @@ export default function MinervaQuizBattlePage() {
     const [joinCode, setJoinCode] = useState('');
     const [joinTeam, setJoinTeam] = useState<'A' | 'B'>('B');
     const [joinGrade, setJoinGrade] = useState<number>(user?.grade || 10);
+    
+    // Live Join Preview State
+    const [previewRoom, setPreviewRoom] = useState<any | null>(null);
+    const [loadingPreview, setLoadingPreview] = useState(false);
+    const [previewError, setPreviewError] = useState('');
+
+    useEffect(() => {
+        const fetchPreviewDetails = async () => {
+            const code = joinCode.trim().toUpperCase();
+            if (code.length < 8) {
+                setPreviewRoom(null);
+                setPreviewError('');
+                return;
+            }
+            setLoadingPreview(true);
+            setPreviewError('');
+            try {
+                const tokenVal = localStorage.getItem('token');
+                const res = await fetch(`/api/future-education/battle/room/${code}`, {
+                    headers: { Authorization: `Bearer ${tokenVal}` }
+                });
+                const d = await res.json();
+                if (d.success && d.room) {
+                    setPreviewRoom(d.room);
+                    setPreviewError('');
+                    // Auto-sync side selection details if possible
+                    if (d.room.standard) {
+                        setJoinGrade(Number(d.room.standard) || 10);
+                    }
+                    if (d.room.board && d.room.board !== 'N/A') {
+                        setSelBoard(d.room.board);
+                    }
+                } else {
+                    setPreviewRoom(null);
+                    setPreviewError(d.message || 'Room not found.');
+                }
+            } catch (err) {
+                setPreviewRoom(null);
+                setPreviewError('Failed to fetch room details.');
+            } finally {
+                setLoadingPreview(false);
+            }
+        };
+
+        const timer = setTimeout(() => {
+            fetchPreviewDetails();
+        }, 400); // debounce typing
+        return () => clearTimeout(timer);
+    }, [joinCode]);
+
 
     // Battle state
     const [currentRound, setCurrentRound] = useState(0);
@@ -826,6 +896,7 @@ export default function MinervaQuizBattlePage() {
     const [teammateWrong, setTeammateWrong] = useState<{ wrongOption: number } | null>(null);
     const [battleFeed, setBattleFeed] = useState<string[]>([]);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const watchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // ─── Auto-submit on timeout ───────────────────────────────────────────────
     const autoSubmitTimeout = useCallback(() => {
@@ -852,6 +923,10 @@ export default function MinervaQuizBattlePage() {
 
     const startTimer = useCallback((initialSeconds?: number) => {
         clearInterval(timerRef.current!);
+        if (watchdogRef.current) {
+            clearTimeout(watchdogRef.current);
+            watchdogRef.current = null;
+        }
         if (!room) return;
 
         const isAlternating = room.battleStyle === 'ALTERNATING';
@@ -876,6 +951,17 @@ export default function MinervaQuizBattlePage() {
                 if (prev <= 1) {
                     clearInterval(timerRef.current!);
                     autoSubmitTimeout();
+
+                    // Start client watchdog to exit if server/socket gets stuck
+                    if (watchdogRef.current) clearTimeout(watchdogRef.current);
+                    watchdogRef.current = setTimeout(() => {
+                        console.warn('[Arena] Watchdog triggered. Exiting stuck battle.');
+                        clearInterval(timerRef.current!);
+                        setRoom(null);
+                        resetBattleState();
+                        setView('TEACHER_STOPPED');
+                    }, 7000);
+
                     return 0;
                 }
                 return prev - 1;
@@ -1041,7 +1127,7 @@ export default function MinervaQuizBattlePage() {
             }
         });
 
-        return () => { s.disconnect(); clearInterval(timerRef.current!); };
+        return () => { s.disconnect(); clearInterval(timerRef.current!); if (watchdogRef.current) clearTimeout(watchdogRef.current); };
     }, [user?._id]);
 
     // ─── arena_turn_switch listener (ALTERNATING mode) ───────────────────────
@@ -1077,6 +1163,10 @@ export default function MinervaQuizBattlePage() {
         setTimerFrozen(false);
         setTeammateWrong(null);
         setBattleFeed([]);
+        if (watchdogRef.current) {
+            clearTimeout(watchdogRef.current);
+            watchdogRef.current = null;
+        }
     }, []);
 
     const loadQuestion = (r: ArenaRoom, roundIdx: number) => {
@@ -1254,17 +1344,24 @@ export default function MinervaQuizBattlePage() {
         const raw = selTopic.trim();
         if (!raw || raw.length < 3) return;
 
+        // Instantly clean frontend input to remove JSON brackets or quotes
+        const cleanedRaw = formatTopic(raw);
+        if (cleanedRaw !== raw) {
+            setSelTopic(cleanedRaw);
+        }
+
         setTopicNormalizing(true);
         setTopicError('');
         try {
             const res = await fetch('/api/future-education/battle/normalize-topic', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
-                body: JSON.stringify({ topic: raw, subject: selSubject, standard: selGrade })
+                body: JSON.stringify({ topic: cleanedRaw, subject: selSubject, standard: selGrade })
             });
             const d = await res.json();
             if (d.success && d.normalizedTopic) {
-                setNormalizedTopic(d.normalizedTopic);
+                const cleanNormalized = formatTopic(d.normalizedTopic);
+                setNormalizedTopic(cleanNormalized);
                 setTopicError('');
             }
         } catch (err) {
@@ -1732,34 +1829,68 @@ export default function MinervaQuizBattlePage() {
                                         </div>
                                     </div>
 
-                                    {/* Upcoming Sprints Section */}
+                                    {/* Upcoming Sprints Section — Slider */}
                                     <div>
                                         <div className="flex items-center justify-between mb-3 border-b border-slate-900 pb-1.5">
                                             <h2 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
                                                 🚨 Live Tournament Sprints
                                             </h2>
+                                            {/* Prev / Next arrows */}
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    onClick={() => setSprintSlideIndex(i => (i - 1 + upcomingTournaments.length) % upcomingTournaments.length)}
+                                                    className="w-5 h-5 flex items-center justify-center rounded-md bg-slate-900 hover:bg-indigo-500/20 border border-slate-800 hover:border-indigo-500/40 text-slate-400 hover:text-indigo-300 transition-all text-[10px]"
+                                                >&lt;</button>
+                                                <button
+                                                    onClick={() => setSprintSlideIndex(i => (i + 1) % upcomingTournaments.length)}
+                                                    className="w-5 h-5 flex items-center justify-center rounded-md bg-slate-900 hover:bg-indigo-500/20 border border-slate-800 hover:border-indigo-500/40 text-slate-400 hover:text-indigo-300 transition-all text-[10px]"
+                                                >&gt;</button>
+                                            </div>
                                         </div>
-                                        <div className="flex flex-col gap-3">
-                                            {upcomingTournaments.map((t) => (
-                                                <div key={t.id} className="bg-[#0b0e1a]/85 border border-slate-900 rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-lg hover:border-slate-800 transition-all">
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="text-2xl">{t.icon}</span>
-                                                        <div>
-                                                            <h4 className="text-xs font-black text-white leading-relaxed">{t.title}</h4>
-                                                            <p className="text-[10px] text-slate-500 mt-0.5">
-                                                                Subject: <span className="text-slate-300 font-bold">{t.subject}</span> · Prize: <span className="text-indigo-400 font-medium">{t.prizePool}</span>
+
+                                        {/* Single visible card */}
+                                        {(() => {
+                                            const t = upcomingTournaments[sprintSlideIndex];
+                                            return (
+                                                <div
+                                                    key={t.id}
+                                                    className="bg-[#0b0e1a]/85 border border-indigo-500/20 rounded-2xl p-4 flex flex-col gap-3 shadow-lg transition-all"
+                                                    style={{ animation: 'fadeInSlide 0.25s ease' }}
+                                                >
+                                                    <div className="flex items-start gap-3">
+                                                        <span className="text-3xl">{t.icon}</span>
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="text-xs font-black text-white leading-snug">{t.title}</h4>
+                                                            <p className="text-[10px] text-slate-500 mt-1">
+                                                                Subject: <span className="text-slate-300 font-bold">{t.subject}</span>
                                                             </p>
+                                                            <p className="text-[10px] text-indigo-400 font-medium mt-0.5 truncate">🏆 {t.prizePool}</p>
                                                         </div>
                                                     </div>
-                                                    <div className="flex items-center sm:flex-col sm:items-end gap-2 w-full sm:w-auto mt-2 sm:mt-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-900 justify-between">
+                                                    <div className="flex items-center justify-between">
                                                         <span className="px-2.5 py-1 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-mono font-black rounded-lg">
                                                             ⏳ {formatCountdown(t.startTime)}
                                                         </span>
-                                                        <button className="text-[9px] font-black uppercase text-indigo-300 hover:text-white transition-colors bg-indigo-500/15 hover:bg-indigo-500/30 border border-indigo-500/25 px-2.5 py-1 rounded-lg">
+                                                        <button className="text-[9px] font-black uppercase text-indigo-300 hover:text-white transition-colors bg-indigo-500/15 hover:bg-indigo-500/30 border border-indigo-500/25 px-3 py-1.5 rounded-lg">
                                                             Register
                                                         </button>
                                                     </div>
                                                 </div>
+                                            );
+                                        })()}
+
+                                        {/* Dot indicators */}
+                                        <div className="flex items-center justify-center gap-1.5 mt-2">
+                                            {upcomingTournaments.map((_, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    onClick={() => setSprintSlideIndex(idx)}
+                                                    className={`rounded-full transition-all ${
+                                                        idx === sprintSlideIndex
+                                                            ? 'w-4 h-1.5 bg-indigo-400'
+                                                            : 'w-1.5 h-1.5 bg-slate-700 hover:bg-slate-500'
+                                                    }`}
+                                                />
                                             ))}
                                         </div>
                                     </div>
@@ -1814,7 +1945,17 @@ export default function MinervaQuizBattlePage() {
                                             <h2 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
                                                 <Clock className="w-3.5 h-3.5 text-slate-500" /> Recent Battle History
                                             </h2>
-                                            <button onClick={fetchStats} className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">Refresh Stats</button>
+                                            <div className="flex items-center gap-3">
+                                                {history.length > 2 && (
+                                                    <button
+                                                        onClick={() => setView('HISTORY')}
+                                                        className="text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors bg-indigo-950/30 border border-indigo-900/40 px-2.5 py-1 rounded-lg flex items-center gap-1"
+                                                    >
+                                                        <span>View All History ({history.length})</span> <ChevronRight size={12} />
+                                                    </button>
+                                                )}
+                                                <button onClick={fetchStats} className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">Refresh Stats</button>
+                                            </div>
                                         </div>
 
                                         {loadingStats ? (
@@ -1827,38 +1968,40 @@ export default function MinervaQuizBattlePage() {
                                                 No games played yet. Click "Enter Battle Arena" to start your first match!
                                             </div>
                                         ) : (
-                                            <div className="flex flex-col gap-3">
-                                                {history.map((h, idx) => (
-                                                    <div key={idx} className="bg-[#0b0e1a]/85 border border-slate-850 rounded-2xl p-4 flex flex-col gap-3 shadow-lg hover:border-slate-800 transition-all">
-                                                        <div className="flex justify-between items-start gap-4">
-                                                            <div>
-                                                                <div className="font-bold text-white text-sm">
-                                                                    {h.subject} <span className="text-xs text-slate-400 font-normal">({h.topic})</span>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {history.slice(0, 2).map((h, idx) => (
+                                                    <div key={idx} className="bg-[#0b0e1a]/85 border border-slate-850 rounded-2xl p-4 flex flex-col justify-between gap-3 shadow-lg hover:border-slate-800 transition-all">
+                                                        <div>
+                                                            <div className="flex justify-between items-start gap-4">
+                                                                <div>
+                                                                    <div className="font-bold text-white text-sm">
+                                                                        {h.subject} <span className="text-xs text-slate-400 font-normal">({formatTopic(h.topic)})</span>
+                                                                    </div>
+                                                                    <div className="text-[10px] text-slate-500 mt-1 flex flex-wrap items-center gap-2">
+                                                                        <span className="bg-slate-900 border border-slate-800 px-1.5 py-0.5 rounded uppercase font-bold text-[8px]">
+                                                                            {h.mode?.replace(/_/g, ' ')}
+                                                                        </span>
+                                                                        <span>•</span>
+                                                                        <span>{h.battleStyle === 'ALTERNATING' ? '⚔️ Alternating' : '⚡ Speed'}</span>
+                                                                        <span>•</span>
+                                                                        <span>{new Date(h.date).toLocaleDateString()} at {new Date(h.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                                    </div>
                                                                 </div>
-                                                                <div className="text-[10px] text-slate-500 mt-1 flex flex-wrap items-center gap-2">
-                                                                    <span className="bg-slate-900 border border-slate-800 px-1.5 py-0.5 rounded uppercase font-bold text-[8px]">
-                                                                        {h.mode?.replace(/_/g, ' ')}
-                                                                    </span>
-                                                                    <span>•</span>
-                                                                    <span>{h.battleStyle === 'ALTERNATING' ? '⚔️ Alternating' : '⚡ Speed'}</span>
-                                                                    <span>•</span>
-                                                                    <span>{new Date(h.date).toLocaleDateString()} at {new Date(h.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                                                </div>
-                                                            </div>
 
-                                                            <div>
-                                                                {h.isDraw ? (
-                                                                    <span className="px-2.5 py-1 bg-slate-800 border border-slate-700 text-slate-300 text-[10px] font-black uppercase rounded-lg">🤝 Draw</span>
-                                                                ) : h.isWinner ? (
-                                                                    <span className="px-2.5 py-1 bg-emerald-500/20 border border-emerald-500/30 text-emerald-450 text-[10px] font-black uppercase rounded-lg">🏆 Win</span>
-                                                                ) : (
-                                                                    <span className="px-2.5 py-1 bg-rose-500/20 border border-rose-500/30 text-rose-450 text-[10px] font-black uppercase rounded-lg">💀 Fail</span>
-                                                                )}
+                                                                <div>
+                                                                    {h.isDraw ? (
+                                                                        <span className="px-2.5 py-1 bg-slate-800 border border-slate-700 text-slate-300 text-[10px] font-black uppercase rounded-lg">🤝 Draw</span>
+                                                                    ) : h.isWinner ? (
+                                                                        <span className="px-2.5 py-1 bg-emerald-500/20 border border-emerald-500/30 text-emerald-450 text-[10px] font-black uppercase rounded-lg">🏆 Win</span>
+                                                                    ) : (
+                                                                        <span className="px-2.5 py-1 bg-rose-500/20 border border-rose-500/30 text-rose-450 text-[10px] font-black uppercase rounded-lg">💀 Fail</span>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         </div>
 
                                                         {/* Participants log */}
-                                                        <div className="bg-black/30 border border-white/[0.02] rounded-xl p-2.5 flex flex-col gap-1.5">
+                                                        <div className="bg-black/30 border border-white/[0.02] rounded-xl p-2.5 flex flex-col gap-1.5 mt-auto">
                                                             <span className="text-[8px] font-black uppercase tracking-wider text-slate-600 block">Participants list</span>
                                                             <div className="flex flex-wrap gap-1.5">
                                                                 {h.participants && h.participants.map((p: any, pIdx: number) => (
@@ -2296,6 +2439,49 @@ export default function MinervaQuizBattlePage() {
                             <h2 className="text-xl font-black mb-5 text-center tracking-tight">Enter Room Code</h2>
                             <input value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase())} placeholder="ARENA-123456"
                                 className="w-full bg-[#05060b] border border-slate-850 rounded-2xl px-4 py-3.5 text-center font-mono text-xl font-black text-indigo-400 tracking-widest mb-5 focus:border-indigo-500 focus:outline-none" />
+                            
+                            {/* Live Room Info Preview Card */}
+                            {loadingPreview && (
+                                <div className="mb-5 p-4 bg-slate-900/20 border border-slate-800/80 rounded-2xl animate-pulse flex items-center justify-center gap-2">
+                                    <Loader2 className="w-4 h-4 text-indigo-450 animate-spin" />
+                                    <span className="text-[11px] font-bold text-slate-400">Verifying code & fetching topic...</span>
+                                </div>
+                            )}
+
+                            {previewError && (
+                                <div className="mb-5 p-3.5 bg-rose-950/20 border border-rose-900/30 text-rose-350 rounded-2xl text-[11px] font-semibold text-center flex items-center justify-center gap-1.5">
+                                    <span>⚠️</span> {previewError}
+                                </div>
+                            )}
+
+                            {previewRoom && (
+                                <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+                                    className="mb-5 p-4 bg-indigo-950/20 border border-indigo-500/20 rounded-2xl text-left relative overflow-hidden shadow-inner shadow-indigo-950/50 animate-fadeIn">
+                                    <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-xl pointer-events-none" />
+                                    <div className="text-[9px] font-black uppercase text-indigo-400 tracking-wider mb-1 flex items-center justify-between">
+                                        <span>✨ Room Found</span>
+                                        <span className="bg-indigo-900/40 px-1.5 py-0.5 rounded text-[8px] text-indigo-300 font-bold">{previewRoom.roomCode}</span>
+                                    </div>
+                                    <h3 className="text-xs font-black text-white mb-2 leading-tight">
+                                        📌 {formatTopic(previewRoom.topicConcept) || previewRoom.topic || 'General Quiz'}
+                                    </h3>
+                                    <div className="grid grid-cols-2 gap-y-2 gap-x-2 text-[10px] text-slate-400 font-semibold border-t border-slate-850 pt-2.5 mt-1">
+                                        <div className="flex items-center gap-1 truncate">
+                                            <span>📚</span> <span className="truncate" title={previewRoom.subject}>{previewRoom.subject}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1 truncate">
+                                            <span>👤</span> <span className="truncate" title={previewRoom.hostId ? `${previewRoom.hostId.firstName} ${previewRoom.hostId.lastName || ''}` : 'System'}>By {previewRoom.hostId ? `${previewRoom.hostId.firstName} ${previewRoom.hostId.lastName || ''}` : 'System'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1 truncate">
+                                            <span>⚔️</span> <span>{previewRoom.battleStyle === 'SPEED_RACE' ? 'Speed Race' : 'Alternating Turn'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1 truncate">
+                                            <span>🎯</span> <span>{previewRoom.totalRounds || 10} Rounds ({previewRoom.difficulty || 'Medium'})</span>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+
                             <div className="mb-5">
                                 <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Select Battle Side</div>
                                 <div className="grid grid-cols-2 gap-2.5">
@@ -2642,7 +2828,7 @@ export default function MinervaQuizBattlePage() {
                             {myQuestion ? (
                                 <div className="relative z-10 flex flex-col flex-1">
                                     <div className="text-[10px] text-slate-500 mb-1 font-bold uppercase tracking-wider">Class {myPlayer?.grade} • {room.subject} Syllabus</div>
-                                    <h3 className="text-base font-bold text-white mb-6 leading-relaxed">{myQuestion.question}</h3>
+                                    <h3 className="text-base font-bold text-white mb-6 leading-relaxed">{cleanQuestionText(myQuestion.question)}</h3>
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         {myQuestion.options?.map((opt, idx) => {
@@ -2972,6 +3158,187 @@ export default function MinervaQuizBattlePage() {
                         >
                             Return to Dashboard
                         </motion.button>
+                    </motion.div>
+                )}
+
+                {/* ═══ DEDICATED HISTORY VIEW ════════════════════════════════════ */}
+                {view === 'HISTORY' && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 15 }}
+                        className="space-y-6 max-w-7xl mx-auto"
+                    >
+                        {/* Header & Back Button */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-900 pb-4">
+                            <div>
+                                <button
+                                    onClick={() => {
+                                        setView('LOBBY');
+                                        setActiveTab('DASHBOARD');
+                                    }}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border border-indigo-500/20 mb-3 active:scale-95"
+                                >
+                                    <ArrowLeft size={10} /> Back to Dashboard
+                                </button>
+                                <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-2.5">
+                                    <span>⚔️ Battle Arena History</span>
+                                    <span className="text-xs bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 px-2 py-0.5 rounded-full font-black">
+                                        {history.length} Matches
+                                    </span>
+                                </h1>
+                                <p className="text-xs text-slate-400 mt-1">Review your historical knowledge battles, wins, and rival students log.</p>
+                            </div>
+
+                            <button onClick={fetchStats} className="px-4 py-2 bg-slate-900 border border-slate-800 hover:bg-slate-850 text-white rounded-xl text-xs font-bold transition-all">
+                                🔄 Refresh Stats & Log
+                            </button>
+                        </div>
+
+                        {/* Summary Stats Header Block */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-[#090c15] border border-slate-900 rounded-3xl p-5 shadow-2xl">
+                            <div className="text-center p-2.5">
+                                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Total Games</div>
+                                <div className="text-2xl font-black text-white mt-1">{stats?.totalGames ?? history.length}</div>
+                            </div>
+                            <div className="text-center border-l border-slate-900/60 p-2.5">
+                                <div className="text-[10px] font-black uppercase tracking-widest text-emerald-450">Victory (Wins)</div>
+                                <div className="text-2xl font-black text-emerald-400 mt-1">{stats?.wins ?? history.filter(h => h.isWinner).length}</div>
+                            </div>
+                            <div className="text-center border-l border-slate-900/60 p-2.5">
+                                <div className="text-[10px] font-black uppercase tracking-widest text-rose-400">Defeats (Fails)</div>
+                                <div className="text-2xl font-black text-rose-400 mt-1">{stats?.losses ?? history.filter(h => !h.isWinner && !h.isDraw).length}</div>
+                            </div>
+                            <div className="text-center border-l border-slate-900/60 p-2.5">
+                                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Draws (Ties)</div>
+                                <div className="text-2xl font-black text-slate-300 mt-1">{stats?.draws ?? history.filter(h => h.isDraw).length}</div>
+                            </div>
+                        </div>
+
+                        {/* Search & Filtering bar */}
+                        <div className="flex flex-col sm:flex-row gap-3 bg-[#0a0d1a] border border-slate-905 rounded-2xl p-4 shadow-md">
+                            <div className="flex-1 relative">
+                                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs">🔍</span>
+                                <input
+                                    type="text"
+                                    placeholder="Search by topic or subject..."
+                                    value={historySearchQuery}
+                                    onChange={(e) => setHistorySearchQuery(e.target.value)}
+                                    className="w-full pl-9 pr-4 py-2.5 bg-black/40 border border-slate-800 focus:border-indigo-500 rounded-xl text-xs text-white placeholder-slate-500 outline-none transition-colors"
+                                />
+                            </div>
+
+                            <div className="flex gap-2">
+                                <select
+                                    value={historyFilterStatus}
+                                    onChange={(e: any) => setHistoryFilterStatus(e.target.value)}
+                                    className="bg-black/40 border border-slate-800 text-slate-300 px-4 py-2.5 rounded-xl text-xs font-bold outline-none cursor-pointer focus:border-indigo-500"
+                                >
+                                    <option value="ALL">All Results 🎭</option>
+                                    <option value="WIN">Victory Wins 🏆</option>
+                                    <option value="LOSS">Defeats 💀</option>
+                                    <option value="DRAW">Draw Matches 🤝</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* History Log Display */}
+                        {(() => {
+                            const filtered = history.filter(h => {
+                                // Status filter
+                                if (historyFilterStatus === 'WIN' && !h.isWinner) return false;
+                                if (historyFilterStatus === 'LOSS' && (h.isWinner || h.isDraw)) return false;
+                                if (historyFilterStatus === 'DRAW' && !h.isDraw) return false;
+
+                                // Search filter
+                                if (historySearchQuery.trim()) {
+                                    const q = historySearchQuery.toLowerCase();
+                                    const subjectMatch = h.subject?.toLowerCase().includes(q);
+                                    const topicMatch = h.topic?.toLowerCase().includes(q);
+                                    const conceptMatch = h.topicConcept?.toLowerCase().includes(q);
+                                    return subjectMatch || topicMatch || conceptMatch;
+                                }
+
+                                return true;
+                            });
+
+                            if (filtered.length === 0) {
+                                return (
+                                    <div className="text-center py-20 text-slate-500 border border-dashed border-slate-850 bg-slate-950/10 rounded-3xl">
+                                        <div className="text-3xl mb-3">📂</div>
+                                        <p className="text-sm font-bold text-slate-400">No matching battle matches found.</p>
+                                        <p className="text-xs text-slate-500 mt-1">Try tweaking your search or status filter options.</p>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                                    {filtered.map((h, idx) => (
+                                        <div key={idx} className="bg-[#0b0e1a]/90 border border-slate-850 hover:border-slate-800 rounded-3xl p-5 flex flex-col justify-between gap-4 shadow-xl transition-all relative overflow-hidden group">
+                                            {/* Glow on hover */}
+                                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.02),transparent)] pointer-events-none" />
+
+                                            <div>
+                                                <div className="flex justify-between items-start gap-3">
+                                                    <div>
+                                                        <h3 className="font-black text-white text-base leading-snug group-hover:text-indigo-400 transition-colors">
+                                                            {h.subject}
+                                                        </h3>
+                                                        <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
+                                                            📌 {formatTopic(h.topic)}
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="shrink-0">
+                                                        {h.isDraw ? (
+                                                            <span className="px-2.5 py-1 bg-slate-800/80 border border-slate-700 text-slate-300 text-[10px] font-black uppercase rounded-lg shadow-md">🤝 Draw</span>
+                                                        ) : h.isWinner ? (
+                                                            <span className="px-2.5 py-1 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[10px] font-black uppercase rounded-lg shadow-md">🏆 Win</span>
+                                                        ) : (
+                                                            <span className="px-2.5 py-1 bg-rose-500/20 border border-rose-500/30 text-rose-450 text-[10px] font-black uppercase rounded-lg shadow-md">💀 Fail</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <div className="text-[10px] text-slate-500 mt-3 flex flex-wrap items-center gap-2 border-t border-slate-900/60 pt-2.5">
+                                                    <span className="bg-slate-900 border border-slate-850 px-1.5 py-0.5 rounded font-black uppercase text-[8px] tracking-wider text-indigo-400">
+                                                        {h.mode?.replace(/_/g, ' ')}
+                                                    </span>
+                                                    <span>•</span>
+                                                    <span className="font-medium text-slate-400">{h.battleStyle === 'ALTERNATING' ? '⚔️ Alternating' : '⚡ Speed Race'}</span>
+                                                    <span>•</span>
+                                                    <span className="text-slate-505">{new Date(h.date).toLocaleDateString()}</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Participants list */}
+                                            <div className="bg-black/35 border border-white/[0.01] rounded-2xl p-3 flex flex-col gap-2">
+                                                <span className="text-[9px] font-black uppercase tracking-wider text-slate-650 block">Players In Battle</span>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {h.participants && h.participants.map((p: any, pIdx: number) => (
+                                                        <span
+                                                            key={pIdx}
+                                                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] font-bold border ${
+                                                                p.isSelf
+                                                                    ? 'bg-indigo-950/40 border-indigo-500/30 text-indigo-300 font-extrabold shadow-sm shadow-indigo-950'
+                                                                    : p.team === 'A'
+                                                                        ? 'bg-blue-950/20 border-blue-500/10 text-blue-300'
+                                                                        : 'bg-purple-950/20 border-purple-500/10 text-purple-300'
+                                                            }`}
+                                                        >
+                                                            <span>{p.name}</span>
+                                                            <span className="text-[8px] font-black opacity-50 uppercase tracking-widest">{p.team === 'A' ? 'Alpha' : 'Omega'}</span>
+                                                            <span className="text-[9px] font-black text-indigo-450 ml-0.5">+{p.score}</span>
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            );
+                        })()}
                     </motion.div>
                 )}
 

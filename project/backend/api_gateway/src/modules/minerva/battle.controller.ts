@@ -18,8 +18,49 @@ const callSwarmAIHelper = async (prompt: string): Promise<string> => {
     return callGeminiAI(prompt);
 };
 
+// ─── Topic cleaner (extracts plain topic from stringified JSON or cleans brackets) ─
+const cleanTopic = (topic: string): string => {
+    if (!topic) return '';
+    let str = topic.trim();
+    // If it is stringified JSON array/object, extract the actual values
+    if ((str.startsWith('[') && str.endsWith(']')) || (str.startsWith('{') && str.endsWith('}'))) {
+        try {
+            const parsed = JSON.parse(str);
+            if (Array.isArray(parsed)) {
+                const first = parsed[0];
+                if (first && typeof first === 'object') {
+                    // e.g. [{"html": "HTML"}]
+                    str = Object.values(first)[0] as string;
+                } else if (typeof first === 'string') {
+                    str = first;
+                }
+            } else if (parsed && typeof parsed === 'object') {
+                // e.g. {"html": "HTML"}
+                str = Object.values(parsed)[0] as string;
+            }
+        } catch {
+            // ignore and fallback
+        }
+    }
+    // If it is still wrapped in quotes or brackets, strip them
+    str = str.replace(/[\[\]{}"]/g, '').trim();
+    return str;
+};
+
 // ─── Grade-Adaptive Question Generator ───────────────────────────────────────
 const FALLBACK_QUESTIONS: Record<string, { q: string; opts: string[]; ans: number; exp: string }[]> = {
+    'Computer Science': [
+        { q: "What does HTML stand for?", opts: ["Hyper Text Markup Language", "High Text Machine Language", "Hyper Transfer Motor Language", "Hyperlink and Text Management Language"], ans: 0, exp: "HTML is the standard markup language for creating web pages." },
+        { q: "Which of the following is not an operating system?", opts: ["Windows", "Linux", "Oracle", "macOS"], ans: 2, exp: "Oracle is a database management system, not an operating system." },
+        { q: "What is the brain of the computer?", opts: ["RAM", "CPU", "Hard Disk", "GPU"], ans: 1, exp: "The Central Processing Unit (CPU) executes instructions and performs computer processing." },
+        { q: "Which programming language is known for its readability and simplicity?", opts: ["C++", "Java", "Python", "Assembly"], ans: 2, exp: "Python uses clear syntax and indentation, making it highly readable." },
+        { q: "What does IP stand for in the context of internet technology?", opts: ["Internet Protocol", "Internal Process", "Intranet Page", "Instant Pinging"], ans: 0, exp: "IP defines the set of rules governing format of data sent over the internet." }
+    ],
+    'IT': [
+        { q: "What does HTML stand for?", opts: ["Hyper Text Markup Language", "High Text Machine Language", "Hyper Transfer Motor Language", "Hyperlink and Text Management Language"], ans: 0, exp: "HTML is the standard markup language for creating web pages." },
+        { q: "Which of the following is not an operating system?", opts: ["Windows", "Linux", "Oracle", "macOS"], ans: 2, exp: "Oracle is a database management system, not an operating system." },
+        { q: "What is the brain of the computer?", opts: ["RAM", "CPU", "Hard Disk", "GPU"], ans: 1, exp: "The Central Processing Unit (CPU) executes instructions and performs computer processing." }
+    ],
     'Physics': [
         { q: "What is the SI unit of electric current?", opts: ["Volt", "Ampere", "Ohm", "Watt"], ans: 1, exp: "Ampere is the standard unit used to measure electric current." },
         { q: "Which type of lens is used to correct myopia (short-sightedness)?", opts: ["Convex lens", "Concave lens", "Bifocal lens", "Cylindrical lens"], ans: 1, exp: "Concave lens diverges incoming light rays to focus them on the retina." },
@@ -183,7 +224,9 @@ const generateDynamicQuestions = async (
     semester?: string
 ): Promise<IArenaQuestion[]> => {
     const useSalt = salt ?? Math.floor(Math.random() * 1000000);
-    const prompt = buildQuizPrompt(subject, standard, topic, board, difficulty, totalRounds, useSalt, semester);
+    // Always sanitize topic before building the prompt (strips JSON artifacts)
+    const safeTopic = cleanTopic(topic) || topic;
+    const prompt = buildQuizPrompt(subject, standard, safeTopic, board, difficulty, totalRounds, useSalt, semester);
 
     try {
         let aiResponse = await callSwarmAIHelper(prompt);
@@ -208,13 +251,24 @@ const generateDynamicQuestions = async (
         }
         throw new Error(`AI returned ${Array.isArray(questions) ? questions.length : 'invalid'} questions, expected ${totalRounds}`);
     } catch (err: any) {
-        logger.error(`[Arena] Question gen failed for ${board}/${standard}/${subject}/${topic}: ${err.message}`);
-        // Fallback to subject-generic questions with topic prefix
-        const list = FALLBACK_QUESTIONS[subject] || FALLBACK_QUESTIONS['Geography'];
+        const cleanTopicStr = cleanTopic(topic);
+        logger.error(`[Arena] Question gen failed for ${board}/${standard}/${subject}/${cleanTopicStr}: ${err.message}`);
+        
+        // Find a relevant fallback list by matching keys
+        const subjectLower = subject.toLowerCase();
+        let list = FALLBACK_QUESTIONS[subject];
+        if (!list) {
+            const matchedKey = Object.keys(FALLBACK_QUESTIONS).find(k => {
+                const kl = k.toLowerCase();
+                return kl === subjectLower || subjectLower.includes(kl) || kl.includes(subjectLower);
+            });
+            list = matchedKey ? FALLBACK_QUESTIONS[matchedKey] : (FALLBACK_QUESTIONS['Science'] || FALLBACK_QUESTIONS['Geography']);
+        }
+
         return Array.from({ length: totalRounds }, (_, i) => {
             const item = list[i % list.length];
             return {
-                question: `[${board} ${standard} – ${topic}] ${item.q}`,
+                question: `[${board} ${standard} – ${cleanTopicStr}] ${item.q}`,
                 options: [...item.opts],
                 correctAnswer: item.ans,
                 grade: standard,
@@ -222,7 +276,7 @@ const generateDynamicQuestions = async (
                 explanation: item.exp,
                 difficulty: difficulty as 'Easy' | 'Medium' | 'Hard',
                 board,
-                topicRef: topic
+                topicRef: cleanTopicStr
             };
         });
     }
@@ -291,8 +345,9 @@ export const battleController = {
                 return res.status(400).json({ success: false, message: 'mode and subject are required.' });
             }
 
-            // Mandatory Validation: Topic & Board must be present and not empty
-            if (!topic || !topic.trim()) {
+            // ─── Clean & validate topic (strip any JSON artifacts) ───────────────
+            const cleanedTopic = cleanTopic(topic);
+            if (!cleanedTopic) {
                 return res.status(400).json({ success: false, message: 'Topic/Chapter is required to start a battle!' });
             }
             if (!board || !board.trim()) {
@@ -329,8 +384,9 @@ export const battleController = {
             const prefix = roomType === 'TEACHER_ROOM' ? 'TEACH-' : (isDaily ? 'DAILY-' : 'ARENA-');
             const code = prefix + Math.floor(100000 + Math.random() * 900000).toString();
 
-            // Run topic normalization via AI
-            const normalized = await normalizeTopicWithAI(topic.trim(), subject, String(hostGrade));
+            // Run topic normalization via AI (always on the cleaned, plain-text topic)
+            const normalizedRaw = await normalizeTopicWithAI(cleanedTopic, subject, String(hostGrade));
+            const normalized = cleanTopic(normalizedRaw) || cleanedTopic;
 
             // Generate questions for host
             const hostQuestions = await generateDynamicQuestions(
@@ -365,9 +421,9 @@ export const battleController = {
                 subject,
                 standard: String(hostGrade),
                 board: board,
-                topic: normalized || topic.trim(),
-                topicConcept: normalized || topic.trim(),
-                topicRaw: topic.trim(),
+                topic: normalized,
+                topicConcept: normalized,
+                topicRaw: cleanedTopic,
                 semester: semester || undefined,
                 roomType: roomType || 'OPEN_ARENA',
                 invitedStudentIds: invitedStudentIds || [],
@@ -512,17 +568,28 @@ export const battleController = {
                     }
                 }
             } else {
-                // In an open arena, generate individual board-specific questions for this player
-                gradeQuestions = await generateDynamicQuestions(
-                    room.subject,
-                    String(joinerGrade),
-                    room.topicConcept,
-                    joinerBoard,
-                    diff,
-                    room.totalRounds,
-                    Math.floor(Math.random() * 1000000),
-                    room.semester || undefined
-                );
+                // In an open arena, if the joiner shares the host's grade and board, reuse host's questions
+                const hostQuestions = (room.playerQuestions as any).get(room.hostId.toString());
+                if (
+                    hostQuestions && 
+                    hostQuestions.length > 0 && 
+                    String(joinerGrade) === String(room.standard) && 
+                    joinerBoard === room.board
+                ) {
+                    gradeQuestions = hostQuestions;
+                } else {
+                    // Generate individual board-specific questions for this player
+                    gradeQuestions = await generateDynamicQuestions(
+                        room.subject,
+                        String(joinerGrade),
+                        room.topicConcept,
+                        joinerBoard,
+                        diff,
+                        room.totalRounds,
+                        Math.floor(Math.random() * 1000000),
+                        room.semester || undefined
+                    );
+                }
             }
 
             (room.playerQuestions as any).set(joiningUser._id.toString(), gradeQuestions);
@@ -934,11 +1001,13 @@ export const battleController = {
     normalizeTopic: async (req: Request, res: Response) => {
         try {
             const { topic, subject, standard } = req.body;
-            if (!topic || !topic.trim()) {
+            const cleaned = cleanTopic(topic);
+            if (!cleaned) {
                 return res.status(400).json({ success: false, message: 'Topic is required.' });
             }
-            const normalized = await normalizeTopicWithAI(topic.trim(), subject || 'General', standard || '10');
-            res.status(200).json({ success: true, normalizedTopic: normalized });
+            const normalizedRaw = await normalizeTopicWithAI(cleaned, subject || 'General', standard || '10');
+            const normalizedTopic = cleanTopic(normalizedRaw) || cleaned;
+            res.status(200).json({ success: true, normalizedTopic });
         } catch (err: any) {
             res.status(500).json({ success: false, message: err.message });
         }
