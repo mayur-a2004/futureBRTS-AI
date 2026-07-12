@@ -40,6 +40,7 @@ export interface VisualElement {
   sizeExpr?: string;
   speedExpr?: string;
   glowExpr?: string;
+  plotExpr?: string;
 }
 
 export interface ThreeJsConfig {
@@ -120,9 +121,9 @@ export const LAYER_ICONS: Record<ContentLayer, string> = {
 export const LAYER_LABELS: Record<ContentLayer, string> = {
   text:      'Explain',
   diagram:   'Diagram',
-  threejs:   'Graph/3D',
+  threejs:   'Graph',
   sketchfab: '3D Model',
   youtube:   'Video',
   voice:     'Voice',
-  sandbox:   'Computer Tech',
+  sandbox:   'Sandbox',
 };

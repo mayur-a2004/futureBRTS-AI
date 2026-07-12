@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/context/AuthContext"
 import SEO from "@/components/SEO"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
+import { FutureBrtsLogo } from "@/components/FutureBrtsLogo"
 import {
     ArrowRight, CheckCircle, Globe, Zap,
     Cpu, Rocket, Terminal, Activity,
@@ -224,15 +225,7 @@ function LandingPageContent() {
                                     <Sparkles size={12} className="text-indigo-400 animate-pulse" />
                                     <span className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-300">Neural Hyper-Learning Platform</span>
                                 </div>
-                                <h1 className="text-4xl md:text-6xl lg:text-7xl font-black leading-[0.95] tracking-tighter uppercase italic select-none flex flex-wrap gap-x-4">
-                                    <span className="relative text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
-                                        FUTURE
-                                        <span className="absolute -top-1 -right-3 text-[10px] font-mono not-italic text-indigo-500 opacity-50 tracking-normal">TM</span>
-                                    </span>
-                                    <span className="relative text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-500 to-cyan-400 animate-gradient-x drop-shadow-[0_0_20px_rgba(79,70,229,0.5)]">
-                                        BRTS
-                                    </span>
-                                </h1>
+                                <FutureBrtsLogo />
                             </motion.div>
 
                             <motion.div
@@ -1031,10 +1024,7 @@ function LandingPageContent() {
                         q="Can I use this for non-technical careers?"
                         a="Absolutely. The 'Universal Genesis Architect' supports fields from Law and Medicine to Business and Arts, providing domain-specific high-fidelity strategies."
                     />
-                    <FAQItem
-                        q="Who is Mayur Savaliya?"
-                        a="Mayur is the Chief Architect and visionary who combined human mentorship with robotic precision to create Future BRTS as an 'Ultra Legend' tool for the next generation."
-                    />
+
                 </div>
             </section>
 

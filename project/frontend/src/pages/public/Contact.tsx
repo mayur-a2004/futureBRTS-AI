@@ -73,8 +73,8 @@ export default function Contact() {
                             <CommsSocket
                                 icon={<MapPin />}
                                 title="PHYSICAL_NODE"
-                                desc="Gandhinagar, Gujarat, India. Operational globally via network."
-                                label="GANDHINAGAR_IN"
+                                desc="Gujarat, India. Operational globally via network."
+                                label="GUJARAT_IN"
                                 color="amber"
                             />
                         </div>

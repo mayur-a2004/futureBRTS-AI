@@ -48,7 +48,7 @@ export default function GuestChat() {
             });
 
             if (res.data?.success) {
-                let rawContent = res.data.response || "Bhai, AI ne kutch response nahi diya.";
+                let rawContent = res.data.response || "⚠️ The AI returned an empty response. Please try again.";
                 let suggestions: string[] = [];
 
                 if (rawContent.includes('||SUGGESTIONS_JSON||')) {

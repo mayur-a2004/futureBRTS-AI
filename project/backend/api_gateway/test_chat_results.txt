@@ -1,0 +1,124 @@
+🚀 RUNNING HIGH-FIDELITY STUDENT TUTOR CHAT INTEGRATION TEST...
+
+🔑 1. Logging in as mayur@gmail.com...
+   ✅ Login successful.
+
+💬 2. Asking: 'mujhe kutch samajh ni aa raha hai, bahut anxiety ho rahi hai'
+   ✅ Reply: Arre dost, chinta mat kar! Sabko kuch samajh mein nahi aata, aur anxiety ho jana normal baat hai. Hum yahaan hain tere saath, tujhe samajhne mein madad karne ke liye. Jo bhi teri samajh mein nahi aa raha hai, mujhe bata de, main tujhe dhyan se sununga aur teri madad karunga. Kya tu batayega ki kis cheez ko lekar tu pareshaan ho raha hai? Introduction to Sulfuric Acid ke bare mein kuch puchhana hai kya?
+
+💬 3. Asking: 'linked list kya hota hai simple term me dsa me samjhao'
+   ✅ Reply: Samajh nahi paya. Dobara poochiye.
+
+💬 4. Asking: 'sin wave simulation load karo maths me'
+   ✅ Lab Config: {
+  "subject": "mathematics",
+  "voice_script": "## Sine Waves in Mathematics\n\nA sine wave is a mathematical function that describes a wave with a constant frequency and amplitude. It's represented by the formula y = sin(x), where y is the amplitude and x is the angular frequency.\n\nHere's a step-by-step explanation of how to plot a sine wave:\n\n### Step 1: Define the Amplitude\n\nThe amplitude of a sine wave is the maximum value it can reach. In the formula y = sin(x), the amplitude is 1. But we can change this value to create a wave with a different amplitude.\n\n### Step 2: Define the Angular Frequency\n\nThe angular frequency of a sine wave is the number of cycles it completes in one unit of time. In the formula y = sin(x), the angular frequency is 1. But we can change this value to create a wave with a different frequency.\n\n### Step 3: Plot the Wave\n\nTo plot a sine wave, we can use the formula y = sin(x) and vary the value of x. We can use a graphing calculator or software to create a smooth, continuous curve.\n\n### Example\n\nLet's create a sine wave with an amplitude of 2 and an angular frequency of 3:\n\n\ngraph TD\n  A[2] -->|sin(3x)|> B[Phase]\n  C[Time] -->|x|> D[Angular Frequency]\n",
+  "youtube_query": "simplest animated sine wave function explanation",
+  "mermaid_schema": "graph TD\n  A[Amplitude] -->|sin(x)|> B[Phase]\n  C[Time] -->|x|> D[Angular Frequency]\n",
+  "sketchfab_hint": "sine wave 3d animation with customizable amplitude and frequency",
+  "simulation_config": {
+    "type": "sine_wave_simulation",
+    "title": "Sine Wave Simulation",
+    "description": "Explore the properties of a sine wave by adjusting its amplitude and angular frequency.",
+    "controls": [
+      {
+        "name": "amplitude_slider",
+        "label": "Amplitude",
+        "min": 0,
+        "max": 10,
+        "step": 1,
+        "defaultValue": 2,
+        "unit": "units"
+      },
+      {
+        "name": "frequency_slider",
+        "label": "Angular Frequency",
+        "min": 0,
+        "max": 10,
+        "step": 1,
+        "defaultValue": 3,
+        "unit": "units"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "waveform",
+        "label": "Sine Wave",
+        "unit": "units"
+      }
+    ],
+    "equations": {
+      "waveform": "sin(amplitude_slider * frequency_slider * x)"
+    },
+    "visual_mapping": {
+      "elements": [
+        {
+          "type": "graph",
+          "color": "#color",
+          "label": "Sine Wave",
+          "sizeExpr": "amplitude_slider * 10",
+          "speedExpr": "frequency_slider * 10",
+          "glowExpr": "amplitude_slider * 0.5",
+          "plotExpr": "sin(amplitude_slider * frequency_slider * x)"
+        }
+      ]
+    }
+  },
+  "auto_open": true,
+  "three_js_config": {
+    "type": "sine_wave_simulation",
+    "title": "Sine Wave Simulation",
+    "description": "Explore the properties of a sine wave by adjusting its amplitude and angular frequency.",
+    "controls": [
+      {
+        "name": "amplitude_slider",
+        "label": "Amplitude",
+        "min": 0,
+        "max": 10,
+        "step": 1,
+        "defaultValue": 2,
+        "unit": "units"
+      },
+      {
+        "name": "frequency_slider",
+        "label": "Angular Frequency",
+        "min": 0,
+        "max": 10,
+        "step": 1,
+        "defaultValue": 3,
+        "unit": "units"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "waveform",
+        "label": "Sine Wave",
+        "unit": "units"
+      }
+    ],
+    "equations": {
+      "waveform": "sin(amplitude_slider * frequency_slider * x)"
+    },
+    "visual_mapping": {
+      "elements": [
+        {
+          "type": "graph",
+          "color": "#color",
+          "label": "Sine Wave",
+          "sizeExpr": "amplitude_slider * 10",
+          "speedExpr": "frequency_slider * 10",
+          "glowExpr": "amplitude_slider * 0.5",
+          "plotExpr": "sin(amplitude_slider * frequency_slider * x)"
+        }
+      ]
+    }
+  },
+  "topic": "sine wave",
+  "content_layers": [
+    "text",
+    "diagram",
+    "youtube",
+    "threejs",
+    "sandbox"
+  ]
+}

@@ -88,7 +88,7 @@ const ExamGeneratorPage: React.FC = () => {
         formData.append('difficulty', difficulty);
 
         try {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('fbrts_token') || localStorage.getItem('token') || '';
             const res = await fetch('/api/exam/upload', {
                 method: 'POST',
                 headers: {

@@ -819,6 +819,11 @@ export default function MinervaQuizBattlePage() {
         }
     }, [selGrade]);
 
+    useEffect(() => {
+        setSelTopic('');
+        setNormalizedTopic('');
+    }, [selGrade, selSubject]);
+
     // Room state
     const [room, setRoom] = useState<ArenaRoom | null>(null);
     const [activeRooms, setActiveRooms] = useState<ArenaRoom[]>([]);
@@ -826,12 +831,41 @@ export default function MinervaQuizBattlePage() {
     const [copied, setCopied] = useState(false);
     const [joinCode, setJoinCode] = useState('');
     const [joinTeam, setJoinTeam] = useState<'A' | 'B'>('B');
-    const [joinGrade, setJoinGrade] = useState<number>(user?.grade || 10);
+    const [joinGrade, setJoinGrade] = useState<string>(String(user?.grade || '10'));
+    const [joinMode, setJoinMode] = useState<'SAME' | 'CUSTOM'>('SAME');
+    const [joinSubject, setJoinSubject] = useState<string>('');
+    const [joinTopic, setJoinTopic] = useState<string>('');
     
     // Live Join Preview State
     const [previewRoom, setPreviewRoom] = useState<any | null>(null);
     const [loadingPreview, setLoadingPreview] = useState(false);
     const [previewError, setPreviewError] = useState('');
+    const [joinToast, setJoinToast] = useState<string | null>(null);
+
+    const getStandardName = (id: string | number) => {
+        return STANDARDS.find(s => String(s.id) === String(id))?.name || `Class ${id}`;
+    };
+
+    const getBoardName = (id: string) => {
+        return BOARDS.find(b => String(b.id) === String(id))?.name || id;
+    };
+
+    // Auto-synchronize standard/board/subject/topic based on joining mode
+    useEffect(() => {
+        if (!previewRoom) return;
+        if (joinMode === 'SAME') {
+            if (previewRoom.standard) setJoinGrade(String(previewRoom.standard));
+            if (previewRoom.board && previewRoom.board !== 'N/A') setSelBoard(previewRoom.board);
+            setJoinSubject(previewRoom.subject || '');
+            setJoinTopic(previewRoom.topicConcept || previewRoom.topic || '');
+        } else {
+            // Restore joining user's defaults but keep host's subject/topic as starting point
+            setJoinGrade(String(user?.grade || '10'));
+            setSelBoard(user?.board || 'CBSE');
+            setJoinSubject(previewRoom.subject || '');
+            setJoinTopic(previewRoom.topicConcept || previewRoom.topic || '');
+        }
+    }, [joinMode, previewRoom, user]);
 
     useEffect(() => {
         const fetchPreviewDetails = async () => {
@@ -844,7 +878,7 @@ export default function MinervaQuizBattlePage() {
             setLoadingPreview(true);
             setPreviewError('');
             try {
-                const tokenVal = localStorage.getItem('token');
+                const tokenVal = localStorage.getItem('fbrts_token') || localStorage.getItem('token') || '';
                 const res = await fetch(`/api/future-education/battle/room/${code}`, {
                     headers: { Authorization: `Bearer ${tokenVal}` }
                 });
@@ -852,11 +886,11 @@ export default function MinervaQuizBattlePage() {
                 if (d.success && d.room) {
                     setPreviewRoom(d.room);
                     setPreviewError('');
-                    // Auto-sync side selection details if possible
-                    if (d.room.standard) {
-                        setJoinGrade(Number(d.room.standard) || 10);
+                    // Auto-sync standard standard
+                    if (joinMode === 'SAME' && d.room.standard) {
+                        setJoinGrade(String(d.room.standard));
                     }
-                    if (d.room.board && d.room.board !== 'N/A') {
+                    if (joinMode === 'SAME' && d.room.board && d.room.board !== 'N/A') {
                         setSelBoard(d.room.board);
                     }
                 } else {
@@ -875,7 +909,7 @@ export default function MinervaQuizBattlePage() {
             fetchPreviewDetails();
         }, 400); // debounce typing
         return () => clearTimeout(timer);
-    }, [joinCode]);
+    }, [joinCode, joinMode]);
 
 
     // Battle state
@@ -921,7 +955,7 @@ export default function MinervaQuizBattlePage() {
         });
     }, [room, currentRound, hasSubmitted, socket, user, activeTurn]);
 
-    const startTimer = useCallback((initialSeconds?: number) => {
+    const startTimer = useCallback((initialSeconds?: number, overrideActiveTurn?: 'A' | 'B') => {
         clearInterval(timerRef.current!);
         if (watchdogRef.current) {
             clearTimeout(watchdogRef.current);
@@ -932,7 +966,9 @@ export default function MinervaQuizBattlePage() {
         const isAlternating = room.battleStyle === 'ALTERNATING';
         const myPlayer = room.players.find(p => ((p.userId as any)?._id || p.userId)?.toString() === user?._id?.toString());
         const myTeam = myPlayer?.team;
-        const isMyTurn = isAlternating ? (room.mode === 'SOLO_VS_AI' || activeTurn === myTeam) : true;
+        
+        const turnToUse = overrideActiveTurn !== undefined ? overrideActiveTurn : activeTurn;
+        const isMyTurn = isAlternating ? (room.mode === 'SOLO_VS_AI' || turnToUse === myTeam) : true;
 
         const startSec = initialSeconds !== undefined ? initialSeconds : 15;
         setTimeLeft(startSec);
@@ -952,14 +988,18 @@ export default function MinervaQuizBattlePage() {
                     clearInterval(timerRef.current!);
                     autoSubmitTimeout();
 
-                    // Start client watchdog to exit if server/socket gets stuck
+                    // Start client watchdog to exit if server/socket is actually disconnected
                     if (watchdogRef.current) clearTimeout(watchdogRef.current);
                     watchdogRef.current = setTimeout(() => {
-                        console.warn('[Arena] Watchdog triggered. Exiting stuck battle.');
-                        clearInterval(timerRef.current!);
-                        setRoom(null);
-                        resetBattleState();
-                        setView('TEACHER_STOPPED');
+                        if (socket && !socket.connected) {
+                            console.warn('[Arena] Watchdog triggered: Socket disconnected. Exiting stuck battle.');
+                            clearInterval(timerRef.current!);
+                            setRoom(null);
+                            resetBattleState();
+                            setView('TEACHER_STOPPED');
+                        } else {
+                            console.warn('[Arena] Watchdog: Server is busy generating questions. Retaining connection.');
+                        }
                     }, 7000);
 
                     return 0;
@@ -981,12 +1021,29 @@ export default function MinervaQuizBattlePage() {
     useEffect(() => {
         fetchActiveRooms();
         fetchDailyChallengeStatus();
-        const s = io('http://localhost:7001');
+        const socketUrl = (import.meta as any).env?.VITE_SOCKET_URL || window.location.origin.replace(/:\d+$/, ':7001');
+        const s = io(socketUrl);
 
         setSocket(s);
         checkMyActiveRoom(s);
 
         s.on('arena_lobby_update', (d: { room: ArenaRoom }) => setRoom(d.room));
+
+        // Host notification when someone joins with their choice details
+        s.on('arena_player_joined', (d: { 
+            playerName: string; joinMode: string; grade: string; board: string; 
+            subject?: string; topic?: string; 
+        }) => {
+            const modeLabel = d.joinMode === 'SAME' ? '👉 Same to Same' : '⚙️ Customize';
+            let details = `Grade: ${d.grade} | Board: ${d.board}`;
+            if (d.joinMode === 'CUSTOM') {
+                if (d.subject) details += ` | Subject: ${d.subject}`;
+                if (d.topic) details += ` | Topic: ${d.topic}`;
+            }
+            setJoinToast(`🎮 ${d.playerName} joined! [${modeLabel}] ${details}`);
+            setTimeout(() => setJoinToast(null), 5000);
+        });
+
 
         s.on('arena_started', (d: { room: ArenaRoom }) => {
             setRoom(d.room);
@@ -997,7 +1054,6 @@ export default function MinervaQuizBattlePage() {
             loadQuestion(d.room, 0);
             startTimerRef.current();
         });
-
 
         s.on('arena_update', (d: {
             room: ArenaRoom; team: string; isCorrect: boolean;
@@ -1025,6 +1081,19 @@ export default function MinervaQuizBattlePage() {
                     const suffix = d.shieldUsed ? ` (Shield Protected!)` : ` (Dealt ${d.selfDamage} self-damage to Team ${teamName} & lost ${d.xpDeducted || 10} XP!)`;
                     msg = `❌ ${name} (Team ${teamName}) got it WRONG!${suffix}`;
                 }
+                setBattleFeed(prev => [msg, ...prev].slice(0, 15));
+            } else if (d.event === 'POWERUP_USED') {
+                const usedByPlayer = d.room.players.find(p => (((p.userId as any)._id || p.userId) as string).toString() === d.answeredBy);
+                const name = usedByPlayer ? usedByPlayer.firstName : 'Teammate';
+                const teamName = usedByPlayer ? (usedByPlayer.team === 'A' ? 'Alpha' : 'Omega') : 'Alpha';
+                const powerupNames: Record<string, string> = {
+                    shield: '🛡️ Shield',
+                    doubleStrike: '⚡ 2x Strike',
+                    freeze: '❄️ Freeze',
+                    fiftyFifty: '🔀 50/50'
+                };
+                const label = powerupNames[(d as any).powerup] || (d as any).powerup;
+                const msg = `✨ ${name} (Team ${teamName}) activated ${label}!`;
                 setBattleFeed(prev => [msg, ...prev].slice(0, 15));
             }
 
@@ -1067,9 +1136,8 @@ export default function MinervaQuizBattlePage() {
                     setHasSubmitted(false);
                     setHiddenOptions([]);
                     setTeammateWrong(null);
-                    // Reset activeTurn to room's currentTurn for next round
                     setActiveTurn((d.room.currentTurn as 'A' | 'B') || 'A');
-                    startTimerRef.current();
+                    startTimerRef.current(undefined, d.room.currentTurn);
                 }, 1800);
             } else if (d.activeTurn) {
                 setActiveTurn(d.activeTurn as 'A' | 'B');
@@ -1136,8 +1204,7 @@ export default function MinervaQuizBattlePage() {
         const handler = (d: { activeTurn: 'A' | 'B'; timerSeconds: number; roundIndex: number }) => {
             setActiveTurn(d.activeTurn);
             // Reset the timer for the defender
-            clearInterval(timerRef.current!);
-            startTimerRef.current(d.timerSeconds || 10);
+            startTimerRef.current(d.timerSeconds || 10, d.activeTurn);
             setBattleFeed(prev => [
                 `⚔️ Turn switched! ${d.activeTurn === 'A' ? 'Team Alpha' : 'Team Omega'} must now answer (${d.timerSeconds || 10}s)`,
                 ...prev
@@ -1420,11 +1487,15 @@ export default function MinervaQuizBattlePage() {
         if (!joinCode) return;
         
         // Validation: Ensure board is set
-        const boardToSend = user?.board || selBoard;
+        const boardToSend = joinMode === 'SAME' ? (previewRoom?.board || user?.board || selBoard) : selBoard;
         if (!boardToSend) {
             showAlert('Board Required', 'Please select your board before joining.');
             return;
         }
+
+        const subjectToSend = joinMode === 'SAME' ? (previewRoom?.subject || '') : joinSubject;
+        const topicToSend = joinMode === 'SAME' ? (previewRoom?.topicConcept || previewRoom?.topic || '') : joinTopic;
+        const gradeToSend = joinMode === 'SAME' ? (previewRoom?.standard || joinGrade) : joinGrade;
 
         resetBattleState();
         setLoading(true);
@@ -1435,8 +1506,11 @@ export default function MinervaQuizBattlePage() {
                 body: JSON.stringify({ 
                     roomCode: joinCode.toUpperCase(), 
                     team: joinTeam, 
-                    grade: joinGrade,
-                    board: boardToSend
+                    grade: gradeToSend,
+                    board: boardToSend,
+                    subject: subjectToSend || undefined,
+                    topic: topicToSend || undefined,
+                    joinMode
                 })
             });
             const d = await res.json();
@@ -1469,7 +1543,16 @@ export default function MinervaQuizBattlePage() {
                 } else {
                     setView('WAITING');
                 }
-                socket?.emit('join_arena_lobby', { roomCode: joinCode.toUpperCase(), userId: user?._id });
+                // Emit join with choice info so host gets notified
+                socket?.emit('join_arena_lobby', { 
+                    roomCode: joinCode.toUpperCase(), 
+                    userId: user?._id,
+                    joinMode,
+                    grade: gradeToSend,
+                    board: boardToSend,
+                    subject: subjectToSend,
+                    topic: topicToSend
+                });
             } else {
                 showAlert('Error', d.message || 'Room not found or full');
             }
@@ -2455,31 +2538,64 @@ export default function MinervaQuizBattlePage() {
                             )}
 
                             {previewRoom && (
-                                <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-                                    className="mb-5 p-4 bg-indigo-950/20 border border-indigo-500/20 rounded-2xl text-left relative overflow-hidden shadow-inner shadow-indigo-950/50 animate-fadeIn">
-                                    <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-xl pointer-events-none" />
-                                    <div className="text-[9px] font-black uppercase text-indigo-400 tracking-wider mb-1 flex items-center justify-between">
-                                        <span>✨ Room Found</span>
-                                        <span className="bg-indigo-900/40 px-1.5 py-0.5 rounded text-[8px] text-indigo-300 font-bold">{previewRoom.roomCode}</span>
+                                <>
+                                    <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+                                        className="mb-5 p-4 bg-indigo-950/20 border border-indigo-500/20 rounded-2xl text-left relative overflow-hidden shadow-inner shadow-indigo-950/50 animate-fadeIn">
+                                        <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-xl pointer-events-none" />
+                                        <div className="text-[9px] font-black uppercase text-indigo-400 tracking-wider mb-1 flex items-center justify-between">
+                                            <span>✨ Room Found</span>
+                                            <span className="bg-indigo-900/40 px-1.5 py-0.5 rounded text-[8px] text-indigo-300 font-bold">{previewRoom.roomCode}</span>
+                                        </div>
+                                        <h3 className="text-xs font-black text-white mb-2 leading-tight">
+                                            📌 {formatTopic(previewRoom.topicConcept) || previewRoom.topic || 'General Quiz'}
+                                        </h3>
+                                        <div className="grid grid-cols-2 gap-y-2 gap-x-2 text-[10px] text-slate-400 font-semibold border-t border-slate-850 pt-2.5 mt-1">
+                                            <div className="flex items-center gap-1 truncate">
+                                                <span>📚</span> <span className="truncate" title={previewRoom.subject}>{previewRoom.subject}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1 truncate">
+                                                <span>👤</span> <span className="truncate" title={previewRoom.hostId ? `${previewRoom.hostId.firstName} ${previewRoom.hostId.lastName || ''}` : 'System'}>By {previewRoom.hostId ? `${previewRoom.hostId.firstName} ${previewRoom.hostId.lastName || ''}` : 'System'}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1 truncate">
+                                                <span>⚔️</span> <span>{previewRoom.battleStyle === 'SPEED_RACE' ? 'Speed Race' : 'Alternating Turn'}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1 truncate">
+                                                <span>🎯</span> <span>{previewRoom.totalRounds || 10} Rounds ({previewRoom.difficulty || 'Medium'})</span>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+
+                                    {/* Join Strategy / Option buttons */}
+                                    <div className="mb-5">
+                                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Join Option</div>
+                                        <div className="grid grid-cols-2 gap-2.5">
+                                            <button 
+                                                type="button"
+                                                onClick={() => setJoinMode('SAME')}
+                                                className={`py-3 px-2 rounded-2xl font-bold text-xs border transition-all flex flex-col items-center justify-center gap-1 ${
+                                                    joinMode === 'SAME' 
+                                                        ? 'border-emerald-500 bg-emerald-500/10 text-emerald-450 shadow-[0_0_12px_rgba(16,185,129,0.15)]' 
+                                                        : 'border-slate-850 text-slate-400 hover:border-slate-800'
+                                                }`}
+                                            >
+                                                <span className="font-black text-[11px]">👉 Same to Same</span>
+                                                <span className="text-[8px] opacity-75 font-normal text-center">Use Host's settings</span>
+                                            </button>
+                                            <button 
+                                                type="button"
+                                                onClick={() => setJoinMode('CUSTOM')}
+                                                className={`py-3 px-2 rounded-2xl font-bold text-xs border transition-all flex flex-col items-center justify-center gap-1 ${
+                                                    joinMode === 'CUSTOM' 
+                                                        ? 'border-indigo-500 bg-indigo-500/10 text-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.15)]' 
+                                                        : 'border-slate-850 text-slate-400 hover:border-slate-800'
+                                                }`}
+                                            >
+                                                <span className="font-black text-[11px]">⚙️ Customize</span>
+                                                <span className="text-[8px] opacity-75 font-normal text-center">Adapt to my class</span>
+                                            </button>
+                                        </div>
                                     </div>
-                                    <h3 className="text-xs font-black text-white mb-2 leading-tight">
-                                        📌 {formatTopic(previewRoom.topicConcept) || previewRoom.topic || 'General Quiz'}
-                                    </h3>
-                                    <div className="grid grid-cols-2 gap-y-2 gap-x-2 text-[10px] text-slate-400 font-semibold border-t border-slate-850 pt-2.5 mt-1">
-                                        <div className="flex items-center gap-1 truncate">
-                                            <span>📚</span> <span className="truncate" title={previewRoom.subject}>{previewRoom.subject}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1 truncate">
-                                            <span>👤</span> <span className="truncate" title={previewRoom.hostId ? `${previewRoom.hostId.firstName} ${previewRoom.hostId.lastName || ''}` : 'System'}>By {previewRoom.hostId ? `${previewRoom.hostId.firstName} ${previewRoom.hostId.lastName || ''}` : 'System'}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1 truncate">
-                                            <span>⚔️</span> <span>{previewRoom.battleStyle === 'SPEED_RACE' ? 'Speed Race' : 'Alternating Turn'}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1 truncate">
-                                            <span>🎯</span> <span>{previewRoom.totalRounds || 10} Rounds ({previewRoom.difficulty || 'Medium'})</span>
-                                        </div>
-                                    </div>
-                                </motion.div>
+                                </>
                             )}
 
                             <div className="mb-5">
@@ -2493,23 +2609,87 @@ export default function MinervaQuizBattlePage() {
                                     ))}
                                 </div>
                             </div>
-                            <div className="mb-5 text-left">
-                                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 flex items-center justify-between">
-                                    <span>Your Exam Board</span>
-                                    <span className="text-red-400 font-bold">*</span>
-                                </div>
-                                <select value={selBoard} onChange={e => setSelBoard(e.target.value)}
-                                    className="w-full bg-[#05060b] border border-slate-850 rounded-2xl px-4 py-3 text-sm text-white focus:border-indigo-500 focus:outline-none mb-4">
-                                    <option value="">-- Select Exam Board --</option>
-                                    {BOARDS.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                                </select>
 
-                                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5">Select Your Class / Grade</div>
-                                <select value={joinGrade} onChange={e => setJoinGrade(+e.target.value)}
-                                    className="w-full bg-[#05060b] border border-slate-850 rounded-2xl px-4 py-3 text-sm text-white focus:border-indigo-500 focus:outline-none">
-                                    {[5, 6, 7, 8, 9, 10, 11, 12].map(g => <option key={g} value={g}>Class {g}</option>)}
-                                </select>
-                            </div>
+                            {/* Same-to-Same Strategy Display */}
+                            {previewRoom && joinMode === 'SAME' && (
+                                <div className="mb-5 p-4 bg-emerald-950/10 border border-emerald-500/10 rounded-2xl text-left text-[11px] text-emerald-400 font-semibold space-y-1.5 animate-fadeIn">
+                                    <div className="flex items-center gap-2">
+                                        <span>✅</span>
+                                        <span>Connected to Host's Settings!</span>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-y-1 mt-2 text-slate-300 font-medium text-[10px] border-t border-emerald-500/10 pt-2">
+                                        <div>📚 Board: <span className="text-white font-bold">{getBoardName(previewRoom.board)}</span></div>
+                                        <div>🎓 Grade: <span className="text-white font-bold">{getStandardName(previewRoom.standard)}</span></div>
+                                        <div className="col-span-2 mt-1">📌 Topic: <span className="text-white font-bold">{formatTopic(previewRoom.topicConcept) || previewRoom.topic || 'General Quiz'}</span></div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Custom Strategy Config Display */}
+                            {(!previewRoom || joinMode === 'CUSTOM') && (
+                                <div className="mb-5 text-left animate-fadeIn space-y-4">
+                                    {previewRoom && (
+                                        <div className="text-[10px] text-slate-400 font-semibold bg-indigo-950/10 border border-indigo-500/10 p-3 rounded-xl leading-relaxed">
+                                            ⚙️ Customize your settings. You can change <span className="text-white font-bold">Board, Grade, Subject, and Topic</span> — questions will be generated just for you.
+                                        </div>
+                                    )}
+
+                                    {/* Board */}
+                                    <div>
+                                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 flex items-center justify-between">
+                                            <span>Your Exam Board</span>
+                                            <span className="text-red-400 font-bold">*</span>
+                                        </div>
+                                        <select value={selBoard} onChange={e => setSelBoard(e.target.value)}
+                                            className="w-full bg-[#05060b] border border-slate-850 rounded-2xl px-4 py-3 text-sm text-white focus:border-indigo-500 focus:outline-none">
+                                            <option value="">-- Select Exam Board --</option>
+                                            {BOARDS.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                        </select>
+                                    </div>
+
+                                    {/* Grade */}
+                                    <div>
+                                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5">Select Your Class / Grade</div>
+                                        <select value={joinGrade} onChange={e => setJoinGrade(e.target.value)}
+                                            className="w-full bg-[#05060b] border border-slate-850 rounded-2xl px-4 py-3 text-sm text-white focus:border-indigo-500 focus:outline-none">
+                                            {STANDARDS.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                                        </select>
+                                    </div>
+
+                                    {/* Subject */}
+                                    <div>
+                                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 flex items-center justify-between">
+                                            <span>Subject</span>
+                                            <span className="text-xs text-indigo-400 font-medium normal-case tracking-normal">host: {previewRoom?.subject || '—'}</span>
+                                        </div>
+                                        <select value={joinSubject} onChange={e => setJoinSubject(e.target.value)}
+                                            className="w-full bg-[#05060b] border border-slate-850 rounded-2xl px-4 py-3 text-sm text-white focus:border-indigo-500 focus:outline-none">
+                                            <option value="">-- Same as Host --</option>
+                                            {(STANDARD_SUBJECTS_MAP[joinGrade] || SUBJECTS).map(s => (
+                                                <option key={s} value={s}>{s}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Topic */}
+                                    <div>
+                                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 flex items-center justify-between">
+                                            <span>Topic / Chapter</span>
+                                            <span className="text-xs text-indigo-400 font-medium normal-case tracking-normal">host: {formatTopic(previewRoom?.topicConcept) || previewRoom?.topic || '—'}</span>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={joinTopic}
+                                            onChange={e => setJoinTopic(e.target.value)}
+                                            placeholder="Enter topic (leave blank = same as host)"
+                                            className="w-full bg-[#05060b] border border-slate-850 rounded-2xl px-4 py-3 text-sm text-white focus:border-indigo-500 focus:outline-none placeholder:text-slate-700"
+                                        />
+                                        <p className="text-[9px] text-slate-600 mt-1 ml-1">Leave blank to use host's topic</p>
+                                    </div>
+                                </div>
+                            )}
+
+
                             <motion.button whileTap={{ scale: 0.97 }} onClick={joinRoom} disabled={loading || !joinCode}
                                 className="w-full py-3.5 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 rounded-2xl font-black text-sm tracking-wide transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-purple-950/40">
                                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
@@ -2522,11 +2702,27 @@ export default function MinervaQuizBattlePage() {
                 {/* ═══ WAITING LOBBY ══════════════════════════════════════════ */}
                 {view === 'WAITING' && room && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                        {/* Join Toast Notification */}
+                        <AnimatePresence>
+                            {joinToast && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -20, scale: 0.96 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: -20, scale: 0.96 }}
+                                    className="mb-4 p-3.5 bg-emerald-950/30 border border-emerald-500/30 rounded-2xl text-[11px] text-emerald-300 font-semibold flex items-start gap-2 shadow-lg shadow-emerald-950/30"
+                                >
+                                    <span className="shrink-0 text-base">🎉</span>
+                                    <span className="leading-relaxed">{joinToast}</span>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
                         <div className="text-center mb-6">
                             <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">
                                 {room.subject} • {room.mode?.replace(/_/g, ' ')} • Class/Grade {room.standard}
                             </div>
                             <h1 className="text-2xl font-black mb-1 tracking-tight">Match Lobby Arena</h1>
+
                             
                             {/* Topic Banner */}
                             <div className="mb-4 text-sm font-black text-indigo-300">

@@ -13,6 +13,7 @@ export interface DiagramLabProps {
   topic: string;
   sensitivity_level: number;
   mermaid_schema?: string | null;
+  subject?: string;
 }
 
 interface DiagramEntry {
@@ -217,31 +218,85 @@ const DIAGRAM_MAP: Record<string, DiagramEntry> = {
   },
 };
 
-// Zoom-enabled image viewer
+interface LabelInfo {
+  name: string;
+  x: number; // percentage
+  y: number; // percentage
+  desc: string;
+}
+
+const LABEL_OVERLAYS: Record<string, LabelInfo[]> = {
+  heart: [
+    { name: 'Aorta', x: 50, y: 15, desc: 'The main artery carrying oxygenated blood from the left ventricle to the rest of the body.' },
+    { name: 'Left Atrium', x: 65, y: 35, desc: 'Receives oxygen-rich blood from the lungs and pumps it to the left ventricle.' },
+    { name: 'Left Ventricle', x: 65, y: 65, desc: 'Pumps oxygen-rich blood to the body through the aorta.' },
+    { name: 'Right Atrium', x: 35, y: 35, desc: 'Receives deoxygenated blood from the body and pumps it to the right ventricle.' },
+    { name: 'Right Ventricle', x: 35, y: 65, desc: 'Pumps deoxygenated blood to the lungs through the pulmonary artery.' }
+  ],
+  photosynthesis: [
+    { name: 'Sunlight', x: 22, y: 18, desc: 'Light energy absorbed by chlorophyll in the leaves to power carbon fixation.' },
+    { name: 'Carbon Dioxide (CO₂)', x: 15, y: 55, desc: 'Enters the leaf from air through tiny pores called stomata.' },
+    { name: 'Oxygen (O₂)', x: 82, y: 42, desc: 'Byproduct of water photolysis released back into the air.' },
+    { name: 'Water (H₂O)', x: 48, y: 82, desc: 'Absorbed by the roots and transported up the stem to the leaves.' }
+  ],
+  cell: [
+    { name: 'Nucleus', x: 48, y: 42, desc: 'The central cell core housing DNA and directing protein synthesis.' },
+    { name: 'Mitochondria', x: 72, y: 62, desc: 'The cell powerhouse, producing ATP energy through cellular respiration.' },
+    { name: 'Cell Membrane', x: 12, y: 50, desc: 'The semi-permeable boundary regulating entry and exit of molecules.' },
+    { name: 'Ribosomes', x: 32, y: 28, desc: 'Microscopic structures where amino acids are assembled into proteins.' }
+  ],
+  dna: [
+    { name: 'Nitrogenous Base', x: 50, y: 35, desc: 'Adenine, Thymine, Guanine, and Cytosine bases forming base pairs.' },
+    { name: 'Phosphate Backbone', x: 25, y: 60, desc: 'Strong sugar-phosphate chains forming the structural outer rails of DNA.' },
+    { name: 'Hydrogen Bond', x: 48, y: 52, desc: 'Weak bonds connecting base pairs that zip/unzip during replication.' }
+  ],
+  mitosis: [
+    { name: 'Prophase', x: 20, y: 30, desc: 'Chromosomes condense and spindle fibers begin to form.' },
+    { name: 'Metaphase', x: 50, y: 30, desc: 'Chromosomes align along the metaphase plate in the cell center.' },
+    { name: 'Anaphase', x: 80, y: 30, desc: 'Sister chromatids are pulled apart to opposite cell poles.' },
+    { name: 'Telophase', x: 50, y: 75, desc: 'Nuclear envelopes reform around the separated sets of chromosomes.' }
+  ]
+};
+
+// Zoom-enabled image viewer with interactive HTML overlays
 const ImageViewer: React.FC<{
   src: string;
   alt: string;
+  topic: string;
   onOpenLightbox: () => void;
-}> = ({ src, alt, onOpenLightbox }) => {
+}> = ({ src, alt, topic, onOpenLightbox }) => {
   const [zoom, setZoom] = useState(1);
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [activeLabel, setActiveLabel] = useState<LabelInfo | null>(null);
 
   const handleZoomIn = () => setZoom((z) => Math.min(z + 0.25, 3));
   const handleZoomOut = () => setZoom((z) => Math.max(z - 0.25, 0.5));
-  const handleReset = () => setZoom(1);
+  const handleReset = () => { setZoom(1); setActiveLabel(null); };
+
+  // Detect matching label set from topic
+  const getLabels = (): LabelInfo[] => {
+    const lower = topic.toLowerCase();
+    if (lower.includes('heart')) return LABEL_OVERLAYS.heart;
+    if (lower.includes('photo') || lower.includes('synthesis')) return LABEL_OVERLAYS.photosynthesis;
+    if (lower.includes('mitosis') || lower.includes('division')) return LABEL_OVERLAYS.mitosis;
+    if (lower.includes('dna') || lower.includes('helix')) return LABEL_OVERLAYS.dna;
+    if (lower.includes('cell')) return LABEL_OVERLAYS.cell;
+    
+    // Dynamic Fallback labels for generic topics
+    return [
+      { name: 'Primary Structure', x: 30, y: 25, desc: 'The main entry or top-level element of the ' + topic + ' diagram.' },
+      { name: 'Reaction Core', x: 50, y: 50, desc: 'The central process or critical core of ' + topic + '.' },
+      { name: 'Product Release', x: 70, y: 75, desc: 'The output, terminal state, or result of ' + topic + '.' }
+    ];
+  };
+
+  const labels = getLabels();
 
   if (failed) return null;
 
   return (
-    <div className="relative w-full overflow-hidden rounded-xl bg-white/3 border border-white/10">
-      {/* Skeleton */}
-      {!loaded && (
-        <div className="absolute inset-0 flex items-center justify-center z-10">
-          <div className="w-full h-64 bg-gradient-to-r from-white/5 via-white/10 to-white/5 animate-pulse rounded-xl" />
-        </div>
-      )}
-
+    <div className="relative w-full overflow-hidden rounded-xl bg-white/3 border border-white/10 flex flex-col">
       {/* Zoom controls */}
       <div className="absolute top-2 right-2 z-20 flex gap-1 bg-black/50 backdrop-blur-sm rounded-lg p-1 border border-white/10">
         <button
@@ -275,20 +330,65 @@ const ImageViewer: React.FC<{
         </button>
       </div>
 
-      {/* Image */}
-      <div className="overflow-auto max-h-80 flex items-center justify-center p-2">
-        <img
-          src={src}
-          alt={alt}
-          onLoad={() => setLoaded(true)}
-          onError={() => { setLoaded(true); setFailed(true); }}
-          onClick={onOpenLightbox}
-          className={`max-w-full object-contain cursor-zoom-in transition-all duration-300 rounded-lg ${
-            loaded ? 'opacity-100' : 'opacity-0'
-          }`}
-          style={{ transform: `scale(${zoom})`, transformOrigin: 'center', maxHeight: '300px' }}
-        />
+      {/* Image container with HTML absolute overlays */}
+      <div className="overflow-auto relative max-h-80 flex items-center justify-center p-2 min-h-[250px]">
+        {/* Skeleton */}
+        {!loaded && (
+          <div className="absolute inset-0 flex items-center justify-center z-10">
+            <div className="w-full h-64 bg-gradient-to-r from-white/5 via-white/10 to-white/5 animate-pulse rounded-xl" />
+          </div>
+        )}
+
+        <div className="relative inline-block max-w-full" style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}>
+          <img
+            src={src}
+            alt={alt}
+            onLoad={() => setLoaded(true)}
+            onError={() => { setLoaded(true); setFailed(true); }}
+            className={`max-w-full object-contain cursor-zoom-in transition-all duration-300 rounded-lg max-h-[280px] ${
+              loaded ? 'opacity-100' : 'opacity-0'
+            }`}
+          />
+          
+          {/* Glowing HTML Labels Overlay */}
+          {loaded && labels.map((lbl, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setActiveLabel(lbl)}
+              style={{ left: `${lbl.x}%`, top: `${lbl.y}%` }}
+              className={`absolute -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black border transition-all cursor-pointer shadow-lg
+                ${activeLabel?.name === lbl.name 
+                  ? 'bg-indigo-500 text-white border-white scale-125 z-30 shadow-indigo-500/50' 
+                  : 'bg-black/80 text-indigo-400 border-indigo-500/50 hover:bg-indigo-500 hover:text-white z-20 hover:scale-115'
+                }`}
+              title={lbl.name}
+            >
+              {i + 1}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {/* Live Label Detail Card Box (Always ₹0) */}
+      {activeLabel && (
+        <div className="p-4 bg-indigo-950/30 border-t border-white/10 flex flex-col gap-1.5 animate-in slide-in-from-bottom duration-250 shrink-0">
+          <div className="flex justify-between items-center">
+            <h4 className="text-xs font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1.5">
+              <span>📍 Label:</span>
+              <span className="text-white">{activeLabel.name}</span>
+            </h4>
+            <button 
+              type="button" 
+              onClick={() => setActiveLabel(null)}
+              className="text-gray-500 hover:text-white text-[10px] uppercase font-bold"
+            >
+              Close
+            </button>
+          </div>
+          <p className="text-gray-300 text-xs leading-relaxed">{activeLabel.desc}</p>
+        </div>
+      )}
     </div>
   );
 };
@@ -693,6 +793,7 @@ const DiagramLab: React.FC<DiagramLabProps> = ({
   topic,
   sensitivity_level,
   mermaid_schema,
+  subject,
 }) => {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
@@ -719,7 +820,8 @@ const DiagramLab: React.FC<DiagramLabProps> = ({
     if (lowerTopic === 'sex' || lowerTopic.includes('what is sex') || lowerTopic.includes('biological sex') || lowerTopic === 'gender' || lowerTopic.includes('reproduction')) {
       searchQuery = 'chromosomes sex determination biology';
     } else {
-      searchQuery = `${searchQuery} biology diagram`;
+      const activeSubject = subject || 'science';
+      searchQuery = `${searchQuery} ${activeSubject} diagram`;
     }
 
     setLoading(true);
@@ -743,16 +845,34 @@ const DiagramLab: React.FC<DiagramLabProps> = ({
             return;
           }
         }
-        setDynamicDiagram(null);
+        
+        // Zero-Cost Fallback: Pollinations.ai (Pre-seeded clean textless diagram)
+        const cleanPrompt = `${searchQuery} blank scientific structure diagram, no text labels, clean white background, high quality textbook illustration`;
+        const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=1024&height=768&nologo=true&seed=42`;
+        setDynamicDiagram({
+          url: pollinationsUrl,
+          label: topic + ' (AI Generated Diagram)',
+          source: 'Pollinations.ai (Free Hub)',
+          attribution: 'Public Domain / Creative Commons 0',
+        });
+        setImageFailed(false);
       })
       .catch((err) => {
-        console.error('Failed to fetch dynamic diagram:', err);
-        setDynamicDiagram(null);
+        console.error('Failed to fetch dynamic diagram, falling back to Pollinations:', err);
+        const cleanPrompt = `${searchQuery} blank scientific structure diagram, no text labels, clean white background, high quality textbook illustration`;
+        const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=1024&height=768&nologo=true&seed=42`;
+        setDynamicDiagram({
+          url: pollinationsUrl,
+          label: topic + ' (AI Generated Diagram)',
+          source: 'Pollinations.ai (Free Hub)',
+          attribution: 'Public Domain / Creative Commons 0',
+        });
+        setImageFailed(false);
       })
       .finally(() => {
         setLoading(false);
       });
-  }, [diagram_type, topic]);
+  }, [diagram_type, topic, subject]);
 
   return (
     <div className="flex flex-col gap-4 p-4 h-full overflow-y-auto">
@@ -798,6 +918,7 @@ const DiagramLab: React.FC<DiagramLabProps> = ({
           <ImageViewer
             src={entry.url}
             alt={entry.label}
+            topic={topic || ''}
             onOpenLightbox={() => setLightboxOpen(true)}
           />
           {/* Attribution */}

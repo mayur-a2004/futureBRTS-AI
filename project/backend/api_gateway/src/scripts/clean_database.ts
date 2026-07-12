@@ -16,16 +16,10 @@ const cleanDatabase = async () => {
 
         for (const col of collections) {
             const name = col.name;
-            if (name === 'users') {
-                // Keep only mayur@gmail.com and delete all other user profiles
-                const res = await db.collection(name).deleteMany({ email: { $ne: 'mayur@gmail.com' } });
-                console.log(`🧹 Cleaned 'users' collection: Deleted ${res.deletedCount} test accounts.`);
-            } else if (name === 'systemsettings' || name === 'pricingplans' || name === 'paymentgateways') {
-                // Delete seeded settings/pricing configs so they are freshly re-seeded by server reboot
-                await db.collection(name).deleteMany({});
-                console.log(`🧹 Cleared configuration collection '${name}' for dynamic re-seeding.`);
+            if (name === 'users' || name === 'systemsettings' || name === 'pricingplans' || name === 'paymentgateways') {
+                console.log(`🛡️ Preserving critical collection: '${name}' (no documents deleted).`);
             } else {
-                // Clear all chat sessions, history, roadmaps, exams, and visitor tracking logs
+                // Clear all other collections (matches, exams, notes, tasks, etc.)
                 const res = await db.collection(name).deleteMany({});
                 console.log(`🧹 Wiped collection '${name}': Deleted ${res.deletedCount} items.`);
             }

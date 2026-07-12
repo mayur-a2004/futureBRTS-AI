@@ -1,11 +1,8 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import path from 'path';
+import { getProviderResponse } from './shared/services/openai.service';
 
 dotenv.config();
-
-import { getProviderResponse } from './shared/services/openai.service';
-import { getAiKey } from './shared/utils/dynamicConfig';
 
 const testAI = async () => {
     try {
@@ -13,20 +10,15 @@ const testAI = async () => {
         await mongoose.connect(dbUri);
         console.log('Connected to MongoDB:', dbUri);
 
-        const activeGroqKey = await getAiKey('GROQ');
-        const activeGeminiKey = await getAiKey('GEMINI');
-
-        console.log('Active Groq Key:', activeGroqKey ? activeGroqKey.substring(0, 15) + '...' : 'NONE');
-        console.log('Active Gemini Key:', activeGeminiKey ? activeGeminiKey.substring(0, 15) + '...' : 'NONE');
-
-        console.log('--- CALLING GET PROVIDER RESPONSE ---');
+        console.log('--- CALLING GET PROVIDER RESPONSE WITH ROUTING ---');
         const messages = [
-            { role: 'system', content: 'You are a helpful assistant.' },
-            { role: 'user', content: 'Say hello in 5 words.' }
+            { role: 'system', content: 'You are an expert personal teacher. If the student asks in Hinglish, Gujarati, or any mix, understand it deeply and explain the scientific terms beautifully in simple terms with everyday analogies.' },
+            { role: 'user', content: 'dhamani and raday atle su thay ?' }
         ];
 
+        // Call the normal helper without forcing provider to test default routing
         const res = await getProviderResponse(messages, { jsonMode: false });
-        console.log('AI Response:', JSON.stringify(res, null, 2));
+        console.log('AI Response (Routed):', JSON.stringify(res?.choices?.[0]?.message?.content, null, 2));
 
         await mongoose.disconnect();
         process.exit(0);

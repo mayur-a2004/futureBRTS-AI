@@ -255,8 +255,8 @@ const MinervaHome: React.FC = () => {
 
         setTranslatingMsgId(msgId);
         try {
-            const token = localStorage.getItem('token') || '';
-            const res = await minervaApi.translateText(token, text, lang);
+            const tokenToUse = localStorage.getItem('fbrts_token') || localStorage.getItem('token') || '';
+            const res = await minervaApi.translateText(tokenToUse, text, lang);
             if (res.success && res.translated) {
                 setMessageTranslations(prev => ({
                     ...prev,
@@ -678,11 +678,7 @@ const MinervaHome: React.FC = () => {
                             console.error('Failed to pre-fetch YouTube video ID for lab:', err);
                         }
                     }
-                } else {
-                    setActiveLabConfig(null);
-                    setLabPanelOpen(false);
                 }
-
 
                 // Auto-read response removed (manual play only)
 
@@ -1537,18 +1533,15 @@ const MinervaHome: React.FC = () => {
                                 </div>
 
                                 <div className="space-y-1">
-                                    <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">Select Launch City</label>
-                                    <select 
-                                        value={onboardingCity} 
+                                    <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">City / Location</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        placeholder="Enter your city (e.g. Surat, Mumbai, Jaipur...)"
+                                        value={onboardingCity}
                                         onChange={e => setOnboardingCity(e.target.value)}
-                                        className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none"
-                                    >
-                                        <option value="Gandhinagar">Gandhinagar (Primary Launch Target)</option>
-                                        <option value="Ahmedabad">Ahmedabad</option>
-                                        <option value="Surat">Surat</option>
-                                        <option value="Vadodara">Vadodara</option>
-                                        <option value="Rajkot">Rajkot</option>
-                                    </select>
+                                        className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none focus:border-indigo-500/40 placeholder:text-gray-700"
+                                    />
                                 </div>
 
                                 <div className="space-y-1 relative">

@@ -124,7 +124,8 @@ export default function TeacherDashboardPage() {
 
     useEffect(() => {
         // Initialize teacher specific socket connection
-        const s = io(window.location.hostname === 'localhost' ? 'http://localhost:7001' : window.location.origin);
+        const socketUrl = (import.meta as any).env?.VITE_SOCKET_URL || window.location.origin.replace(/:\d+$/, ':7001');
+        const s = io(socketUrl);
         socketRef.current = s;
 
         // Listen for live update room updates to display live responses instantly

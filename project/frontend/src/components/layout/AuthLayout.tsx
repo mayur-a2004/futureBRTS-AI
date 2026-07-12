@@ -1,5 +1,5 @@
 import { Outlet, Link, Navigate } from "react-router-dom"
-import { ArrowLeft, Brain, Cpu, Database, Sparkles, Activity } from "lucide-react"
+import { ArrowLeft, Cpu, Database, Sparkles, Activity } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { useEffect, useState } from "react"
 
@@ -37,8 +37,8 @@ export default function AuthLayout() {
                         <ArrowLeft size={12} className="group-hover:-translate-x-1 transition-transform" /> Back to Home
                     </Link>
                     <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 flex items-center justify-center text-white font-bold shadow-[0_0_20px_rgba(99,102,241,0.35)] shrink-0">
-                            <Brain size={14} className="animate-pulse" />
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 flex items-center justify-center text-white font-black text-sm shadow-[0_0_20px_rgba(99,102,241,0.35)] shrink-0">
+                            F
                         </div>
                         <span className="font-display font-black text-xs tracking-[0.2em] uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-200 to-indigo-300">
                             FutureBRTS
@@ -142,7 +142,7 @@ export default function AuthLayout() {
                     <Outlet />
                 </div>
                 <footer className="mt-8 py-4 text-center text-[8px] md:text-[10px] text-gray-700 uppercase tracking-widest font-black">
-                    <p>© FUTURE_BRTS // MAYUR_SAVALIYA</p>
+                    <p>© FUTURE_BRTS</p>
                 </footer>
             </div>
         </div>

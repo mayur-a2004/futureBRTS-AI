@@ -10,7 +10,13 @@ export const tasksController = {
     getTasks: async (req: Request | any, res: Response) => {
         try {
             const filter: any = { userId: req.user.id };
-            if (req.query.roadmapId) filter.roadmapId = req.query.roadmapId;
+            if (req.query.roadmapId) {
+                if (req.query.roadmapId === 'none') {
+                    filter.roadmapId = null;
+                } else {
+                    filter.roadmapId = req.query.roadmapId;
+                }
+            }
             const tasks = await Task.find(filter).sort({ dayNumber: 1, createdAt: 1 });
             res.json({ success: true, tasks });
         } catch (err: any) {
@@ -22,7 +28,13 @@ export const tasksController = {
         try {
             const userId = req.user.id;
             const filter: any = { userId };
-            if (req.query.roadmapId) filter.roadmapId = req.query.roadmapId;
+            if (req.query.roadmapId) {
+                if (req.query.roadmapId === 'none') {
+                    filter.roadmapId = null;
+                } else {
+                    filter.roadmapId = req.query.roadmapId;
+                }
+            }
 
             const tasks = await Task.find(filter);
 
@@ -267,6 +279,38 @@ export const tasksController = {
             req.body.roadmapId = targetRoadmapId;
             return await roadmapController.convertToTasks(req, res);
 
+        } catch (err: any) {
+            res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    createTask: async (req: Request | any, res: Response) => {
+        try {
+            const userId = req.user.id;
+            const { title, description, level = 1, conceptMap, objective, roadmapId } = req.body;
+
+            if (!title?.trim()) {
+                return res.status(400).json({ success: false, error: "Title is required" });
+            }
+            if (!description?.trim()) {
+                return res.status(400).json({ success: false, error: "Description is required" });
+            }
+
+            const task = new Task({
+                userId,
+                title: title.trim(),
+                description: description.trim(),
+                roadmapId: roadmapId || null,
+                level: Number(level) || 1,
+                status: 'todo',
+                isLocked: false,
+                dayNumber: 1,
+                conceptMap: conceptMap || ['Manual Goal'],
+                objective: objective || 'Complete manually created study mission.'
+            });
+
+            await task.save();
+            res.json({ success: true, task });
         } catch (err: any) {
             res.status(500).json({ success: false, error: err.message });
         }

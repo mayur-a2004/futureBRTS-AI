@@ -198,7 +198,7 @@ const ArenaRoomSchema: Schema = new Schema({
     winnerId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     winnerTeam: { type: String, default: null },
     mvpPlayerId: { type: Schema.Types.ObjectId, ref: 'User' }
-}, { timestamps: true });
+}, { timestamps: true, versionKey: false });
 
 // ─── Helper Constants ─────────────────────────────────────────────────────────
 export const ARENA_MODE_SIZES: Record<string, [number, number]> = {

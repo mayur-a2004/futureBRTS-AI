@@ -160,7 +160,7 @@ function Footer() {
                         FUTURE <span className="text-indigo-500">BRTS</span>
                     </h3>
                     <p className="text-sm text-gray-400 font-medium max-w-sm leading-relaxed text-left">
-                        Architecting the future using humanized intelligence and robotic precision. Designed by Mayur Savaliya for industry legends.
+                        Architecting the future using humanized intelligence and robotic precision.
                     </p>
                     <div className="flex gap-4">
                         <SocialIcon icon={<Twitter size={16} />} />

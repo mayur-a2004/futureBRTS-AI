@@ -8,6 +8,7 @@ const router = Router();
 router.use(authMiddleware);
 
 router.get('/', tasksController.getTasks);
+router.post('/', tasksController.createTask);
 router.get('/analytics', tasksController.getTaskAnalytics);
 router.post('/generate', tasksController.generateTasks);
 router.put('/', tasksController.updateTask);

@@ -4,18 +4,25 @@ import User from '../auth/user.model';
 import { callGeminiAI, callGroqAI } from '../collage_project/multi_agent.service';
 import { logger } from '../../shared/utils/logger';
 import { SocketService } from '../../services/socket.service';
+import { getProviderResponse } from '../../shared/services/openai.service';
 
-// ─── Swarm AI Helper (Fallback mechanism) ───────────────────────────────────
+// ─── Swarm AI Helper (Multi-Provider Sequential Retries) ───────────────────
 const callSwarmAIHelper = async (prompt: string): Promise<string> => {
-    try {
-        const groqRes = await callGroqAI(prompt, "quiz_battle");
-        if (groqRes && groqRes.trim().length > 0) {
-            return groqRes;
-        }
-    } catch (e: any) {
-        logger.warn(`[Arena] Groq call failed, trying Gemini fallback: ${e.message}`);
+    const messages = [
+        {
+            role: 'system',
+            content: `You are an expert quiz master. You generate highly accurate, curriculum-aligned multiple-choice questions matching syllabus guidelines. Output strictly valid JSON array. No markdown, no code block backticks.`
+        },
+        { role: 'user', content: prompt }
+    ];
+    
+    // getProviderResponse automatically retries sequentially: Groq -> Nvidia -> Gemini -> OpenRouter
+    const res = await getProviderResponse(messages, { jsonMode: true, maxTokens: 4000, temperature: 0.3, taskType: 'chat' });
+    const content = res?.choices?.[0]?.message?.content;
+    if (!content) {
+        throw new Error("All AI providers failed to return content.");
     }
-    return callGeminiAI(prompt);
+    return content;
 };
 
 // ─── Topic cleaner (extracts plain topic from stringified JSON or cleans brackets) ─
@@ -47,70 +54,7 @@ const cleanTopic = (topic: string): string => {
     return str;
 };
 
-// ─── Grade-Adaptive Question Generator ───────────────────────────────────────
-const FALLBACK_QUESTIONS: Record<string, { q: string; opts: string[]; ans: number; exp: string }[]> = {
-    'Computer Science': [
-        { q: "What does HTML stand for?", opts: ["Hyper Text Markup Language", "High Text Machine Language", "Hyper Transfer Motor Language", "Hyperlink and Text Management Language"], ans: 0, exp: "HTML is the standard markup language for creating web pages." },
-        { q: "Which of the following is not an operating system?", opts: ["Windows", "Linux", "Oracle", "macOS"], ans: 2, exp: "Oracle is a database management system, not an operating system." },
-        { q: "What is the brain of the computer?", opts: ["RAM", "CPU", "Hard Disk", "GPU"], ans: 1, exp: "The Central Processing Unit (CPU) executes instructions and performs computer processing." },
-        { q: "Which programming language is known for its readability and simplicity?", opts: ["C++", "Java", "Python", "Assembly"], ans: 2, exp: "Python uses clear syntax and indentation, making it highly readable." },
-        { q: "What does IP stand for in the context of internet technology?", opts: ["Internet Protocol", "Internal Process", "Intranet Page", "Instant Pinging"], ans: 0, exp: "IP defines the set of rules governing format of data sent over the internet." }
-    ],
-    'IT': [
-        { q: "What does HTML stand for?", opts: ["Hyper Text Markup Language", "High Text Machine Language", "Hyper Transfer Motor Language", "Hyperlink and Text Management Language"], ans: 0, exp: "HTML is the standard markup language for creating web pages." },
-        { q: "Which of the following is not an operating system?", opts: ["Windows", "Linux", "Oracle", "macOS"], ans: 2, exp: "Oracle is a database management system, not an operating system." },
-        { q: "What is the brain of the computer?", opts: ["RAM", "CPU", "Hard Disk", "GPU"], ans: 1, exp: "The Central Processing Unit (CPU) executes instructions and performs computer processing." }
-    ],
-    'Physics': [
-        { q: "What is the SI unit of electric current?", opts: ["Volt", "Ampere", "Ohm", "Watt"], ans: 1, exp: "Ampere is the standard unit used to measure electric current." },
-        { q: "Which type of lens is used to correct myopia (short-sightedness)?", opts: ["Convex lens", "Concave lens", "Bifocal lens", "Cylindrical lens"], ans: 1, exp: "Concave lens diverges incoming light rays to focus them on the retina." },
-        { q: "What is the speed of light in vacuum?", opts: ["3 x 10^8 m/s", "3 x 10^6 m/s", "1.5 x 10^8 m/s", "3 x 10^10 m/s"], ans: 0, exp: "The speed of light in vacuum is approximately 300,000 kilometers per second." },
-        { q: "Which force keeps the planets orbiting around the Sun?", opts: ["Magnetic Force", "Frictional Force", "Gravitational Force", "Electrostatic Force"], ans: 2, exp: "Gravity is the attractive force that keeps celestial bodies in orbital paths." },
-        { q: "What is the rate of change of velocity called?", opts: ["Speed", "Acceleration", "Displacement", "Momentum"], ans: 1, exp: "Acceleration measures how fast velocity changes over time." }
-    ],
-    'Chemistry': [
-        { q: "What is the chemical formula of common table salt?", opts: ["KCl", "NaCl", "HCl", "NaOH"], ans: 1, exp: "Sodium chloride (NaCl) is the chemical name for common table salt." },
-        { q: "Which gas is commonly known as laughing gas?", opts: ["Nitrous Oxide", "Carbon Dioxide", "Sulphur Dioxide", "Nitrogen Dioxide"], ans: 0, exp: "Nitrous Oxide (N2O) induces laughter and mild anesthesia." },
-        { q: "What is the pH value of pure, neutral water?", opts: ["5", "7", "9", "14"], ans: 1, exp: "Pure water is neutral on the pH scale with a value of exactly 7." },
-        { q: "Which element is the primary constituent of organic compounds?", opts: ["Oxygen", "Nitrogen", "Carbon", "Hydrogen"], ans: 2, exp: "Carbon easily forms covalent bonds with other elements to build organic life." },
-        { q: "Which gas is released when a metal reacts with dilute acid?", opts: ["Oxygen", "Carbon Dioxide", "Hydrogen", "Nitrogen"], ans: 2, exp: "Metals displace hydrogen from acids, releasing hydrogen gas." }
-    ],
-    'Biology': [
-        { q: "Which organelle is called the powerhouse of the cell?", opts: ["Nucleus", "Ribosome", "Mitochondria", "Golgi apparatus"], ans: 2, exp: "Mitochondria convert glucose into usable energy in the form of ATP." },
-        { q: "What is the green pigment in plants that absorbs light for photosynthesis?", opts: ["Carotene", "Xanthophyll", "Chlorophyll", "Melanin"], ans: 2, exp: "Chlorophyll absorbs red and blue light wavelengths to power photosynthesis." },
-        { q: "How many chambers are there in a human heart?", opts: ["2", "3", "4", "5"], ans: 2, exp: "The human heart is composed of four chambers: two atria and two ventricles." },
-        { q: "Which vitamin is synthesized in the skin when exposed to sunlight?", opts: ["Vitamin A", "Vitamin B", "Vitamin C", "Vitamin D"], ans: 3, exp: "Exposure to sunlight triggers chemical synthesis of Vitamin D in the skin." },
-        { q: "What is the basic functional unit of the human kidney?", opts: ["Neuron", "Nephron", "Alveoli", "Nephridia"], ans: 1, exp: "Nephrons filter blood and produce urine in the kidneys." }
-    ],
-    'Geography': [
-        { q: "Which is the largest delta in the world?", opts: ["Mississippi Delta", "Nile Delta", "Sundarbans Delta", "Amazon Delta"], ans: 2, exp: "The Sundarbans Delta formed by the Ganges and Brahmaputra rivers is the largest." },
-        { q: "Which country is the largest producer of wheat in the world?", opts: ["India", "USA", "China", "Russia"], ans: 2, exp: "China produces the highest volume of wheat globally." },
-        { q: "What is the boundary line between India and China called?", opts: ["Radcliffe Line", "McMahon Line", "Durand Line", "Line of Control"], ans: 1, exp: "The McMahon Line defines the boundary between northeast India and Tibet/China." },
-        { q: "Which is the oldest fold mountain range in India?", opts: ["Himalayas", "Aravalli Range", "Satpura Range", "Vindhya Range"], ans: 1, exp: "The Aravalli Range is one of the oldest geological fold mountain ranges in the world." },
-        { q: "Which soil is best suited for growing cotton in India?", opts: ["Alluvial Soil", "Red Soil", "Black Soil (Regur)", "Laterite Soil"], ans: 2, exp: "Black soil has high clay content and moisture retention, ideal for cotton." }
-    ],
-    'English': [
-        { q: "Identify the noun in the sentence: 'The silent teacher smiled.'", opts: ["silent", "teacher", "smiled", "The"], ans: 1, exp: "'teacher' is the person (noun) in this sentence." },
-        { q: "What is the synonym of the word 'Vast'?", opts: ["Huge", "Tiny", "Narrow", "Slow"], ans: 0, exp: "'Vast' means extremely large in area, size, or scope." },
-        { q: "Which of the following is a conjunction?", opts: ["Because", "Quickly", "Beautiful", "Running"], ans: 0, exp: "'Because' is used to connect clauses or sentences together." },
-        { q: "What is the antonym of the word 'Polite'?", opts: ["Impolite", "Unpolite", "Dispolite", "Nonpolite"], ans: 0, exp: "Impolite is the correct standard prefix antonym for polite." },
-        { q: "Which sentence is grammatically correct?", opts: ["She do not like tea.", "She don't likes tea.", "She does not like tea.", "She doesn't liked tea."], ans: 2, exp: "Third-person singular 'she' takes the helping verb 'does not' plus base verb." }
-    ],
-    'Science': [
-        { q: "Which gas do plants absorb from the atmosphere during photosynthesis?", opts: ["Oxygen", "Carbon Dioxide", "Nitrogen", "Hydrogen"], ans: 1, exp: "Plants consume Carbon Dioxide (CO2) to prepare glucose via photosynthesis." },
-        { q: "What are the three physical states of matter?", opts: ["Solid, Liquid, Gas", "Atom, Molecule, Compound", "Proton, Neutron, Electron", "Acid, Base, Salt"], ans: 0, exp: "Matter primarily exists in three distinct physical states: solid, liquid, and gas." },
-        { q: "Which organelle is universally known as the powerhouse of the cell?", opts: ["Nucleus", "Ribosome", "Mitochondria", "Chloroplast"], ans: 2, exp: "Mitochondria generate cellular energy in the form of ATP." },
-        { q: "What force pulls falling objects towards the center of the Earth?", opts: ["Magnetic force", "Frictional force", "Gravitational force", "Centrifugal force"], ans: 2, exp: "Gravity is the attractive force exerted by the Earth on all physical objects." },
-        { q: "Which vitamin is synthesized in the human body through sunlight exposure?", opts: ["Vitamin A", "Vitamin C", "Vitamin B12", "Vitamin D"], ans: 3, exp: "Sunlight triggers natural chemical synthesis of Vitamin D in the skin." }
-    ],
-    'Mathematics': [
-        { q: "What is the area of a rectangle with length 5 cm and width 4 cm?", opts: ["9 sq cm", "20 sq cm", "18 sq cm", "10 sq cm"], ans: 1, exp: "Area of a rectangle equals length multiplied by width (5 * 4 = 20 sq cm)." },
-        { q: "What is the smallest prime number?", opts: ["1", "2", "3", "0"], ans: 1, exp: "2 is the smallest prime number, and the only even prime number." },
-        { q: "Evaluate the expression: 15 - 3 * 4", opts: ["48", "3", "12", "9"], ans: 1, exp: "By BODMAS precedence rules, multiplication (3 * 4 = 12) is computed before subtraction (15 - 12 = 3)." },
-        { q: "What is the perimeter of a square with side length 6 cm?", opts: ["12 cm", "36 cm", "24 cm", "18 cm"], ans: 2, exp: "Perimeter of a square equals four times the side length (4 * 6 = 24 cm)." },
-        { q: "What is the value of 1/2 + 1/4?", opts: ["2/6", "3/4", "1/6", "2/4"], ans: 1, exp: "Adding fractions: 1/2 + 1/4 = 2/4 + 1/4 = 3/4." }
-    ]
-};
+
 
 // ─── Topic Normalizer ─────────────────────────────────────────────────────────
 const normalizeTopicWithAI = async (rawTopic: string, subject: string, standard: string): Promise<string> => {
@@ -206,7 +150,8 @@ Random Variation Seed: ${salt}
 Generate exactly ${totalRounds} unique MCQs strictly within the chapter/topic "${topic}".
 ${boardInstruction}
 Do NOT include questions from other chapters or topics.
-Do NOT repeat question patterns (seed ensures variation every time).
+Do NOT repeat question patterns. The Random Variation Seed is ${salt}; use it to generate completely fresh, non-repetitive questions.
+Ensure high diversity in question styles: generate a mix of conceptual queries, application-based scenario questions, case studies, and image-based/diagram-based descriptive MCQs where relevant.
 Each question: exactly 4 options, 1 correct answer, include 1-sentence explanation.
 Respond ONLY with raw JSON array. No markdown, no backticks.
 Format: [{"question":"...","options":["A","B","C","D"],"correctAnswer":2,"explanation":"...","difficulty":"${difficulty}"}]`;
@@ -223,7 +168,7 @@ const generateDynamicQuestions = async (
     salt?: number,
     semester?: string
 ): Promise<IArenaQuestion[]> => {
-    const useSalt = salt ?? Math.floor(Math.random() * 1000000);
+    const useSalt = salt ?? (Date.now() + Math.floor(Math.random() * 1000000));
     // Always sanitize topic before building the prompt (strips JSON artifacts)
     const safeTopic = cleanTopic(topic) || topic;
     const prompt = buildQuizPrompt(subject, standard, safeTopic, board, difficulty, totalRounds, useSalt, semester);
@@ -240,8 +185,12 @@ const generateDynamicQuestions = async (
             if (Array.isArray(arr)) aiResponse = JSON.stringify(arr);
         }
         const questions = JSON.parse(aiResponse);
-        if (Array.isArray(questions) && questions.length >= totalRounds) {
-            return questions.slice(0, totalRounds).map((q: any) => ({
+        if (Array.isArray(questions) && questions.length > 0) {
+            const paddedQuestions = [];
+            for (let i = 0; i < totalRounds; i++) {
+                paddedQuestions.push(questions[i % questions.length]);
+            }
+            return paddedQuestions.map((q: any) => ({
                 ...q,
                 grade: standard,
                 subject,
@@ -249,36 +198,62 @@ const generateDynamicQuestions = async (
                 topicRef: topic
             }));
         }
-        throw new Error(`AI returned ${Array.isArray(questions) ? questions.length : 'invalid'} questions, expected ${totalRounds}`);
+        throw new Error(`AI returned ${Array.isArray(questions) ? 'empty' : 'invalid'} response`);
     } catch (err: any) {
-        const cleanTopicStr = cleanTopic(topic);
-        logger.error(`[Arena] Question gen failed for ${board}/${standard}/${subject}/${cleanTopicStr}: ${err.message}`);
+        const cleanTopicStr = cleanTopic(topic) || topic;
+        logger.warn(`[Arena] Question generation failed for ${board}/${standard}/${subject}/${cleanTopicStr}, using curricular fallback: ${err.message}`);
         
-        // Find a relevant fallback list by matching keys
-        const subjectLower = subject.toLowerCase();
-        let list = FALLBACK_QUESTIONS[subject];
-        if (!list) {
-            const matchedKey = Object.keys(FALLBACK_QUESTIONS).find(k => {
-                const kl = k.toLowerCase();
-                return kl === subjectLower || subjectLower.includes(kl) || kl.includes(subjectLower);
-            });
-            list = matchedKey ? FALLBACK_QUESTIONS[matchedKey] : (FALLBACK_QUESTIONS['Science'] || FALLBACK_QUESTIONS['Geography']);
+        // Curricular fallback questions mapping
+        const fallbackCatalog: Record<string, any[]> = {
+            'Accountancy': [
+                { question: "Which of the following is an asset?", options: ["Accounts Payable", "Cash", "Capital", "Salary Expense"], correctAnswer: 1, difficulty: "Easy", explanation: "Cash is a resource owned by the business that has economic value." },
+                { question: "What is the basic accounting equation?", options: ["Assets = Liabilities - Capital", "Assets = Liabilities + Capital", "Liabilities = Assets + Capital", "Capital = Assets + Liabilities"], correctAnswer: 1, difficulty: "Easy", explanation: "The fundamental accounting equation is Assets = Liabilities + Owner's Equity (Capital)." },
+                { question: "Which account increases with a debit entry?", options: ["Accounts Payable", "Cash", "Service Revenue", "Owner's Capital"], correctAnswer: 1, difficulty: "Medium", explanation: "Asset accounts (like Cash) and Expense accounts increase with a debit." },
+                { question: "What is double-entry bookkeeping?", options: ["Recording transactions twice", "Having two accountants check the books", "Every transaction affects at least two accounts with equal debits and credits", "Maintaining two separate sets of books"], correctAnswer: 2, difficulty: "Medium", explanation: "Double-entry bookkeeping requires that every financial transaction has equal and opposite debit and credit entries." },
+                { question: "The process of transferring journal entries to ledger accounts is called:", options: ["Journalizing", "Posting", "Balancing", "Analyzing"], correctAnswer: 1, difficulty: "Easy", explanation: "Posting refers to transferring entries from the journal to the ledger." },
+                { question: "Which financial statement shows a company's financial position at a specific point in time?", options: ["Income Statement", "Statement of Cash Flows", "Balance Sheet", "Retained Earnings Statement"], correctAnswer: 2, difficulty: "Medium", explanation: "The Balance Sheet reports assets, liabilities, and equity as of a specific date." },
+                { question: "Revenue is recognized when it is earned, not when cash is received. This is known as:", options: ["Cash Basis Accounting", "Accrual Basis Accounting", "Matching Principle", "Going Concern Assumption"], correctAnswer: 1, difficulty: "Hard", explanation: "Accrual basis accounting records revenue when earned and expenses when incurred, regardless of cash flow." },
+                { question: "Which of the following is a liability?", options: ["Accounts Receivable", "Prepaid Insurance", "Unearned Revenue", "Equipment"], correctAnswer: 2, difficulty: "Hard", explanation: "Unearned revenue represents an obligation to perform services in the future, making it a liability." },
+                { question: "Goodwill is classified as which type of asset?", options: ["Current Asset", "Tangible Asset", "Intangible Asset", "Contra-Asset"], correctAnswer: 2, difficulty: "Medium", explanation: "Goodwill is an intangible asset that arises when a buyer acquires an existing business." },
+                { question: "What is the primary purpose of a Trial Balance?", options: ["To calculate net profit", "To verify that total debits equal total credits", "To prepare tax returns", "To list all cash transactions"], correctAnswer: 1, difficulty: "Easy", explanation: "A trial balance checks the mathematical accuracy of the double-entry system." }
+            ],
+            'Economics': [
+                { question: "What is the fundamental problem of economics?", options: ["Inflation", "Scarcity", "Unemployment", "Poverty"], correctAnswer: 1, difficulty: "Easy", explanation: "Scarcity of resources relative to unlimited human wants is the core economic problem." },
+                { question: "According to the Law of Demand, what happens when price increases?", options: ["Demand increases", "Quantity demanded decreases", "Quantity demanded increases", "Demand decreases"], correctAnswer: 1, difficulty: "Easy", explanation: "There is an inverse relationship between price and quantity demanded." },
+                { question: "What is opportunity cost?", options: ["The monetary cost of a choice", "The value of the next best alternative forgone", "The cost of starting a business", "Sunk costs"], correctAnswer: 1, difficulty: "Medium", explanation: "Opportunity cost is the value of what you give up when making a decision." },
+                { question: "GDP stands for:", options: ["Gross Domestic Product", "General Demand Product", "Government Debt Percentage", "Growth Development Plan"], correctAnswer: 0, difficulty: "Easy", explanation: "Gross Domestic Product measures the total value of goods and services produced within a country." },
+                { question: "A market structure with a single seller is called a:", options: ["Monopolistic Competition", "Oligopoly", "Monopoly", "Perfect Competition"], correctAnswer: 2, difficulty: "Easy", explanation: "A monopoly exists when there is only one provider of a good or service." },
+                { question: "Inflation refers to a general increase in:", options: ["Unemployment", "Interest rates", "Prices", "Taxation"], correctAnswer: 2, difficulty: "Easy", explanation: "Inflation is the rate at which the general level of prices for goods and services is rising." },
+                { question: "Which of the following is a tool of monetary policy?", options: ["Government spending", "Open market operations", "Income tax rates", "Corporate subsidies"], correctAnswer: 1, difficulty: "Hard", explanation: "Monetary policy is controlled by the central bank using tools like open market operations and interest rates." },
+                { question: "When the price elasticity of demand is greater than 1, demand is:", options: ["Inelastic", "Elastic", "Unit elastic", "Perfectly inelastic"], correctAnswer: 1, difficulty: "Medium", explanation: "An elasticity greater than 1 means quantity demanded is highly responsive to price changes." }
+            ],
+            'Science': [
+                { question: "What gas do plants primarily absorb during photosynthesis?", options: ["Oxygen", "Carbon Dioxide", "Nitrogen", "Hydrogen"], correctAnswer: 1, difficulty: "Easy", explanation: "Plants absorb carbon dioxide to produce glucose and release oxygen." },
+                { question: "What is the chemical symbol for gold?", options: ["Ag", "Fe", "Au", "Pb"], correctAnswer: 2, difficulty: "Easy", explanation: "Au is derived from the Latin word 'aurum'." },
+                { question: "Which organelle is known as the powerhouse of the cell?", options: ["Nucleus", "Ribosome", "Mitochondria", "Lysosome"], correctAnswer: 2, difficulty: "Easy", explanation: "Mitochondria generate most of the cell's supply of adenosine triphosphate (ATP)." },
+                { question: "What is the acceleration due to gravity on Earth's surface?", options: ["9.8 m/s²", "8.5 m/s²", "10.5 m/s²", "7.2 m/s²"], correctAnswer: 0, difficulty: "Easy", explanation: "Standard gravity on Earth is approximately 9.80665 m/s²." }
+            ],
+            'Business Studies': [
+                { question: "Who is known as the father of Scientific Management?", options: ["Henry Fayol", "F.W. Taylor", "Max Weber", "Peter Drucker"], correctAnswer: 1, difficulty: "Easy", explanation: "F.W. Taylor developed the principles of scientific management." },
+                { question: "Which function of management involves grouping activities to achieve goals?", options: ["Planning", "Organizing", "Staffing", "Directing"], correctAnswer: 1, difficulty: "Easy", explanation: "Organizing is the process of defining and grouping activities." }
+            ]
+        };
+
+        const subjectKey = Object.keys(fallbackCatalog).find(k => k.toLowerCase() === subject.toLowerCase()) || 'Science';
+        const rawList = fallbackCatalog[subjectKey] || fallbackCatalog['Science'];
+        
+        const paddedQuestions = [];
+        for (let i = 0; i < totalRounds; i++) {
+            paddedQuestions.push(rawList[i % rawList.length]);
         }
 
-        return Array.from({ length: totalRounds }, (_, i) => {
-            const item = list[i % list.length];
-            return {
-                question: `[${board} ${standard} – ${cleanTopicStr}] ${item.q}`,
-                options: [...item.opts],
-                correctAnswer: item.ans,
-                grade: standard,
-                subject,
-                explanation: item.exp,
-                difficulty: difficulty as 'Easy' | 'Medium' | 'Hard',
-                board,
-                topicRef: cleanTopicStr
-            };
-        });
+        return paddedQuestions.map((q: any) => ({
+            ...q,
+            grade: standard,
+            subject,
+            board,
+            topicRef: topic
+        }));
     }
 };
 
@@ -496,7 +471,7 @@ export const battleController = {
     // Join a room by code (Team assignment)
     joinRoom: async (req: Request, res: Response) => {
         try {
-            const { roomCode, team, grade, board } = req.body;  // team: 'A' | 'B', grade: optional number, board: optional board override
+            const { roomCode, team, grade, board, subject, topic, joinMode } = req.body;  // team: 'A' | 'B', grade/board/subject/topic: optional overrides
             const joiningUser = (req as any).user;
 
             const room = await ArenaRoom.findOne({ roomCode });
@@ -541,6 +516,9 @@ export const battleController = {
 
             const joinerGrade = grade || joiningUser.grade || 10;
             const joinerBoard = board || joiningUser.board || 'NCERT';
+            // Custom overrides: joiner can specify their own subject & topic in 'CUSTOM' mode
+            const joinerSubject = (joinMode === 'CUSTOM' && subject) ? subject : room.subject;
+            const joinerTopic = (joinMode === 'CUSTOM' && topic && topic.trim()) ? topic.trim() : (room.topicConcept || room.topic);
             const diff = (room as any).difficulty || 'Medium';
 
             let gradeQuestions: IArenaQuestion[] = [];
@@ -568,21 +546,26 @@ export const battleController = {
                     }
                 }
             } else {
-                // In an open arena, if the joiner shares the host's grade and board, reuse host's questions
+                // In an open arena: if joiner is in SAME mode AND shares host's grade/board/subject/topic, reuse host questions
                 const hostQuestions = (room.playerQuestions as any).get(room.hostId.toString());
-                if (
+                const sameAsHost = 
+                    joinMode !== 'CUSTOM' &&
                     hostQuestions && 
                     hostQuestions.length > 0 && 
                     String(joinerGrade) === String(room.standard) && 
-                    joinerBoard === room.board
-                ) {
+                    joinerBoard === room.board &&
+                    joinerSubject === room.subject &&
+                    joinerTopic === (room.topicConcept || room.topic);
+
+                if (sameAsHost) {
                     gradeQuestions = hostQuestions;
                 } else {
-                    // Generate individual board-specific questions for this player
+                    // Generate personalized questions based on joiner's chosen settings
+                    logger.info(`[Arena] Generating custom questions for ${joiningUser.firstName}: ${joinerSubject}/${joinerTopic}/${joinerBoard}/${joinerGrade}`);
                     gradeQuestions = await generateDynamicQuestions(
-                        room.subject,
+                        joinerSubject,
                         String(joinerGrade),
-                        room.topicConcept,
+                        joinerTopic,
                         joinerBoard,
                         diff,
                         room.totalRounds,

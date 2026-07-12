@@ -37,7 +37,7 @@ export const LabControlPanel: React.FC<LabControlPanelProps> = ({
             <button
               key={layer}
               onClick={() => onLayerChange(layer)}
-              className={`flex-1 min-w-[80px] py-3.5 px-2 text-center transition-all duration-300 relative font-medium text-xs md:text-sm flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              className={`flex-shrink-0 px-4 md:px-5 py-3.5 text-center transition-all duration-300 relative font-medium text-xs md:text-sm flex items-center justify-center gap-1.5 whitespace-nowrap ${
                 isActive
                   ? 'text-zinc-50 font-bold bg-zinc-800/40'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/10'

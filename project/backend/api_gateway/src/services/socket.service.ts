@@ -76,7 +76,7 @@ export class SocketService {
     // ─── Global session expiry timers (1 per room) ───────────────────────────
     private static globalSessionTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
 
-    private static startRoundTimer(roomCode: string, roundIndex: number, io: Server) {
+    private static startRoundTimer(roomCode: string, roundIndex: number, io: Server, extraMs: number = 0) {
         // Clear any existing timer for this room
         const existingKey = `${roomCode}:${roundIndex}`;
         const prev = SocketService.roundTimers.get(existingKey);
@@ -86,32 +86,42 @@ export class SocketService {
             try {
                 SocketService.roundTimers.delete(existingKey);
                 const room = await ArenaRoom.findOne({ roomCode });
-                if (!room || (room.status !== 'ACTIVE' && room.status !== 'WAITING')) return;
+                if (!room || room.status !== 'ACTIVE') return;
                 
                 const roundState = room.roundStates.find((r: any) => r.roundIndex === roundIndex);
                 if (!roundState) return;
                 if ((roundState as any).finishedAt) return; // Already finished
 
-                logger.info(`[Arena] ⏱️ Server timer expired. Terminating room ${roomCode} immediately to prevent stuck state.`);
+                logger.info(`[Arena] ⏱️ Round timer expired for room ${roomCode}, round ${roundIndex}. Auto-submitting timeouts.`);
 
-                // Mark the room as cancelled/terminated
-                room.status = 'CANCELLED' as any;
-                await room.save();
-
-                // Clear ALL server-side timers for this room (per-round + global session)
-                SocketService.clearAllRoomTimers(roomCode, room.totalRounds || 15);
-
-                // Broadcast to ALL players in the room — they will see the stop screen and redirect
-                io.to(roomCode).emit('arena_teacher_stopped', {
-                    roomCode,
-                    message: 'Quiz has been terminated automatically due to round inactivity or stuck state.',
-                    stoppedAt: new Date().toISOString(),
-                    reason: 'ROUND_STUCK'
+                // Find active players who haven't answered yet in this round
+                const currentTurn = room.currentTurn;
+                const inactivePlayers = room.players.filter((p: any) => {
+                    const teamAnswers = p.team === 'A' ? roundState.teamAAnswers : roundState.teamBAnswers;
+                    const hasAnswered = !!(teamAnswers as any).get((p.userId._id || p.userId).toString());
+                    if (hasAnswered) return false;
+                    
+                    // In alternating mode, only the team whose turn it is needs to answer (attacker)
+                    // If defender turn phase hasn't started yet, defender doesn't need to answer yet.
+                    if (room.battleStyle === 'ALTERNATING') {
+                        const isDefenderPhase = (p.team === 'B' && currentTurn === 'A' && (roundState.teamAAnswers as any).size > 0) ||
+                                                (p.team === 'A' && currentTurn === 'B' && (roundState.teamBAnswers as any).size > 0);
+                        return p.team === currentTurn || isDefenderPhase;
+                    }
+                    return true;
                 });
+
+                if (inactivePlayers.length > 0) {
+                    for (const player of inactivePlayers) {
+                        const pIdStr = (player.userId._id || player.userId).toString();
+                        logger.info(`[Arena] Auto-submitting timeout for player: ${player.firstName} (${pIdStr})`);
+                        await SocketService.processAnswer(roomCode, pIdStr, roundIndex, -1, 15000, io);
+                    }
+                }
             } catch (err: any) {
-                logger.error('[Arena] Round auto-termination error:', err.message);
+                logger.error('[Arena] Round auto-advance timeout error:', err.message);
             }
-        }, 22000); // 22 seconds (15s question + 7s buffer for slow connections)
+        }, 22000 + extraMs); // 22 seconds + any extraMs from Freeze powerup
 
         SocketService.roundTimers.set(existingKey, timer);
     }
@@ -174,6 +184,243 @@ export class SocketService {
         }, totalMs);
 
         SocketService.globalSessionTimers.set(roomCode, timer);
+    }
+
+    // ─── Process Player Answer / Timeout ──────────────────────────────────────
+    public static async processAnswer(
+        roomCode: string,
+        userId: string,
+        roundIndex: number,
+        selectedOption: number,
+        timeMs: number,
+        io: Server,
+        socket?: any
+    ): Promise<void> {
+        try {
+            const room = await ArenaRoom.findOne({ roomCode });
+            if (!room || room.status !== 'ACTIVE') return;
+
+            const player = room.players.find((p: any) => (p.userId._id || p.userId).toString() === userId);
+            if (!player) return;
+
+            const team = (player as any).team as 'A' | 'B';
+            const roundState = room.roundStates.find((r: any) => r.roundIndex === roundIndex);
+            if (!roundState) return;
+
+            const teamAnswers = team === 'A'
+                ? (roundState.teamAAnswers as any)
+                : (roundState.teamBAnswers as any);
+
+            if (teamAnswers.get(userId)) return; // Already answered
+
+            // ALTERNATING MODE: Check turn locks
+            if ((room as any).battleStyle === 'ALTERNATING' && room.mode !== 'SOLO_VS_AI') {
+                const currentTurn = (room as any).currentTurn as 'A' | 'B';
+                const isDefenderPhase = !!(roundState.teamAAnswers as any).size && currentTurn === 'B' && team === 'B' ||
+                                        !!(roundState.teamBAnswers as any).size && currentTurn === 'A' && team === 'A';
+                if (team !== currentTurn && !isDefenderPhase) return; // Blocked
+            }
+
+            const playerQs = (room.playerQuestions as any).get(userId);
+            if (!playerQs || !playerQs[roundIndex]) return;
+
+            const question = playerQs[roundIndex];
+            const isCorrect = selectedOption !== -1 && question.correctAnswer === selectedOption;
+
+            // Team Ownership Rule (Speed Race)
+            const teamAlreadyClaimed = team === 'A'
+                ? roundState.teamACorrectlyClaimed
+                : roundState.teamBCorrectlyClaimed;
+
+            if (teamAlreadyClaimed && isCorrect) {
+                teamAnswers.set(userId, { option: selectedOption, isCorrect, timeMs, alreadyClaimed: true });
+                room.markModified('roundStates');
+                room.markModified('players');
+                await room.save();
+                if (socket) {
+                    socket.emit('arena_answer_ack', { alreadyClaimed: true, isCorrect, roundIndex });
+                }
+                return;
+            }
+
+            let damage = 0;
+            let selfDamage = 0;
+            let shieldUsed = false;
+
+            if (isCorrect) {
+                // Apply Double Strike capability correctly!
+                const isDoubleStrikeActive = (player as any).powerupsUsed.includes('doubleStrike');
+                damage = calculateDamage(timeMs, isDoubleStrikeActive);
+
+                // Streak bonus
+                (player as any).streakCount += 1;
+                if ((player as any).streakCount >= 3) {
+                    damage += 250;
+                    (player as any).streakCount = 0;
+                    io.to(roomCode).emit('arena_combo', { userId, team, message: '🔥 COMBO STRIKE! +250 bonus damage!' });
+                }
+
+                if (team === 'A') {
+                    room.teamB.hp = Math.max(0, room.teamB.hp - damage);
+                    (roundState.teamACorrectlyClaimed as any) = true;
+                } else {
+                    room.teamA.hp = Math.max(0, room.teamA.hp - damage);
+                    (roundState.teamBCorrectlyClaimed as any) = true;
+                }
+            } else {
+                (player as any).streakCount = 0;
+                if ((player as any).powerups.shield && !(player as any).powerupsUsed.includes('shield')) {
+                    shieldUsed = true;
+                    (player as any).powerups.shield = false;
+                    (player as any).powerupsUsed.push('shield');
+                } else {
+                    selfDamage = 150;
+                    if (team === 'A') {
+                        room.teamA.hp = Math.max(0, room.teamA.hp - selfDamage);
+                    } else {
+                        room.teamB.hp = Math.max(0, room.teamB.hp - selfDamage);
+                    }
+                }
+
+                // Deduct 10 XP for incorrect answers (only if not a timeout)
+                if (selectedOption !== -1) {
+                    try {
+                        const { default: User } = require('../modules/auth/user.model');
+                        const u = await User.findById(userId);
+                        if (u) {
+                            u.xp = Math.max(0, (u.xp || 0) - 10);
+                            await u.save();
+                        }
+                    } catch (e: any) {
+                        logger.error('[Arena Socket] XP deduct error:', e.message);
+                    }
+                }
+            }
+
+            // Record answer
+            teamAnswers.set(userId, { option: selectedOption, isCorrect, timeMs });
+            (player as any).answersRecord.push({
+                questionId: roundIndex,
+                selectedOption,
+                isCorrect,
+                timeMs,
+                damage: isCorrect ? damage : selfDamage
+            });
+            (player as any).score += isCorrect ? damage : 0;
+
+            // Speed Race end evaluation
+            let forceRoundEnd = false;
+            if ((room as any).battleStyle === 'SPEED_RACE' || room.mode === 'SOLO_VS_AI') {
+                if (isCorrect) {
+                    const oppAnswers = team === 'A' ? (roundState.teamBAnswers as any) : (roundState.teamAAnswers as any);
+                    const oppPlayers = room.players.filter((p: any) => p.team !== team);
+                    if (room.mode !== 'SOLO_VS_AI') {
+                        oppPlayers.forEach((p: any) => {
+                            const pIdStr = (p.userId._id || p.userId).toString();
+                            if (!oppAnswers.get(pIdStr)) {
+                                oppAnswers.set(pIdStr, { option: -1, isCorrect: false, timeMs: 0, skippedBySpeedRace: true });
+                            }
+                        });
+                    }
+                    forceRoundEnd = true;
+                }
+            }
+
+            // Alternating mode turn progression
+            let turnSwitched = false;
+            let newTurn: 'A' | 'B' = (room as any).currentTurn;
+
+            if ((room as any).battleStyle === 'ALTERNATING' && room.mode !== 'SOLO_VS_AI') {
+                const currentTurn = (room as any).currentTurn as 'A' | 'B';
+                const opponentTeam: 'A' | 'B' = currentTurn === 'A' ? 'B' : 'A';
+
+                if (team === currentTurn) {
+                    if (!isCorrect) {
+                        (room as any).currentTurn = opponentTeam;
+                        newTurn = opponentTeam;
+                        turnSwitched = true;
+                    } else {
+                        forceRoundEnd = true;
+                        const oppAnswers = opponentTeam === 'A' ? (roundState.teamAAnswers as any) : (roundState.teamBAnswers as any);
+                        const oppPlayers = room.players.filter((p: any) => p.team === opponentTeam);
+                        oppPlayers.forEach((p: any) => {
+                            const pIdStr = (p.userId._id || p.userId).toString();
+                            if (!oppAnswers.get(pIdStr)) {
+                                oppAnswers.set(pIdStr, { option: -1, isCorrect: false, timeMs: 0, skippedByAttacker: true });
+                            }
+                        });
+                    }
+                } else {
+                    forceRoundEnd = true;
+                }
+            }
+
+            if (turnSwitched) {
+                room.markModified('players');
+                room.markModified('roundStates');
+                await room.save();
+                io.to(roomCode).emit('arena_turn_switch', {
+                    roomCode,
+                    roundIndex,
+                    activeTurn: newTurn,
+                    reason: 'ATTACKER_WRONG',
+                    timerSeconds: 10
+                });
+                io.to(roomCode).emit('arena_update', {
+                    room: room.toJSON(),
+                    event: 'ANSWER',
+                    answeredBy: userId,
+                    playerName: (player as any).firstName,
+                    team,
+                    roundIndex,
+                    isCorrect,
+                    damage: 0,
+                    selfDamage,
+                    shieldUsed,
+                    xpDeducted: !isCorrect && !shieldUsed ? 10 : 0,
+                    roundComplete: false
+                });
+                return;
+            }
+
+            let roundComplete = false;
+            if (forceRoundEnd) {
+                roundComplete = await SocketService._evaluateRoundComplete(room, roundIndex, roomCode, io, true);
+            } else {
+                roundComplete = await SocketService._evaluateRoundComplete(room, roundIndex, roomCode, io, false);
+            }
+
+            if (roundComplete && (room as any).battleStyle === 'ALTERNATING') {
+                newTurn = (room as any).currentTurn;
+            }
+
+            io.to(roomCode).emit('arena_update', {
+                room: room.toJSON(),
+                event: 'ANSWER',
+                answeredBy: userId,
+                playerName: (player as any).firstName,
+                team,
+                roundIndex,
+                isCorrect,
+                damage: isCorrect ? damage : 0,
+                selfDamage,
+                shieldUsed,
+                xpDeducted: !isCorrect && !shieldUsed ? 10 : 0,
+                roundComplete,
+                activeTurn: newTurn
+            });
+
+            if (!isCorrect) {
+                io.to(roomCode).emit('arena_teammate_wrong', {
+                    userId,
+                    team,
+                    roundIndex,
+                    wrongOption: selectedOption
+                });
+            }
+        } catch (err: any) {
+            logger.error('[Arena Socket] processAnswer error:', err.message);
+        }
     }
 
     // ─── Unified Round Evaluator ──────────────────────────────────────────────
@@ -240,6 +487,8 @@ export class SocketService {
             await SocketService._awardXP(room);
         }
 
+        room.markModified('players');
+        room.markModified('roundStates');
         await room.save();
 
         if (winnerTeam) {
@@ -263,8 +512,12 @@ export class SocketService {
             });
 
             // ─── JOIN ARENA LOBBY ─────────────────────────────────────────────────
-            socket.on('join_arena_lobby', async (data: { roomCode: string; userId: string }) => {
-                const { roomCode, userId } = data;
+            socket.on('join_arena_lobby', async (data: { 
+                roomCode: string; userId: string; 
+                joinMode?: string; grade?: string; board?: string; 
+                subject?: string; topic?: string;
+            }) => {
+                const { roomCode, userId, joinMode, grade, board, subject, topic } = data;
                 socket.join(roomCode);
 
                 try {
@@ -277,6 +530,7 @@ export class SocketService {
                         (player as any).socketId = socket.id;
                         (player as any).isConnected = true;
                     }
+                    room.markModified('players');
                     await room.save();
 
                     const updated = await ArenaRoom.findOne({ roomCode })
@@ -284,10 +538,24 @@ export class SocketService {
                         .populate('hostId', 'firstName lastName');
 
                     this.io.to(roomCode).emit('arena_lobby_update', { room: updated ? updated.toJSON() : null });
+
+                    // Notify host (and everyone in room) with joiner's choice details
+                    if (player) {
+                        const playerName = (player as any).firstName || 'A player';
+                        this.io.to(roomCode).emit('arena_player_joined', {
+                            playerName,
+                            joinMode: joinMode || 'SAME',
+                            grade: grade || String((player as any).grade || '?'),
+                            board: board || (player as any).board || '?',
+                            subject: subject || '',
+                            topic: topic || ''
+                        });
+                    }
                 } catch (err: any) {
                     logger.error('[Arena Socket] join_arena_lobby error:', err.message);
                 }
             });
+
 
             // ─── TEACHER TOURNAMENT BROADCAST INVITATION ─────────────────────────
             socket.on('broadcast_tournament_invite', (data: { roomCode: string; subject: string; topic?: string }) => {
@@ -319,6 +587,7 @@ export class SocketService {
                         teamBCorrectlyClaimed: false,
                         startedAt: new Date()
                     } as any);
+                    room.markModified('roundStates');
                     await room.save();
 
                     this.io.to(roomCode).emit('arena_started', { room: room.toJSON() });
@@ -382,237 +651,7 @@ export class SocketService {
                 timeMs: number;
             }) => {
                 const { roomCode, userId, roundIndex, selectedOption, timeMs } = data;
-
-                try {
-                    const room = await ArenaRoom.findOne({ roomCode });
-                    if (!room || room.status !== 'ACTIVE') return;
-
-                    const player = room.players.find((p: any) => (p.userId._id || p.userId).toString() === userId);
-                    if (!player) return;
-
-                    const team = (player as any).team as 'A' | 'B';
-                    const roundState = room.roundStates.find((r: any) => r.roundIndex === roundIndex);
-                    if (!roundState) return;
-
-                    const teamAnswers = team === 'A'
-                        ? (roundState.teamAAnswers as any)
-                        : (roundState.teamBAnswers as any);
-
-                    if (teamAnswers.get(userId)) return; // Already answered
-
-                    // ─────────────────────────────────────────────────────────
-                    // ALTERNATING MODE: Only currentTurn team can answer
-                    // ─────────────────────────────────────────────────────────
-                    if ((room as any).battleStyle === 'ALTERNATING' && room.mode !== 'SOLO_VS_AI') {
-                        const currentTurn = (room as any).currentTurn as 'A' | 'B';
-                        // If it's not this player's team's turn AND they have not been given a defender turn
-                        const isDefenderPhase = !!(roundState.teamAAnswers as any).size && currentTurn === 'B' && team === 'B' ||
-                                                !!(roundState.teamBAnswers as any).size && currentTurn === 'A' && team === 'A';
-                        if (team !== currentTurn && !isDefenderPhase) return; // Not your turn, blocked
-                    }
-
-                    // Get player's questions
-                    const playerQs = (room.playerQuestions as any).get(userId);
-                    if (!playerQs || !playerQs[roundIndex]) return;
-
-                    const question = playerQs[roundIndex];
-                    const isCorrect = selectedOption !== -1 && question.correctAnswer === selectedOption;
-
-                    // ─── Team Ownership Rule ──────────────────────────────────
-                    const teamAlreadyClaimed = team === 'A'
-                        ? roundState.teamACorrectlyClaimed
-                        : roundState.teamBCorrectlyClaimed;
-
-                    if (teamAlreadyClaimed && isCorrect) {
-                        teamAnswers.set(userId, { option: selectedOption, isCorrect, timeMs, alreadyClaimed: true });
-                        await room.save();
-                        socket.emit('arena_answer_ack', { alreadyClaimed: true, isCorrect, roundIndex });
-                        return;
-                    }
-
-                    let damage = 0;
-                    let selfDamage = 0;
-                    let shieldUsed = false;
-
-                    if (isCorrect) {
-                        damage = calculateDamage(timeMs, false);
-
-                        // Streak bonus
-                        (player as any).streakCount += 1;
-                        if ((player as any).streakCount >= 3) {
-                            damage += 250;
-                            (player as any).streakCount = 0;
-                            this.io.to(roomCode).emit('arena_combo', { userId, team, message: '🔥 COMBO STRIKE! +250 bonus damage!' });
-                        }
-
-                        if (team === 'A') {
-                            room.teamB.hp = Math.max(0, room.teamB.hp - damage);
-                            (roundState.teamACorrectlyClaimed as any) = true;
-                        } else {
-                            room.teamA.hp = Math.max(0, room.teamA.hp - damage);
-                            (roundState.teamBCorrectlyClaimed as any) = true;
-                        }
-                    } else {
-                        (player as any).streakCount = 0;
-                        if ((player as any).powerups.shield && !(player as any).powerupsUsed.includes('shield')) {
-                            shieldUsed = true;
-                            (player as any).powerups.shield = false;
-                            (player as any).powerupsUsed.push('shield');
-                        } else {
-                            selfDamage = 150;
-                            if (team === 'A') {
-                                room.teamA.hp = Math.max(0, room.teamA.hp - selfDamage);
-                            } else {
-                                room.teamB.hp = Math.max(0, room.teamB.hp - selfDamage);
-                            }
-                        }
-
-                        // Deduct 10 XP for wrong answer
-                        try {
-                            const { default: User } = require('../modules/auth/user.model');
-                            const u = await User.findById(userId);
-                            if (u) {
-                                u.xp = Math.max(0, (u.xp || 0) - 10);
-                                await u.save();
-                            }
-                        } catch (e: any) {
-                            logger.error('[Arena Socket] XP deduct error:', e.message);
-                        }
-                    }
-
-                    // Record answer
-                    teamAnswers.set(userId, { option: selectedOption, isCorrect, timeMs });
-                    (player as any).answersRecord.push({
-                        questionId: roundIndex,
-                        selectedOption,
-                        isCorrect,
-                        timeMs,
-                        damage: isCorrect ? damage : selfDamage
-                    });
-                    (player as any).score += isCorrect ? damage : 0;
-
-                    // ─────────────────────────────────────────────────────────
-                    // SPEED_RACE: First correct answer = instant round advance
-                    // ─────────────────────────────────────────────────────────
-                    let forceRoundEnd = false;
-                    if ((room as any).battleStyle === 'SPEED_RACE' || room.mode === 'SOLO_VS_AI') {
-                        if (isCorrect) {
-                            // Mark other team's slot as done too so round evaluator fires
-                            const oppAnswers = team === 'A' ? (roundState.teamBAnswers as any) : (roundState.teamAAnswers as any);
-                            const oppPlayers = room.players.filter((p: any) => p.team !== team);
-                            if (room.mode !== 'SOLO_VS_AI') {
-                                oppPlayers.forEach((p: any) => {
-                                    const pIdStr = (p.userId._id || p.userId).toString();
-                                    if (!oppAnswers.get(pIdStr)) {
-                                        oppAnswers.set(pIdStr, { option: -1, isCorrect: false, timeMs: 0, skippedBySpeedRace: true });
-                                    }
-                                });
-                            }
-                            forceRoundEnd = true;
-                        }
-                    }
-
-                    // ─────────────────────────────────────────────────────────
-                    // ALTERNATING: Wrong/timeout → switch turn to opponent
-                    // ─────────────────────────────────────────────────────────
-                    let turnSwitched = false;
-                    let newTurn: 'A' | 'B' = (room as any).currentTurn;
-
-                    if ((room as any).battleStyle === 'ALTERNATING' && room.mode !== 'SOLO_VS_AI') {
-                        const currentTurn = (room as any).currentTurn as 'A' | 'B';
-                        const opponentTeam: 'A' | 'B' = currentTurn === 'A' ? 'B' : 'A';
-
-                        if (team === currentTurn) {
-                            if (!isCorrect) {
-                                // Attacker got it wrong → switch turn to defender
-                                (room as any).currentTurn = opponentTeam;
-                                newTurn = opponentTeam;
-                                turnSwitched = true;
-                            } else {
-                                // Attacker got it right → round ends, alternate who starts next round
-                                forceRoundEnd = true;
-                                // Mark opponent as answered (skipped)
-                                const oppAnswers = opponentTeam === 'A' ? (roundState.teamAAnswers as any) : (roundState.teamBAnswers as any);
-                                const oppPlayers = room.players.filter((p: any) => p.team === opponentTeam);
-                                oppPlayers.forEach((p: any) => {
-                                     const pIdStr = (p.userId._id || p.userId).toString();
-                                     if (!oppAnswers.get(pIdStr)) {
-                                         oppAnswers.set(pIdStr, { option: -1, isCorrect: false, timeMs: 0, skippedByAttacker: true });
-                                     }
-                                 });
-                            }
-                        } else {
-                            // Defender answered → round always ends after defender responds
-                            forceRoundEnd = true;
-                        }
-                    }
-
-                    // Emit turn switch if needed (before evaluating round)
-                    if (turnSwitched) {
-                        await room.save();
-                        this.io.to(roomCode).emit('arena_turn_switch', {
-                            roomCode,
-                            roundIndex,
-                            activeTurn: newTurn,
-                            reason: 'ATTACKER_WRONG',
-                            timerSeconds: 10 // Defender gets 10 seconds
-                        });
-                        this.io.to(roomCode).emit('arena_update', {
-                            room: room.toJSON(),
-                            event: 'ANSWER',
-                            answeredBy: userId,
-                            playerName: (player as any).firstName,
-                            team,
-                            roundIndex,
-                            isCorrect,
-                            damage: 0,
-                            selfDamage,
-                            shieldUsed,
-                            xpDeducted: !isCorrect && !shieldUsed ? 10 : 0,
-                            roundComplete: false
-                        });
-                        return; // Don't evaluate round yet — wait for defender
-                    }
-
-                    // If force round end (Speed Race correct or Alternating complete), auto-close round
-                    let roundComplete = false;
-                    if (forceRoundEnd) {
-                        roundComplete = await SocketService._evaluateRoundComplete(room, roundIndex, roomCode, this.io, true);
-                    } else {
-                        roundComplete = await SocketService._evaluateRoundComplete(room, roundIndex, roomCode, this.io, false);
-                    }
-
-                    if (roundComplete && (room as any).battleStyle === 'ALTERNATING') {
-                        newTurn = (room as any).currentTurn;
-                    }
-
-                    this.io.to(roomCode).emit('arena_update', {
-                        room: room.toJSON(),
-                        event: 'ANSWER',
-                        answeredBy: userId,
-                        playerName: (player as any).firstName,
-                        team,
-                        roundIndex,
-                        isCorrect,
-                        damage: isCorrect ? damage : 0,
-                        selfDamage,
-                        shieldUsed,
-                        xpDeducted: !isCorrect && !shieldUsed ? 10 : 0,
-                        roundComplete,
-                        activeTurn: newTurn
-                    });
-
-                    if (!isCorrect) {
-                        this.io.to(roomCode).emit('arena_teammate_wrong', {
-                            userId,
-                            team,
-                            roundIndex,
-                            wrongOption: selectedOption
-                        });
-                    }
-                } catch (err: any) {
-                    logger.error('[Arena Socket] submit_arena_answer error:', err.message);
-                }
+                await SocketService.processAnswer(roomCode, userId, roundIndex, selectedOption, timeMs, this.io, socket);
             });
 
             // â”€â”€â”€ USE POWER-UP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -630,6 +669,8 @@ export class SocketService {
                     if (powerup === 'freeze') {
                         (player as any).powerups.freeze = false;
                         this.io.to(roomCode).emit('arena_powerup_used', { userId, powerup: 'freeze', effect: 'TIMER_FROZEN', duration: 10000 });
+                        // Extend server-side round timer by 10 seconds
+                        SocketService.startRoundTimer(roomCode, room.currentRound, this.io, 10000);
                     } else if (powerup === 'doubleStrike') {
                         (player as any).powerups.doubleStrike = false;
                         socket.emit('arena_powerup_used', { userId, powerup: 'doubleStrike', effect: 'NEXT_ATTACK_2X' });
@@ -645,7 +686,20 @@ export class SocketService {
                             socket.emit('arena_powerup_used', { userId, powerup: 'fiftyFifty', effect: 'HIDE_OPTIONS', hideIndices: toHide });
                         }
                     }
+                    room.markModified('players');
                     await room.save();
+                    // Broadcast updated room state to all clients so they instantly see powerup used/greyed out
+                    this.io.to(roomCode).emit('arena_update', {
+                        room: room.toJSON(),
+                        event: 'POWERUP_USED',
+                        answeredBy: userId,
+                        powerup,
+                        team: player.team,
+                        isCorrect: false,
+                        damage: 0,
+                        selfDamage: 0,
+                        roundComplete: false
+                    });
                 } catch (err: any) {
                     logger.error('[Arena Socket] use_arena_powerup error:', err.message);
                 }
@@ -686,6 +740,7 @@ export class SocketService {
                         room.winnerTeam = 'DRAW' as any;
                     }
 
+                    room.markModified('players');
                     await room.save();
 
                     this.io.to(room.roomCode).emit('arena_forfeit', {
@@ -727,6 +782,7 @@ export class SocketService {
                         await this._awardXP(room);
                     }
 
+                    room.markModified('players');
                     await room.save();
 
                     if (room.status === 'FINISHED') {

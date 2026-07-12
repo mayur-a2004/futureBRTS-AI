@@ -91,7 +91,7 @@ export default function About() {
                             <SpecRow label="CORES_ACTIVE" value="16,384 // HYPER_THREADED" />
                             <SpecRow label="THOUGHT_LATENCY" value="12ms // REAL_TIME" />
                             <SpecRow label="ETHICS_LAYER" value="v1.0_SIGNED" />
-                            <SpecRow label="FOUNDER_TOKEN" value="SAVALIYA_MAYUR" />
+                            <SpecRow label="PLATFORM_TOKEN" value="FUTURE_BRTS" />
                         </div>
                     </div>
 

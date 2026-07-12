@@ -32,7 +32,8 @@ export default function Layout() {
     const [activeInvite, setActiveInvite] = useState<{ roomCode: string; subject: string; topic?: string } | null>(null);
 
     useEffect(() => {
-        const s = io(window.location.hostname === 'localhost' ? 'http://localhost:7001' : window.location.origin);
+        const socketUrl = (import.meta as any).env?.VITE_SOCKET_URL || window.location.origin.replace(/:\d+$/, ':7001');
+        const s = io(socketUrl);
         s.on('student_tournament_invite', (data) => {
             setActiveInvite(data);
             setTimeout(() => {
@@ -403,7 +404,7 @@ export default function Layout() {
                     </button>
                     <div className="ml-3 flex items-center justify-between flex-1">
                         <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded bg-indigo-600 flex items-center justify-center font-black text-[10px]">{isFutureEd ? "FE" : "FB"}</div>
+                            <div className="w-6 h-6 rounded bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-600 flex items-center justify-center font-black text-[10px] text-white">F</div>
                             <span className="text-sm font-black tracking-widest uppercase">{isFutureEd ? "Future Ed" : "FutureBRTS"}</span>
                         </div>
 
@@ -432,9 +433,9 @@ export default function Layout() {
                             {/* Logo Button - Collapsed state hover trigger */}
                             <div
                                 onClick={isSidebarCollapsed ? toggleSidebar : undefined}
-                                className={`w-9 h-9 rounded-xl ${isFutureEd ? 'bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-600' : 'bg-indigo-600'} flex items-center justify-center font-black text-xs shrink-0 cursor-pointer transition-all hover:opacity-90 relative`}
+                                className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-600 flex items-center justify-center font-black text-sm shrink-0 cursor-pointer transition-all hover:opacity-90 relative shadow-md"
                             >
-                                <span className={`${isSidebarCollapsed ? 'group-hover/header-actions:opacity-0' : ''} transition-opacity`}>{isFutureEd ? "FE" : "FB"}</span>
+                                <span className={`${isSidebarCollapsed ? 'group-hover/header-actions:opacity-0' : ''} transition-opacity text-white`}>F</span>
                                 {isSidebarCollapsed && (
                                     <PanelLeftOpen size={18} className="absolute opacity-0 group-hover/header-actions:opacity-100 transition-opacity text-white" />
                                 )}

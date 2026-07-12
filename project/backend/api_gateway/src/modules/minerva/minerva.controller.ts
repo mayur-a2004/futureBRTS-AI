@@ -25,6 +25,7 @@ import {
     generatePYQRoadmap,
     getCombinedMinervaResponse,
     appealExamGrading,
+    SKETCHFAB_HINTS,
 } from './minerva.service';
 
 // ─────────────────────────────────────────────────────────────────
@@ -301,10 +302,39 @@ export const minervaController = {
     chat: async (req: Request | any, res: Response) => {
         try {
             const userId = req.user?.id || req.user?._id;
-            const { message, session_id, chat_session_id, deep_study } = req.body;
+            let { message, session_id, chat_session_id, deep_study } = req.body;
 
             if (!message?.trim()) {
                 return res.status(400).json({ success: false, error: 'Message is required' });
+            }
+
+            // ── CHATGPT-LIKE SLASH SHORTCUTS PARSER ──
+            let forceLab = false;
+            let forceTest = false;
+            let forceCode = false;
+            let forceExplain = false;
+
+            const trimmedMsg = message.trim();
+            if (trimmedMsg.startsWith('/')) {
+                const parts = trimmedMsg.split(/\s+/);
+                const cmd = parts[0].toLowerCase();
+                const topicArg = parts.slice(1).join(' ').trim();
+
+                if (topicArg) {
+                    if (cmd === '/lab') {
+                        message = `Open the virtual lab simulator for: ${topicArg}`;
+                        forceLab = true;
+                    } else if (cmd === '/test') {
+                        message = `Generate a practice quiz / test with 3 MCQs on: ${topicArg}`;
+                        forceTest = true;
+                    } else if (cmd === '/code') {
+                        message = `Open the computer coding sandbox lab for: ${topicArg}`;
+                        forceCode = true;
+                    } else if (cmd === '/explain') {
+                        message = `Explain this topic in simple analogical details: ${topicArg}`;
+                        forceExplain = true;
+                    }
+                }
             }
 
             // Update study streak
@@ -363,6 +393,24 @@ export const minervaController = {
                 await MinervaChatSession.findByIdAndUpdate(activeChatSessionId, { title: newTitle });
             }
 
+            // Analyze previous message for self-learning feedback loop
+            try {
+                const lastAssistantMsg = await MinervaChatMessage.findOne({ 
+                    userId, 
+                    chat_session_id: activeChatSessionId,
+                    role: 'minerva'
+                }).sort({ createdAt: -1 }).lean();
+
+                if (lastAssistantMsg && studentQuery) {
+                    const { processSelfLearningFeedback } = require('./minerva.service');
+                    processSelfLearningFeedback(studentQuery, lastAssistantMsg.content, profile).catch((err: any) => {
+                        console.error("Error in processSelfLearningFeedback:", err);
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to fetch previous assistant message for self-learning:", err);
+            }
+
             // Save student message (clean version)
             const savedStudentMsg = await saveChatMessage(
                 userId,
@@ -392,7 +440,8 @@ export const minervaController = {
                 fullExtractedText ? `[Uploaded File: ${filename}]\n\nExtracted Content:\n"""\n${fullExtractedText}\n"""\n\nStudent Query: ${studentQuery}` : studentQuery,
                 profile,
                 chatHistory,
-                !!deep_study
+                !!deep_study,
+                !!forceLab
             );
 
             const intent = combinedRes.intent;
@@ -571,6 +620,58 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
 
             } else {
                 // Response is already populated by getCombinedMinervaResponse
+            }
+
+            // ── OVERRIDES FOR FORCED SLASH COMMANDS ──
+            if (forceLab) {
+                if (!metadata) metadata = {};
+                const parsedTopic = studentQuery.replace('/lab', '').trim();
+                metadata.lab_config = {
+                    subject: 'physics', // default subject fallback
+                    topic: parsedTopic,
+                    grade_level: profile.grade_level || 'class_10',
+                    board: profile.board || 'cbse',
+                    sensitivity_level: 0,
+                    content_layers: ['text', 'diagram', 'youtube', 'threejs'],
+                    diagram_type: 'dynamic_mermaid',
+                    mermaid_schema: `graph TD\n    A[${parsedTopic}] --> B[Structure Analysis]\n    B --> C[Run 2D Simulation]`,
+                    three_js_config: {
+                        type: 'wave_simulation',
+                        title: parsedTopic + ' Interactive Simulator',
+                        description: `Adjust variables below to see real-time graphical simulation of ${parsedTopic}.`,
+                        controls: [
+                            { name: 'amplitude', label: 'Amplitude (A)', min: 0.5, max: 4, step: 0.1, defaultValue: 2 },
+                            { name: 'frequency', label: 'Frequency (f)', min: 0.2, max: 5, step: 0.1, defaultValue: 1.5 }
+                        ]
+                    },
+                    sketchfab_hint: null,
+                    youtube_query: parsedTopic + ' lesson concept',
+                    voice_script: reply || 'Here is your requested virtual lab simulation.',
+                    auto_open: true
+                };
+            }
+
+            if (forceCode) {
+                if (!metadata) metadata = {};
+                const parsedTopic = studentQuery.replace('/code', '').trim();
+                metadata.lab_config = {
+                    subject: 'mathematics',
+                    topic: parsedTopic + ' Coding',
+                    grade_level: profile.grade_level || 'class_10',
+                    board: profile.board || 'cbse',
+                    sensitivity_level: 0,
+                    content_layers: ['text', 'sandbox'],
+                    diagram_type: null,
+                    three_js_config: null,
+                    sketchfab_hint: null,
+                    youtube_query: '',
+                    voice_script: 'Programming sandbox loaded. Edit the code and press Run to execute!',
+                    auto_open: true,
+                    sandbox_config: {
+                        language: 'javascript',
+                        default_code: `// Let's explore: ${parsedTopic}\nfunction analyze() {\n    console.log("Analyzing ${parsedTopic}...");\n}\nanalyze();`
+                    }
+                };
             }
 
             // Enrich lab_config if present in metadata to fit frontend schema
@@ -1183,13 +1284,39 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                 return res.status(500).json({ success: false, error: 'Exam generate nahi hua. Dobara try karo.' });
             }
 
-            // Flatten questions from sections
+            // Flatten questions from sections and check for total marks mismatch
             const allQuestions: any[] = [];
+            let currentTotal = 0;
             (examData.sections || []).forEach((section: any) => {
+                let sectionSum = 0;
                 (section.questions || []).forEach((q: any) => {
                     allQuestions.push({ ...q, section: section.section_name });
+                    currentTotal += q.marks || 0;
+                    sectionSum += q.marks || 0;
                 });
+                section.section_marks = sectionSum;
             });
+
+            // If there's an arithmetic mismatch, correct the last question to ensure sum === total_marks
+            if (allQuestions.length > 0 && currentTotal !== total_marks) {
+                const diff = total_marks - currentTotal;
+                
+                // Adjust in flattened list
+                allQuestions[allQuestions.length - 1].marks = Math.max(1, (allQuestions[allQuestions.length - 1].marks || 0) + diff);
+                
+                // Adjust inside nested sections structure to keep them synchronized
+                for (let s = examData.sections.length - 1; s >= 0; s--) {
+                    const section = examData.sections[s];
+                    if (section.questions && section.questions.length > 0) {
+                        const lastQ = section.questions[section.questions.length - 1];
+                        lastQ.marks = Math.max(1, (lastQ.marks || 0) + diff);
+                        
+                        // Recalculate section_marks for that section
+                        section.section_marks = section.questions.reduce((sum: number, q: any) => sum + (q.marks || 0), 0);
+                        break;
+                    }
+                }
+            }
 
             const exam = await MinervaExam.create({
                 session_id,
@@ -2129,15 +2256,59 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
                 return res.status(400).json({ success: false, error: 'query is required' });
             }
 
-            const fetch = (await import('node-fetch')).default;
-            const searchUrl = `https://api.sketchfab.com/v3/search?type=models&q=${encodeURIComponent(query)}`;
+            // 1. Instant Cache: Exact or fuzzy match against pre-verified high-quality models
+            const lowerQuery = query.toLowerCase().trim();
             
-            const response = await fetch(searchUrl, {
+            // Map common Hinglish, Hindi, and spelling mistakes to standard keywords
+            const SYNONYM_MAP: Record<string, string> = {
+                dil: 'heart', heert: 'heart', hert: 'heart', hrt: 'heart', cardiac: 'heart',
+                dimag: 'brain', dimagh: 'brain', brian: 'brain', cerebral: 'brain',
+                célula: 'cell', cel: 'cell', celll: 'cell',
+                adn: 'dna', dnaa: 'dna', helix: 'dna', chromosome: 'dna',
+                aankh: 'eye', ankh: 'eye', eyes: 'eye', ocular: 'eye',
+                kaan: 'ear', kan: 'ear', auditory: 'ear',
+                phephde: 'lungs', phephda: 'lungs', lung: 'lungs', respiratory: 'lungs',
+                sex: 'sex', reproductive: 'sex', reproduction: 'sex', genital: 'sex', ling: 'sex', penis: 'sex', vagina: 'sex',
+                pet: 'stomach', gastric: 'stomach',
+                pathri: 'kidney', kidneys: 'kidney', renal: 'kidney'
+            };
+
+            const normalizedQuery = SYNONYM_MAP[lowerQuery] || lowerQuery;
+
+            for (const [kw, modelId] of Object.entries(SKETCHFAB_HINTS)) {
+                if (normalizedQuery === kw || normalizedQuery.includes(kw) || kw.includes(normalizedQuery)) {
+                    console.log(`⚡ [Sketchfab Cache] Instant matched normalized query "${normalizedQuery}" to verified model ID "${modelId}" (${kw})`);
+                    return res.json({
+                        success: true,
+                        model_id: modelId,
+                        name: kw.toUpperCase(),
+                        viewer_url: `https://sketchfab.com/models/${modelId}`,
+                        thumbnail: null
+                    });
+                }
+            }
+
+            const fetch = (await import('node-fetch')).default;
+            
+            // Try searching with "annotated" suffix first to prioritize models with interactive hotspots
+            let searchUrl = `https://api.sketchfab.com/v3/search?type=models&q=${encodeURIComponent(query + ' annotated')}`;
+            let response = await fetch(searchUrl, {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
                 }
             });
-            const data: any = await response.json();
+            let data: any = await response.json();
+
+            // If no annotated models found, fallback to original query
+            if (!data?.results || data.results.length === 0) {
+                searchUrl = `https://api.sketchfab.com/v3/search?type=models&q=${encodeURIComponent(query)}`;
+                response = await fetch(searchUrl, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+                    }
+                });
+                data = await response.json();
+            }
 
             if (data?.results?.length > 0) {
                 const bestModel = data.results.find((item: any) => !item.isAgeRestricted) || data.results[0];

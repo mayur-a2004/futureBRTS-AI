@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/Button";
 import LoadingScreen from "@/components/ui/LoadingScreen";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { sanitizeExternalUrl } from "@/utils/url";
-import { ArrowLeft, CheckCircle2, Circle, Calendar, Lock, BarChart3, ListTodo, AlertCircle, Target, Brain, Zap, Navigation, Flag, Youtube, ShieldCheck, MessageSquare } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Circle, Calendar, Lock, BarChart3, ListTodo, AlertCircle, Target, Brain, Zap, Navigation, Flag, Youtube, ShieldCheck, MessageSquare, Plus } from "lucide-react";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from "recharts";
 
 export default function TodayTask() {
@@ -19,6 +19,15 @@ export default function TodayTask() {
 
     const [targetLanguage, setTargetLanguage] = useState<string>("Hindi"); // Default translation target
     const [translating, setTranslating] = useState(false);
+
+    // Custom Task Creation states
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [newTitle, setNewTitle] = useState('');
+    const [newDescription, setNewDescription] = useState('');
+    const [newLevel, setNewLevel] = useState(1);
+    const [newConcept, setNewConcept] = useState('');
+    const [newObjective, setNewObjective] = useState('');
+    const [creatingTask, setCreatingTask] = useState(false);
 
     // Prepare radar chart data dynamically based on tasks conceptMap and status
     const conceptMasteryData = () => {
@@ -90,12 +99,14 @@ export default function TodayTask() {
             const statusRes = await fetch('/api/onboarding/status', { headers: { 'Authorization': `Bearer ${token}` } });
             const statusData = await statusRes.json();
 
-            if (!statusData.success || !statusData.profile || !statusData.profile.onboardingCompleted) {
-                setOnboardingStatus('INCOMPLETE');
+            const isCompleted = statusData.success && statusData.profile && statusData.profile.onboardingCompleted;
+            setOnboardingStatus(isCompleted ? 'COMPLETE' : 'INCOMPLETE');
+
+            if (!isCompleted) {
+                setSelectedRoadmap({ _id: 'none', title: 'Manual Objectives', description: 'Create and track your custom goals.' });
                 setLoading(false);
                 return;
             }
-            setOnboardingStatus('COMPLETE');
 
             const res = await fetch('/api/roadmap', { headers: { 'Authorization': `Bearer ${token}` } });
             const data = await res.json();
@@ -118,14 +129,20 @@ export default function TodayTask() {
                 }
                 if (!urlRoadmapId && currentActiveSessionId) {
                     const sessionRoadmap = data.roadmaps.find((r: any) => String(r.sessionId) === String(currentActiveSessionId));
-                    if (sessionRoadmap) setSelectedRoadmap(sessionRoadmap);
+                    if (sessionRoadmap) {
+                        setSelectedRoadmap(sessionRoadmap);
+                        return;
+                    }
                 }
+                setSelectedRoadmap({ _id: 'none', title: 'Manual Objectives', description: 'Create and track your custom goals.' });
                 setLoading(false);
             } else {
+                setSelectedRoadmap({ _id: 'none', title: 'Manual Objectives', description: 'Create and track your custom goals.' });
                 setLoading(false);
             }
         } catch (e) {
             console.error(e);
+            setSelectedRoadmap({ _id: 'none', title: 'Manual Objectives', description: 'Create and track your custom goals.' });
             setLoading(false);
         }
     };
@@ -142,21 +159,23 @@ export default function TodayTask() {
             const tasksData = await tasksRes.json();
             if (analyticsData.success) setAnalytics(analyticsData.analytics);
 
-            // 🔄 Auto-generate tasks if none exist yet
-            if (tasksData.success && tasksData.tasks?.length === 0) {
-                const genRes = await fetch('/api/roadmap/convert-tasks', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ roadmapId })
-                });
-                const genData = await genRes.json();
-                if (genData.success) {
-                    const reFetch = await fetch(`/api/tasks?roadmapId=${roadmapId}`, { headers: { 'Authorization': `Bearer ${token}` } });
-                    const reData = await reFetch.json();
-                    if (reData.success) setTasks(reData.tasks);
+            if (tasksData.success) {
+                // 🔄 Auto-generate tasks if none exist yet AND not manual workspace
+                if (roadmapId !== 'none' && tasksData.tasks?.length === 0) {
+                    const genRes = await fetch('/api/roadmap/convert-tasks', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({ roadmapId })
+                    });
+                    const genData = await genRes.json();
+                    if (genData.success) {
+                        const reFetch = await fetch(`/api/tasks?roadmapId=${roadmapId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                        const reData = await reFetch.json();
+                        if (reData.success) setTasks(reData.tasks);
+                    }
+                } else {
+                    setTasks(tasksData.tasks || []);
                 }
-            } else if (tasksData.success) {
-                setTasks(tasksData.tasks);
             }
         } catch (e) { console.error(e); } finally { setLoading(false); }
     }
@@ -317,18 +336,55 @@ export default function TodayTask() {
         }
     };
 
-    if (loading) return <LoadingScreen />;
+    const handleCreateTask = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newTitle.trim() || !newDescription.trim() || creatingTask) return;
 
-    if (onboardingStatus === 'INCOMPLETE') {
-        return (
-            <div className="h-screen flex flex-col items-center justify-center text-white bg-black space-y-6">
-                <div className="p-4 bg-yellow-500/10 rounded-full border border-yellow-500/20"><Target size={48} className="text-yellow-500" /></div>
-                <h2 className="text-3xl font-black">Initialization Required</h2>
-                <p className="text-gray-400 max-w-md text-center">We cannot view tasks without your core profile data. Verification failed.</p>
-                <Button onClick={() => navigate('/onboarding')} className="bg-white text-black hover:bg-gray-200 font-bold px-8 py-4 rounded-xl">Complete Onboarding</Button>
-            </div>
-        );
-    }
+        setCreatingTask(true);
+        const token = localStorage.getItem('fbrts_token');
+        try {
+            const res = await fetch('/api/tasks', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    title: newTitle,
+                    description: newDescription,
+                    roadmapId: selectedRoadmap?._id === 'none' ? null : selectedRoadmap?._id,
+                    level: newLevel,
+                    conceptMap: newConcept.trim() ? [newConcept.trim()] : ['Manual Goal'],
+                    objective: newObjective.trim() || undefined
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setTasks(prev => [data.task, ...prev]);
+                setIsCreateModalOpen(false);
+                setNewTitle('');
+                setNewDescription('');
+                setNewLevel(1);
+                setNewConcept('');
+                setNewObjective('');
+                
+                if (selectedRoadmap) {
+                    const analyticsRes = await fetch(`/api/tasks/analytics?roadmapId=${selectedRoadmap._id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                    const analyticsData = await analyticsRes.json();
+                    if (analyticsData.success) setAnalytics(analyticsData.analytics);
+                }
+            } else {
+                alert(data.error || "Failed to create task");
+            }
+        } catch (err) {
+            console.error("Create task error:", err);
+            alert("Error creating task.");
+        } finally {
+            setCreatingTask(false);
+        }
+    };
+
+    if (loading) return <LoadingScreen />;
 
     const pendingTasks = tasks.filter(t => t.status === 'todo' && !t.isLocked);
     const lockedTasks = tasks.filter(t => t.isLocked);
@@ -420,82 +476,104 @@ export default function TodayTask() {
             <div className="flex-1 overflow-y-auto p-4 md:p-8 pb-32 md:pb-8 scroll-smooth scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                 {!selectedRoadmap ? (
                     <div className="h-full flex flex-col pt-6 md:pt-10 px-2 md:px-4 max-w-7xl mx-auto space-y-12 animate-in fade-in duration-500">
-                        {roadmaps.length > 0 ? (
-                            <>
-                                <div className="space-y-4">
-                                    <h2 className="text-3xl md:text-4xl font-black italic tracking-tighter uppercase text-white mb-2">Neural Hub</h2>
-                                    <p className="text-gray-500 uppercase text-[10px] md:text-xs font-black tracking-widest">Select a plan to execute your tactical tasks.</p>
+                        {onboardingStatus === 'INCOMPLETE' && (
+                            <div className="bg-amber-500/10 border border-amber-500/20 rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 backdrop-blur-md">
+                                <div className="flex items-center gap-4">
+                                    <AlertCircle className="text-amber-400 shrink-0" size={24} />
+                                    <div>
+                                        <h4 className="font-bold text-white text-sm">Onboarding Incomplete</h4>
+                                        <p className="text-xs text-gray-400">Complete your profile onboarding to generate AI study roadmaps and dynamic study sessions.</p>
+                                    </div>
+                                </div>
+                                <Button onClick={() => navigate('/onboarding')} className="bg-white text-black hover:bg-gray-200 font-bold shrink-0">Complete Onboarding</Button>
+                            </div>
+                        )}
 
-                                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 max-w-3xl mt-8">
-                                        <div className="bg-white/5 border border-white/10 p-3 md:p-4 rounded-xl md:rounded-2xl">
-                                            <div className="text-gray-500 text-[8px] md:text-[10px] font-black uppercase tracking-widest mb-1">Active Plans</div>
-                                            <div className="text-xl md:text-2xl font-black text-white">{roadmaps.length}</div>
+                        <div className="space-y-4">
+                            <h2 className="text-3xl md:text-4xl font-black italic tracking-tighter uppercase text-white mb-2">Neural Hub</h2>
+                            <p className="text-gray-500 uppercase text-[10px] md:text-xs font-black tracking-widest">Select a plan to execute your tactical tasks.</p>
+
+                            {onboardingStatus === 'COMPLETE' && roadmaps.length > 0 && (
+                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 max-w-3xl mt-8">
+                                    <div className="bg-white/5 border border-white/10 p-3 md:p-4 rounded-xl md:rounded-2xl">
+                                        <div className="text-gray-500 text-[8px] md:text-[10px] font-black uppercase tracking-widest mb-1">Active Plans</div>
+                                        <div className="text-xl md:text-2xl font-black text-white">{roadmaps.length}</div>
+                                    </div>
+                                    <div className="bg-white/5 border border-white/10 p-3 md:p-4 rounded-xl md:rounded-2xl">
+                                        <div className="text-gray-500 text-[8px] md:text-[10px] font-black uppercase tracking-widest mb-1">Total Tasks</div>
+                                        <div className="text-xl md:text-2xl font-black text-indigo-400">
+                                            {roadmaps.reduce((acc, r: any) => acc + (r.stats?.totalTasks || 0), 0)}
                                         </div>
-                                        <div className="bg-white/5 border border-white/10 p-3 md:p-4 rounded-xl md:rounded-2xl">
-                                            <div className="text-gray-500 text-[8px] md:text-[10px] font-black uppercase tracking-widest mb-1">Total Tasks</div>
-                                            <div className="text-xl md:text-2xl font-black text-indigo-400">
-                                                {roadmaps.reduce((acc, r: any) => acc + (r.stats?.totalTasks || 0), 0)}
-                                            </div>
-                                        </div>
-                                        <div className="bg-white/5 border border-white/10 p-3 md:p-4 rounded-xl md:rounded-2xl">
-                                            <div className="text-gray-500 text-[8px] md:text-[10px] font-black uppercase tracking-widest mb-1">Completed</div>
-                                            <div className="text-xl md:text-2xl font-black text-emerald-400">
-                                                {roadmaps.reduce((acc, r: any) => acc + (r.stats?.completed || 0), 0)}
-                                            </div>
+                                    </div>
+                                    <div className="bg-white/5 border border-white/10 p-3 md:p-4 rounded-xl md:rounded-2xl">
+                                        <div className="text-gray-500 text-[8px] md:text-[10px] font-black uppercase tracking-widest mb-1">Completed</div>
+                                        <div className="text-xl md:text-2xl font-black text-emerald-400">
+                                            {roadmaps.reduce((acc, r: any) => acc + (r.stats?.completed || 0), 0)}
                                         </div>
                                     </div>
                                 </div>
+                            )}
+                        </div>
 
-                                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
-                                    {roadmaps.map(r => (
-                                        <div
-                                            key={r._id}
-                                            onClick={() => setSelectedRoadmap(r)}
-                                            className="admin-card group hover:border-indigo-500/40 p-8 cursor-pointer transform hover:-translate-y-2 transition-all flex flex-col h-full"
-                                        >
-                                            <div className="flex justify-between items-start mb-4 md:mb-6">
-                                                <div className="p-3 md:p-4 bg-indigo-500/10 rounded-xl md:rounded-2xl text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-lg group-hover:shadow-indigo-500/20">
-                                                    <Brain size={24} className="md:size-[28px]" />
-                                                </div>
-                                                <div className="text-right">
-                                                    <div className="text-[10px] font-black text-gray-600 uppercase tracking-widest">{new Date(r.createdAt).toLocaleDateString()}</div>
-                                                    {r.stats?.progress === 100 && <CheckCircle2 size={16} className="text-emerald-500 mt-1 ml-auto" />}
-                                                </div>
-                                            </div>
-                                            <div className="flex-1">
-                                                <h3 className="text-xl md:text-2xl font-black italic tracking-tight mb-2 uppercase group-hover:text-indigo-300 transition-colors leading-tight">{r.title}</h3>
-                                                <p className="text-xs md:text-sm text-gray-500 line-clamp-2 mb-6 leading-relaxed font-medium">{r.description || "Experimental Neural Path"}</p>
-                                            </div>
-
-                                            <div className="space-y-4 pt-6 border-t border-white/5">
-                                                {(r.stats?.totalTasks || 0) > 0 ? (
-                                                    <>
-                                                        <div className="flex justify-between items-end text-[10px] font-black uppercase tracking-widest text-gray-500">
-                                                            <span>{r.stats?.completed || 0} / {r.stats?.totalTasks} Complete</span>
-                                                            <span className="text-indigo-400">{r.stats?.progress || 0}%</span>
-                                                        </div>
-                                                        <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                                                            <div className={`h-full transition-all duration-1000 ease-out ${r.stats?.progress === 100 ? 'bg-emerald-500' : 'bg-indigo-500'}`} style={{ width: `${r.stats?.progress || 0}%` }}></div>
-                                                        </div>
-                                                    </>
-                                                ) : (
-                                                    <span className="text-xs font-black text-indigo-400 uppercase tracking-widest">Initialize Node →</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
+                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
+                            {/* Manual Tasks Card (Always visible) */}
+                            <div
+                                onClick={() => setSelectedRoadmap({ _id: 'none', title: 'Manual Objectives', description: 'Create and track your custom goals.' })}
+                                className="admin-card group hover:border-indigo-500/40 p-8 cursor-pointer transform hover:-translate-y-2 transition-all flex flex-col h-full bg-indigo-950/10 border-indigo-500/10"
+                            >
+                                <div className="flex justify-between items-start mb-4 md:mb-6">
+                                    <div className="p-3 md:p-4 bg-indigo-500/10 rounded-xl md:rounded-2xl text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-lg group-hover:shadow-indigo-500/20">
+                                        <ListTodo size={24} className="md:size-[28px]" />
+                                    </div>
+                                    <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest leading-none">Personal Workspace</div>
                                 </div>
-                            </>
-                        ) : (
-                            <div className="flex flex-col items-center justify-center text-center space-y-6 flex-1">
-                                <div className="w-24 h-24 bg-indigo-600/10 rounded-[2.5rem] flex items-center justify-center border border-indigo-500/20 animate-pulse"><Target size={48} className="text-indigo-400" /></div>
-                                <div className="space-y-2 max-w-md">
-                                    <h2 className="text-2xl font-black italic uppercase tracking-tighter">System Ready</h2>
-                                    <p className="text-gray-500 text-lg">No tactical plans detected. Launch a strategy session to generate your first roadmap.</p>
+                                <div className="flex-1">
+                                    <h3 className="text-xl md:text-2xl font-black italic tracking-tight mb-2 uppercase group-hover:text-indigo-300 transition-colors leading-tight">Manual Tasks</h3>
+                                    <p className="text-xs md:text-sm text-gray-500 line-clamp-2 mb-6 leading-relaxed font-medium">Create, manage, and complete your own custom tasks and personal study goals.</p>
                                 </div>
-                                <Button onClick={() => navigate('/builder')} className="bg-indigo-600 text-white hover:bg-indigo-500 px-10 py-4 rounded-xl font-black italic uppercase tracking-widest shadow-xl shadow-indigo-600/20 transition-all text-lg"><ListTodo className="mr-2" />Launch Builder</Button>
+                                <div className="space-y-4 pt-6 border-t border-white/5">
+                                    <span className="text-xs font-black text-indigo-400 uppercase tracking-widest">Open Workspace →</span>
+                                </div>
                             </div>
-                        )}
+
+                            {roadmaps.map(r => (
+                                <div
+                                    key={r._id}
+                                    onClick={() => setSelectedRoadmap(r)}
+                                    className="admin-card group hover:border-indigo-500/40 p-8 cursor-pointer transform hover:-translate-y-2 transition-all flex flex-col h-full"
+                                >
+                                    <div className="flex justify-between items-start mb-4 md:mb-6">
+                                        <div className="p-3 md:p-4 bg-indigo-500/10 rounded-xl md:rounded-2xl text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-lg group-hover:shadow-indigo-500/20">
+                                            <Brain size={24} className="md:size-[28px]" />
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-[10px] font-black text-gray-600 uppercase tracking-widest">{new Date(r.createdAt).toLocaleDateString()}</div>
+                                            {r.stats?.progress === 100 && <CheckCircle2 size={16} className="text-emerald-500 mt-1 ml-auto" />}
+                                        </div>
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className="text-xl md:text-2xl font-black italic tracking-tight mb-2 uppercase group-hover:text-indigo-300 transition-colors leading-tight">{r.title}</h3>
+                                        <p className="text-xs md:text-sm text-gray-500 line-clamp-2 mb-6 leading-relaxed font-medium">{r.description || "Experimental Neural Path"}</p>
+                                    </div>
+
+                                    <div className="space-y-4 pt-6 border-t border-white/5">
+                                        {(r.stats?.totalTasks || 0) > 0 ? (
+                                            <>
+                                                <div className="flex justify-between items-end text-[10px] font-black uppercase tracking-widest text-gray-500">
+                                                    <span>{r.stats?.completed || 0} / {r.stats?.totalTasks} Complete</span>
+                                                    <span className="text-indigo-400">{r.stats?.progress || 0}%</span>
+                                                </div>
+                                                <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                                                    <div className={`h-full transition-all duration-1000 ease-out ${r.stats?.progress === 100 ? 'bg-emerald-500' : 'bg-indigo-500'}`} style={{ width: `${r.stats?.progress || 0}%` }}></div>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <span className="text-xs font-black text-indigo-400 uppercase tracking-widest">Initialize Node →</span>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 ) : (
                     <div className="max-w-6xl mx-auto pb-20 space-y-8">
@@ -565,7 +643,18 @@ export default function TodayTask() {
                                     </div>
                                 </div>
 
-                                <h2 className="text-xl font-bold flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]"></div>Actionable Tasks</h2>
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-xl font-bold flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]"></div>
+                                        Actionable Tasks
+                                    </h2>
+                                    <Button
+                                        onClick={() => setIsCreateModalOpen(true)}
+                                        className="bg-indigo-600/80 hover:bg-indigo-500 text-white rounded-xl px-3 py-1.5 text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-md shrink-0 border border-indigo-500/30"
+                                    >
+                                        <Plus size={14} /> Add Task
+                                    </Button>
+                                </div>
                                 {pendingTasks.length === 0 && <div className="text-gray-500 italic text-sm">No pending tasks available. Great job!</div>}
                                 <div className="space-y-3">
                                     {pendingTasks.map((task) => (
@@ -1082,6 +1171,101 @@ export default function TodayTask() {
                                 )}
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {isCreateModalOpen && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/90 backdrop-blur-2xl animate-in fade-in duration-200" onClick={() => setIsCreateModalOpen(false)}>
+                    <div className="bg-[#0B0915]/95 border border-white/[0.06] rounded-[24px] w-full max-w-lg overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col font-inter" onClick={e => e.stopPropagation()}>
+                        <div className="p-6 border-b border-white/10 flex justify-between items-center shrink-0">
+                            <div>
+                                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                    <Plus size={20} className="text-indigo-500" /> Create Custom Task
+                                </h2>
+                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mt-1">Add personal study milestones</p>
+                            </div>
+                            <button onClick={() => setIsCreateModalOpen(false)} className="p-2 hover:bg-white/5 rounded-full text-gray-400 transition-colors">✕</button>
+                        </div>
+
+                        <form onSubmit={handleCreateTask} className="p-6 space-y-4 overflow-y-auto max-h-[70vh]">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Task Title *</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={newTitle}
+                                    onChange={(e) => setNewTitle(e.target.value)}
+                                    placeholder="e.g. Read Physics Chapter 3"
+                                    className="w-full bg-white/5 border border-white/5 focus:border-indigo-500/50 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all"
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Description / Details *</label>
+                                <textarea
+                                    required
+                                    value={newDescription}
+                                    onChange={(e) => setNewDescription(e.target.value)}
+                                    placeholder="What do you want to accomplish in this task?"
+                                    className="w-full bg-white/5 border border-white/5 focus:border-indigo-500/50 rounded-xl p-4 text-sm text-white outline-none min-h-[100px] resize-none transition-all"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Subject / Concept Tag</label>
+                                    <input
+                                        type="text"
+                                        value={newConcept}
+                                        onChange={(e) => setNewConcept(e.target.value)}
+                                        placeholder="e.g. Physics, Chemistry"
+                                        className="w-full bg-white/5 border border-white/5 focus:border-indigo-500/50 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all"
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Task Level</label>
+                                    <select
+                                        value={newLevel}
+                                        onChange={(e) => setNewLevel(Number(e.target.value))}
+                                        className="w-full bg-black/60 border border-white/5 focus:border-indigo-500/50 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all cursor-pointer"
+                                    >
+                                        <option value={1} className="bg-gray-900">Foundation (100 XP)</option>
+                                        <option value={2} className="bg-gray-900">Accelerated (250 XP)</option>
+                                        <option value={3} className="bg-gray-900">Legendary (500 XP)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Objective (Optional)</label>
+                                <input
+                                    type="text"
+                                    value={newObjective}
+                                    onChange={(e) => setNewObjective(e.target.value)}
+                                    placeholder="e.g. Solve 10 problems correctly"
+                                    className="w-full bg-white/5 border border-white/5 focus:border-indigo-500/50 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all"
+                                />
+                            </div>
+
+                            <div className="pt-4 flex justify-end gap-3 border-t border-white/5 mt-6">
+                                <Button
+                                    type="button"
+                                    onClick={() => setIsCreateModalOpen(false)}
+                                    className="bg-white/5 border border-white/5 hover:bg-white/10 text-gray-300 font-bold px-5 py-2.5 rounded-xl text-xs"
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    disabled={creatingTask || !newTitle.trim() || !newDescription.trim()}
+                                    className="bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 text-white font-bold px-6 py-2.5 rounded-xl text-xs shadow-lg shadow-indigo-600/20 hover:opacity-95 disabled:opacity-30 transition-all"
+                                >
+                                    {creatingTask ? "Creating..." : "Create Task"}
+                                </Button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

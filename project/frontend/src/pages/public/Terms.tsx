@@ -120,7 +120,7 @@ export default function Terms() {
                                     <ShieldCheck size={14} className="text-amber-500 inline-block mr-2 align-text-bottom" /> CLASS ACTION & LIABILITY WAIVER
                                 </h4>
                                 <p className="text-xs text-gray-500 leading-relaxed">
-                                    Users, students, and institutional builders agree that under no circumstances shall FutureBRTS, Mayur Savaliya, or any of its contributors be liable for any direct or indirect damages, career setbacks, financial losses, or failures. By proceeding, you waive any right to file claims, legal cases, or participate in class-action lawsuits against the platform.
+                                    Users, students, and institutional builders agree that under no circumstances shall FutureBRTS or any of its contributors be liable for any direct or indirect damages, career setbacks, financial losses, or failures. By proceeding, you waive any right to file claims, legal cases, or participate in class-action lawsuits against the platform.
                                 </p>
                             </div>
                         </div>

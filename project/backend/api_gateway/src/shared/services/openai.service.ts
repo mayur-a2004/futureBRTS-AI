@@ -1,6 +1,6 @@
 import axios from 'axios';
 import SystemSettings from '../../modules/admin/settings.model';
-import { getDynamicConfig, getAiKey, getActiveAiProvider } from '../../shared/utils/dynamicConfig';
+import { getDynamicConfig, getAiKey, getActiveAiProvider, getNvidiaModels } from '../../shared/utils/dynamicConfig';
 
 
 // System Prompts
@@ -352,108 +352,147 @@ const safeJsonParse = (str: string) => {
     }
 };
 
-// HELPER: Unified Provider Handler — Groq Primary → Groq Lite → Gemini Fallback
+// HELPER: Unified Provider Handler — NVIDIA NIM (8 models) → Groq → OpenRouter → Gemini
 export const getProviderResponse = async (
     messages: any[],
-    options: { jsonMode?: boolean, maxTokens?: number, temperature?: number, apiKey?: string } = {},
+    options: { jsonMode?: boolean, maxTokens?: number, temperature?: number, apiKey?: string, taskType?: string } = {},
     forcedProvider?: string
 ) => {
-    // 🛡️ MULTI-PROVIDER FALLBACK ENGINE: Groq-70b → Groq-8b → Gemini
     let lastError: any = null;
 
     // 🧠 Dynamic Key Discovery (DB First, Env Fallback)
     const activeGroqKey = await getAiKey('GROQ');
     const activeGeminiKey = await getAiKey('GEMINI');
+    const activeNvidiaKey = await getAiKey('NVIDIA');
 
-    // --- PHASE 1: PRIMARY (GROQ) ---
-    try {
-        const keyToUse = options.apiKey || activeGroqKey;
-        const model = options.jsonMode ? 'llama-3.3-70b-versatile' : 'llama-3.3-70b-versatile';
+    const activeProvider = (forcedProvider || await getActiveAiProvider() || 'groq').toLowerCase();
 
-        const response = await axios.post(
-            'https://api.groq.com/openai/v1/chat/completions',
-            {
-                messages: messages,
-                model: model,
-                temperature: options.temperature || 0.7,
-                max_tokens: options.maxTokens || 4096,
-                response_format: options.jsonMode ? { type: "json_object" } : undefined
-            },
-            {
-                headers: {
-                    'Authorization': `Bearer ${keyToUse}`,
-                    'Content-Type': 'application/json'
-                },
-                timeout: 120000 // 🛡️ 120s Extended Timeout for deep reasoning
+    // Define individual runner functions
+    const runNvidia = async () => {
+        if (!activeNvidiaKey) return null;
+        const taskType = (options.taskType || 'chat') as string;
+        const nvidiaModels = await getNvidiaModels(taskType as any);
+        
+        for (let i = 0; i < nvidiaModels.length; i++) {
+            const model = nvidiaModels[i];
+            try {
+                console.log(`🚀 [NVIDIA-${i}] Trying ${model}...`);
+                const response = await axios.post(
+                    'https://integrate.api.nvidia.com/v1/chat/completions',
+                    {
+                        messages,
+                        model,
+                        temperature: options.temperature ?? 0.7,
+                        max_tokens: options.maxTokens || 4096,
+                        ...(options.jsonMode ? { response_format: { type: 'json_object' } } : {})
+                    },
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${activeNvidiaKey}`,
+                            'Content-Type': 'application/json'
+                        },
+                        timeout: 15000
+                    }
+                );
+                console.log(`✅ [NVIDIA] ${model} responded successfully.`);
+                return response.data;
+            } catch (nvidiaErr: any) {
+                const errData = nvidiaErr.response?.data || nvidiaErr.message;
+                console.warn(`⚠️ [NVIDIA-${i}] ${model} failed. Trying next...`);
+                lastError = errData;
             }
-        );
-        return response.data;
-    } catch (err: any) {
-        lastError = err.response?.data || err.message;
-        console.error(`[AI Primary Error] groq:`, lastError || err);
-
-        // 🛡️ ADAPTIVE FALLBACK TRIGGER: Handle Rate Limits, Timeouts, and Server Errors
-        const errString = JSON.stringify(lastError).toLowerCase();
-        const isRateLimit = errString.includes('rate_limit') || errString.includes('too many requests');
-        const isTransient = err.response?.status === 503 || err.response?.status === 502 || err.response?.status === 504 || err.code === 'ECONNABORTED';
-
-        if (!isRateLimit && !isTransient && err.response?.status !== 429) {
-            // If it's not a recoverable error, we still try next provider but log it
-            console.warn(`Groq Error details: ${JSON.stringify(lastError)}`);
         }
-    }
+        return null;
+    };
 
-    // --- PHASE 2: GROQ LITE (llama-3.1-8b-instant — separate daily quota) ---
-    try {
+    const runGroqPrimary = async () => {
+        if (!activeGroqKey) return null;
         const keyToUse = options.apiKey || activeGroqKey;
-        console.log('⚡ [FALLBACK-1] Trying Groq llama-3.1-8b-instant...');
-        const response = await axios.post(
-            'https://api.groq.com/openai/v1/chat/completions',
-            {
-                messages,
-                model: 'llama-3.1-8b-instant',
-                temperature: options.temperature ?? 0.7,
-                max_tokens: options.maxTokens || 4096,
-                response_format: options.jsonMode ? { type: 'json_object' } : undefined
-            },
-            {
-                headers: { 'Authorization': `Bearer ${keyToUse}`, 'Content-Type': 'application/json' },
-                timeout: 30000
-            }
-        );
-        return response.data;
-    } catch (liteErr: any) {
-        console.warn('[AI Fallback-1] groq-lite failed:', liteErr.response?.data?.error?.message || liteErr.message);
-    }
+        const model = 'llama-3.3-70b-versatile';
+        try {
+            console.log(`🚀 [GROQ-70B] Trying ${model}...`);
+            const response = await axios.post(
+                'https://api.groq.com/openai/v1/chat/completions',
+                {
+                    messages: messages,
+                    model: model,
+                    temperature: options.temperature || 0.7,
+                    max_tokens: options.maxTokens || 4096,
+                    response_format: options.jsonMode ? { type: "json_object" } : undefined
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${keyToUse}`,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 120000
+                }
+            );
+            console.log(`✅ [GROQ-70B] Responded successfully.`);
+            return response.data;
+        } catch (err: any) {
+            lastError = err.response?.data || err.message;
+            console.error(`[GROQ-70B Error] groq:`, lastError || err);
+            return null;
+        }
+    };
 
-    // --- PHASE 2.5: GROQ ULTRA-LITE (llama-3.2-3b-preview) ---
-    try {
+    const runGroqLite = async () => {
+        if (!activeGroqKey) return null;
         const keyToUse = options.apiKey || activeGroqKey;
-        console.log('⚡ [FALLBACK-1.5] Trying Groq llama-3.2-3b-preview...');
-        const response = await axios.post(
-            'https://api.groq.com/openai/v1/chat/completions',
-            {
-                messages,
-                model: 'llama-3.2-3b-preview',
-                temperature: options.temperature ?? 0.7,
-                max_tokens: options.maxTokens || 4096,
-                response_format: options.jsonMode ? { type: 'json_object' } : undefined
-            },
-            {
-                headers: { 'Authorization': `Bearer ${keyToUse}`, 'Content-Type': 'application/json' },
-                timeout: 20000
-            }
-        );
-        return response.data;
-    } catch (ultraLiteErr: any) {
-        console.warn('[AI Fallback-1.5] groq-ultra-lite failed:', ultraLiteErr.response?.data?.error?.message || ultraLiteErr.message);
-    }
+        try {
+            console.log('⚡ [GROQ-LITE] Trying Groq llama-3.1-8b-instant...');
+            const response = await axios.post(
+                'https://api.groq.com/openai/v1/chat/completions',
+                {
+                    messages,
+                    model: 'llama-3.1-8b-instant',
+                    temperature: options.temperature ?? 0.7,
+                    max_tokens: options.maxTokens || 4096,
+                    response_format: options.jsonMode ? { type: 'json_object' } : undefined
+                },
+                {
+                    headers: { 'Authorization': `Bearer ${keyToUse}`, 'Content-Type': 'application/json' },
+                    timeout: 30000
+                }
+            );
+            return response.data;
+        } catch (err: any) {
+            console.warn('[GROQ-LITE Failed]:', err.message);
+            return null;
+        }
+    };
 
-    // --- PHASE 2.7: OPENROUTER (google/gemini-2.5-flash — high token limit fallback) ---
-    try {
+    const runGroq3B = async () => {
+        if (!activeGroqKey) return null;
+        const keyToUse = options.apiKey || activeGroqKey;
+        try {
+            console.log('⚡ [GROQ-3B] Trying Groq llama-3.2-3b-preview...');
+            const response = await axios.post(
+                'https://api.groq.com/openai/v1/chat/completions',
+                {
+                    messages,
+                    model: 'llama-3.2-3b-preview',
+                    temperature: options.temperature ?? 0.7,
+                    max_tokens: options.maxTokens || 4096,
+                    response_format: options.jsonMode ? { type: 'json_object' } : undefined
+                },
+                {
+                    headers: { 'Authorization': `Bearer ${keyToUse}`, 'Content-Type': 'application/json' },
+                    timeout: 20000
+                }
+            );
+            return response.data;
+        } catch (err: any) {
+            return null;
+        }
+    };
+
+    const runOpenRouter = async () => {
         const activeOpenRouterKey = await getAiKey('OPENROUTER');
-        if (activeOpenRouterKey) {
-            console.log('⚡ [FALLBACK-1.7] Trying OpenRouter google/gemini-2.5-flash...');
+        if (!activeOpenRouterKey) return null;
+        try {
+            console.log('⚡ [OPENROUTER] Trying google/gemini-2.5-flash...');
             const response = await axios.post(
                 'https://openrouter.ai/api/v1/chat/completions',
                 {
@@ -469,90 +508,102 @@ export const getProviderResponse = async (
                 }
             );
             return response.data;
+        } catch (err: any) {
+            return null;
         }
-    } catch (orErr: any) {
-        console.warn('[AI Fallback-1.7] OpenRouter failed:', orErr.response?.data?.error?.message || orErr.message);
+    };
+
+    const runGemini = async () => {
+        if (!activeGeminiKey) return null;
+        try {
+            console.log("🔄 [GEMINI] Trying Gemini v1beta...");
+            const systemMsg = messages.find(m => m.role === 'system');
+            let contents = messages
+                .filter(m => m.role !== 'system')
+                .map(m => ({
+                    role: m.role === 'assistant' ? 'model' : 'user',
+                    parts: [{ text: String(m.content || '') }]
+                }));
+            if (contents.length === 0) contents = [{ role: 'user', parts: [{ text: 'proceed' }] }];
+            const requestBody: any = {
+                contents,
+                generationConfig: {
+                    temperature: options.temperature ?? 0.7,
+                    maxOutputTokens: options.maxTokens || 4096,
+                    ...(options.jsonMode ? { responseMimeType: "application/json" } : {})
+                }
+            };
+            if (systemMsg?.content) {
+                requestBody.system_instruction = { parts: [{ text: systemMsg.content }] };
+            }
+            const response = await axios.post(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${activeGeminiKey}`,
+                requestBody,
+                { timeout: 90000 }
+            );
+            const geminiContent = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!geminiContent) throw new Error("Gemini returned empty response.");
+            return {
+                choices: [{
+                    message: { content: geminiContent },
+                    finish_reason: 'stop'
+                }]
+            };
+        } catch (err: any) {
+            console.error(`[Gemini Failed]:`, err.response?.data || err.message);
+            return null;
+        }
+    };
+
+    // Build adaptive queue based on preferred provider
+    let queue: (() => Promise<any>)[] = [];
+    if (activeProvider === 'nvidia') {
+        queue = [runNvidia, runGroqPrimary, runGroqLite, runGemini, runOpenRouter];
+    } else if (activeProvider === 'gemini') {
+        queue = [runGemini, runGroqPrimary, runNvidia, runGroqLite, runOpenRouter];
+    } else if (activeProvider === 'openrouter') {
+        queue = [runOpenRouter, runGroqPrimary, runGemini, runNvidia, runGroqLite];
+    } else {
+        // Default is groq
+        queue = [runGroqPrimary, runNvidia, runGroqLite, runGemini, runOpenRouter, runGroq3B];
     }
 
-    // --- PHASE 3: FINAL FALLBACK (GEMINI v1beta) ---
-    console.log("🔄 [FALLBACK-2] Switching to Gemini (Google) v1beta...");
-    try {
-        const geminiKey = activeGeminiKey;
-        if (!geminiKey) throw new Error("GEMINI_API_KEY not set.");
-
-        const systemMsg = messages.find(m => m.role === 'system');
-
-        // Build contents — exclude system message (goes to systemInstruction)
-        let contents = messages
-            .filter(m => m.role !== 'system')
-            .map(m => ({
-                role: m.role === 'assistant' ? 'model' : 'user',
-                parts: [{ text: String(m.content || '') }]
-            }));
-
-        // Gemini requires at least one user turn
-        if (contents.length === 0) contents = [{ role: 'user', parts: [{ text: 'proceed' }] }];
-
-        const requestBody: any = {
-            contents,
-            generationConfig: {
-                temperature: options.temperature ?? 0.7,
-                maxOutputTokens: options.maxTokens || 4096,
-                // ✅ responseMimeType only supported in v1beta
-                ...(options.jsonMode ? { responseMimeType: "application/json" } : {})
-            }
-        };
-
-        // ✅ Correct field: systemInstruction (camelCase) — NOT system_instruction
-        if (systemMsg?.content) {
-            requestBody.system_instruction = { parts: [{ text: systemMsg.content }] };
+    // Execute queue sequentially until one succeeds
+    for (const runProvider of queue) {
+        try {
+            const res = await runProvider();
+            if (res) return res;
+        } catch (e: any) {
+            console.warn(`[AI Queue Fallback] Provider failed:`, e.message);
         }
+    }
 
-        const response = await axios.post(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
-            requestBody,
-            { timeout: 90000 }
-        );
-
-        const geminiContent = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!geminiContent) throw new Error("Gemini returned empty response.");
-
+    // Final mock fallback if everything failed
+    console.error("⚠️ [CRITICAL] All AI cloud providers failed. Returning mock response.");
+    if (options.jsonMode) {
         return {
             choices: [{
-                message: { content: geminiContent },
+                message: {
+                    content: JSON.stringify({
+                        intent: "general_chat",
+                        confidence: 0.9,
+                        subject: "general",
+                        topic: "general",
+                        needs_onboarding: false
+                    })
+                },
                 finish_reason: 'stop'
             }]
         };
-    } catch (geminiErr: any) {
-        console.error(`[AI Fallback Error] Gemini:`, geminiErr.response?.data || geminiErr.message);
-        
-        // 🧠 LOCAL OFFLINE INTELLIGENCE FALLBACK
-        console.warn("⚠️ [OFFLINE INTELLIGENCE MODE] All providers exhausted. Generating mock response to keep the user unblocked.");
-        if (options.jsonMode) {
-            return {
-                choices: [{
-                    message: {
-                        content: JSON.stringify({
-                            intent: "general_chat",
-                            confidence: 0.9,
-                            subject: "general",
-                            topic: "general",
-                            needs_onboarding: false
-                        })
-                    },
-                    finish_reason: 'stop'
-                }]
-            };
-        } else {
-            return {
-                choices: [{
-                    message: {
-                        content: "I am currently in **Offline Intelligence Mode** because the AI cloud endpoints are offline or unavailable. However, you can still use the **Virtual Lab**, view your **Analytics**, or start a new task in the sidebar! How can I help you today?"
-                    },
-                    finish_reason: 'stop'
-                }]
-            };
-        }
+    } else {
+        return {
+            choices: [{
+                message: {
+                    content: "⚠️ **AI Service Temporarily Unavailable**\n\nAll AI providers are currently experiencing high load. Please try again in a moment.\n\nIn the meantime, you can explore your **Tasks**, **Roadmap**, or **Simulator**."
+                },
+                finish_reason: 'stop'
+            }]
+        };
     }
 };
 
@@ -644,8 +695,11 @@ export const getProviderResponseStream = async (
     const activeGroqKey = await getAiKey('GROQ');
     const activeGeminiKey = await getAiKey('GEMINI');
 
-    // Phase 1: Groq 70b
-    try {
+    const activeProvider = (forcedProvider || await getActiveAiProvider() || 'groq').toLowerCase();
+
+    // Define individual stream runners
+    const runGroqPrimaryStream = async () => {
+        if (!activeGroqKey) return null;
         const keyToUse = options.apiKey || activeGroqKey;
         const model = 'llama-3.3-70b-versatile';
         console.log(`[AI STREAM] Trying Groq ${model}...`);
@@ -667,13 +721,10 @@ export const getProviderResponseStream = async (
             120000,
             onChunk
         );
-    } catch (err: any) {
-        lastError = err.response?.data || err.message;
-        console.error(`[AI Stream Primary Error] groq:`, lastError || err);
-    }
+    };
 
-    // Phase 2: Groq 8b
-    try {
+    const runGroqLiteStream = async () => {
+        if (!activeGroqKey) return null;
         const keyToUse = options.apiKey || activeGroqKey;
         const model = 'llama-3.1-8b-instant';
         console.log(`⚡ [STREAM-FALLBACK-1] Trying Groq ${model}...`);
@@ -695,12 +746,10 @@ export const getProviderResponseStream = async (
             30000,
             onChunk
         );
-    } catch (err: any) {
-        console.warn(`[AI Stream Fallback-1] failed:`, err.message);
-    }
+    };
 
-    // Phase 2.5: Groq 3b
-    try {
+    const runGroq3BStream = async () => {
+        if (!activeGroqKey) return null;
         const keyToUse = options.apiKey || activeGroqKey;
         const model = 'llama-3.2-3b-preview';
         console.log(`⚡ [STREAM-FALLBACK-1.5] Trying Groq ${model}...`);
@@ -722,45 +771,36 @@ export const getProviderResponseStream = async (
             20000,
             onChunk
         );
-    } catch (err: any) {
-        console.warn(`[AI Stream Fallback-1.5] failed:`, err.message);
-    }
+    };
 
-    // Phase 2.7: OpenRouter (google/gemini-2.5-flash)
-    try {
+    const runOpenRouterStream = async () => {
         const activeOpenRouterKey = await getAiKey('OPENROUTER');
-        if (activeOpenRouterKey) {
-            const model = 'google/gemini-2.5-flash';
-            console.log(`⚡ [STREAM-FALLBACK-1.7] Trying OpenRouter ${model}...`);
-            return await requestStreamFromProvider(
-                'openrouter',
+        if (!activeOpenRouterKey) return null;
+        const model = 'google/gemini-2.5-flash';
+        console.log(`⚡ [STREAM-FALLBACK-1.7] Trying OpenRouter ${model}...`);
+        return await requestStreamFromProvider(
+            'openrouter',
+            model,
+            'https://openrouter.ai/api/v1/chat/completions',
+            {
+                messages,
                 model,
-                'https://openrouter.ai/api/v1/chat/completions',
-                {
-                    messages,
-                    model,
-                    temperature: options.temperature || 0.7,
-                    max_tokens: options.maxTokens || 4096,
-                    stream: true
-                },
-                {
-                    'Authorization': `Bearer ${activeOpenRouterKey}`,
-                    'Content-Type': 'application/json'
-                },
-                45000,
-                onChunk
-            );
-        }
-    } catch (err: any) {
-        console.warn(`[AI Stream Fallback-1.7] failed:`, err.message);
-    }
+                temperature: options.temperature || 0.7,
+                max_tokens: options.maxTokens || 4096,
+                stream: true
+            },
+            {
+                'Authorization': `Bearer ${activeOpenRouterKey}`,
+                'Content-Type': 'application/json'
+            },
+            45000,
+            onChunk
+        );
+    };
 
-    // Phase 3: Gemini
-    console.log("🔄 [STREAM-FALLBACK-2] Switching to Gemini...");
-    try {
-        const geminiKey = activeGeminiKey;
-        if (!geminiKey) throw new Error("GEMINI_API_KEY not set.");
-
+    const runGeminiStream = async () => {
+        if (!activeGeminiKey) return null;
+        console.log("🔄 [STREAM-FALLBACK-2] Switching to Gemini...");
         const systemMsg = messages.find(m => m.role === 'system');
         let contents = messages
             .filter(m => m.role !== 'system')
@@ -784,16 +824,36 @@ export const getProviderResponseStream = async (
         return await requestStreamFromProvider(
             'gemini',
             'gemini-1.5-flash',
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?key=${geminiKey}&alt=sse`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?key=${activeGeminiKey}&alt=sse`,
             requestBody,
             { 'Content-Type': 'application/json' },
             90000,
             onChunk
         );
-    } catch (err: any) {
-        console.error(`[AI Stream Fallback Error] Gemini:`, err.response?.data || err.message);
-        throw new Error(`AI System Critical Failure: All providers exhausted in stream mode.`);
+    };
+
+    // Build streams queue based on active provider preference
+    let queue: (() => Promise<any>)[] = [];
+    if (activeProvider === 'gemini') {
+        queue = [runGeminiStream, runGroqPrimaryStream, runGroqLiteStream, runOpenRouterStream];
+    } else if (activeProvider === 'openrouter') {
+        queue = [runOpenRouterStream, runGroqPrimaryStream, runGeminiStream, runGroqLiteStream];
+    } else {
+        // default to groq
+        queue = [runGroqPrimaryStream, runGroqLiteStream, runGeminiStream, runOpenRouterStream, runGroq3BStream];
     }
+
+    for (const runStream of queue) {
+        try {
+            const res = await runStream();
+            if (res) return res;
+        } catch (err: any) {
+            console.warn(`Stream provider failed:`, err.message);
+            lastError = err;
+        }
+    }
+
+    throw new Error(`AI System Critical Failure: All providers exhausted in stream mode.`);
 };
 
 export const openaiService = {
@@ -939,10 +999,15 @@ INSTRUCTIONS:
 
             // 🧠 SUPREME FALLBACK: Use Neural Memory if primary fails
             if (systemContext?.userContext?.neuralMemory) {
-                return `⚠️ **[OFFLINE INTELLIGENCE MODE]**\n\nBhai, primary engine down hai but mere paas memory mein ye data hai:\n\n${systemContext.userContext.neuralMemory}\n\nKaam chalu rakhte hain, tension mat le!`;
+                return `⚠️ **[Offline Intelligence Mode]**\n\nThe primary AI engine is temporarily unavailable, but here's what I have from your previous context:\n\n${systemContext.userContext.neuralMemory}\n\nPlease try again shortly — the system will resume automatically.`;
             }
 
-            return "Bhai, piche se system thoda load mein hai. Ek baar refresh karke wapis bol ke dekh?";
+            // Determine if it's a rate limit or server error
+            const isRateLimit = error.message?.includes('429') || error.message?.includes('rate') || error.message?.includes('RATE_LIMIT') || error.response?.status === 429;
+            if (isRateLimit) {
+                return "⏳ **AI capacity reached.** Our systems are handling high demand right now. Please wait a moment and try again — your request will go through shortly.";
+            }
+            return "⚠️ **AI service is temporarily unavailable.** We're working to restore it. Please try again in a few seconds.";
         }
     },
 
@@ -1117,10 +1182,15 @@ INSTRUCTIONS:
 
         } catch (error: any) {
             console.error("AI Service Stream Error Details:", error.message);
-            // Fallback content in offline mode
-            let fallbackText = "Bhai, piche se system thoda load mein hai. Ek baar refresh karke wapis bol ke dekh?";
+            // Professional fallback in offline / error mode
+            const isRateLimit = error.message?.includes('429') || error.message?.includes('rate') || error.message?.includes('RATE_LIMIT') || error.response?.status === 429;
+            let fallbackText: string;
             if (systemContext?.userContext?.neuralMemory) {
-                fallbackText = `⚠️ **[OFFLINE INTELLIGENCE MODE]**\n\nBhai, primary engine down hai but mere paas memory mein ye data hai:\n\n${systemContext.userContext.neuralMemory}\n\nKaam chalu rakhte hain, tension mat le!`;
+                fallbackText = `⚠️ **[Offline Intelligence Mode]**\n\nThe primary AI engine is temporarily unavailable. Here's relevant context from your previous session:\n\n${systemContext.userContext.neuralMemory}\n\nPlease try again shortly.`;
+            } else if (isRateLimit) {
+                fallbackText = "⏳ **AI capacity reached.** Our systems are handling high demand right now. Please wait a moment and try again.";
+            } else {
+                fallbackText = "⚠️ **AI service temporarily unavailable.** Please try again in a few seconds.";
             }
             onToken({ type: 'text', token: fallbackText });
             return fallbackText;

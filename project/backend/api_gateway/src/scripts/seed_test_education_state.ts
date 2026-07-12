@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import bcrypt from 'bcryptjs';
 import User from '../modules/auth/user.model';
 import MinervaStudentProfile from '../modules/minerva/models/minerva_student_profile.model';
 import MinervaStudySession from '../modules/minerva/models/minerva_study_session.model';
@@ -16,10 +17,22 @@ async function seed() {
         console.log(`Connecting to MongoDB at ${MONGO_URI}...`);
         await mongoose.connect(MONGO_URI);
 
-        const user = await User.findOne({ email: TEST_EMAIL });
+        let user = await User.findOne({ email: TEST_EMAIL });
         if (!user) {
-            console.log("Error: test@test.com user not found in database.");
-            return;
+            console.log("test@test.com user not found. Creating it...");
+            const passwordHash = await bcrypt.hash('password123', 10);
+            user = await User.create({
+                firstName: 'Test',
+                lastName: 'User',
+                email: TEST_EMAIL,
+                passwordHash: passwordHash,
+                provider: 'local',
+                onboardingCompleted: true,
+                role: 'user',
+                status: 'active',
+                tokenBalance: 1000
+            });
+            console.log("Created test@test.com user.");
         }
 
         const userId = user._id.toString();

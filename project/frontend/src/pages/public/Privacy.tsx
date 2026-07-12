@@ -121,7 +121,7 @@ export default function Privacy() {
                                     <ShieldCheck size={14} className="text-emerald-500 inline-block mr-2 align-text-bottom" /> NO CLAIMS & GENERAL LIABILITY WAIVER
                                 </h4>
                                 <p className="text-xs text-gray-500 leading-relaxed font-mono">
-                                    We make every effort to maintain 100% data integrity. By utilizing this website, users acknowledge that no database transmission is entirely infallible. You agree to waive any legal claims, liabilities, lawsuits, or actions against the platform, Mayur Savaliya, and partners for any data events.
+                                    We make every effort to maintain 100% data integrity. By utilizing this website, users acknowledge that no database transmission is entirely infallible. You agree to waive any legal claims, liabilities, lawsuits, or actions against the platform and partners for any data events.
                                 </p>
                             </div>
                         </div>

@@ -196,6 +196,7 @@ export const DynamicLabEngine: React.FC<DynamicLabEngineProps> = ({
             topic={labConfig.topic}
             sensitivity_level={labConfig.sensitivity_level}
             mermaid_schema={labConfig.mermaid_schema}
+            subject={labConfig.subject}
           />
         );
       case 'youtube':
