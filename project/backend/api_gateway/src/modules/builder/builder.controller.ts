@@ -609,10 +609,13 @@ The Neural Engine has synthesized your end-to-end business ecosystem. All files 
             }
 
             if (attachments && Array.isArray(attachments)) {
+                const pdfParse = require('pdf-parse');
+                const Tesseract = require('tesseract.js');
+
                 for (const file of attachments) {
                     try {
                         const fileId = crypto.randomUUID();
-                        const extension = file.name.split('.').pop() || 'bin';
+                        const extension = (file.name.split('.').pop() || 'bin').toLowerCase();
                         const fileName = `${fileId}.${extension}`;
                         const filePath = path.join(storageDir, fileName);
 
@@ -625,17 +628,42 @@ The Neural Engine has synthesized your end-to-end business ecosystem. All files 
 
                         if (bufferData) {
                             fs.writeFileSync(filePath, Buffer.from(bufferData, 'base64'));
-                            const analysis = await pythonService.processAttachment(filePath, file.type, file.name, content);
-
+                            
+                            let extractedText = '';
                             let status = 'uploaded';
-                            if (analysis.status === 'SUCCESS') {
+
+                            if (extension === 'pdf') {
+                                console.log(`[Builder PDF] Parsing local PDF: ${file.name}`);
+                                const dataBuffer = fs.readFileSync(filePath);
+                                const parsedPdf = await pdfParse(dataBuffer);
+                                extractedText = parsedPdf.text || '';
                                 status = 'processed';
-                                const summary = analysis.summary || "Processed successfully.";
-                                const fullText = analysis.extracted_text || "";
-                                attachmentContext += `\n\n--- FILE ANALYSIS (${file.name}) ---\nSummary: ${summary}\nExtracted Content (Snippet): ${fullText.substring(0, 2000)}\n-----------------------------------\n`;
+                                attachmentContext += `\n\n--- FILE CONTENT (${file.name}) ---\n${extractedText.substring(0, 15000)}\n-----------------------------------\n`;
+                            } else if (['png', 'jpg', 'jpeg', 'webp'].includes(extension) || file.type.startsWith('image/')) {
+                                console.log(`[Builder OCR] Running local Tesseract OCR (eng+hin+guj) for image: ${file.name}`);
+                                let result;
+                                try {
+                                    result = await Tesseract.recognize(filePath, 'eng+hin+guj');
+                                } catch (ocrErr) {
+                                    console.warn('[Builder OCR] Multi-language failed, trying English:', ocrErr);
+                                    result = await Tesseract.recognize(filePath, 'eng');
+                                }
+                                extractedText = result?.data?.text || '';
+                                status = 'processed';
+                                attachmentContext += `\n\n--- FILE CONTENT (${file.name}) ---\n${extractedText.substring(0, 15000)}\n-----------------------------------\n`;
                             } else {
-                                status = 'failed';
-                                attachmentContext += `\n\n[System]: Failed to process file ${file.name}. Reason: ${analysis.reason}`;
+                                // Fallback to python service for other formats
+                                console.log(`[Builder Python] Dispatching to Python worker for: ${file.name}`);
+                                const analysis = await pythonService.processAttachment(filePath, file.type, file.name, content);
+                                if (analysis.status === 'SUCCESS') {
+                                    status = 'processed';
+                                    const summary = analysis.summary || "Processed successfully.";
+                                    const fullText = analysis.extracted_text || "";
+                                    attachmentContext += `\n\n--- FILE ANALYSIS (${file.name}) ---\nSummary: ${summary}\nExtracted Content (Snippet):\n${fullText.substring(0, 2000)}\n-----------------------------------\n`;
+                                } else {
+                                    status = 'failed';
+                                    attachmentContext += `\n\n[System]: Failed to process file ${file.name}. Reason: ${analysis.reason}`;
+                                }
                             }
 
                             processedAttachments.push({

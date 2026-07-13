@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { BOARDS, STANDARDS, STANDARD_SUBJECTS_MAP, SUBJECTS, isSchoolStandard } from './minerva/MinervaQuizBattlePage';
 
 const ExamGeneratorPage: React.FC = () => {
     const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -10,7 +11,7 @@ const ExamGeneratorPage: React.FC = () => {
     const [inputMode, setInputMode] = useState<'syllabus' | 'old_paper'>('syllabus');
 
     const [examScope, setExamScope] = useState('Full Subject');
-    const [standard, setStandard] = useState('10th');
+    const [standard, setStandard] = useState('10');
     const [stream, setStream] = useState('Science'); // New state for 11th/12th
     const [board, setBoard] = useState('CBSE');
     const [subject, setSubject] = useState('Mathematics');
@@ -18,11 +19,20 @@ const ExamGeneratorPage: React.FC = () => {
     const [topic, setTopic] = useState('');
     const [marks, setMarks] = useState('50');
     const [difficulty, setDifficulty] = useState('Medium');
+
+    useEffect(() => {
+        const subjects = STANDARD_SUBJECTS_MAP[standard];
+        if (subjects && subjects.length > 0) {
+            setSubject(subjects[0]);
+        }
+    }, [standard]);
     
     const [loading, setLoading] = useState(false);
     const [generatedExam, setGeneratedExam] = useState<any>(null);
     const [examId, setExamId] = useState<string>('');
     const [errorMsg, setErrorMsg] = useState('');
+    const [progress, setProgress] = useState(0);
+    const [progressText, setProgressText] = useState('');
     const [editMode, setEditMode] = useState(false); // Toggle for editing headers
 
     const handlePdfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -64,6 +74,29 @@ const ExamGeneratorPage: React.FC = () => {
 
         setLoading(true);
         setErrorMsg('');
+        setProgress(0);
+        setProgressText('Step 1/5: Uploading and parsing textbook PDF...');
+
+        let currentProgress = 0;
+        const interval = setInterval(() => {
+            if (currentProgress < 25) {
+                currentProgress += 1.5;
+                setProgressText('Step 1/5: Uploading and parsing textbook PDF...');
+            } else if (currentProgress < 45) {
+                currentProgress += 0.8;
+                setProgressText('Step 2/5: Scanning for target chapters/topics...');
+            } else if (currentProgress < 65) {
+                currentProgress += 0.4;
+                setProgressText('Step 3/5: Sending optimized context to AI Engine...');
+            } else if (currentProgress < 85) {
+                currentProgress += 0.2;
+                setProgressText('Step 4/5: Generating exam paper questions and detailed answer key...');
+            } else if (currentProgress < 98) {
+                currentProgress += 0.1;
+                setProgressText('Step 5/5: Formatting exam layout & checking marks distribution...');
+            }
+            setProgress(currentProgress);
+        }, 200);
 
         const formData = new FormData();
         if (sourceType === 'file' && pdfFile) {
@@ -77,10 +110,10 @@ const ExamGeneratorPage: React.FC = () => {
         formData.append('inputMode', inputMode);
         formData.append('examScope', inputMode === 'old_paper' ? 'Old Paper Solution' : examScope);
         formData.append('standard', standard);
-        if (standard === '11th' || standard === '12th') {
+        if (standard === '11' || standard === '12') {
             formData.append('stream', stream);
         }
-        formData.append('board', board);
+        formData.append('board', isSchoolStandard(standard) ? board : 'N/A');
         formData.append('subject', subject);
         formData.append('chapter', chapter);
         formData.append('topic', topic);
@@ -98,7 +131,10 @@ const ExamGeneratorPage: React.FC = () => {
             });
 
             const data = await res.json();
+            clearInterval(interval);
             if (data.status === 'success') {
+                setProgress(100);
+                setProgressText('Completed successfully!');
                 const paper = data.data.exam.generatedPaper;
                 const id = data.data.exam._id;
                 setExamId(id);
@@ -108,15 +144,17 @@ const ExamGeneratorPage: React.FC = () => {
                     if (!paper.chapter) paper.chapter = chapter;
                     if (!paper.topic) paper.topic = topic;
                     if (!paper.difficulty) paper.difficulty = difficulty;
-                    if (!paper.stream) paper.stream = (standard === '11th' || standard === '12th') ? stream : '';
+                    if (!paper.stream) paper.stream = (standard === '11' || standard === '12') ? stream : '';
                 }
                 setGeneratedExam(paper);
             } else {
                 setErrorMsg(data.message || 'Failed to generate exam.');
             }
         } catch (err: any) {
+            clearInterval(interval);
             setErrorMsg('Network error. Ensure the backend is running.');
         } finally {
+            clearInterval(interval);
             setLoading(false);
         }
     };
@@ -199,14 +237,12 @@ const ExamGeneratorPage: React.FC = () => {
                         <div>
                             <label className="block font-semibold mb-2 text-slate-300">Standard / Class*</label>
                             <select value={standard} onChange={e => setStandard(e.target.value)} className="w-full p-3 rounded bg-slate-900 border border-slate-600 text-white focus:outline-none focus:border-blue-500">
-                                {[...Array(12)].map((_, i) => (
-                                    <option key={i+1} value={`${i+1}${i===0?'st':i===1?'nd':i===2?'rd':'th'}`}>{i+1}{i===0?'st':i===1?'nd':i===2?'rd':'th'} Standard</option>
-                                ))}
+                                {STANDARDS.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                             </select>
                         </div>
 
                         {/* Stream (Only for 11th and 12th) */}
-                        {(standard === '11th' || standard === '12th') && (
+                        {(standard === '11' || standard === '12') && (
                             <div>
                                 <label className="block font-semibold mb-2 text-slate-300">Stream*</label>
                                 <select value={stream} onChange={e => setStream(e.target.value)} className="w-full p-3 rounded bg-slate-900 border border-slate-600 text-white focus:outline-none focus:border-blue-500">
@@ -218,47 +254,22 @@ const ExamGeneratorPage: React.FC = () => {
                         )}
 
                         {/* Board */}
-                        <div>
-                            <label className="block font-semibold mb-2 text-slate-300">Education Board*</label>
-                            <select value={board} onChange={e => setBoard(e.target.value)} className="w-full p-3 rounded bg-slate-900 border border-slate-600 text-white focus:outline-none focus:border-blue-500">
-                                <option value="CBSE">CBSE</option>
-                                <option value="ICSE">ICSE</option>
-                                <option value="State Board">State Board</option>
-                            </select>
-                        </div>
+                        {isSchoolStandard(standard) ? (
+                            <div>
+                                <label className="block font-semibold mb-2 text-slate-300">Education Board*</label>
+                                <select value={board} onChange={e => setBoard(e.target.value)} className="w-full p-3 rounded bg-slate-900 border border-slate-600 text-white focus:outline-none focus:border-blue-500">
+                                    {BOARDS.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                </select>
+                            </div>
+                        ) : (
+                            <div className="hidden md:block"></div>
+                        )}
 
                         {/* Subject */}
                         <div>
                             <label className="block font-semibold mb-2 text-slate-300">Subject*</label>
                             <select value={subject} onChange={e => setSubject(e.target.value)} className="w-full p-3 rounded bg-slate-900 border border-slate-600 text-white focus:outline-none focus:border-blue-500">
-                                <optgroup label="General">
-                                    <option value="Mathematics">Mathematics</option>
-                                    <option value="Science">Science</option>
-                                    <option value="English">English</option>
-                                    <option value="Social Science">Social Science</option>
-                                    <option value="Computer Science">Computer Science</option>
-                                    <option value="Hindi">Hindi</option>
-                                    <option value="Gujarati">Gujarati</option>
-                                    <option value="EVS">EVS</option>
-                                </optgroup>
-                                <optgroup label="Science Stream">
-                                    <option value="Physics">Physics</option>
-                                    <option value="Chemistry">Chemistry</option>
-                                    <option value="Biology">Biology</option>
-                                </optgroup>
-                                <optgroup label="Commerce Stream">
-                                    <option value="Accountancy">Accountancy</option>
-                                    <option value="Business Studies">Business Studies</option>
-                                    <option value="Economics">Economics</option>
-                                    <option value="Statistics">Statistics</option>
-                                </optgroup>
-                                <optgroup label="Arts Stream">
-                                    <option value="History">History</option>
-                                    <option value="Geography">Geography</option>
-                                    <option value="Political Science">Political Science</option>
-                                    <option value="Sociology">Sociology</option>
-                                    <option value="Psychology">Psychology</option>
-                                </optgroup>
+                                {(STANDARD_SUBJECTS_MAP[standard] || SUBJECTS).map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
                                            {/* Conditional Inputs based on Scope */}
@@ -336,10 +347,28 @@ const ExamGeneratorPage: React.FC = () => {
                         <input type="file" accept="application/pdf, image/png, image/jpeg, image/jpg" onChange={handleReferenceChange} className="w-full text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700" />
                     </div>
 
+                    {loading && (
+                        <div className="mb-6 bg-slate-900 border border-slate-700 p-6 rounded-xl space-y-4">
+                            <div className="flex justify-between items-center text-sm font-semibold text-slate-300">
+                                <span>{progressText}</span>
+                                <span className="text-blue-400 font-bold">{Math.round(progress)}%</span>
+                            </div>
+                            <div className="w-full bg-slate-800 rounded-full h-3.5 overflow-hidden border border-slate-700">
+                                <div 
+                                    className="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full transition-all duration-300 ease-out" 
+                                    style={{ width: `${progress}%` }}
+                                ></div>
+                            </div>
+                            <p className="text-xs text-slate-500 italic">
+                                Note: Parsing large textbooks and generating answers takes around 15-30 seconds.
+                            </p>
+                        </div>
+                    )}
+
                     <button 
                         onClick={handleGenerate} 
                         disabled={loading}
-                        className={`w-full p-4 rounded-lg font-bold text-lg transition-colors ${loading ? 'bg-slate-600 text-slate-300 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
+                        className={`w-full p-4 rounded-lg font-bold text-lg transition-colors ${loading ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
                     >
                         {loading ? 'Processing Document & Generating AI Exam... Please wait' : 'Generate Smart Exam Paper'}
                     </button>

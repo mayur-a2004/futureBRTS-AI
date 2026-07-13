@@ -48,6 +48,8 @@ const MinervaExamListPage: React.FC = () => {
     const [customMarks, setCustomMarks] = useState('50');
     const [customDifficulty, setCustomDifficulty] = useState('Medium');
     const [errorMsg, setErrorMsg] = useState('');
+    const [progress, setProgress] = useState(0);
+    const [progressText, setProgressText] = useState('');
 
     useEffect(() => {
         const subjects = STANDARD_SUBJECTS_MAP[customStandard];
@@ -146,6 +148,29 @@ const MinervaExamListPage: React.FC = () => {
 
         setGenLoading(true);
         setErrorMsg('');
+        setProgress(0);
+        setProgressText('Step 1/5: Uploading and parsing textbook PDF...');
+
+        let currentProgress = 0;
+        const interval = setInterval(() => {
+            if (currentProgress < 25) {
+                currentProgress += 1.5;
+                setProgressText('Step 1/5: Uploading and parsing textbook PDF...');
+            } else if (currentProgress < 45) {
+                currentProgress += 0.8;
+                setProgressText('Step 2/5: Scanning for target chapters/topics...');
+            } else if (currentProgress < 65) {
+                currentProgress += 0.4;
+                setProgressText('Step 3/5: Sending optimized context to AI Engine...');
+            } else if (currentProgress < 85) {
+                currentProgress += 0.2;
+                setProgressText('Step 4/5: Generating exam paper questions and detailed answer key...');
+            } else if (currentProgress < 98) {
+                currentProgress += 0.1;
+                setProgressText('Step 5/5: Formatting exam layout & checking marks distribution...');
+            }
+            setProgress(currentProgress);
+        }, 200);
 
         const formData = new FormData();
         if (sourceType === 'file' && pdfFile) {
@@ -159,7 +184,7 @@ const MinervaExamListPage: React.FC = () => {
         formData.append('inputMode', inputMode);
         formData.append('examScope', inputMode === 'old_paper' ? 'Old Paper Solution' : customScope);
         formData.append('standard', customStandard);
-        if (customStandard === '11th' || customStandard === '12th') {
+        if (customStandard === '11' || customStandard === '12') {
             formData.append('stream', customStream);
         }
         formData.append('board', isSchoolStandard(customStandard) ? customBoard : 'N/A');
@@ -179,7 +204,10 @@ const MinervaExamListPage: React.FC = () => {
             });
 
             const data = await res.json();
+            clearInterval(interval);
             if (data.status === 'success') {
+                setProgress(100);
+                setProgressText('Completed successfully!');
                 const paper = data.data.exam.generatedPaper;
                 const id = data.data.exam._id;
                 setCustomExamId(id);
@@ -189,7 +217,7 @@ const MinervaExamListPage: React.FC = () => {
                     if (!paper.chapter) paper.chapter = customChapter;
                     if (!paper.topic) paper.topic = customTopic;
                     if (!paper.difficulty) paper.difficulty = customDifficulty;
-                    if (!paper.stream) paper.stream = (customStandard === '11th' || customStandard === '12th') ? customStream : '';
+                    if (!paper.stream) paper.stream = (customStandard === '11' || customStandard === '12') ? customStream : '';
                 }
                 setLoadedCustomExam(paper);
                 loadData(); // Refresh list in background
@@ -197,8 +225,10 @@ const MinervaExamListPage: React.FC = () => {
                 setErrorMsg(data.message || 'Failed to generate paper.');
             }
         } catch (err: any) {
+            clearInterval(interval);
             setErrorMsg('Network error. Check backend connection.');
         } finally {
+            clearInterval(interval);
             setGenLoading(false);
         }
     };
@@ -704,6 +734,24 @@ const MinervaExamListPage: React.FC = () => {
                                         <input type="file" accept="application/pdf, image/*" onChange={e => setReferenceFile(e.target.files?.[0] || null)}
                                             className="text-xs text-slate-400 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-purple-655 file:text-white hover:file:bg-purple-600" />
                                     </div>
+
+                                    {genLoading && (
+                                        <div className="mb-4 bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3 text-left">
+                                            <div className="flex justify-between items-center text-xs font-semibold text-slate-300">
+                                                <span>{progressText}</span>
+                                                <span className="text-blue-400 font-bold">{Math.round(progress)}%</span>
+                                            </div>
+                                            <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-700">
+                                                <div 
+                                                    className="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full transition-all duration-300 ease-out" 
+                                                    style={{ width: `${progress}%` }}
+                                                ></div>
+                                            </div>
+                                            <p className="text-[10px] text-slate-500 italic">
+                                                Please wait, we are processing and summarizing the material. This might take up to a minute.
+                                            </p>
+                                        </div>
+                                    )}
 
                                     <button onClick={handleGenerateCustomExam} disabled={genLoading}
                                         className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-90 disabled:opacity-50 text-white font-bold py-3.5 rounded-2xl transition-all text-xs shadow-lg flex items-center justify-center gap-1.5 active:scale-[0.99] mt-2">

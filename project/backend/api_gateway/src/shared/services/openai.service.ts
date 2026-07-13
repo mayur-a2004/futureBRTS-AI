@@ -391,7 +391,7 @@ export const getProviderResponse = async (
                             'Authorization': `Bearer ${activeNvidiaKey}`,
                             'Content-Type': 'application/json'
                         },
-                        timeout: 15000
+                        timeout: 90000
                     }
                 );
                 console.log(`✅ [NVIDIA] ${model} responded successfully.`);
@@ -832,15 +832,49 @@ export const getProviderResponseStream = async (
         );
     };
 
+
+    const runNvidiaStream = async () => {
+        const activeNvidiaKey = await getAiKey('NVIDIA');
+        if (!activeNvidiaKey) return null;
+        const nvidiaModels = await getNvidiaModels('chat');
+        for (const model of nvidiaModels) {
+            try {
+                console.log(`🚀 [STREAM-NVIDIA] Trying ${model}...`);
+                const result = await requestStreamFromProvider(
+                    'nvidia',
+                    model,
+                    'https://integrate.api.nvidia.com/v1/chat/completions',
+                    {
+                        messages,
+                        model,
+                        temperature: options.temperature ?? 0.7,
+                        max_tokens: options.maxTokens || 4096,
+                        stream: true
+                    },
+                    {
+                        'Authorization': `Bearer ${activeNvidiaKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    60000,
+                    onChunk
+                );
+                if (result) return result;
+            } catch (err: any) {
+                console.warn(`[STREAM-NVIDIA] ${model} failed: ${err.message}`);
+            }
+        }
+        return null;
+    };
+
     // Build streams queue based on active provider preference
     let queue: (() => Promise<any>)[] = [];
     if (activeProvider === 'gemini') {
-        queue = [runGeminiStream, runGroqPrimaryStream, runGroqLiteStream, runOpenRouterStream];
+        queue = [runGeminiStream, runNvidiaStream, runGroqPrimaryStream, runGroqLiteStream, runOpenRouterStream];
     } else if (activeProvider === 'openrouter') {
-        queue = [runOpenRouterStream, runGroqPrimaryStream, runGeminiStream, runGroqLiteStream];
+        queue = [runOpenRouterStream, runNvidiaStream, runGroqPrimaryStream, runGeminiStream, runGroqLiteStream];
     } else {
-        // default to groq
-        queue = [runGroqPrimaryStream, runGroqLiteStream, runGeminiStream, runOpenRouterStream, runGroq3BStream];
+        // default: NVIDIA first (valid key), then groq, gemini, openrouter fallbacks
+        queue = [runNvidiaStream, runGroqPrimaryStream, runGroqLiteStream, runGeminiStream, runOpenRouterStream, runGroq3BStream];
     }
 
     for (const runStream of queue) {
@@ -855,6 +889,7 @@ export const getProviderResponseStream = async (
 
     throw new Error(`AI System Critical Failure: All providers exhausted in stream mode.`);
 };
+
 
 export const openaiService = {
     // ... logic to use GLOBAL_INTELLIGENCE in prompts if needed
@@ -970,10 +1005,15 @@ INSTRUCTIONS:
                 console.log(`[AI CORE] PROVISIONING: ${provider.toUpperCase()} | KEY: ${maskedKey}`);
             }
 
+            let finalUserMessage = userMessage;
+            if (attachmentAnalysis && attachmentAnalysis.length > 5) {
+                finalUserMessage = `[ATTACHED DOCUMENT PRESENT]\n\nStudent Query/Command: ${userMessage}\n\nIMPORTANT: Focus strictly on answering this query or executing this command on the attached document content. Prioritize this command above everything else.`;
+            }
+
             const messages = [
                 { role: 'system', content: MASTER_PROMPT(systemContext) + contextInjection },
                 ...history,
-                { role: 'user', content: userMessage }
+                { role: 'user', content: finalUserMessage }
             ];
 
             // Pass key to getProviderResponse
@@ -1121,10 +1161,15 @@ INSTRUCTIONS:
             // We must inject a system instruction to output detailed step-by-step reasoning inside <think>...</think> tags if they are not already doing it natively
             let reasoningInstruction = `\nBefore answering, you MUST write down your detailed step-by-step thinking/reasoning process inside <think> and </think> tags. Do not skip this step.\n`;
 
+            let finalUserMessage = userMessage;
+            if (attachmentAnalysis && attachmentAnalysis.length > 5) {
+                finalUserMessage = `[ATTACHED DOCUMENT PRESENT]\n\nUser Query/Command: ${userMessage}\n\nIMPORTANT: Focus strictly on answering this query or executing this command on the attached document content. Prioritize this command above everything else.`;
+            }
+
             const messages = [
                 { role: 'system', content: MASTER_PROMPT(systemContext) + contextInjection + reasoningInstruction },
                 ...history,
-                { role: 'user', content: userMessage }
+                { role: 'user', content: finalUserMessage }
             ];
 
             let accumulatedText = "";

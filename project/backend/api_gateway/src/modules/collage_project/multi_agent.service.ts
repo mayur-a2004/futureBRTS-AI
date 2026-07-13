@@ -216,7 +216,7 @@ const pickOpenRouterModel = (filePath?: string): string => {
     return "openai/gpt-4o-mini";
 };
 
-const callOpenRouterAI = async (prompt: string, projectId: string, modelOverride?: string): Promise<string> => {
+export const callOpenRouterAI = async (prompt: string, projectId: string, modelOverride?: string): Promise<string> => {
   const OPENROUTER_API_KEY = await getAiKey('OPENROUTER');
   if (!OPENROUTER_API_KEY) return ""; // Fail silently to allow fallback to Groq
   
@@ -246,7 +246,7 @@ export const callGroqAI = async (prompt: string, projectId: string, retries = 3)
     try {
       // Use 8b model for exam generator and quiz battle to avoid strict 12k TPM free tier limits
       const model = (projectId === 'exam_generator' || projectId === 'quiz_battle') ? 'llama-3.1-8b-instant' : 'llama-3.3-70b-versatile';
-      const maxTokens = (projectId === 'exam_generator' || projectId === 'quiz_battle') ? 4000 : 8192;
+      const maxTokens = (projectId === 'exam_generator' || projectId === 'quiz_battle') ? 2500 : 8192;
 
       const response = await axios.post(
         'https://api.groq.com/openai/v1/chat/completions',
@@ -303,7 +303,7 @@ export const callGeminiAI = async (prompt: string): Promise<string> => {
     const GEMINI_API_KEY = await getAiKey('GEMINI');
     if (!GEMINI_API_KEY) return "";
     try {
-        const res = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        const res = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: { temperature: 0.3, maxOutputTokens: 8192 }
         }, { timeout: 60000 });
@@ -342,11 +342,11 @@ const callSwarmAI = async (prompt: string, projectId: string, filePath?: string)
 
     if (isExamGen) {
         try {
-            console.log(`[SWARM:Exam] Routing to Gemini 2.5 Flash for project ${projectId}...`);
+            console.log(`[SWARM:Exam] Routing to Gemini 1.5 Flash for project ${projectId}...`);
             const geminiRes = await callGeminiAI(prompt);
             if (geminiRes && geminiRes.length > 50) return geminiRes;
         } catch (e: any) {
-            console.warn(`[SWARM:Exam] Gemini 2.5 Flash failed: ${e.message}. Falling back...`);
+            console.warn(`[SWARM:Exam] Gemini 1.5 Flash failed: ${e.message}. Falling back...`);
         }
     }
 

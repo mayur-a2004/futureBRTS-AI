@@ -211,7 +211,13 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
     // 1. Initialize from dynamic controls if present
     if (three_js_config?.controls) {
       three_js_config.controls.forEach((control) => {
-        initialParams[control.name] = control.defaultValue;
+        if (typeof control.defaultValue === 'number') {
+          initialParams[control.name] = control.defaultValue;
+        } else if (typeof control.defaultValue === 'boolean') {
+          initialParams[control.name] = control.defaultValue ? 1 : 0;
+        } else {
+          initialParams[control.name] = parseFloat(control.defaultValue as any) || 0;
+        }
       });
     }
 
@@ -1829,13 +1835,13 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
         <div className="p-4 bg-zinc-900/80 border-t border-zinc-800 flex flex-col gap-3">
           {/* 1. Dynamic Sliders from config */}
           {three_js_config?.controls && three_js_config.controls.map((control) => {
-            const val = params[control.name] ?? control.defaultValue;
+            const val = Number(params[control.name] ?? control.defaultValue ?? 0);
             return (
               <div key={control.name} className="flex flex-col gap-1">
                 <div className="flex justify-between text-xs font-semibold text-zinc-400">
                   <span>{control.label}</span>
                   <span className="text-indigo-400 font-mono">
-                    {val.toFixed(1)} {control.unit || ''}
+                    {isNaN(val) ? '0.0' : val.toFixed(1)} {control.unit || ''}
                   </span>
                 </div>
                 <input
@@ -1874,13 +1880,13 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
             else if (sliderKey === 'pour') { min = 0; max = 100; step = 1; label = 'Pour Amount (%)' }
             else if (sliderKey === 'temperature') { min = 0; max = 100; step = 1; label = 'Reaction Temp (°C)' }
 
-            const val = params[sliderKey] ?? 0;
+            const val = Number(params[sliderKey] ?? 0);
 
             return (
               <div key={sliderKey} className="flex flex-col gap-1">
                 <div className="flex justify-between text-xs font-semibold text-zinc-400">
                   <span>{label}</span>
-                  <span className="text-indigo-400 font-mono">{val.toFixed(1)}</span>
+                  <span className="text-indigo-400 font-mono">{isNaN(val) ? '0.0' : val.toFixed(1)}</span>
                 </div>
                 <input
                   type="range"

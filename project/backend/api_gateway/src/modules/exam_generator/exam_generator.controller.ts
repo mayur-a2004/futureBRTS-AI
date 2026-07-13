@@ -3,11 +3,58 @@ import * as fs from 'fs';
 import * as path from 'path';
 const pdfParse = require('pdf-parse');
 const Tesseract = require('tesseract.js');
-import { callGroqAI, callGeminiAI } from '../collage_project/multi_agent.service';
+import { getProviderResponse } from '../../shared/services/openai.service';
 import ExamPaper from '../../models/exam_paper.model';
 
 const error = (res: Response, message: string, code: string) => res.status(400).json({ status: 'error', message, code });
 const success = (res: Response, message: string, data: any) => res.status(200).json({ status: 'success', message, data });
+
+const extractSmartContent = (fullText: string, examScope: string, chapter: string, topic: string, targetLength: number = 8000): string => {
+    const textLength = fullText.length;
+    if (textLength <= targetLength + 1000) {
+        return fullText;
+    }
+
+    if (examScope === 'Chapter Wise' && chapter) {
+        const cleanChapter = chapter.trim();
+        let index = fullText.toLowerCase().indexOf(cleanChapter.toLowerCase());
+        
+        if (index === -1) {
+            const simplified = cleanChapter.replace(/chapter\s*\d+\s*[:.-]?/i, '').trim();
+            if (simplified.length > 3) {
+                index = fullText.toLowerCase().indexOf(simplified.toLowerCase());
+            }
+        }
+
+        if (index !== -1) {
+            console.log(`[SmartExtract] Chapter "${cleanChapter}" found in text. Extracting segment starting at index ${index}...`);
+            return fullText.substring(index, Math.min(textLength, index + targetLength));
+        }
+    }
+
+    if (examScope === 'Specific Topic' && topic) {
+        const cleanTopic = topic.trim();
+        const index = fullText.toLowerCase().indexOf(cleanTopic.toLowerCase());
+        if (index !== -1) {
+            console.log(`[SmartExtract] Topic "${cleanTopic}" found in text. Extracting segment around index ${index}...`);
+            const start = Math.max(0, index - 1500);
+            return fullText.substring(start, Math.min(textLength, start + targetLength));
+        }
+    }
+
+    console.log(`[SmartExtract] Sampling textbook segments across ${textLength} characters for Full Subject exam...`);
+    const numSamples = 8;
+    const sampleSize = Math.floor(targetLength / numSamples);
+    const step = Math.floor((textLength - sampleSize) / numSamples);
+    
+    let sampledText = "";
+    for (let i = 0; i < numSamples; i++) {
+        const start = i * step;
+        sampledText += `\n--- Segment ${i+1} ---\n`;
+        sampledText += fullText.substring(start, start + sampleSize);
+    }
+    return sampledText;
+};
 
 export const examGeneratorController = {
     generateExam: async (req: Request, res: Response) => {
@@ -44,8 +91,16 @@ export const examGeneratorController = {
                         const parsedPdf = await pdfParse(dataBuffer);
                         textContent = parsedPdf.text.trim();
                     } else if (pdfFile.mimetype.startsWith('image/')) {
-                        console.log("Starting OCR for primary image file...");
-                        const { data: { text } } = await Tesseract.recognize(pdfFile.path, 'eng');
+                        console.log("Starting OCR for primary image file (eng+hin+guj)...");
+                        let text = "";
+                        try {
+                            const result = await Tesseract.recognize(pdfFile.path, 'eng+hin+guj');
+                            text = result.data.text;
+                        } catch (ocrErr) {
+                            console.warn("Primary image multi-language OCR failed, falling back to English:", ocrErr);
+                            const result = await Tesseract.recognize(pdfFile.path, 'eng');
+                            text = result.data.text;
+                        }
                         textContent = text.trim();
                         console.log("OCR completed on primary image.");
                     } else {
@@ -61,8 +116,12 @@ export const examGeneratorController = {
                 return error(res, "Provided study material or old paper content contains too little text. Please provide more content.", "PARSE_ERROR");
             }
 
-            if (textContent.length > 20000) {
-                textContent = textContent.substring(0, 20000) + '...';
+            if (inputMode === 'syllabus') {
+                textContent = extractSmartContent(textContent, examScope, chapter, topic, 8000);
+            } else {
+                if (textContent.length > 8000) {
+                    textContent = textContent.substring(0, 8000) + '...';
+                }
             }
 
             // Handle Reference File if provided
@@ -192,12 +251,36 @@ ${referenceText ? '3. DO NOT change the sections count, questions count, or mark
 4. CRITICAL MARKS REQUIREMENT: The sum of all individual question marks MUST equal exactly ${marks}. Do not generate a paper with 49 or 51 marks if 50 is requested. Mathematically verify that the distribution perfectly sums to ${marks}.
 5. ONLY return the JSON. No markdown wrappers, no conversational text.`;
 
-            // Completely bypass Groq and ONLY use Gemini 2.5 Flash for exams
-            console.log("Routing Exam Generator strictly to Gemini 2.5 Flash...");
-            const rawAiResponse = await callGeminiAI(prompt);
-            
+            let rawAiResponse = "";
+            let lastError = "";
+
+            // Use the unified provider (NVIDIA → Groq → OpenRouter → Gemini)
+            try {
+                console.log("[ExamGen] Routing to Unified AI Provider chain...");
+                const messages = [{ role: 'user', content: prompt }];
+                const aiData = await getProviderResponse(messages, {
+                    maxTokens: 8192,
+                    temperature: 0.5,
+                    taskType: 'logic'
+                });
+                if (aiData?.choices?.[0]?.message?.content) {
+                    rawAiResponse = aiData.choices[0].message.content;
+                }
+            } catch (e: any) {
+                console.error("[ExamGen] All AI providers failed:", e.message);
+                lastError = e.message || "All AI providers failed";
+            }
+
             if (!rawAiResponse) {
-                return error(res, "Gemini AI failed to generate the exam. Please try again.", "AI_ERROR");
+                let friendlyError = "Failed to generate the exam paper. All AI services are currently unavailable. Please try again in a few minutes.";
+                if (lastError.includes("rate_limit_exceeded") || lastError.includes("429")) {
+                    friendlyError = "AI Rate Limit Exceeded: The AI service is busy. Please wait 1 minute and try again.";
+                } else if (lastError.includes("413")) {
+                    friendlyError = "The document context is too large. Please select a specific 'Chapter' or 'Topic' to reduce size.";
+                } else if (lastError.includes("401") || lastError.includes("API key not valid")) {
+                    friendlyError = "AI Authorization Error: Server API keys need to be updated. Please contact support.";
+                }
+                return error(res, friendlyError, "AI_ERROR");
             }
 
             // Clean AI response to extract JSON
@@ -205,6 +288,8 @@ ${referenceText ? '3. DO NOT change the sections count, questions count, or mark
             const match = rawAiResponse.match(/\{[\s\S]*\}/);
             if (match) {
                 jsonStr = match[0];
+            } else if (rawAiResponse.includes("Unavailable") || rawAiResponse.includes("offline") || !rawAiResponse.trim().startsWith('{')) {
+                return error(res, rawAiResponse, "AI_ERROR");
             }
             
             let generatedPaper;
@@ -212,6 +297,9 @@ ${referenceText ? '3. DO NOT change the sections count, questions count, or mark
                 generatedPaper = JSON.parse(jsonStr);
             } catch (e) {
                 console.error("AI JSON Parse Error. Raw string:", jsonStr);
+                if (rawAiResponse.length > 50 && !rawAiResponse.trim().startsWith('{')) {
+                    return error(res, rawAiResponse, "AI_ERROR");
+                }
                 return error(res, "AI generated an invalid format. Please try again.", "AI_ERROR");
             }
 
