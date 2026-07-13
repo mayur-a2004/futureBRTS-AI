@@ -225,8 +225,10 @@ Do NOT deviate from this template format. Regenerate questions matching these co
 
             prompt += `
 Instructions:
-1. Generate a structured JSON response containing the exact questions. 
-2. The JSON MUST follow this exact structure:
+1. Generate a structured JSON response containing the exact questions.
+2. EVERY question generated MUST be completely unique. DO NOT duplicate questions or repeat similar questions across sections.
+3. For MCQ questions, EVERY option (A, B, C, D) MUST be completely unique and distinct. NEVER repeat the same option/text multiple times for a question.
+4. The JSON MUST follow this exact structure:
 {
   "title": "${inputMode === 'old_paper' ? `Important Predicted Paper: ${subject}` : `Exam Paper: ${subject}`}",
   "subject": "${subject}",
@@ -247,9 +249,9 @@ Instructions:
     }
   ]
 }
-${referenceText ? '3. DO NOT change the sections count, questions count, or marks allocation. Strictly use the structure parsed from the Reference Exam Format.' : '3. Adjust the number of sections and questions based on the Total Marks and Difficulty.'}
-4. CRITICAL MARKS REQUIREMENT: The sum of all individual question marks MUST equal exactly ${marks}. Do not generate a paper with 49 or 51 marks if 50 is requested. Mathematically verify that the distribution perfectly sums to ${marks}.
-5. ONLY return the JSON. No markdown wrappers, no conversational text.`;
+${referenceText ? '5. DO NOT change the sections count, questions count, or marks allocation. Strictly use the structure parsed from the Reference Exam Format.' : '5. Adjust the number of sections and questions based on the Total Marks and Difficulty.'}
+6. CRITICAL MARKS REQUIREMENT: The sum of all individual question marks MUST equal exactly ${marks}. Do not generate a paper with 49 or 51 marks if 50 is requested. Mathematically verify that the distribution perfectly sums to ${marks}.
+7. ONLY return the JSON. No markdown wrappers, no conversational text.`;
 
             let rawAiResponse = "";
             let lastError = "";

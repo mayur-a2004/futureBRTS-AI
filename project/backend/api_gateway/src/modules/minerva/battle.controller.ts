@@ -5,6 +5,7 @@ import { callGeminiAI, callGroqAI } from '../collage_project/multi_agent.service
 import { logger } from '../../shared/utils/logger';
 import { SocketService } from '../../services/socket.service';
 import { getProviderResponse } from '../../shared/services/openai.service';
+import MinervaStudentProfile from './models/minerva_student_profile.model';
 
 // ─── Swarm AI Helper (Multi-Provider Sequential Retries) ───────────────────
 const callSwarmAIHelper = async (prompt: string): Promise<string> => {
@@ -92,7 +93,8 @@ const buildQuizPrompt = (
     difficulty: string,
     totalRounds: number,
     salt: number,
-    semester?: string
+    semester?: string,
+    medium?: string
 ): string => {
     const isHigherEd = ['undergrad', 'postgrad', 'doctoral', 'diploma_iti',
         'emerging_tech', 'health_sciences', 'law_policy', 'creative_media',
@@ -100,6 +102,17 @@ const buildQuizPrompt = (
         'comp_exams', 'prof_certifications'].includes(standard);
 
     const isCompetitiveExam = ['comp_exams', 'JEE', 'NEET', 'GOVT_EXAM', 'BANKING'].includes(standard);
+    
+    const lang = medium || 'english';
+    const langInstruction = lang !== 'english' ? 
+        `
+- Medium / Language: ${lang}. You MUST generate the entire question, all options, and the explanation in ${lang} script. Do NOT write them in English.
+- STRICT: For MCQs, every option MUST be a completely unique and distinct answer in ${lang}. DO NOT repeat the same option text twice.
+- Ensure all 4 options are different choices. Do NOT return identical options.
+- Avoid repeating the same words/sentences for all options.` : 
+        `
+- Medium / Language: English.
+- STRICT: All 4 options in every MCQ MUST be completely different and unique. Do NOT repeat the same option text.`;
 
     if (isCompetitiveExam) {
         return `You are an expert quiz master for Indian competitive exams.
@@ -108,12 +121,13 @@ Stage: ${semester || 'General'}
 Topic: ${topic}
 Difficulty: ${difficulty}
 Random Variation Seed: ${salt}
+${langInstruction}
 
 Generate exactly ${totalRounds} exam-level MCQs strictly within the topic "${topic}".
 Match the exact difficulty and pattern of ${subject} level exams.
-Each question: 4 options, 1 correct answer, include explanation.
+Each question: exactly 4 options, 1 correct answer (0-indexed number representing the correct option position), include explanation.
 Respond ONLY with raw JSON array. No markdown, no backticks.
-Format: [{"question":"...","options":["A","B","C","D"],"correctAnswer":2,"explanation":"...","difficulty":"${difficulty}"}]`;
+Format: [{"question":"Question Text Here?","options":["Option A","Option B","Option C","Option D"],"correctAnswer":2,"explanation":"This is the explanation.","difficulty":"${difficulty}"}]`;
     }
 
     if (isHigherEd) {
@@ -125,12 +139,13 @@ Semester / Year / Level: ${semLabel}
 Topic / Specialisation: ${topic}
 Difficulty: ${difficulty}
 Random Variation Seed: ${salt}
+${langInstruction}
 
 Generate exactly ${totalRounds} university-level MCQs strictly within the topic "${topic}".
 Questions should be appropriate for ${semLabel} of ${subject}. Not school level.
-Each question: 4 options, 1 correct answer, include explanation.
+Each question: exactly 4 options, 1 correct answer (0-indexed number representing the correct option position), include explanation.
 Respond ONLY with raw JSON array. No markdown, no backticks.
-Format: [{"question":"...","options":["A","B","C","D"],"correctAnswer":2,"explanation":"...","difficulty":"${difficulty}"}]`;
+Format: [{"question":"Question Text Here?","options":["Option A","Option B","Option C","Option D"],"correctAnswer":2,"explanation":"This is the explanation.","difficulty":"${difficulty}"}]`;
     }
 
     // School boards (Class 5–12)
@@ -146,15 +161,16 @@ Subject: ${subject}
 Chapter / Topic: ${topic}
 Difficulty: ${difficulty}
 Random Variation Seed: ${salt}
+${langInstruction}
 
 Generate exactly ${totalRounds} unique MCQs strictly within the chapter/topic "${topic}".
 ${boardInstruction}
 Do NOT include questions from other chapters or topics.
 Do NOT repeat question patterns. The Random Variation Seed is ${salt}; use it to generate completely fresh, non-repetitive questions.
 Ensure high diversity in question styles: generate a mix of conceptual queries, application-based scenario questions, case studies, and image-based/diagram-based descriptive MCQs where relevant.
-Each question: exactly 4 options, 1 correct answer, include 1-sentence explanation.
+Each question: exactly 4 options, 1 correct answer (0-indexed number representing the correct option position), include 1-sentence explanation.
 Respond ONLY with raw JSON array. No markdown, no backticks.
-Format: [{"question":"...","options":["A","B","C","D"],"correctAnswer":2,"explanation":"...","difficulty":"${difficulty}"}]`;
+Format: [{"question":"Question Text Here?","options":["Option A","Option B","Option C","Option D"],"correctAnswer":2,"explanation":"This is the explanation.","difficulty":"${difficulty}"}]`;
 };
 
 // ─── Dynamic Question Generator (Board + Topic + Semester Aware) ───────────
@@ -166,12 +182,13 @@ const generateDynamicQuestions = async (
     difficulty: string,
     totalRounds: number,
     salt?: number,
-    semester?: string
+    semester?: string,
+    medium?: string
 ): Promise<IArenaQuestion[]> => {
     const useSalt = salt ?? (Date.now() + Math.floor(Math.random() * 1000000));
     // Always sanitize topic before building the prompt (strips JSON artifacts)
     const safeTopic = cleanTopic(topic) || topic;
-    const prompt = buildQuizPrompt(subject, standard, safeTopic, board, difficulty, totalRounds, useSalt, semester);
+    const prompt = buildQuizPrompt(subject, standard, safeTopic, board, difficulty, totalRounds, useSalt, semester, medium);
 
     try {
         let aiResponse = await callSwarmAIHelper(prompt);
@@ -264,7 +281,7 @@ const generateQuestionsForGrade = async (
     difficulty: string,
     totalRounds: number
 ): Promise<IArenaQuestion[]> => {
-    return generateDynamicQuestions(subject, String(grade), subject, 'NCERT', difficulty, totalRounds);
+    return generateDynamicQuestions(subject, String(grade), subject, 'NCERT', difficulty, totalRounds, undefined, undefined, undefined);
 };
 
 
@@ -363,6 +380,9 @@ export const battleController = {
             const normalizedRaw = await normalizeTopicWithAI(cleanedTopic, subject, String(hostGrade));
             const normalized = cleanTopic(normalizedRaw) || cleanedTopic;
 
+            const hostProfile = await MinervaStudentProfile.findOne({ userId: hostUser._id });
+            const hostMedium = hostProfile?.medium || 'english';
+
             // Generate questions for host
             const hostQuestions = await generateDynamicQuestions(
                 subject,
@@ -372,7 +392,8 @@ export const battleController = {
                 diff,
                 rounds,
                 Math.floor(Math.random() * 1000000),
-                semester || undefined
+                semester || undefined,
+                hostMedium
             );
 
             const playerQuestionsMap: Record<string, IArenaQuestion[]> = {
@@ -521,6 +542,9 @@ export const battleController = {
             const joinerTopic = (joinMode === 'CUSTOM' && topic && topic.trim()) ? topic.trim() : (room.topicConcept || room.topic);
             const diff = (room as any).difficulty || 'Medium';
 
+            const joinerProfile = await MinervaStudentProfile.findOne({ userId: joiningUser._id });
+            const joinerMedium = joinerProfile?.medium || 'english';
+
             let gradeQuestions: IArenaQuestion[] = [];
 
             if (room.roomType === 'TEACHER_ROOM') {
@@ -532,6 +556,9 @@ export const battleController = {
                     const sharedKey = `shared-${room.board}`;
                     gradeQuestions = (room.sharedQuestionSets as any).get(sharedKey);
                     if (!gradeQuestions || gradeQuestions.length === 0) {
+                        const hostProfile = await MinervaStudentProfile.findOne({ userId: room.hostId });
+                        const hostMedium = hostProfile?.medium || 'english';
+
                         gradeQuestions = await generateDynamicQuestions(
                             room.subject,
                             String(room.standard),
@@ -540,7 +567,8 @@ export const battleController = {
                             diff,
                             room.totalRounds,
                             Math.floor(Math.random() * 1000000),
-                            room.semester || undefined
+                            room.semester || undefined,
+                            hostMedium
                         );
                         (room.sharedQuestionSets as any).set(sharedKey, gradeQuestions);
                     }
@@ -570,7 +598,8 @@ export const battleController = {
                         diff,
                         room.totalRounds,
                         Math.floor(Math.random() * 1000000),
-                        room.semester || undefined
+                        room.semester || undefined,
+                        joinerMedium
                     );
                 }
             }

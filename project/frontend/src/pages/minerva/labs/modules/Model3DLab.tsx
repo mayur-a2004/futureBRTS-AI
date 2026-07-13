@@ -864,6 +864,104 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
         ctx.fillText(`✨ Equilibrium Price: $${price.toFixed(1)}`, 25, 120);
         ctx.fillText(`✨ Equilibrium Quantity: ${quantity.toFixed(0)} units`, 25, 140);
       }
+      else if (type === 'thermodynamics_piston') {
+        const heat = params.heat ?? 100;
+        const work = params.work ?? 50;
+        const dU = Math.max(0, heat - work);
+
+        // Draw cylinder
+        const cylW = 120;
+        const cylLeft = cx - cylW / 2;
+        const cylBottom = cy + 100;
+        const cylTop = cy - 80;
+
+        // Piston position y
+        const pistonHeight = 30 + work * 0.7;
+        const pistonY = cylBottom - pistonHeight;
+
+        // Draw Burner stand
+        ctx.strokeStyle = '#4b5563';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(cx - 30, cylBottom + 20);
+        ctx.lineTo(cx + 30, cylBottom + 20);
+        ctx.moveTo(cx, cylBottom + 20);
+        ctx.lineTo(cx, cylBottom + 45);
+        ctx.stroke();
+
+        // Draw Flame
+        if (heat > 0) {
+            const flameSize = 10 + (heat / 200) * 20;
+            const timeSeed = Date.now() * 0.02;
+            ctx.fillStyle = heat > 120 ? '#ef4444' : '#f59e0b';
+            ctx.beginPath();
+            ctx.moveTo(cx - 10, cylBottom + 20);
+            ctx.quadraticCurveTo(cx + Math.sin(timeSeed) * 4, cylBottom + 20 - flameSize, cx + 10, cylBottom + 20);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // Draw gas inside cylinder background
+        let rVal = Math.min(255, Math.floor(30 + (dU / 200) * 220));
+        let bVal = Math.max(0, Math.floor(180 - (dU / 200) * 180));
+        ctx.fillStyle = `rgba(${rVal}, 50, ${bVal}, 0.15)`;
+        ctx.fillRect(cylLeft, pistonY, cylW, pistonHeight);
+
+        // Draw Piston shaft
+        ctx.fillStyle = '#64748b';
+        ctx.fillRect(cx - 8, cylTop - 20, 16, pistonY - cylTop - 12);
+
+        // Draw Piston head
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillRect(cylLeft - 4, pistonY - 12, cylW + 8, 12);
+
+        // Draw Cylinder walls
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'square';
+        ctx.beginPath();
+        ctx.moveTo(cylLeft, cylTop);
+        ctx.lineTo(cylLeft, cylBottom);
+        ctx.lineTo(cx + cylW / 2, cylBottom);
+        ctx.lineTo(cx + cylW / 2, cylTop);
+        ctx.stroke();
+
+        // Draw bouncing gas particles
+        ctx.fillStyle = `rgb(${Math.min(255, rVal + 100)}, 120, ${Math.min(255, bVal + 70)})`;
+        const numParticles = 20;
+        const timeSeed = Date.now() * 0.001 * (1 + dU * 0.03);
+        for (let i = 0; i < numParticles; i++) {
+            const px = cylLeft + 10 + ((Math.sin(i * 12.3 + timeSeed) + 1) / 2) * (cylW - 20);
+            const py = pistonY + 5 + ((Math.cos(i * 7.9 + timeSeed * 1.3) + 1) / 2) * (pistonHeight - 15);
+            ctx.beginPath();
+            ctx.arc(px, py, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Info Text Overlays
+        ctx.fillStyle = '#fafafa';
+        ctx.font = 'bold 15px sans-serif';
+        ctx.fillText('First Law of Thermodynamics Simulator', 25, 40);
+
+        ctx.font = '12px monospace';
+        ctx.fillStyle = '#a1a1aa';
+        ctx.fillText(`Heat Added (Q):        ${heat} J`, 25, 70);
+        ctx.fillText(`Work Done by Gas (W):  ${work} J`, 25, 90);
+        
+        ctx.fillStyle = '#60a5fa';
+        ctx.font = 'bold 13px sans-serif';
+        ctx.fillText(`Change in Internal Energy (dU = Q - W): ${dU.toFixed(0)} J`, 25, 120);
+
+        ctx.fillStyle = '#f472b6';
+        ctx.font = 'italic 12px sans-serif';
+        if (dU > 100) {
+            ctx.fillText('Status: High Temperature Expansion 🌡️', 25, 145);
+        } else if (dU === 0) {
+            ctx.fillText('Status: Perfect Heat-Work Equilibrium ⚖️', 25, 145);
+        } else {
+            ctx.fillText('Status: Moderate Temperature State ❄️', 25, 145);
+        }
+      }
       else {
         // Draw interactive fallback
         ctx.fillStyle = '#06050b';

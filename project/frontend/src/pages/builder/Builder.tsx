@@ -97,7 +97,9 @@ export default function Builder() {
     // Socket Integration
 
     useEffect(() => {
-        const socketUrl = (import.meta as any).env?.VITE_SOCKET_URL || window.location.origin.replace(/:\d+$/, ':7001');
+        const isProd = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+        const socketUrl = (import.meta as any).env?.VITE_SOCKET_URL || 
+            (isProd ? window.location.origin : window.location.origin.replace(/:\d+$/, ':7001'));
         const newSocket = io(socketUrl); // Direct connection to API Port
 
         newSocket.on('connect', () => {
@@ -788,7 +790,9 @@ export default function Builder() {
 
     // Handle Socket Updates for Build Completion
     useEffect(() => {
-        const socketUrl = (import.meta as any).env?.VITE_SOCKET_URL || window.location.origin.replace(/:\d+$/, ':7001');
+        const isProd = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+        const socketUrl = (import.meta as any).env?.VITE_SOCKET_URL || 
+            (isProd ? window.location.origin : window.location.origin.replace(/:\d+$/, ':7001'));
         const socket = io(socketUrl);
         socket.on('job_update', (data: any) => {
             if (data.status === 'completed' && data.result?.download_url) {

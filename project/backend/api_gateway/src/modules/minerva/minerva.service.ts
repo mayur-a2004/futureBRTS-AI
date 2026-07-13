@@ -193,6 +193,17 @@ const THREE_JS_CONFIGS: Record<string, (msg: string) => any> = {
                 ]
             };
         }
+        if (m.includes('thermodynamics') || m.includes('heat') || m.includes('temperature') || m.includes('piston') || m.includes('pressure') || m.includes('gas')) {
+            return {
+                type: 'thermodynamics_piston',
+                title: 'Thermodynamics Piston Simulator',
+                description: 'Explore the First Law of Thermodynamics: Q (Heat Added) = dU (Change in Internal Energy) + W (Work Done by Gas).',
+                controls: [
+                    { name: 'heat', label: 'Heat Added (Q)', min: 0, max: 200, step: 10, defaultValue: 100 },
+                    { name: 'work', label: 'Work Done by Gas (W)', min: 0, max: 150, step: 10, defaultValue: 50 }
+                ]
+            };
+        }
         if (m.includes('wave') || m.includes('sound')) {
             return {
                 type: 'wave_simulation',
@@ -365,7 +376,7 @@ const generateLabConfig = async (message: string, reply: string, studentProfile:
     // Fallback static config
     const defaultDiagramType = `${subject}_general_diagram`;
     const defaultYoutubeQuery = `${message.substring(0, 40)} simple animated explanation tutorial`;
-    let fallbackSketchfab = '3d6e5d8a9e7f4c17b5f00e28f3a38ca4'; // DNA
+    let fallbackSketchfab: string | null = null;
     for (const [kw, hint] of Object.entries(SKETCHFAB_HINTS)) {
         if (msg.includes(kw)) { fallbackSketchfab = hint; break; }
     }
@@ -376,11 +387,11 @@ const generateLabConfig = async (message: string, reply: string, studentProfile:
     try {
         const cached = await MinervaLabCache.findOne({ concept_key: conceptKey });
         if (cached) {
-            console.log(`⚡ [Lab Config Cache Hit] Found cached lab config for concept key "${conceptKey}" (original: "${message}")`);
+            const resolvedSketchfabHint = cached.three_js_config && !fallbackSketchfab ? null : (cached.sketchfab_hint || fallbackSketchfab);
             const content_layers = ['text', 'voice', 'youtube', 'diagram'];
             if (cached.three_js_config) {
                 content_layers.push('threejs');
-            } else {
+            } else if (resolvedSketchfabHint) {
                 content_layers.push('sketchfab');
             }
             return {
@@ -393,7 +404,7 @@ const generateLabConfig = async (message: string, reply: string, studentProfile:
                 diagram_type: cached.mermaid_schema ? 'dynamic_mermaid' : `${cached.subject}_general_diagram`,
                 mermaid_schema: cached.mermaid_schema,
                 three_js_config: cached.three_js_config,
-                sketchfab_hint: cached.sketchfab_hint || fallbackSketchfab,
+                sketchfab_hint: resolvedSketchfabHint,
                 youtube_query: cached.youtube_query || defaultYoutubeQuery,
                 voice_script: cached.voice_script || reply,
                 auto_open: true
@@ -510,13 +521,15 @@ Tutor Explanation: "${reply.substring(0, 500)}..."`;
         };
     }
 
-    const content_layers = ['text', 'voice', 'youtube', 'diagram'];
     const threeJsFn = THREE_JS_CONFIGS[resultJson.subject || subject];
     const three_js_config = resultJson.simulation_config || (threeJsFn ? threeJsFn(message) : null);
 
+    const resolvedSketchfabHint = three_js_config && !fallbackSketchfab ? null : (resultJson.sketchfab_hint !== undefined && resultJson.sketchfab_hint !== null ? resultJson.sketchfab_hint : fallbackSketchfab);
+
+    const content_layers = ['text', 'voice', 'youtube', 'diagram'];
     if (three_js_config) {
         content_layers.push('threejs');
-    } else {
+    } else if (resolvedSketchfabHint) {
         content_layers.push('sketchfab');
     }
 
@@ -530,7 +543,7 @@ Tutor Explanation: "${reply.substring(0, 500)}..."`;
         diagram_type: resultJson.mermaid_schema ? 'dynamic_mermaid' : defaultDiagramType,
         mermaid_schema: resultJson.mermaid_schema || null,
         three_js_config,
-        sketchfab_hint: resultJson.sketchfab_hint || fallbackSketchfab,
+        sketchfab_hint: resolvedSketchfabHint,
         youtube_query: resultJson.youtube_query || defaultYoutubeQuery,
         voice_script: resultJson.voice_script || reply,
         auto_open: true,
@@ -1093,6 +1106,8 @@ Return ONLY valid JSON:
 }
 
 RULES:
+- EVERY question inside the generated exam paper MUST be completely unique. DO NOT duplicate questions or repeat similar questions in different sections.
+- For MCQ questions, EVERY option (A, B, C, D) MUST be completely unique and distinct. NEVER repeat the same text or option multiple times for a question.
 - Follow exact ${boardLabel} exam paper format
 - Weak topics: ${weakTopics} → 60% questions from here
 - Strong topics: ${strongTopics} → 20% questions from here
@@ -1238,7 +1253,18 @@ Language: ${language} | Grade: ${grade_level} | Board: ${board}`;
 
     const content = res?.choices?.[0]?.message?.content || '';
     if (type === 'flashcards') {
-        return safeJsonParse(content) || [];
+        let parsed = safeJsonParse(content);
+        if (parsed && !Array.isArray(parsed) && Array.isArray(parsed.flashcards)) {
+            parsed = parsed.flashcards;
+        }
+        if (Array.isArray(parsed)) {
+            return parsed.map((item: any) => {
+                const term = String(item.term || item.front || item.concept || item.word || item.question || '').trim();
+                const definition = String(item.definition || item.back || item.explanation || item.desc || item.description || item.answer || '').trim();
+                return { term, definition };
+            }).filter(item => item.term.length > 0 && item.definition.length > 0);
+        }
+        return [];
     }
     return content;
 };

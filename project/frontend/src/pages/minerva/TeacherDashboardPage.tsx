@@ -124,7 +124,9 @@ export default function TeacherDashboardPage() {
 
     useEffect(() => {
         // Initialize teacher specific socket connection
-        const socketUrl = (import.meta as any).env?.VITE_SOCKET_URL || window.location.origin.replace(/:\d+$/, ':7001');
+        const isProd = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+        const socketUrl = (import.meta as any).env?.VITE_SOCKET_URL || 
+            (isProd ? window.location.origin : window.location.origin.replace(/:\d+$/, ':7001'));
         const s = io(socketUrl);
         socketRef.current = s;
 

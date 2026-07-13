@@ -141,7 +141,9 @@ export default function ProjectStudio() {
 
         if (id) {
             // L5: Hardened URL replacement regex so it doesn't break if port changes
-            const socketUrl = (import.meta as any).env?.VITE_SOCKET_URL || window.location.origin.replace(/:\d+$/, ':7001');
+            const isProd = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+            const socketUrl = (import.meta as any).env?.VITE_SOCKET_URL || 
+                (isProd ? window.location.origin : window.location.origin.replace(/:\d+$/, ':7001'));
             socket = io(socketUrl);
 
             socket.on('connect', () => {
