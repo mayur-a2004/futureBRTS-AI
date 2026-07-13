@@ -1,6 +1,7 @@
 // Minerva AI Service — All AI calls for the education system
 import { getProviderResponse } from '../../shared/services/openai.service';
 import MinervaNeuralMemory from './models/minerva_neural_memory.model';
+import MinervaLabCache from './models/minerva_lab_cache.model';
 
 // ─────────────────────────────────────────────
 // HELPER: Repair truncated JSON
@@ -135,29 +136,132 @@ const SENSITIVITY_KEYWORDS: Record<string, number> = {
 const THREE_JS_CONFIGS: Record<string, (msg: string) => any> = {
     mathematics: (msg) => {
         const m = msg.toLowerCase();
-        if (m.includes('quadratic') || m.includes('parabola')) return { type: 'quadratic_graph', params: { a: 1, b: 0, c: 0 }, sliders: ['a', 'b', 'c'] };
-        if (m.includes('linear') || m.includes('slope')) return { type: 'linear_graph', params: { m: 1, c: 0 }, sliders: ['m', 'c'] };
-        if (m.includes('trigonometry') || m.includes('sin') || m.includes('cos')) return { type: 'trig_graph', params: { func: 'sin', amplitude: 1, frequency: 1 }, sliders: ['amplitude', 'frequency'] };
-        if (m.includes('circle')) return { type: 'circle_geometry', params: { radius: 5 }, sliders: ['radius'] };
-        return { type: 'function_plotter', params: { expression: 'x^2' }, sliders: [] };
+        if (m.includes('quadratic') || m.includes('parabola')) {
+            return {
+                type: 'quadratic_graph',
+                title: 'Quadratic Equation Simulator',
+                description: 'Explore parabola shape using coefficients a, b, and c in y = ax^2 + bx + c.',
+                controls: [
+                    { name: 'a', label: 'Coefficient a', min: -3, max: 3, step: 0.1, defaultValue: 1 },
+                    { name: 'b', label: 'Coefficient b', min: -5, max: 5, step: 0.5, defaultValue: 0 },
+                    { name: 'c', label: 'Constant c', min: -10, max: 10, step: 0.5, defaultValue: 0 }
+                ]
+            };
+        }
+        if (m.includes('linear') || m.includes('slope') || m.includes('intercept')) {
+            return {
+                type: 'linear_graph',
+                title: 'Linear Equation Simulator',
+                description: 'Explore slope (m) and intercept (c) in y = mx + c.',
+                controls: [
+                    { name: 'm', label: 'Slope (m)', min: -5, max: 5, step: 0.1, defaultValue: 1 },
+                    { name: 'c', label: 'Intercept (c)', min: -10, max: 10, step: 0.5, defaultValue: 0 }
+                ]
+            };
+        }
+        return {
+            type: 'function_plotter',
+            title: 'Trigonometric Function Plotter',
+            description: 'Visualize sine/cosine waves using amplitude and frequency.',
+            controls: [
+                { name: 'amplitude', label: 'Amplitude', min: 0.5, max: 4, step: 0.1, defaultValue: 1.5 },
+                { name: 'frequency', label: 'Frequency', min: 0.2, max: 5, step: 0.1, defaultValue: 1 }
+            ]
+        };
     },
     statistics: (msg) => {
-        const m = msg.toLowerCase();
-        if (m.includes('normal') || m.includes('bell') || m.includes('distribution')) return { type: 'normal_distribution', params: { mean: 0, std: 1 }, sliders: ['mean', 'std'] };
-        if (m.includes('histogram')) return { type: 'histogram', params: {}, sliders: [] };
-        if (m.includes('regression')) return { type: 'scatter_regression', params: {}, sliders: [] };
-        return { type: 'bar_chart', params: {}, sliders: [] };
+        return {
+            type: 'normal_distribution',
+            title: 'Normal Distribution Plotter',
+            description: 'Explore probability density using Mean (μ) and Standard Deviation (σ).',
+            controls: [
+                { name: 'mean', label: 'Mean (μ)', min: -5, max: 5, step: 0.1, defaultValue: 0 },
+                { name: 'stdDev', label: 'Std Dev (σ)', min: 0.5, max: 3, step: 0.1, defaultValue: 1 }
+            ]
+        };
     },
     physics: (msg) => {
         const m = msg.toLowerCase();
-        if (m.includes('projectile') || m.includes('trajectory')) return { type: 'projectile_motion', params: { angle: 45, speed: 20, gravity: 9.8 }, sliders: ['angle', 'speed'] };
-        if (m.includes('wave') || m.includes('sound')) return { type: 'wave_simulation', params: { amplitude: 1, frequency: 1 }, sliders: ['amplitude', 'frequency'] };
-        if (m.includes('pendulum')) return { type: 'pendulum_simulation', params: { length: 1, angle: 30 }, sliders: ['length', 'angle'] };
-        if (m.includes('circuit') || m.includes('ohm')) return { type: 'circuit_simulator', params: { voltage: 12, resistance: 6 }, sliders: ['voltage', 'resistance'] };
-        return { type: 'physics_general', params: {}, sliders: [] };
+        if (m.includes('projectile') || m.includes('trajectory')) {
+            return {
+                type: 'projectile_motion',
+                title: 'Projectile Motion Simulation',
+                description: 'Launch a projectile and trace its path.',
+                controls: [
+                    { name: 'angle', label: 'Launch Angle', min: 10, max: 85, step: 5, defaultValue: 45 },
+                    { name: 'speed', label: 'Initial Speed', min: 5, max: 40, step: 1, defaultValue: 20 }
+                ]
+            };
+        }
+        if (m.includes('wave') || m.includes('sound')) {
+            return {
+                type: 'wave_simulation',
+                title: 'Wave Simulator',
+                description: 'Visualize wave properties.',
+                controls: [
+                    { name: 'amplitude', label: 'Amplitude', min: 0.5, max: 4, step: 0.1, defaultValue: 2 },
+                    { name: 'frequency', label: 'Frequency', min: 0.2, max: 5, step: 0.1, defaultValue: 1.5 }
+                ]
+            };
+        }
+        if (m.includes('pendulum')) {
+            return {
+                type: 'pendulum_simulation',
+                title: 'Simple Pendulum Simulator',
+                description: 'Vary the pendulum parameters.',
+                controls: [
+                    { name: 'length', label: 'String Length', min: 0.5, max: 3, step: 0.1, defaultValue: 1.5 },
+                    { name: 'angle', label: 'Starting Angle', min: 5, max: 75, step: 5, defaultValue: 30 }
+                ]
+            };
+        }
+        if (m.includes('circuit') || m.includes('ohm')) {
+            return {
+                type: 'circuit_simulator',
+                title: 'Ohm\'s Law Circuit Simulator',
+                description: 'Simulate current flow (I = V / R).',
+                controls: [
+                    { name: 'voltage', label: 'Voltage (V)', min: 1, max: 24, step: 1, defaultValue: 12 },
+                    { name: 'resistance', label: 'Resistance (R)', min: 1, max: 100, step: 1, defaultValue: 10 }
+                ]
+            };
+        }
+        return {
+            type: 'physics_general',
+            title: 'General Physics Simulator',
+            description: 'Physics parameters simulator.',
+            controls: [
+                { name: 'force', label: 'Applied Force', min: 0, max: 100, step: 5, defaultValue: 20 }
+            ]
+        };
     },
-    chemistry: () => ({ type: 'molecule_builder', params: { pour: 0, temperature: 25 }, sliders: ['pour', 'temperature'] }),
-    accounting: () => ({ type: 'ledger_visual', params: {}, sliders: [] }),
+    chemistry: () => ({
+        type: 'molecule_builder',
+        title: 'Chemical Beaker & Reaction Simulator',
+        description: 'Vary temperature and pH to see reaction characteristics.',
+        controls: [
+            { name: 'temperature', label: 'Temperature (°C)', min: 0, max: 100, step: 1, defaultValue: 25 },
+            { name: 'pH', label: 'Solution pH', min: 0, max: 14, step: 0.1, defaultValue: 7.0 }
+        ]
+    }),
+    accounting: () => ({
+        type: 'ledger_visual',
+        title: 'Assets vs Liabilities Balance Simulator',
+        description: 'Debit and credit balance tracking sheet.',
+        controls: [
+            { name: 'assets', label: 'Debit (Assets)', min: 0, max: 1000, step: 50, defaultValue: 500 },
+            { name: 'liabilities', label: 'Credit (Liabilities)', min: 0, max: 1000, step: 50, defaultValue: 500 }
+        ]
+    }),
+    economics: () => ({
+        type: 'supply_demand',
+        title: 'Supply & Demand Equilibrium',
+        description: 'Shift curves to find the market equilibrium point.',
+        controls: [
+            { name: 'demand', label: 'Demand Shift', min: 10, max: 90, step: 1, defaultValue: 50 },
+            { name: 'supply', label: 'Supply Shift', min: 10, max: 90, step: 1, defaultValue: 50 }
+        ]
+    })
 };
 
 export const SKETCHFAB_HINTS: Record<string, string> = {
@@ -209,6 +313,37 @@ export const SKETCHFAB_HINTS: Record<string, string> = {
     stomach: '6b5ba1999b164b0ca667af5333bd6748'
 };
 
+const getStandardConceptKey = (msg: string): string => {
+    const q = msg.toLowerCase().trim();
+    if (q.includes('heart') || q.includes('cardiac') || q.includes('blood pressure') || q.includes('pulse') || q.includes('artery') || q.includes('vein') || q.includes('circulatory') || q.includes('dil')) return 'heart';
+    if (q.includes('lung') || q.includes('respiratory') || q.includes('breath') || q.includes('oxygen') || q.includes('alveoli') || q.includes('trachea') || q.includes('phephde')) return 'lungs';
+    if (q.includes('brain') || q.includes('cerebral') || q.includes('nervous') || q.includes('mind') || q.includes('head') || q.includes('skull') || q.includes('dimag')) return 'brain';
+    if (q.includes('dna') || q.includes('rna') || q.includes('chromosome') || q.includes('gene') || q.includes('helix') || q.includes('genetic') || q.includes('adn')) return 'dna';
+    if (q.includes('stomach') || q.includes('gastric') || q.includes('digestive') || q.includes('gut') || q.includes('intestine') || q.includes('digestion') || q.includes('pet')) return 'stomach';
+    if (q.includes('kidney') || q.includes('renal') || q.includes('urine') || q.includes('excretory') || q.includes('nephron') || q.includes('pathri')) return 'kidney';
+    if (q.includes('eye') || q.includes('vision') || q.includes('lens') || q.includes('cornea') || q.includes('retina') || q.includes('aankh')) return 'eye';
+    if (q.includes('ear') || q.includes('hearing') || q.includes('cochlea') || q.includes('sound') || q.includes('auditory') || q.includes('kaan')) return 'ear';
+    if (q.includes('cell') || q.includes('cellular') || q.includes('mitosis') || q.includes('meiosis') || q.includes('prokaryote') || q.includes('eukaryote') || q.includes('célula')) return 'cell';
+    if (q.includes('neuron') || q.includes('nerve cell') || q.includes('synapse')) return 'neuron';
+    if (q.includes('muscle') || q.includes('muscular') || q.includes('tendon')) return 'muscle';
+    if (q.includes('bone') || q.includes('skeleton') || q.includes('joint') || q.includes('spine')) return 'skeleton';
+    if (q.includes('atom') || q.includes('electron') || q.includes('proton') || q.includes('nucleus')) return 'atom';
+    if (q.includes('solar') || q.includes('planet') || q.includes('space') || q.includes('orbit') || q.includes('sun') || q.includes('galaxy') || q.includes('universe')) return 'solar';
+    if (q.includes('plant') || q.includes('photosynthesis') || q.includes('leaf') || q.includes('stem') || q.includes('root') || q.includes('chloroplast')) return 'plant';
+    if (q.includes('volcano') || q.includes('lava') || q.includes('earthquake') || q.includes('crust') || q.includes('tectonic')) return 'volcano';
+    if (q.includes('engine') || q.includes('motor') || q.includes('gear') || q.includes('combustion') || q.includes('piston') || q.includes('car')) return 'engine';
+    if (q.includes('microscope') || q.includes('magnify')) return 'microscope';
+    if (q.includes('prism') || q.includes('spectrum') || q.includes('refraction') || q.includes('light')) return 'prism';
+    if (q.includes('magnet') || q.includes('magnetic') || q.includes('field')) return 'magnet';
+    if (q.includes('gravity') || q.includes('force') || q.includes('attraction')) return 'gravity';
+    if (q.includes('liver') || q.includes('hepatic') || q.includes('bile')) return 'liver';
+    if (q.includes('virus') || q.includes('pathogen') || q.includes('corona') || q.includes('infection')) return 'virus';
+    if (q.includes('bacteria') || q.includes('microbe')) return 'bacteria';
+    if (q.includes('digestive')) return 'digestive';
+    
+    return q.replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/).slice(0, 3).join('_');
+};
+
 const generateLabConfig = async (message: string, reply: string, studentProfile: any): Promise<any | null> => {
     if (!message || message.trim().length < 3) return null;
     const msg = message.toLowerCase();
@@ -235,6 +370,39 @@ const generateLabConfig = async (message: string, reply: string, studentProfile:
         if (msg.includes(kw)) { fallbackSketchfab = hint; break; }
     }
 
+    const conceptKey = getStandardConceptKey(message);
+
+    // 1. Check DB Cache first
+    try {
+        const cached = await MinervaLabCache.findOne({ concept_key: conceptKey });
+        if (cached) {
+            console.log(`⚡ [Lab Config Cache Hit] Found cached lab config for concept key "${conceptKey}" (original: "${message}")`);
+            const content_layers = ['text', 'voice', 'youtube', 'diagram'];
+            if (cached.three_js_config) {
+                content_layers.push('threejs');
+            } else {
+                content_layers.push('sketchfab');
+            }
+            return {
+                subject: cached.subject || subject,
+                topic: cached.title || message.substring(0, 60),
+                grade_level: studentProfile?.grade_level || 'class_10',
+                board: studentProfile?.board || 'cbse',
+                sensitivity_level: 0,
+                content_layers,
+                diagram_type: cached.mermaid_schema ? 'dynamic_mermaid' : `${cached.subject}_general_diagram`,
+                mermaid_schema: cached.mermaid_schema,
+                three_js_config: cached.three_js_config,
+                sketchfab_hint: cached.sketchfab_hint || fallbackSketchfab,
+                youtube_query: cached.youtube_query || defaultYoutubeQuery,
+                voice_script: cached.voice_script || reply,
+                auto_open: true
+            };
+        }
+    } catch (dbErr) {
+        console.error("[Lab Config Cache Check Error]", dbErr);
+    }
+
     let resultJson: any = null;
 
     try {
@@ -253,7 +421,7 @@ SCHEMA:
   "voice_script": "Detailed, structured masterclass academic explanation (300-500 words) using clean markdown formatting (headings like ##, ###, bullets like -, formulas). Walk through basic definitions, advanced deep dives, real-world examples, and step-by-step mechanisms to take the student from beginner to advanced. MUST be in Hinglish or target language.",
   "youtube_query": "specific search query terms optimized for the absolute simplest, animated, easy-to-understand explanation video of this concept (DO NOT include terms like NCERT, CBSE, class, short, or demo. Optimize for clean concept visualization)",
   "mermaid_schema": "valid Mermaid.js flowchart code starting strictly with 'graph TD' or 'graph LR'. Do NOT include any descriptive text, class definitions, pseudocode, JSON or explanations inside this field. It must be strictly parsable Mermaid flowchart syntax showing the relationships or steps. Example: 'graph TD\\n    A[Artificial Intelligence] --> B[Machine Learning]\\n    B --> C[Deep Learning]'",
-  "sketchfab_hint": "Descriptive keyword string to query Sketchfab in English. ALWAYS translate non-English/Hinglish terms and correct spelling mistakes to standard correct English scientific/anatomical terms (e.g. 'heart', 'cell', 'brain', 'dna', 'lungs', 'kidney', 'eye', 'ear', 'stomach', 'male reproductive system'). NEVER return raw hex IDs.",
+  "sketchfab_hint": "Single descriptive keyword from this verified list: cell, heart, brain, dna, eye, ear, lungs, stomach, kidney, skeleton, atom, molecule, solar, earth, plant, mitochondria, chloroplast, volcano, engine, microscope, prism, magnet, gravity, neuron, spinal, muscle, liver. DO NOT make up arbitrary keys. NEVER return hex IDs.",
   "simulation_config": {
     "type": "unique_simulation_id_lowercase_with_underscores",
     "title": "Title of the interactive experiment",
@@ -307,6 +475,26 @@ Tutor Explanation: "${reply.substring(0, 500)}..."`;
         const content = llmRes?.choices?.[0]?.message?.content;
         if (content) {
             resultJson = safeJsonParse(content);
+            
+            // 2. Save newly generated configs to cache database for consistency
+            if (resultJson && resultJson.subject) {
+                try {
+                    await MinervaLabCache.create({
+                        concept_key: conceptKey,
+                        subject: resultJson.subject || subject,
+                        title: resultJson.simulation_config?.title || resultJson.topic || message.substring(0, 60),
+                        description: resultJson.simulation_config?.description || '',
+                        sketchfab_hint: resultJson.sketchfab_hint || null,
+                        three_js_config: resultJson.simulation_config || null,
+                        youtube_query: resultJson.youtube_query || defaultYoutubeQuery,
+                        mermaid_schema: resultJson.mermaid_schema || null,
+                        voice_script: resultJson.voice_script || null
+                    });
+                    console.log(`💾 [Lab Config Cached] Successfully stored new configuration for "${conceptKey}"`);
+                } catch (saveErr) {
+                    console.warn("[Lab Config Save Error]", saveErr);
+                }
+            }
         }
     } catch (err) {
         console.error("LLM lab config generation failed, using keyword fallback:", err);
@@ -769,7 +957,7 @@ Return ONLY valid JSON:
 }
 
 RULES:
-- explanation_simple (Story): MUST be a highly creative, engaging, and simple story or real-life analogy. Explain the core concept using a completely non-technical metaphor (e.g., explaining traffic congestion for resistance, or water flow for current). It must feel like an interesting story, not a textbook paragraph, so that the student can understand it intuitively.
+- explanation_simple (Concept Metaphor/Analogy): MUST be a simple, concept-focused educational metaphor or real-life analogy (100-150 words) that makes the concept intuitively clear. Explain the core concept using a completely relatable real-world comparison (e.g., explaining traffic congestion for resistance, or water pipe flow for electric current). It must remain strictly educational, focusing directly on illustrating the concept, and MUST NOT go off-topic into fantasy stories, fictional characters, or irrelevant side plots.
 - explanation_detailed (Theory/Concept): MUST be an extremely detailed, technical, and comprehensive academic breakdown (500-800 words) in ${lang}. This must take the student from basic definitions all the way to advanced masterclass details, showing step-by-step mechanisms, equations/derivations (if applicable), practical applications, and syllabus alignments. DO NOT output simple or generic definitions.
 - PYQ SPECIAL RULE: If the node relevance (board_relevance) or title indicates this is a 'Direct PYQ Question', or if key_points contains an item starting with "QUESTION: ", treat this entire node as a past year exam question.
   - explanation_simple (Hint): Must be a direct, helpful hint or strategic tip on how to think or approach solving this exact question. Keep it simple and encouraging.

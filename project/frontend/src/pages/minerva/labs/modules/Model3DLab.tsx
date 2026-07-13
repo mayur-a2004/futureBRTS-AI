@@ -11,6 +11,7 @@ interface Model3DLabProps {
 const evaluateExpr = (expr: string, context: Record<string, number>): number => {
   try {
     let sanitized = expr
+      .replace(/\^/g, '**')
       .replace(/\bsin\b/g, 'Math.sin')
       .replace(/\bcos\b/g, 'Math.cos')
       .replace(/\btan\b/g, 'Math.tan')
@@ -21,14 +22,22 @@ const evaluateExpr = (expr: string, context: Record<string, number>): number => 
       .replace(/\bpi\b/g, 'Math.PI')
       .replace(/\bexp\b/g, 'Math.exp');
 
+    // Insert implicit multiplication: e.g. "2x" -> "2*x", "2(" -> "2*("
+    sanitized = sanitized.replace(/(\d+)([a-zA-Z\(])/g, '$1*$2');
+    
+    // Also handle e.g. ")(" -> ")*(" or ")x" -> ")*x"
+    sanitized = sanitized.replace(/(\))([a-zA-Z0-9\(])/g, '$1*$2');
+
     // Replace all variable names in expr with their values from context
     Object.entries(context).forEach(([key, val]) => {
-      if (['sin', 'cos', 'tan', 'log', 'pow', 'sqrt', 'abs', 'pi', 'exp'].includes(key)) return;
+      if (['sin', 'cos', 'tan', 'log', 'pow', 'sqrt', 'abs', 'pi', 'exp', 'Math'].includes(key)) return;
       const regex = new RegExp(`\\b${key}\\b`, 'g');
       sanitized = sanitized.replace(regex, val.toString());
     });
+    
     const fn = new Function(`return (${sanitized})`);
-    return fn() || 0;
+    const val = fn();
+    return isNaN(val) || !isFinite(val) ? 0 : val;
   } catch (e) {
     console.error("Failed to evaluate expression:", expr, e);
     return 0;
@@ -107,12 +116,12 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
         if (data.success && data.model_id) {
           setActiveModelId(data.model_id);
         } else {
-          setActiveModelId('8f3b207555804362a26563604f37803a'); // DNA model fallback
+          setActiveModelId('57e27538f97a4617a716c3ca5448b6b7'); // DNA model fallback
         }
       })
       .catch(err => {
         console.error('Sketchfab dynamic search failed:', err);
-        setActiveModelId('8f3b207555804362a26563604f37803a');
+        setActiveModelId('57e27538f97a4617a716c3ca5448b6b7');
       });
   }, [sketchfab_hint, three_js_config, _subject]);
 
@@ -618,162 +627,242 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
         ctx.fillText(`Wave Simulation: Amp=${amp.toFixed(1)}, Freq=${freq.toFixed(1)}`, 20, 30);
       }
       else if (type === 'ledger_visual') {
+        const assets = params.assets ?? 500;
+        const liabilities = params.liabilities ?? 500;
+
         ctx.fillStyle = '#18181b';
         ctx.fillRect(0, 0, width, height);
 
         ctx.fillStyle = '#fafafa';
         ctx.font = 'bold 16px sans-serif';
-        ctx.fillText('Cash Ledger Account', 20, 40);
+        ctx.fillText('Debit and Credit Balance Sheet Simulator', 20, 35);
 
+        // Draw central T-line
         ctx.strokeStyle = '#3f3f46';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(width / 2, 60);
+        ctx.moveTo(width / 2, 50);
         ctx.lineTo(width / 2, height - 20);
         ctx.stroke();
 
         ctx.font = 'bold 14px sans-serif';
         ctx.fillStyle = '#ef4444';
-        ctx.fillText('Debit (Dr.)', 40, 80);
+        ctx.fillText('Debit (Assets)', 40, 70);
         ctx.fillStyle = '#22c55e';
-        ctx.fillText('Credit (Cr.)', width / 2 + 40, 80);
+        ctx.fillText('Credit (Liabilities & Equity)', width / 2 + 40, 70);
 
-        ctx.font = '12px monospace';
-        ctx.fillStyle = '#d4d4d8';
-        ctx.fillText('01-Apr Capital A/c   $10,000', 40, 110);
-        ctx.fillText('05-Apr Sales A/c     $2,500', 40, 130);
-        ctx.fillText('12-Apr Commission    $500', 40, 150);
+        // Render dynamic bars
+        const maxBarHeight = height - 180;
+        const maxVal = 1000;
+        
+        const assetBarHeight = (assets / maxVal) * maxBarHeight;
+        const liabBarHeight = (liabilities / maxVal) * maxBarHeight;
 
-        ctx.fillText('03-Apr Rent Paid     $1,200', width / 2 + 40, 110);
-        ctx.fillText('08-Apr Purchase A/c  $4,500', width / 2 + 40, 130);
-        ctx.fillText('15-Apr Salary Paid   $2,000', width / 2 + 40, 150);
+        // Debit/Asset Bar (Red/Orange)
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.4)';
+        ctx.fillRect(40, height - 60 - assetBarHeight, width / 2 - 80, assetBarHeight);
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(40, height - 60 - assetBarHeight, width / 2 - 80, assetBarHeight);
 
-        ctx.strokeStyle = '#27272a';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(20, 90);
-        ctx.lineTo(width - 20, 90);
-        ctx.moveTo(20, 160);
-        ctx.lineTo(width - 20, 160);
-        ctx.stroke();
+        // Credit/Liability Bar (Green)
+        ctx.fillStyle = 'rgba(34, 197, 94, 0.4)';
+        ctx.fillRect(width / 2 + 40, height - 60 - liabBarHeight, width / 2 - 80, liabBarHeight);
+        ctx.strokeStyle = '#22c55e';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(width / 2 + 40, height - 60 - liabBarHeight, width / 2 - 80, liabBarHeight);
 
-        ctx.fillStyle = '#e4e4e7';
+        // Text labels inside/above bars
+        ctx.fillStyle = '#fafafa';
+        ctx.font = 'bold 14px monospace';
+        ctx.fillText(`$${assets.toFixed(0)}`, 50, height - 70 - assetBarHeight);
+        ctx.fillText(`$${liabilities.toFixed(0)}`, width / 2 + 50, height - 70 - liabBarHeight);
+
+        // Balancing status text
+        const diff = assets - liabilities;
+        ctx.fillStyle = diff === 0 ? '#3b82f6' : '#f59e0b';
         ctx.font = 'bold 13px sans-serif';
-        ctx.fillText('Total Dr: $13,000', 40, 190);
-        ctx.fillText('Total Cr: $7,700', width / 2 + 40, 190);
-        ctx.fillStyle = '#3b82f6';
-        ctx.fillText('Balance c/d: $5,300', width / 2 + 40, 210);
+        if (diff === 0) {
+            ctx.fillText('✨ Ledger is BALANCED! (Assets = Liabilities + Equity)', 20, height - 20);
+        } else {
+            ctx.fillText(`⚠️ Ledger is UNBALANCED by $${Math.abs(diff).toFixed(0)} (${diff > 0 ? 'Excess Assets' : 'Excess Liabilities'})`, 20, height - 20);
+        }
       }
-      else if (type === 'molecule_builder' || type === 'chemical_reaction') {
-        drawGrid(ctx, cx, cy + 40);
-
-        const pour = params.pour ?? 0;
+      else if (type === 'molecule_builder' || type === 'chemical_reaction' || type === 'beaker_chemical_lab') {
         const temp = params.temperature ?? 25;
-        const bubbleSpeed = 1 + temp * 0.05;
+        const ph = params.pH ?? 7.0;
 
-        // Beaker 1 (Left: Pouring)
-        ctx.strokeStyle = '#e2e8f0';
+        // Draw beaker background / burner stand
+        ctx.strokeStyle = '#4b5563';
         ctx.lineWidth = 4;
-        
-        ctx.save();
-        const b1x = cx - 120;
-        const b1y = cy + 50;
-        ctx.translate(b1x, b1y);
-        
-        const tiltAngle = (pour * 45 / 100) * Math.PI / 180;
-        ctx.rotate(tiltAngle);
-        
-        // Draw beaker 1
         ctx.beginPath();
-        ctx.moveTo(-30, -40);
-        ctx.lineTo(-30, 40);
-        ctx.lineTo(30, 40);
-        ctx.lineTo(30, -40);
+        // Stand top
+        ctx.moveTo(cx - 70, cy + 95);
+        ctx.lineTo(cx + 70, cy + 95);
+        // Stand legs
+        ctx.moveTo(cx - 60, cy + 95);
+        ctx.lineTo(cx - 80, cy + 160);
+        ctx.moveTo(cx + 60, cy + 95);
+        ctx.lineTo(cx + 80, cy + 160);
         ctx.stroke();
-        
-        const liquidHeight = Math.max(0, 50 - (pour * 0.5));
-        ctx.fillStyle = '#38bdf8'; 
-        ctx.fillRect(-28, 40 - liquidHeight, 56, liquidHeight);
-        ctx.restore();
 
-        // Pouring liquid stream
-        if (pour > 5) {
-          ctx.strokeStyle = '#38bdf8';
-          ctx.lineWidth = 4;
+        // Burner Flame if temp is high
+        if (temp > 30) {
+          const flameHeight = 15 + (temp - 30) * 0.4;
+          const timeSeed = Date.now() * 0.015;
+          ctx.fillStyle = temp > 70 ? '#ef4444' : '#f59e0b';
           ctx.beginPath();
-          const startX = b1x + 20 + (pour * 0.2);
-          const startY = b1y - 10 + (pour * 0.1);
-          const endX = cx + 80;
-          const endY = cy + 40;
-          
-          ctx.moveTo(startX, startY);
-          ctx.quadraticCurveTo((startX + endX) / 2, startY + 50, endX, endY);
-          ctx.stroke();
+          ctx.moveTo(cx - 15, cy + 160);
+          ctx.quadraticCurveTo(cx + Math.sin(timeSeed) * 5, cy + 160 - flameHeight, cx + 15, cy + 160);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.fillStyle = '#facc15';
+          ctx.beginPath();
+          ctx.moveTo(cx - 8, cy + 160);
+          ctx.quadraticCurveTo(cx + Math.sin(timeSeed + 2) * 3, cy + 160 - flameHeight * 0.6, cx + 8, cy + 160);
+          ctx.closePath();
+          ctx.fill();
         }
 
-        // Beaker 2 (Right: Receiving)
-        const b2x = cx + 80;
-        const b2y = cy + 50;
-        ctx.save();
-        ctx.translate(b2x, b2y);
-        
+        // Draw Beaker
         ctx.strokeStyle = '#e2e8f0';
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 5;
+        ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.moveTo(-40, -50);
-        ctx.lineTo(-40, 50);
-        ctx.lineTo(40, 50);
-        ctx.lineTo(40, -50);
+        ctx.moveTo(cx - 50, cy - 30);
+        ctx.lineTo(cx - 50, cy + 90);
+        ctx.lineTo(cx + 50, cy + 90);
+        ctx.lineTo(cx + 50, cy - 30);
         ctx.stroke();
-        
-        const recHeight = Math.min(80, 20 + (pour * 0.6));
-        
-        // Color transition from green-ish to pink/purple reaction product
-        const r = Math.floor(16 + (pour * 2.2));
-        const g = Math.floor(185 - (pour * 1.5));
-        const b = Math.floor(129 + (pour * 0.5));
-        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-        ctx.fillRect(-38, 50 - recHeight, 76, recHeight);
 
-        // Bubbles
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-        const bubbleCount = Math.floor(pour * 0.3 * bubbleSpeed);
-        const timeSeed = Date.now() * 0.003;
-        for (let i = 0; i < bubbleCount; i++) {
-          const bx = Math.sin(i * 4.3 + timeSeed) * 30;
-          const by = 50 - ((i * 12 + timeSeed * 30 * bubbleSpeed) % recHeight);
-          if (by > 50 - recHeight) {
-            ctx.beginPath();
-            ctx.arc(bx, by, 2 + (i % 3), 0, Math.PI * 2);
-            ctx.fill();
+        // Color transition based on pH
+        // Neutral (pH 7) -> Green
+        // Acidic (pH < 7) -> Red/Yellow
+        // Alkaline (pH > 7) -> Violet/Pink
+        let r = 34; // neutral emerald
+        let g = 197;
+        let b = 94;
+        let colorName = 'Neutral (pH 7)';
+
+        if (ph < 6.8) {
+          const factor = (6.8 - ph) / 6.8;
+          r = Math.floor(34 + factor * 221); // transition to red
+          g = Math.floor(197 - factor * 140);
+          b = Math.floor(94 - factor * 60);
+          colorName = `Acidic (pH ${ph.toFixed(1)})`;
+        } else if (ph > 7.2) {
+          const factor = (ph - 7.2) / 6.8;
+          r = Math.floor(34 + factor * 180); // transition to purple/violet
+          g = Math.floor(197 - factor * 160);
+          b = Math.floor(94 + factor * 140);
+          colorName = `Alkaline (pH ${ph.toFixed(1)})`;
+        }
+
+        // Draw liquid
+        const liquidHeight = 80; // steady height
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.6)`;
+        ctx.fillRect(cx - 47, cy + 90 - liquidHeight, 94, liquidHeight);
+
+        // Boiling Bubbles
+        if (temp > 30) {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+          const bubbleCount = Math.floor((temp - 30) * 0.4);
+          const timeSeed = Date.now() * 0.003;
+          for (let i = 0; i < bubbleCount; i++) {
+            const bx = cx - 35 + ((i * 17 + timeSeed * 20) % 70);
+            const speed = 1 + (temp - 30) * 0.05;
+            const by = cy + 90 - ((i * 12 + timeSeed * 40 * speed) % liquidHeight);
+            if (by > cy + 90 - liquidHeight && by < cy + 85) {
+              ctx.beginPath();
+              ctx.arc(bx, by, 1.5 + (i % 3), 0, Math.PI * 2);
+              ctx.fill();
+            }
           }
         }
-        ctx.restore();
 
-        // Info
+        // Info Text Overlay
         ctx.fillStyle = '#fafafa';
         ctx.font = 'bold 15px sans-serif';
-        ctx.fillText('Interactive Chemical Reaction Lab', 25, 40);
+        ctx.fillText('Chemical Beaker & Reaction Lab', 25, 40);
         
         ctx.font = '12px monospace';
         ctx.fillStyle = '#a1a1aa';
-        ctx.fillText('Equation: H₂O (Liquid) + CO₂ (Gas) ⇌ H₂CO₃ (Carbonic Acid)', 25, 70);
-        ctx.fillText(`Reaction Temp: ${temp}°C`, 25, 90);
-        ctx.fillText(`Pouring State: ${pour.toFixed(0)}%`, 25, 110);
+        ctx.fillText(`Temperature: ${temp}°C`, 25, 70);
+        ctx.fillText(`Solution pH: ${ph.toFixed(1)} (${colorName})`, 25, 90);
+        ctx.fillText(`Water State: ${temp >= 100 ? 'Boiling / Vaporizing' : temp > 30 ? 'Heating' : 'Room Temp'}`, 25, 110);
+      }
+      else if (type === 'supply_demand') {
+        drawGrid(ctx, cx, cy);
+
+        const demand = params.demand ?? 50;
+        const supply = params.supply ?? 50;
+
+        // Shift calculations
+        const demandShift = (demand - 50) * 2;
+        const supplyShift = (supply - 50) * 2;
+
+        // Draw curves
+        ctx.lineWidth = 3;
+
+        // Demand curve (Red/Orange, sloping down)
+        ctx.strokeStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.moveTo(40, cy - 80 + demandShift);
+        ctx.lineTo(width - 40, cy + 80 + demandShift);
+        ctx.stroke();
+
+        // Supply curve (Blue/Green, sloping up)
+        ctx.strokeStyle = '#3b82f6';
+        ctx.beginPath();
+        ctx.moveTo(40, cy + 80 - supplyShift);
+        ctx.lineTo(width - 40, cy - 80 - supplyShift);
+        ctx.stroke();
+
+        // Find intersection point (equilibrium)
+        const eqX = cx + (demandShift + supplyShift) * 1.2;
+        const eqY = cy + (demandShift - supplyShift) * 0.5;
+
+        // Draw equilibrium point
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath();
+        ctx.arc(eqX, eqY, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Dotted lines to axes
+        ctx.strokeStyle = 'rgba(245, 158, 11, 0.5)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]);
         
-        if (pour > 80) {
-          ctx.fillStyle = '#f43f5e';
-          ctx.font = 'bold 12px sans-serif';
-          ctx.fillText('✨ Reaction Complete: Carbonic Acid Formed!', 25, 140);
-        } else if (pour > 10) {
-          ctx.fillStyle = '#f59e0b';
-          ctx.font = 'bold 12px sans-serif';
-          ctx.fillText('⚡ Reacting: Synthesizing Carbonic Acid...', 25, 140);
-        } else {
-          ctx.fillStyle = '#3b82f6';
-          ctx.font = 'bold 12px sans-serif';
-          ctx.fillText('ℹ️ Use "Pour Amount" slider to start reaction.', 25, 140);
-        }
+        // Dotted line to Y axis (Price)
+        ctx.beginPath();
+        ctx.moveTo(eqX, eqY);
+        ctx.lineTo(cx, eqY);
+        ctx.stroke();
+
+        // Dotted line to X axis (Quantity)
+        ctx.beginPath();
+        ctx.moveTo(eqX, eqY);
+        ctx.lineTo(eqX, cy);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Text overlays
+        ctx.fillStyle = '#fafafa';
+        ctx.font = 'bold 15px sans-serif';
+        ctx.fillText('Supply and Demand Equilibrium', 25, 40);
+
+        ctx.font = '12px monospace';
+        ctx.fillStyle = '#a1a1aa';
+        ctx.fillText(`Demand Shift Level: ${demand}%`, 25, 70);
+        ctx.fillText(`Supply Shift Level: ${supply}%`, 25, 90);
+
+        const price = 100 - (eqY - cy) * 0.8;
+        const quantity = 100 + (eqX - cx) * 0.8;
+        ctx.fillStyle = '#f59e0b';
+        ctx.font = 'bold 13px sans-serif';
+        ctx.fillText(`✨ Equilibrium Price: $${price.toFixed(1)}`, 25, 120);
+        ctx.fillText(`✨ Equilibrium Quantity: ${quantity.toFixed(0)} units`, 25, 140);
       }
       else {
         // Draw interactive fallback

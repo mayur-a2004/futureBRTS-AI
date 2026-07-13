@@ -2256,28 +2256,95 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
                 return res.status(400).json({ success: false, error: 'query is required' });
             }
 
-            // 1. Instant Cache: Exact or fuzzy match against pre-verified high-quality models
-            const lowerQuery = query.toLowerCase().trim();
-            
-            // Map common Hinglish, Hindi, and spelling mistakes to standard keywords
-            const SYNONYM_MAP: Record<string, string> = {
-                dil: 'heart', heert: 'heart', hert: 'heart', hrt: 'heart', cardiac: 'heart',
-                dimag: 'brain', dimagh: 'brain', brian: 'brain', cerebral: 'brain',
-                célula: 'cell', cel: 'cell', celll: 'cell',
-                adn: 'dna', dnaa: 'dna', helix: 'dna', chromosome: 'dna',
-                aankh: 'eye', ankh: 'eye', eyes: 'eye', ocular: 'eye',
-                kaan: 'ear', kan: 'ear', auditory: 'ear',
-                phephde: 'lungs', phephda: 'lungs', lung: 'lungs', respiratory: 'lungs',
-                sex: 'sex', reproductive: 'sex', reproduction: 'sex', genital: 'sex', ling: 'sex', penis: 'sex', vagina: 'sex',
-                pet: 'stomach', gastric: 'stomach',
-                pathri: 'kidney', kidneys: 'kidney', renal: 'kidney'
+            // Map natural language medical, physics, chemistry and business queries to standard educational keywords
+            const mapQueryToEducationalKeyword = (qStr: string): string => {
+                const q = qStr.toLowerCase().trim();
+                
+                if (q.includes('heart') || q.includes('cardiac') || q.includes('blood pressure') || q.includes('pulse') || q.includes('artery') || q.includes('vein') || q.includes('circulatory') || q.includes('dil')) {
+                    return 'heart';
+                }
+                if (q.includes('lungs') || q.includes('respiratory') || q.includes('breath') || q.includes('oxygen') || q.includes('alveoli') || q.includes('trachea') || q.includes('phephde') || q.includes('phephda') || q.includes('lung')) {
+                    return 'lungs';
+                }
+                if (q.includes('brain') || q.includes('cerebral') || q.includes('nervous') || q.includes('mind') || q.includes('head') || q.includes('skull') || q.includes('dimag') || q.includes('dimagh') || q.includes('brian')) {
+                    return 'brain';
+                }
+                if (q.includes('dna') || q.includes('rna') || q.includes('chromosome') || q.includes('gene') || q.includes('helix') || q.includes('genetic') || q.includes('adn')) {
+                    return 'dna';
+                }
+                if (q.includes('stomach') || q.includes('gastric') || q.includes('digestive') || q.includes('gut') || q.includes('intestine') || q.includes('digestion') || q.includes('pet')) {
+                    return 'stomach';
+                }
+                if (q.includes('kidney') || q.includes('renal') || q.includes('urine') || q.includes('excretory') || q.includes('nephron') || q.includes('pathri')) {
+                    return 'kidney';
+                }
+                if (q.includes('eye') || q.includes('optics') || q.includes('vision') || q.includes('lens') || q.includes('cornea') || q.includes('retina') || q.includes('aankh') || q.includes('ankh')) {
+                    return 'eye';
+                }
+                if (q.includes('ear') || q.includes('hearing') || q.includes('cochlea') || q.includes('sound') || q.includes('auditory') || q.includes('kaan') || q.includes('kan')) {
+                    return 'ear';
+                }
+                if (q.includes('cell') || q.includes('cellular') || q.includes('mitosis') || q.includes('meiosis') || q.includes('prokaryote') || q.includes('eukaryote') || q.includes('célula') || q.includes('cel')) {
+                    return 'cell';
+                }
+                if (q.includes('neuron') || q.includes('nerve cell') || q.includes('synapse')) {
+                    return 'neuron';
+                }
+                if (q.includes('muscle') || q.includes('muscular') || q.includes('tendon') || q.includes('tissue')) {
+                    return 'muscle';
+                }
+                if (q.includes('bone') || q.includes('skeleton') || q.includes('joint') || q.includes('rib') || q.includes('spine')) {
+                    return 'skeleton';
+                }
+                if (q.includes('atom') || q.includes('electron') || q.includes('proton') || q.includes('neutron') || q.includes('nucleus')) {
+                    return 'atom';
+                }
+                if (q.includes('solar') || q.includes('planet') || q.includes('space') || q.includes('orbit') || q.includes('sun') || q.includes('galaxy') || q.includes('astronomy') || q.includes('universe')) {
+                    return 'solar';
+                }
+                if (q.includes('plant') || q.includes('photosynthesis') || q.includes('leaf') || q.includes('stem') || q.includes('root') || q.includes('chloroplast')) {
+                    return 'plant';
+                }
+                if (q.includes('volcano') || q.includes('lava') || q.includes('earthquake') || q.includes('crust') || q.includes('tectonic')) {
+                    return 'volcano';
+                }
+                if (q.includes('engine') || q.includes('motor') || q.includes('gear') || q.includes('machine') || q.includes('combustion') || q.includes('piston') || q.includes('car') || q.includes('automotive')) {
+                    return 'engine';
+                }
+                if (q.includes('microscope') || q.includes('magnify') || q.includes('laboratory')) {
+                    return 'microscope';
+                }
+                if (q.includes('prism') || q.includes('spectrum') || q.includes('refraction') || q.includes('light')) {
+                    return 'prism';
+                }
+                if (q.includes('magnet') || q.includes('magnetic') || q.includes('field') || q.includes('electromagnet')) {
+                    return 'magnet';
+                }
+                if (q.includes('gravity') || q.includes('force') || q.includes('attraction') || q.includes('pull')) {
+                    return 'gravity';
+                }
+                if (q.includes('liver') || q.includes('hepatic') || q.includes('bile')) {
+                    return 'liver';
+                }
+                if (q.includes('virus') || q.includes('pathogen') || q.includes('corona') || q.includes('infection')) {
+                    return 'virus';
+                }
+                if (q.includes('bacteria') || q.includes('microbe') || q.includes('germ')) {
+                    return 'bacteria';
+                }
+                if (q.includes('digestive')) {
+                    return 'digestive';
+                }
+                
+                return '';
             };
 
-            const normalizedQuery = SYNONYM_MAP[lowerQuery] || lowerQuery;
+            const mappedKeyword = mapQueryToEducationalKeyword(query);
+            const lookupKeyword = mappedKeyword || query.toLowerCase().trim();
 
             for (const [kw, modelId] of Object.entries(SKETCHFAB_HINTS)) {
-                if (normalizedQuery === kw || normalizedQuery.includes(kw) || kw.includes(normalizedQuery)) {
-                    console.log(`⚡ [Sketchfab Cache] Instant matched normalized query "${normalizedQuery}" to verified model ID "${modelId}" (${kw})`);
+                if (lookupKeyword === kw || lookupKeyword.includes(kw) || kw.includes(lookupKeyword)) {
+                    console.log(`⚡ [Sketchfab Cache] Instant matched lookup keyword "${lookupKeyword}" (original: "${query}") to verified model ID "${modelId}" (${kw})`);
                     return res.json({
                         success: true,
                         model_id: modelId,
