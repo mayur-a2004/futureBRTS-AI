@@ -2302,6 +2302,15 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
                 if (q.includes('solar') || q.includes('planet') || q.includes('space') || q.includes('orbit') || q.includes('sun') || q.includes('galaxy') || q.includes('astronomy') || q.includes('universe')) {
                     return 'solar';
                 }
+                if (q.includes('vagina') || q.includes('uterus') || q.includes('ovary') || q.includes('pregnancy') || q.includes('placenta') || q.includes('cervix') || q.includes('female reproductive') || q.includes('female reproduction') || q.includes('menstru') || q.includes('period') || q.includes('fallopian') || q.includes('womb')) {
+                    return 'female_reproductive';
+                }
+                if (q.includes('penis') || q.includes('testis') || q.includes('sperm') || q.includes('semen') || q.includes('scrotum') || q.includes('male reproductive') || q.includes('male reproduction')) {
+                    return 'male_reproductive';
+                }
+                if (q.includes('reproduction') || q.includes('reproductive') || q.includes('sex') || q.includes('gender')) {
+                    return 'female_reproductive';
+                }
                 if (q.includes('plant') || q.includes('photosynthesis') || q.includes('leaf') || q.includes('stem') || q.includes('root') || q.includes('chloroplast')) {
                     return 'plant';
                 }

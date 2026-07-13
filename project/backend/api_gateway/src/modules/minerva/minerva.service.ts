@@ -287,9 +287,17 @@ export const SKETCHFAB_HINTS: Record<string, string> = {
     eye: '5f741793c4654d14aa8257eec1f1a393', // Human eye anatomy (Ebers - Annotated)
     ear: '4f5438fc9337454587ec4a2c30c8c42f', // Ear cross-section (Ebers - Annotated)
     lungs: '13c8cd9fcf654bec89d40d48de9f4202', // Reza Lungs Model ANNOTATED
-    sex: 'b77f14ee1cf743ffbac365b045598c48', // Male reproductive system (Ebers - Annotated)
-    gender: 'b77f14ee1cf743ffbac365b045598c48',
-    reproduction: 'b77f14ee1cf743ffbac365b045598c48',
+    female_reproductive: '6b66a5c37841496a8492067424614660', // Female reproductive system (Ebers - Annotated)
+    female_reproduction: '6b66a5c37841496a8492067424614660',
+    vagina: '6b66a5c37841496a8492067424614660',
+    uterus: '6b66a5c37841496a8492067424614660',
+    ovary: '6b66a5c37841496a8492067424614660',
+    pregnancy: '6b66a5c37841496a8492067424614660',
+    male_reproductive: 'b77f14ee1cf743ffbac365b045598c48', // Male reproductive system (Ebers - Annotated)
+    male_reproduction: 'b77f14ee1cf743ffbac365b045598c48',
+    sex: '6b66a5c37841496a8492067424614660', 
+    gender: '6b66a5c37841496a8492067424614660',
+    reproduction: '6b66a5c37841496a8492067424614660',
     // --- EXPANDED TECHNICAL & SCIENCE MODELS ---
     atom: '6cfa067d5fb44d22aecbe79e779a9cc1', // atom model
     molecule: '79cdb9e65b7d43a281e14472baa2502e', 
@@ -340,6 +348,9 @@ const getStandardConceptKey = (msg: string): string => {
     if (q.includes('bone') || q.includes('skeleton') || q.includes('joint') || q.includes('spine')) return 'skeleton';
     if (q.includes('atom') || q.includes('electron') || q.includes('proton') || q.includes('nucleus')) return 'atom';
     if (q.includes('solar') || q.includes('planet') || q.includes('space') || q.includes('orbit') || q.includes('sun') || q.includes('galaxy') || q.includes('universe')) return 'solar';
+    if (q.includes('vagina') || q.includes('uterus') || q.includes('ovary') || q.includes('pregnancy') || q.includes('placenta') || q.includes('cervix') || q.includes('female reproductive') || q.includes('female reproduction') || q.includes('menstru') || q.includes('period') || q.includes('fallopian') || q.includes('womb')) return 'female_reproductive';
+    if (q.includes('penis') || q.includes('testis') || q.includes('sperm') || q.includes('semen') || q.includes('scrotum') || q.includes('male reproductive') || q.includes('male reproduction')) return 'male_reproductive';
+    if (q.includes('reproduction') || q.includes('reproductive')) return 'female_reproductive';
     if (q.includes('plant') || q.includes('photosynthesis') || q.includes('leaf') || q.includes('stem') || q.includes('root') || q.includes('chloroplast')) return 'plant';
     if (q.includes('volcano') || q.includes('lava') || q.includes('earthquake') || q.includes('crust') || q.includes('tectonic')) return 'volcano';
     if (q.includes('engine') || q.includes('motor') || q.includes('gear') || q.includes('combustion') || q.includes('piston') || q.includes('car')) return 'engine';
@@ -432,7 +443,7 @@ SCHEMA:
   "voice_script": "Detailed, structured masterclass academic explanation (300-500 words) using clean markdown formatting (headings like ##, ###, bullets like -, formulas). Walk through basic definitions, advanced deep dives, real-world examples, and step-by-step mechanisms to take the student from beginner to advanced. MUST be in Hinglish or target language.",
   "youtube_query": "specific search query terms optimized for the absolute simplest, animated, easy-to-understand explanation video of this concept (DO NOT include terms like NCERT, CBSE, class, short, or demo. Optimize for clean concept visualization)",
   "mermaid_schema": "valid Mermaid.js flowchart code starting strictly with 'graph TD' or 'graph LR'. Do NOT include any descriptive text, class definitions, pseudocode, JSON or explanations inside this field. It must be strictly parsable Mermaid flowchart syntax showing the relationships or steps. Example: 'graph TD\\n    A[Artificial Intelligence] --> B[Machine Learning]\\n    B --> C[Deep Learning]'",
-  "sketchfab_hint": "Single descriptive keyword from this verified list: cell, heart, brain, dna, eye, ear, lungs, stomach, kidney, skeleton, atom, molecule, solar, earth, plant, mitochondria, chloroplast, volcano, engine, microscope, prism, magnet, gravity, neuron, spinal, muscle, liver. DO NOT make up arbitrary keys. NEVER return hex IDs.",
+  "sketchfab_hint": "Single descriptive keyword from this verified list: cell, heart, brain, dna, eye, ear, lungs, stomach, kidney, skeleton, atom, molecule, solar, earth, plant, mitochondria, chloroplast, volcano, engine, microscope, prism, magnet, gravity, neuron, spinal, muscle, liver, female_reproductive, male_reproductive. DO NOT make up arbitrary keys. NEVER return hex IDs.",
   "simulation_config": {
     "type": "unique_simulation_id_lowercase_with_underscores",
     "title": "Title of the interactive experiment",
