@@ -29,6 +29,60 @@ import {
 } from './minerva.service';
 
 // ─────────────────────────────────────────────────────────────────
+// HELPER: Resolve real YouTube video ID from search query
+// ─────────────────────────────────────────────────────────────────
+const resolveYoutubeVideoId = async (searchQuery: string): Promise<string | null> => {
+    try {
+        const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`;
+        const fetch = (await import('node-fetch')).default;
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
+                'Accept-Language': 'en-US,en;q=0.9'
+            }
+        });
+        const html = await response.text();
+        
+        // Match ytInitialData JSON
+        const jsonRegex = /var ytInitialData = ({.*?});/;
+        const match = html.match(jsonRegex);
+        
+        if (match && match[1]) {
+            try {
+                const data = JSON.parse(match[1]);
+                const contents = data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents;
+                
+                if (contents && Array.isArray(contents)) {
+                    for (const contentItem of contents) {
+                        const video = contentItem.videoRenderer;
+                        if (video && video.videoId) {
+                            const videoId = video.videoId;
+                            // Exclude Rickroll
+                            if (videoId !== 'dQw4w9WgXcQ') {
+                                return videoId;
+                            }
+                        }
+                    }
+                }
+            } catch (_) {}
+        }
+        
+        // Regex fallback
+        const watchRegex = /\/watch\?v=([a-zA-Z0-9_-]{11})/g;
+        let m;
+        while ((m = watchRegex.exec(html)) !== null) {
+            const id = m[1];
+            if (id !== 'dQw4w9WgXcQ') {
+                return id;
+            }
+        }
+    } catch (e) {
+        console.error("[YouTube Resolver Error]", e);
+    }
+    return null;
+};
+
+// ─────────────────────────────────────────────────────────────────
 // HELPER: get or create student profile
 // ─────────────────────────────────────────────────────────────────
 const getOrCreateProfile = async (userId: string) => {
@@ -996,27 +1050,40 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                 // Update node with task IDs
                 await MinervaKnowledgeNode.findByIdAndUpdate(id, { micro_tasks: taskIds });
 
-                // Build YouTube video links from AI-generated video objects
+                // Build YouTube video links from AI-generated video objects with real resolved IDs
                 const rawYoutubeVideos = content.youtube_videos || content.youtube_queries || [];
-                youtubeLinks = rawYoutubeVideos.map((item: any) => {
-                    // If item is an object with url (new format)
-                    if (typeof item === 'object' && item.url) {
+                const defaultLang = profile.language_preference || 'hindi';
+                
+                youtubeLinks = await Promise.all(rawYoutubeVideos.map(async (item: any) => {
+                    if (typeof item === 'object' && item.title) {
+                        const title = item.title;
+                        const lang = item.lang || defaultLang;
+                        // Resolve real ID dynamically by searching YouTube
+                        const resolvedId = await resolveYoutubeVideoId(`${title} ${lang} explanation`);
+                        
                         return {
-                            title: item.title || 'Educational Video',
-                            url: item.url,
+                            title: title,
+                            url: resolvedId 
+                                ? `https://www.youtube.com/watch?v=${resolvedId}` 
+                                : (item.url && !item.url.includes('REAL_') && !item.url.includes('dQw4w9WgXcQ') 
+                                    ? item.url 
+                                    : `https://www.youtube.com/results?search_query=${encodeURIComponent(title)}`),
                             channel: item.channel || 'YouTube',
-                            language: profile.language_preference || 'hindi',
+                            lang: lang
                         };
                     }
-                    // If item is a string (old format — search query)
+                    // String fallback
                     const q = String(item);
+                    const resolvedId = await resolveYoutubeVideoId(`${q} explanation`);
                     return {
                         title: q,
-                        url: `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
+                        url: resolvedId 
+                            ? `https://www.youtube.com/watch?v=${resolvedId}` 
+                            : `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
                         channel: 'YouTube',
-                        language: profile.language_preference || 'hindi',
+                        lang: defaultLang
                     };
-                });
+                }));
 
                 await MinervaKnowledgeNode.findByIdAndUpdate(id, { youtube_links: youtubeLinks });
 
