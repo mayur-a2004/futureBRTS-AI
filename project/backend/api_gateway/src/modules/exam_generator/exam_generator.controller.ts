@@ -9,7 +9,7 @@ import ExamPaper from '../../models/exam_paper.model';
 const error = (res: Response, message: string, code: string) => res.status(400).json({ status: 'error', message, code });
 const success = (res: Response, message: string, data: any) => res.status(200).json({ status: 'success', message, data });
 
-const extractSmartContent = (fullText: string, examScope: string, chapter: string, topic: string, targetLength: number = 8000): string => {
+const extractSmartContent = (fullText: string, examScope: string, chapter: string, topic: string, targetLength: number = 30000): string => {
     const textLength = fullText.length;
     if (textLength <= targetLength + 1000) {
         return fullText;
@@ -61,7 +61,8 @@ export const examGeneratorController = {
         try {
             const { 
                 subject, board, standard, stream, examScope, chapter, topic, marks, difficulty,
-                sourceType = 'file', pastedText = '', inputMode = 'syllabus'
+                sourceType = 'file', pastedText = '', inputMode = 'syllabus',
+                blueprint, language
             } = req.body;
             
             const files = req.files as { [fieldname: string]: Express.Multer.File[] };
@@ -89,6 +90,12 @@ export const examGeneratorController = {
                     if (pdfFile.mimetype === 'application/pdf') {
                         const dataBuffer = fs.readFileSync(pdfFile.path);
                         const parsedPdf = await pdfParse(dataBuffer);
+                        
+                        // Enforce page count limit of max 20 pages
+                        if (parsedPdf.numpages > 20) {
+                            return error(res, `Uploaded PDF has too many pages (${parsedPdf.numpages} pages). Maximum allowed is 20 pages.`, "LIMIT_EXCEEDED");
+                        }
+                        
                         textContent = parsedPdf.text.trim();
                     } else if (pdfFile.mimetype.startsWith('image/')) {
                         console.log("Starting OCR for primary image file (eng+hin+guj)...");
@@ -117,10 +124,10 @@ export const examGeneratorController = {
             }
 
             if (inputMode === 'syllabus') {
-                textContent = extractSmartContent(textContent, examScope, chapter, topic, 8000);
+                textContent = extractSmartContent(textContent, examScope, chapter, topic, 30000);
             } else {
-                if (textContent.length > 8000) {
-                    textContent = textContent.substring(0, 8000) + '...';
+                if (textContent.length > 30000) {
+                    textContent = textContent.substring(0, 30000) + '...';
                 }
             }
 
@@ -155,25 +162,130 @@ export const examGeneratorController = {
                 }
             }
 
-            let prompt = `You are an Expert Academic Examiner and Paper Setter for ${board} board, ${standard} standard.`;
+            // Parse blueprint parameters if sent
+            let blueprintObj: any = null;
+            if (blueprint) {
+                try {
+                    blueprintObj = typeof blueprint === 'string' ? JSON.parse(blueprint) : blueprint;
+                } catch (e) {
+                    console.error("Failed to parse blueprint:", e);
+                }
+            }
+
+            let blueprintInstructions = "";
+            let sectionsList: any[] = [];
+            if (blueprintObj) {
+                if (blueprintObj.mcq > 0) {
+                    sectionsList.push({
+                        sectionName: "Section A: Multiple Choice Questions (1 Mark each)",
+                        qCount: blueprintObj.mcq,
+                        marksPerQ: 1,
+                        type: 'mcq'
+                    });
+                }
+                if (blueprintObj.true_false > 0) {
+                    sectionsList.push({
+                        sectionName: "Section B: True or False Questions (1 Mark each)",
+                        qCount: blueprintObj.true_false,
+                        marksPerQ: 1,
+                        type: 'true_false'
+                    });
+                }
+                if (blueprintObj.blank > 0) {
+                    sectionsList.push({
+                        sectionName: "Section C: Fill in the Blanks (1 Mark each)",
+                        qCount: blueprintObj.blank,
+                        marksPerQ: 1,
+                        type: 'blank'
+                    });
+                }
+                if (blueprintObj.q1 > 0) {
+                    sectionsList.push({
+                        sectionName: "Section D: Very Short Answer Questions (1 Mark each)",
+                        qCount: blueprintObj.q1,
+                        marksPerQ: 1,
+                        type: 'descriptive'
+                    });
+                }
+                if (blueprintObj.q2 > 0) {
+                    sectionsList.push({
+                        sectionName: "Section E: Short Answer Questions (2 Marks each)",
+                        qCount: blueprintObj.q2,
+                        marksPerQ: 2,
+                        type: 'descriptive'
+                    });
+                }
+                if (blueprintObj.q3 > 0) {
+                    sectionsList.push({
+                        sectionName: "Section F: Medium Answer Questions (3 Marks each)",
+                        qCount: blueprintObj.q3,
+                        marksPerQ: 3,
+                        type: 'descriptive'
+                    });
+                }
+                if (blueprintObj.q4 > 0) {
+                    sectionsList.push({
+                        sectionName: "Section G: Long Answer Questions (4 Marks each)",
+                        qCount: blueprintObj.q4,
+                        marksPerQ: 4,
+                        type: 'descriptive'
+                    });
+                }
+                if (blueprintObj.q5 > 0) {
+                    sectionsList.push({
+                        sectionName: "Section H: Essay Type / Very Long Answer Questions (5 Marks each)",
+                        qCount: blueprintObj.q5,
+                        marksPerQ: 5,
+                        type: 'descriptive'
+                    });
+                }
+
+                blueprintInstructions = `
+CRITICAL STRUCTURE REQUIREMENT (BLUEPRINT):
+You MUST structure the exam paper exactly into these sections and generate the exact number of questions as specified:
+${sectionsList.map((sec, idx) => `
+${idx + 1}. Section Name: "${sec.sectionName}"
+   - Question Count: Generate exactly ${sec.qCount} questions.
+   - Marks: Each question in this section must be exactly ${sec.marksPerQ} marks.
+   - Type: ${sec.type === 'mcq' ? 'Multiple Choice (exactly 4 unique options A, B, C, D)' : sec.type === 'true_false' ? 'True/False (no options array, set answer to "True" or "False")' : sec.type === 'blank' ? 'Fill in the Blanks (include a blank line like "_______" in the question text)' : 'Descriptive Q&A (no options array, output detailed key-points and full answer description in the "answer" field)'}
+`).join('\n')}
+`;
+            }
+
+            const targetLanguage = language && language !== 'Auto-Detect' ? language : 'Auto-detect';
+
+            let languageInstruction = "";
+            if (targetLanguage === 'Auto-detect') {
+                languageInstruction = `Analyze the language of the Syllabus/Textbook Material below. You MUST generate the entire Exam Question Paper, section names, questions, options, answers, and solutions in that exact same language (e.g. Hindi, Gujarati, English). Do not translate.`;
+            } else {
+                languageInstruction = `You MUST generate the entire Exam Question Paper, section names, questions, options, answers, and solutions strictly in the "${targetLanguage}" language. If "${targetLanguage}" is Gujarati, translate the textbook content and write all questions/explanations strictly in Gujarati script. If "${targetLanguage}" is Hindi, translate and write strictly in Hindi script. DO NOT output in English or mix Roman script.`;
+            }
+
+            let prompt = `You are an Expert Academic Examiner and Paper Setter for ${board} board, ${standard} standard.
+
+STRICT SOURCE GROUNDING & DETAILED EXTRACTION:
+1. Parse the uploaded Syllabus/Textbook Material to identify the actual Board, Standard, and Subject. Even if the parameters dropdown specifies a different Board/Standard/Subject, you MUST override them and generate the exam paper directly on the topics and subject of the uploaded PDF material.
+2. Every single question must be generated STRICTLY from the provided material. Do not use external facts, out-of-syllabus chapters, or external topics.
+3. LANGUAGE REQUIREMENT: ${languageInstruction}
+`;
+
+            if (inputMode !== 'old_paper') {
+                prompt += `\n${blueprintInstructions}\n`;
+            }
 
             if (inputMode === 'old_paper') {
                 prompt += `
-                
-SMART LANGUAGE DETECTION:
-Analyze the language of the Past/Old Question Paper below (e.g. Hindi, Gujarati, English). You MUST generate the entire Exam Question Paper and the detailed solutions/answers exactly in that same language.
-
 Your task is to:
-1. Identify all questions in the provided Past/Old Question Paper.
-2. Formulate a set of Highly Important Predicted Questions (similar in type, style, syllabus scope, and marks weightage to the old paper) to prepare the student.
-3. Solve all predicted questions with comprehensive, detailed answers.
+1. Extract and solve the provided Past/Old Question Paper. You MUST extract every single question present in the provided Past/Old Question Paper exactly. Do NOT generate new, alternative, or predicted questions.
+2. For each extracted question, solve it completely. The solution MUST be detailed, step-by-step, showing all calculations, formulas, reasoning, and complete working. Do NOT provide short answers, single words, or simple option letters (like A, B, C, D) for the answers.
+3. For Multiple Choice Questions, you MUST extract the actual question text and the original four options (e.g. ["Option A text", "Option B text", "Option C text", "Option D text"]). In the "answer" field, you MUST write the correct option text PLUS the complete, detailed working and explanation of why it is correct. DO NOT just write "A" or "B" or "C" or "D".
+4. Retain all original section names, question order, and original marks. The sum of marks should equal the total marks of the original question paper.
 
 Parameters:
 - Board: ${board}
 - Subject: ${subject}
 - Standard: ${standard}
 ${stream ? `- Stream: ${stream}` : ''}
-- Total Marks: ${marks}
 - Difficulty: ${difficulty}
 
 Past/Old Question Paper Content:
@@ -183,10 +295,6 @@ ${textContent}
 `;
             } else {
                 prompt += `
-
-SMART LANGUAGE DETECTION: 
-Analyze the language of the Syllabus/Textbook Material below (e.g. Hindi, Gujarati, English). You MUST generate the entire Exam Question Paper exactly in that same language. Do NOT translate the output to English if the input is in Hindi or Gujarati. Use the same language for the JSON structure values (like questions, options, section names) as the input material.
-
 Your task is to generate a formal Exam Question Paper based ONLY on the provided Syllabus/Textbook material.
 
 Parameters:
@@ -230,28 +338,38 @@ Instructions:
 3. For MCQ questions, EVERY option (A, B, C, D) MUST be completely unique and distinct. NEVER repeat the same option/text multiple times for a question.
 4. The JSON MUST follow this exact structure:
 {
-  "title": "${inputMode === 'old_paper' ? `Important Predicted Paper: ${subject}` : `Exam Paper: ${subject}`}",
-  "subject": "${subject}",
-  "standard": "${standard}",
-  "marks": "${marks}",
+  "title": "${inputMode === 'old_paper' ? `Solved Paper: ${subject}` : `Exam Paper: ${subject}`}",
+  "subject": "Detected Subject (e.g. Science)",
+  "standard": "Detected Standard (e.g. Class 10)",
+  "board": "Detected Board (e.g. GSEB)",
+  "marks": "${inputMode === 'old_paper' ? 'Detected Total Marks' : marks}",
   "sections": [
     {
       "sectionName": "Section A: Multiple Choice Questions",
       "questions": [
-        { "question": "What is...", "options": ["A", "B", "C", "D"], "answer": "A", "marks": 1 }
-      ]
-    },
-    {
-      "sectionName": "Section B: Descriptive Questions",
-      "questions": [
-        { "question": "Explain...", "answer": "Detailed answer here...", "marks": 5 }
+        { 
+          "question": "What is...", 
+          "options": ["Option 1 text", "Option 2 text", "Option 3 text", "Option 4 text"], 
+          "answer": "Option 1 text - detailed step-by-step complete solution and explanation. NEVER write just A or B or C or D.", 
+          "marks": 1 
+        }
       ]
     }
   ]
 }
-${referenceText ? '5. DO NOT change the sections count, questions count, or marks allocation. Strictly use the structure parsed from the Reference Exam Format.' : '5. Adjust the number of sections and questions based on the Total Marks and Difficulty.'}
+`;
+
+            if (inputMode === 'old_paper') {
+                prompt += `
+5. Extract every single question from the provided old question paper.
+6. For every question, write the complete, detailed step-by-step solution in the "answer" field. Show all working, logic, and proof.
+7. ONLY return the JSON. No markdown wrappers, no conversational text.`;
+            } else {
+                prompt += `
+5. ${referenceText ? 'DO NOT change the sections count, questions count, or marks allocation. Strictly use the structure parsed from the Reference Exam Format.' : 'Adjust the number of sections and questions based on the Total Marks and Difficulty.'}
 6. CRITICAL MARKS REQUIREMENT: The sum of all individual question marks MUST equal exactly ${marks}. Do not generate a paper with 49 or 51 marks if 50 is requested. Mathematically verify that the distribution perfectly sums to ${marks}.
 7. ONLY return the JSON. No markdown wrappers, no conversational text.`;
+            }
 
             let rawAiResponse = "";
             let lastError = "";
@@ -305,10 +423,15 @@ ${referenceText ? '5. DO NOT change the sections count, questions count, or mark
                 return error(res, "AI generated an invalid format. Please try again.", "AI_ERROR");
             }
 
+            // Auto-detect subject metadata from generated paper
+            const detectedSubject = generatedPaper.subject || subject;
+            const detectedStandard = generatedPaper.standard || standard;
+            const detectedBoard = generatedPaper.board || board;
+
             const newExam = new ExamPaper({
-                subject,
-                board,
-                standard,
+                subject: detectedSubject,
+                board: detectedBoard,
+                standard: detectedStandard,
                 examScope: inputMode === 'old_paper' ? 'Old Paper Solution' : examScope,
                 chapter,
                 topic,
@@ -318,6 +441,8 @@ ${referenceText ? '5. DO NOT change the sections count, questions count, or mark
                 filePath: pdfFile ? pdfFile.path : 'N/A',
                 referenceFileName: referenceFile ? referenceFile.originalname : undefined,
                 referenceFilePath: referenceFile ? referenceFile.path : undefined,
+                blueprint: blueprintObj,
+                language: targetLanguage,
                 generatedPaper
             });
 
@@ -385,31 +510,64 @@ ${referenceText ? '5. DO NOT change the sections count, questions count, or mark
             // Render Sections and Questions
             if (paper && paper.sections) {
                 for (const section of paper.sections) {
-                    doc.font('Helvetica-Bold').fontSize(13).text(section.sectionName, { underline: true });
-                    doc.moveDown(0.5);
+                    // Page break safeguard for section header
+                    if (doc.y > 680) {
+                        doc.addPage();
+                    }
+                    doc.font('Helvetica-Bold').fontSize(12).text(section.sectionName, { underline: true });
+                    doc.moveDown(0.6);
                     
                     if (section.questions) {
                         section.questions.forEach((q: any, qIdx: number) => {
-                            // Question text and marks
-                            doc.font('Helvetica-Bold').fontSize(10).text(`Q${qIdx + 1}. `, { continued: true });
-                            doc.font('Helvetica').text(`${q.question} `, { continued: true });
-                            doc.font('Helvetica-Bold').text(`[Marks: ${q.marks || 1}]`, { align: 'right' });
+                            // Estimate total height of this question block to prevent awkward splits
+                            let estimatedHeight = 35; // base question line wrap
+                            if (q.options && q.options.length > 0) estimatedHeight += q.options.length * 15;
+                            if (isAnswerKey && q.answer) estimatedHeight += 40;
+
+                            if (doc.y + estimatedHeight > 700) {
+                                doc.addPage();
+                            }
+
+                            // Write Question Text and Marks in a single wrapped block
+                            const questionText = `Q${qIdx + 1}. ${q.question}   [Marks: ${q.marks || 1}]`;
+                            doc.font('Helvetica-Bold').fontSize(10).text(questionText, { width: 500, align: 'left' });
                             doc.moveDown(0.3);
                             
                             // MCQ Options if present
                             if (q.options && q.options.length > 0) {
                                 q.options.forEach((opt: string, optIdx: number) => {
                                     const optionLetter = String.fromCharCode(65 + optIdx);
-                                    doc.font('Helvetica').fontSize(10).text(`  (${optionLetter}) ${opt}`);
+                                    doc.font('Helvetica').fontSize(10).text(`      (${optionLetter}) ${opt}`, { width: 480 });
                                     doc.moveDown(0.2);
                                 });
+                            }
+                            
+                            // True/False options if present (no options array, but answer is True/False/સત્ય/અસત્ય etc)
+                            const ansStr = String(q.answer || '').trim().toLowerCase();
+                            const isTFQuestion = (!q.options || q.options.length === 0) && (
+                                ansStr === 'true' || ansStr === 'false' || 
+                                ansStr === 'સાચું' || ansStr === 'ખોટું' || 
+                                ansStr === 'सत्य' || ansStr === 'असत्य'
+                            );
+                            if (isTFQuestion) {
+                                const isGujarati = String(exam.language).toLowerCase() === 'gujarati' || 
+                                                 (exam.generatedPaper && String(exam.generatedPaper.title).includes('ગુજરાતી')) ||
+                                                 ansStr === 'સાચું' || ansStr === 'ખોટું';
+                                const isHindi = String(exam.language).toLowerCase() === 'hindi' || ansStr === 'सत्य' || ansStr === 'असत्य';
+                                
+                                let tfLabel = "      (A) True      (B) False";
+                                if (isGujarati) tfLabel = "      (A) સાચું      (B) ખોટું";
+                                else if (isHindi) tfLabel = "      (A) सत्य      (B) असत्य";
+                                
+                                doc.font('Helvetica').fontSize(10).text(tfLabel, { width: 480 });
+                                doc.moveDown(0.2);
                             }
                             
                             // Show Answers if Answer Key mode is active
                             if (isAnswerKey && q.answer) {
                                 doc.moveDown(0.2);
-                                doc.font('Helvetica-Bold').fontSize(10).fillColor('#10b981').text("Answer/Explanation: ", { continued: true });
-                                doc.font('Helvetica-Oblique').fillColor('#1e293b').text(q.answer);
+                                doc.font('Helvetica-Bold').fontSize(10).fillColor('#10b981').text("   Answer/Explanation: ", { continued: true });
+                                doc.font('Helvetica-Oblique').fillColor('#1e293b').text(q.answer, { width: 470 });
                                 doc.fillColor('#000000');
                                 doc.moveDown(0.5);
                             } else {

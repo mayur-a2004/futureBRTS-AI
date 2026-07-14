@@ -283,6 +283,7 @@ const MinervaHome: React.FC = () => {
     const [standard, setStandard] = useState('10');
     const [board, setBoard] = useState('CBSE');
     const [onboardingCity, setOnboardingCity] = useState('');
+    const [languagePreference, setLanguagePreference] = useState('english');
     const [suggestedSchools, setSuggestedSchools] = useState<string[]>([]);
     const [showSchoolSuggestions, setShowSchoolSuggestions] = useState(false);
     const [onboardingSubmitting, setOnboardingSubmitting] = useState(false);
@@ -470,16 +471,7 @@ const MinervaHome: React.FC = () => {
         }
     };
 
-    // ── PARSE URL PARAMETERS (DOUBT SHORTCUTS) ────
-    useEffect(() => {
-        const askDoubt = searchParams.get('askDoubt');
-        if (askDoubt) {
-            setInput(askDoubt);
-            setTimeout(() => {
-                inputRef.current?.focus();
-            }, 250);
-        }
-    }, [searchParams]);
+
 
     // ── LOAD INITIAL DATA ─────────────────────────
     useEffect(() => {
@@ -502,6 +494,7 @@ const MinervaHome: React.FC = () => {
                     setStandard(res.profile.grade_level || '10');
                     setBoard(res.profile.board || 'CBSE');
                     setOnboardingCity(res.profile.state || '');
+                    setLanguagePreference(res.profile.language_preference || 'english');
                 }
             }
         } catch (err) {
@@ -526,6 +519,7 @@ const MinervaHome: React.FC = () => {
                 state: onboardingCity,
                 learning_style: 'mixed',
                 daily_time_minutes: 60,
+                language_preference: languagePreference,
             });
 
             if (res.success) {
@@ -730,6 +724,16 @@ const MinervaHome: React.FC = () => {
             sendMessage();
         }
     };
+
+    // ── PARSE URL PARAMETERS (DOUBT SHORTCUTS) ────
+    useEffect(() => {
+        const askDoubt = searchParams.get('askDoubt');
+        if (askDoubt && token) {
+            sendMessage(askDoubt);
+            // Clear parameter so it doesn't resend on reload/navigation
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    }, [searchParams, token, sendMessage]);
 
     const getTopicSuggestions = () => {
         if (messages.length <= 1) return [];
@@ -1065,6 +1069,44 @@ const MinervaHome: React.FC = () => {
                             <span>{profile.grade_level?.replace('_', ' ')} ({profile.board?.toUpperCase()})</span>
                         </div>
                     )}
+
+                    {/* Language Preference Dropdown */}
+                    <div className="flex items-center gap-1 bg-[#120F26]/40 border border-indigo-500/20 rounded-full px-2.5 py-0.5 select-none text-[9px] font-black tracking-wider uppercase shrink-0">
+                        <span className="text-[10px] text-indigo-400 mr-0.5">🌐</span>
+                        <select
+                            value={profile?.language_preference || 'english'}
+                            onChange={async (e) => {
+                                const newLang = e.target.value;
+                                try {
+                                    const updatedProfile = { 
+                                        ...profile, 
+                                        language_preference: newLang 
+                                    };
+                                    setProfile(updatedProfile);
+                                    await minervaApi.updateProfile(token, {
+                                        ...profile,
+                                        language_preference: newLang
+                                    });
+                                } catch (err) {
+                                    console.error("Failed to update language preference:", err);
+                                }
+                            }}
+                            className="bg-transparent border-none text-[9px] font-black text-indigo-300 uppercase outline-none cursor-pointer pr-1 py-0.5"
+                        >
+                            <option value="english" className="bg-[#0B0915] text-white">English</option>
+                            <option value="hinglish" className="bg-[#0B0915] text-white">Hinglish</option>
+                            <option value="hindi" className="bg-[#0B0915] text-white">Hindi</option>
+                            <option value="marathi" className="bg-[#0B0915] text-white">Marathi</option>
+                            <option value="gujarati" className="bg-[#0B0915] text-white">Gujarati</option>
+                            <option value="bengali" className="bg-[#0B0915] text-white">Bengali</option>
+                            <option value="tamil" className="bg-[#0B0915] text-white">Tamil</option>
+                            <option value="telugu" className="bg-[#0B0915] text-white">Telugu</option>
+                            <option value="kannada" className="bg-[#0B0915] text-white">Kannada</option>
+                            <option value="malayalam" className="bg-[#0B0915] text-white">Malayalam</option>
+                            <option value="punjabi" className="bg-[#0B0915] text-white">Punjabi</option>
+                            <option value="urdu" className="bg-[#0B0915] text-white">Urdu</option>
+                        </select>
+                    </div>
 
                     <div className="hidden md:block h-4 w-px bg-white/10 shrink-0" />
 
@@ -1637,6 +1679,28 @@ const MinervaHome: React.FC = () => {
                                             </select>
                                         </div>
                                     )}
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">Default Study Language Preference</label>
+                                    <select 
+                                        value={languagePreference} 
+                                        onChange={e => setLanguagePreference(e.target.value)}
+                                        className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none"
+                                    >
+                                        <option value="english">English (English)</option>
+                                        <option value="hinglish">Hinglish (Mix)</option>
+                                        <option value="hindi">Hindi (हिंदी)</option>
+                                        <option value="marathi">Marathi (मराठी)</option>
+                                        <option value="gujarati">Gujarati (ગુજરાતી)</option>
+                                        <option value="bengali">Bengali (বাংলা)</option>
+                                        <option value="tamil">Tamil (தமிழ்)</option>
+                                        <option value="telugu">Telugu (తెలుగు)</option>
+                                        <option value="kannada">Kannada (ಕನ್ನಡ)</option>
+                                        <option value="malayalam">Malayalam (മലയാളം)</option>
+                                        <option value="punjabi">Punjabi (ਪੰਜਾਬੀ)</option>
+                                        <option value="urdu">Urdu (اردو)</option>
+                                    </select>
                                 </div>
 
                                 {/* Deep Board preparation warning */}

@@ -341,6 +341,13 @@ export const HIGHER_SEMESTERS_MAP: Record<string, { id: string; name: string }[]
     ]
 };
 
+const cleanOptionText = (opt: string, letter: string): string => {
+    if (!opt) return '';
+    const trimmed = opt.trim();
+    const regex = new RegExp(`^${letter}\\s*[.)\\-:]\\s*`, 'i');
+    return trimmed.replace(regex, '').trim();
+};
+
 export const isSchoolStandard = (stdId: string) => {
     return [
         '5', '6', '7', '8', '9', '10',
@@ -798,6 +805,7 @@ export default function MinervaQuizBattlePage() {
     const [selAiDiff, setSelAiDiff] = useState('SCHOLAR');
     const [totalRounds, setTotalRounds] = useState(10);
     const [selBattleStyle, setSelBattleStyle] = useState<'SPEED_RACE' | 'ALTERNATING'>('SPEED_RACE');
+    const [selLanguage, setSelLanguage] = useState('english');
 
     // Topic & Board dynamic states
     const [selTopic, setSelTopic] = useState('');
@@ -1381,7 +1389,8 @@ export default function MinervaQuizBattlePage() {
                     roomType: selRoomType,
                     invitedStudentIds: selectedStudents.map(s => s._id),
                     aiDifficulty: selMode === 'SOLO_VS_AI' ? selAiDiff : undefined,
-                    battleStyle: selBattleStyle
+                    battleStyle: selBattleStyle,
+                    language: selLanguage
                 })
             });
             const d = await res.json();
@@ -2371,6 +2380,26 @@ export default function MinervaQuizBattlePage() {
                             </div>
                         </div>
 
+                        {/* Quiz Language Selector */}
+                        <div className="mb-5">
+                            <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 font-display">Quiz Language</div>
+                            <select value={selLanguage} onChange={e => setSelLanguage(e.target.value)}
+                                className="w-full bg-[#080a13] border border-slate-850 rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-indigo-500/50">
+                                <option value="english">English (English)</option>
+                                <option value="hinglish">Hinglish (Mix)</option>
+                                <option value="hindi">Hindi (हिंदी)</option>
+                                <option value="marathi">Marathi (मराठी)</option>
+                                <option value="gujarati">Gujarati (ગુજરાતી)</option>
+                                <option value="bengali">Bengali (বাংলা)</option>
+                                <option value="tamil">Tamil (தமிழ்)</option>
+                                <option value="telugu">Telugu (తెలుగు)</option>
+                                <option value="kannada">Kannada (ಕನ್ನಡ)</option>
+                                <option value="malayalam">Malayalam (മലയാളം)</option>
+                                <option value="punjabi">Punjabi (પੰਜਾਬી)</option>
+                                <option value="urdu">Urdu (اردو)</option>
+                            </select>
+                        </div>
+
                         {/* Rounds */}
                         <div className="mb-5 bg-[#080a13] border border-slate-850 rounded-2xl p-4">
                             <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 flex justify-between">
@@ -3060,7 +3089,7 @@ export default function MinervaQuizBattlePage() {
                                                     onClick={() => submitAnswer(idx)}
                                                     className={`p-4 rounded-xl border text-left text-sm font-semibold transition-all flex items-center gap-3 ${cls}`}>
                                                     <span className="w-5.5 h-5.5 flex-shrink-0 rounded-full border border-current flex items-center justify-center text-[10px] font-black">{String.fromCharCode(65 + idx)}</span>
-                                                    <span className="flex-1">{opt}</span>
+                                                    <span className="flex-1">{cleanOptionText(opt, String.fromCharCode(65 + idx))}</span>
                                                     {isTeammateWrong && <span className="text-[9px] shrink-0 text-amber-500 font-bold">Team ✗</span>}
                                                     {isMyTurnLocked && <span className="text-[9px] shrink-0 text-slate-600 font-bold">🔒</span>}
                                                 </motion.button>
@@ -3073,7 +3102,7 @@ export default function MinervaQuizBattlePage() {
                                         <div className="mt-4 text-xs bg-rose-950/30 border border-rose-800/40 text-rose-455 rounded-xl px-4 py-3 font-bold flex items-center gap-2">
                                             <span>❌</span>
                                             <div>
-                                                Incorrect answer. The correct answer was: <span className="underline text-rose-300 font-black">{myQuestion.options[myQuestion.correctAnswer]}</span>.
+                                                Incorrect answer. The correct answer was: <span className="underline text-rose-300 font-black">{cleanOptionText(myQuestion.options[myQuestion.correctAnswer], String.fromCharCode(65 + myQuestion.correctAnswer))}</span>.
                                                 <div className="text-[10px] text-slate-500 mt-0.5">Deducted 150 team HP & lost 10 Profile XP.</div>
                                             </div>
                                         </div>

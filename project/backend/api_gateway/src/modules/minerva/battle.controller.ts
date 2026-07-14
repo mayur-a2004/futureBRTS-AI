@@ -329,7 +329,8 @@ export const battleController = {
                 board,
                 semester,
                 roomType,
-                invitedStudentIds
+                invitedStudentIds,
+                language
             } = req.body;
             const hostUser = (req as any).user;
 
@@ -381,7 +382,7 @@ export const battleController = {
             const normalized = cleanTopic(normalizedRaw) || cleanedTopic;
 
             const hostProfile = await MinervaStudentProfile.findOne({ userId: hostUser._id });
-            const hostMedium = hostProfile?.medium || 'english';
+            const hostMedium = language || hostProfile?.language_preference || hostProfile?.medium || 'english';
 
             // Generate questions for host
             const hostQuestions = await generateDynamicQuestions(

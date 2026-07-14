@@ -4,6 +4,13 @@ import { useAuth } from '../../context/AuthContext';
 import { minervaApi } from '../../api/minerva.api';
 import { ChevronLeft, CheckSquare, Clock, Check, MessageSquare } from 'lucide-react';
 
+const cleanOptionText = (opt: string, letter: string): string => {
+    if (!opt) return '';
+    const trimmed = opt.trim();
+    const regex = new RegExp(`^${letter}\\s*[.)\\-:]\\s*`, 'i');
+    return trimmed.replace(regex, '').trim();
+};
+
 const MinervaHomeworkPage: React.FC = () => {
     const { token } = useAuth() as any;
     const navigate = useNavigate();
@@ -114,7 +121,7 @@ const MinervaHomeworkPage: React.FC = () => {
                                                         ${answers[task._id] === opt 
                                                             ? 'bg-indigo-600/20 border-indigo-500/50 text-white' 
                                                             : 'bg-white/[0.01] border-white/5 text-gray-400 hover:bg-white/5'}`}>
-                                                    <span className="font-black mr-2">{String.fromCharCode(65 + oi)}.</span>{opt}
+                                                    <span className="font-black mr-2">{String.fromCharCode(65 + oi)}.</span>{cleanOptionText(opt, String.fromCharCode(65 + oi))}
                                                 </button>
                                             ))}
                                         </div>

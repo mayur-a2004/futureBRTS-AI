@@ -55,8 +55,8 @@ export const getActiveAiProvider = async () => {
 export const NVIDIA_MODEL_POOLS: Record<string, string[]> = {
     // For coding, roadmap generation, builder tasks
     code: [
-        'meta/llama-3.3-70b-instruct',
         'meta/llama-3.1-8b-instruct',
+        'meta/llama-3.3-70b-instruct',
     ],
     // For fast student chat, quiz battle
     chat: [
@@ -70,8 +70,8 @@ export const NVIDIA_MODEL_POOLS: Record<string, string[]> = {
     ],
     // For heavy logic - syllabus parsing, analytics
     logic: [
-        'meta/llama-3.3-70b-instruct',
         'meta/llama-3.1-8b-instruct',
+        'meta/llama-3.3-70b-instruct',
     ],
 };
 

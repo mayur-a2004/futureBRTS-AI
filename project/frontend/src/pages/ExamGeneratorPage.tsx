@@ -19,6 +19,45 @@ const ExamGeneratorPage: React.FC = () => {
     const [topic, setTopic] = useState('');
     const [marks, setMarks] = useState('50');
     const [difficulty, setDifficulty] = useState('Medium');
+    const [language, setLanguage] = useState('Auto-Detect');
+    const [customizeBlueprint, setCustomizeBlueprint] = useState(false);
+    const [blueprint, setBlueprint] = useState({
+        mcq: 10,
+        true_false: 5,
+        blank: 5,
+        q1: 10,
+        q2: 5,
+        q3: 5,
+        q4: 0,
+        q5: 1
+    });
+
+    useEffect(() => {
+        const totalMarks = Number(marks) || 50;
+        if (totalMarks === 10) {
+            setBlueprint({ mcq: 5, true_false: 0, blank: 0, q1: 5, q2: 0, q3: 0, q4: 0, q5: 0 });
+        } else if (totalMarks === 20) {
+            setBlueprint({ mcq: 5, true_false: 3, blank: 2, q1: 5, q2: 2, q3: 0, q4: 0, q5: 0 });
+        } else if (totalMarks === 25) {
+            setBlueprint({ mcq: 5, true_false: 5, blank: 5, q1: 5, q2: 2, q3: 1, q4: 0, q5: 0 });
+        } else if (totalMarks === 50) {
+            setBlueprint({ mcq: 10, true_false: 5, blank: 5, q1: 10, q2: 5, q3: 5, q4: 0, q5: 1 });
+        } else if (totalMarks === 80) {
+            setBlueprint({ mcq: 15, true_false: 5, blank: 5, q1: 15, q2: 10, q3: 5, q4: 0, q5: 3 });
+        } else if (totalMarks === 100) {
+            setBlueprint({ mcq: 20, true_false: 10, blank: 10, q1: 20, q2: 10, q3: 10, q4: 0, q5: 2 });
+        }
+    }, [marks]);
+
+    const blueprintSum = 
+        (blueprint.mcq * 1) + 
+        (blueprint.true_false * 1) + 
+        (blueprint.blank * 1) + 
+        (blueprint.q1 * 1) + 
+        (blueprint.q2 * 2) + 
+        (blueprint.q3 * 3) + 
+        (blueprint.q4 * 4) + 
+        (blueprint.q5 * 5);
 
     useEffect(() => {
         const subjects = STANDARD_SUBJECTS_MAP[standard];
@@ -58,6 +97,10 @@ const ExamGeneratorPage: React.FC = () => {
         }
         if (!subject || !board || !standard || !marks) {
             setErrorMsg('Please fill all required fields.');
+            return;
+        }
+        if (customizeBlueprint && blueprintSum !== Number(marks)) {
+            setErrorMsg(`Blueprint marks total (${blueprintSum} Marks) does not match Target Marks (${marks} Marks). Please adjust the blueprint question counts to match.`);
             return;
         }
 
@@ -119,6 +162,10 @@ const ExamGeneratorPage: React.FC = () => {
         formData.append('topic', topic);
         formData.append('marks', marks);
         formData.append('difficulty', difficulty);
+        formData.append('language', language);
+        if (customizeBlueprint) {
+            formData.append('blueprint', JSON.stringify(blueprint));
+        }
 
         try {
             const token = localStorage.getItem('fbrts_token') || localStorage.getItem('token') || '';
@@ -179,41 +226,45 @@ const ExamGeneratorPage: React.FC = () => {
     };
 
     return (
-        <div className="max-w-4xl mx-auto my-10 p-6 font-sans bg-slate-900 rounded-xl shadow-2xl border border-slate-800 text-slate-200">
-            <h1 className="text-3xl font-bold text-center text-white mb-2">Smart AI Exam Generator</h1>
+        <div className="max-w-4xl mx-auto my-10 p-6 font-sans text-slate-200">
+            <h1 className="text-3xl font-black text-center text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-200 to-purple-300 mb-2">
+                Smart AI Exam Generator
+            </h1>
             <p className="text-center text-slate-400 mb-8">
                 Generate exams for Full Subjects, Chapters, or Topics in Any Language!
             </p>
 
             {!generatedExam ? (
-                <div className="bg-slate-800 p-8 rounded-lg border border-slate-700">
-                    {errorMsg && <div className="text-red-400 bg-red-900/20 p-3 rounded mb-6 border border-red-500/30">{errorMsg}</div>}
+                <div className="bg-gradient-to-br from-[#1b123a]/60 via-[#0a0718]/40 to-transparent border border-purple-500/20 rounded-3xl p-8 shadow-2xl backdrop-blur-md relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-2xl pointer-events-none" />
+                    
+                    {errorMsg && <div className="text-red-400 bg-red-900/20 p-3.5 rounded-2xl mb-6 border border-red-500/20 text-xs flex items-center gap-2">{errorMsg}</div>}
 
                     {/* Mode Selectors */}
-                    <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3 border-b border-slate-700 pb-6">
+                    <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3 border-b border-white/5 pb-6">
                         <div>
-                            <label className="block font-semibold mb-2 text-blue-300">Generation Goal</label>
-                            <div className="flex gap-2">
+                            <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1.5 block">Generation Goal</label>
+                            <div className="flex gap-1.5 bg-black/45 p-1 rounded-xl">
                                 <button type="button" onClick={() => setInputMode('syllabus')}
-                                    className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-black transition-all ${inputMode === 'syllabus' ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-900 text-slate-400 hover:text-white'}`}>
+                                    className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${inputMode === 'syllabus' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}>
                                     📚 Syllabus Material
                                 </button>
                                 <button type="button" onClick={() => setInputMode('old_paper')}
-                                    className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-black transition-all ${inputMode === 'old_paper' ? 'bg-purple-600 text-white shadow-md' : 'bg-slate-900 text-slate-400 hover:text-white'}`}>
+                                    className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${inputMode === 'old_paper' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'}`}>
                                     📝 Solve & Predict Old Paper
                                 </button>
                             </div>
                         </div>
 
                         <div>
-                            <label className="block font-semibold mb-2 text-blue-300">Input Source Type</label>
-                            <div className="flex gap-2">
+                            <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1.5 block">Input Source Type</label>
+                            <div className="flex gap-1.5 bg-black/45 p-1 rounded-xl">
                                 <button type="button" onClick={() => setSourceType('file')}
-                                    className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-black transition-all ${sourceType === 'file' ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-900 text-slate-400 hover:text-white'}`}>
+                                    className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${sourceType === 'file' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}>
                                     📁 File Upload (PDF/Image)
                                 </button>
                                 <button type="button" onClick={() => setSourceType('text')}
-                                    className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-black transition-all ${sourceType === 'text' ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-900 text-slate-400 hover:text-white'}`}>
+                                    className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${sourceType === 'text' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}>
                                     ✍️ Paste Paper Text
                                 </button>
                             </div>
@@ -223,9 +274,9 @@ const ExamGeneratorPage: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                         {/* 1. Exam Scope (Syllabus Mode Only) */}
                         {inputMode === 'syllabus' && (
-                            <div className="md:col-span-2 border-b border-slate-700 pb-4 mb-2">
-                                <label className="block font-semibold mb-2 text-blue-300 text-lg">1. Exam Scope*</label>
-                                <select value={examScope} onChange={e => {setExamScope(e.target.value); setChapter(''); setTopic('');}} className="w-full p-3 rounded bg-slate-900 border border-slate-600 text-white focus:outline-none focus:border-blue-500">
+                            <div className="md:col-span-2 border-b border-white/5 pb-4 mb-2">
+                                <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1.5 block">1. Exam Scope*</label>
+                                <select value={examScope} onChange={e => {setExamScope(e.target.value); setChapter(''); setTopic('');}} className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none">
                                     <option value="Full Subject">Full Subject (Entire Book/Material)</option>
                                     <option value="Chapter Wise">Chapter Wise</option>
                                     <option value="Specific Topic">Specific Topic</option>
@@ -235,8 +286,8 @@ const ExamGeneratorPage: React.FC = () => {
 
                         {/* Standard */}
                         <div>
-                            <label className="block font-semibold mb-2 text-slate-300">Standard / Class*</label>
-                            <select value={standard} onChange={e => setStandard(e.target.value)} className="w-full p-3 rounded bg-slate-900 border border-slate-600 text-white focus:outline-none focus:border-blue-500">
+                            <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1.5 block">Standard / Class*</label>
+                            <select value={standard} onChange={e => setStandard(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none">
                                 {STANDARDS.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                             </select>
                         </div>
@@ -244,8 +295,8 @@ const ExamGeneratorPage: React.FC = () => {
                         {/* Stream (Only for 11th and 12th) */}
                         {(standard === '11' || standard === '12') && (
                             <div>
-                                <label className="block font-semibold mb-2 text-slate-300">Stream*</label>
-                                <select value={stream} onChange={e => setStream(e.target.value)} className="w-full p-3 rounded bg-slate-900 border border-slate-600 text-white focus:outline-none focus:border-blue-500">
+                                <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1.5 block">Stream*</label>
+                                <select value={stream} onChange={e => setStream(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none">
                                     <option value="Science">Science</option>
                                     <option value="Commerce">Commerce</option>
                                     <option value="Arts">Arts</option>
@@ -256,8 +307,8 @@ const ExamGeneratorPage: React.FC = () => {
                         {/* Board */}
                         {isSchoolStandard(standard) ? (
                             <div>
-                                <label className="block font-semibold mb-2 text-slate-300">Education Board*</label>
-                                <select value={board} onChange={e => setBoard(e.target.value)} className="w-full p-3 rounded bg-slate-900 border border-slate-600 text-white focus:outline-none focus:border-blue-500">
+                                <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1.5 block">Education Board*</label>
+                                <select value={board} onChange={e => setBoard(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none">
                                     {BOARDS.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                                 </select>
                             </div>
@@ -267,30 +318,30 @@ const ExamGeneratorPage: React.FC = () => {
 
                         {/* Subject */}
                         <div>
-                            <label className="block font-semibold mb-2 text-slate-300">Subject*</label>
-                            <select value={subject} onChange={e => setSubject(e.target.value)} className="w-full p-3 rounded bg-slate-900 border border-slate-600 text-white focus:outline-none focus:border-blue-500">
+                            <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1.5 block">Subject*</label>
+                            <select value={subject} onChange={e => setSubject(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none">
                                 {(STANDARD_SUBJECTS_MAP[standard] || SUBJECTS).map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
                                            {/* Conditional Inputs based on Scope */}
                         {inputMode === 'syllabus' && examScope === 'Chapter Wise' && (
                             <div>
-                                <label className="block font-semibold mb-2 text-slate-300">Chapter Name*</label>
-                                <input type="text" value={chapter} onChange={e => setChapter(e.target.value)} placeholder="e.g. Chapter 4: Carbon" className="w-full p-3 rounded bg-slate-900 border border-slate-600 text-white focus:outline-none focus:border-blue-500" />
+                                <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1.5 block">Chapter Name*</label>
+                                <input type="text" value={chapter} onChange={e => setChapter(e.target.value)} placeholder="e.g. Chapter 4: Carbon" className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none" />
                             </div>
                         )}
                         {inputMode === 'syllabus' && examScope === 'Specific Topic' && (
                             <div>
-                                <label className="block font-semibold mb-2 text-slate-300">Topic Name*</label>
-                                <input type="text" value={topic} onChange={e => setTopic(e.target.value)} placeholder="e.g. Covalent Bonds" className="w-full p-3 rounded bg-slate-900 border border-slate-600 text-white focus:outline-none focus:border-blue-500" />
+                                <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1.5 block">Topic Name*</label>
+                                <input type="text" value={topic} onChange={e => setTopic(e.target.value)} placeholder="e.g. Covalent Bonds" className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none" />
                             </div>
                         )}
                         {(inputMode !== 'syllabus' || examScope === 'Full Subject') && <div className="hidden md:block"></div>}
 
                         {/* Total Marks */}
                         <div>
-                            <label className="block font-semibold mb-2 text-slate-300">Total Marks*</label>
-                            <select value={marks} onChange={e => setMarks(e.target.value)} className="w-full p-3 rounded bg-slate-900 border border-slate-600 text-white focus:outline-none focus:border-blue-500">
+                            <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1.5 block">Total Marks*</label>
+                            <select value={marks} onChange={e => setMarks(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none">
                                 <option value="10">10 Marks</option>
                                 <option value="20">20 Marks</option>
                                 <option value="25">25 Marks</option>
@@ -302,54 +353,170 @@ const ExamGeneratorPage: React.FC = () => {
 
                         {/* Difficulty */}
                         <div>
-                            <label className="block font-semibold mb-2 text-slate-300">Difficulty Level</label>
-                            <select value={difficulty} onChange={e => setDifficulty(e.target.value)} className="w-full p-3 rounded bg-slate-900 border border-slate-600 text-white focus:outline-none focus:border-blue-500">
+                            <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1.5 block">Difficulty Level</label>
+                            <select value={difficulty} onChange={e => setDifficulty(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none">
                                 <option value="Easy">Easy</option>
                                 <option value="Medium">Medium</option>
                                 <option value="Hard">Hard</option>
                             </select>
                         </div>
+
+                        {/* Target Language */}
+                        <div>
+                            <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1.5 block">Target Language</label>
+                            <select value={language} onChange={e => setLanguage(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none">
+                                <option value="Auto-Detect">Auto-Detect (Same as PDF)</option>
+                                <option value="English">English</option>
+                                <option value="Hindi">Hindi</option>
+                                <option value="Gujarati">Gujarati</option>
+                            </select>
+                        </div>
                     </div>
+
+                    {/* Blueprint Section */}
+                    {inputMode !== 'old_paper' && (
+                        <div className="mb-6 p-4 border border-white/5 rounded-2xl bg-black/40">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                <label className="flex items-center gap-2 font-semibold text-slate-350 cursor-pointer">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={customizeBlueprint} 
+                                        onChange={e => setCustomizeBlueprint(e.target.checked)} 
+                                        className="w-4 h-4 rounded border-white/10 bg-slate-900 text-indigo-500 focus:ring-indigo-500" 
+                                    />
+                                    Customize Question Blueprint (Marks Distribution)
+                                </label>
+                                <span className={`text-xs font-bold ${blueprintSum === Number(marks) ? 'text-emerald-450' : 'text-red-405'}`}>
+                                    Total Marks: {blueprintSum} / {marks} Marks
+                                </span>
+                            </div>
+
+                            {customizeBlueprint && (
+                                <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 border-t border-white/5 pt-4">
+                                    <div>
+                                        <label className="block text-[9px] text-gray-500 mb-1">MCQs (1 Mark)</label>
+                                        <input 
+                                            type="number" 
+                                            min="0" 
+                                            value={blueprint.mcq} 
+                                            onChange={e => setBlueprint({ ...blueprint, mcq: Math.max(0, Number(e.target.value)) })} 
+                                            className="w-full p-2 text-center rounded-xl bg-black/60 border border-white/10 text-white text-xs" 
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[9px] text-gray-500 mb-1">True/False (1 Mark)</label>
+                                        <input 
+                                            type="number" 
+                                            min="0" 
+                                            value={blueprint.true_false} 
+                                            onChange={e => setBlueprint({ ...blueprint, true_false: Math.max(0, Number(e.target.value)) })} 
+                                            className="w-full p-2 text-center rounded-xl bg-black/60 border border-white/10 text-white text-xs" 
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[9px] text-gray-500 mb-1">Blanks (1 Mark)</label>
+                                        <input 
+                                            type="number" 
+                                            min="0" 
+                                            value={blueprint.blank} 
+                                            onChange={e => setBlueprint({ ...blueprint, blank: Math.max(0, Number(e.target.value)) })} 
+                                            className="w-full p-2 text-center rounded-xl bg-black/60 border border-white/10 text-white text-xs" 
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[9px] text-gray-500 mb-1">Very Short (1 Mark)</label>
+                                        <input 
+                                            type="number" 
+                                            min="0" 
+                                            value={blueprint.q1} 
+                                            onChange={e => setBlueprint({ ...blueprint, q1: Math.max(0, Number(e.target.value)) })} 
+                                            className="w-full p-2 text-center rounded-xl bg-black/60 border border-white/10 text-white text-xs" 
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[9px] text-gray-500 mb-1">Short (2 Marks)</label>
+                                        <input 
+                                            type="number" 
+                                            min="0" 
+                                            value={blueprint.q2} 
+                                            onChange={e => setBlueprint({ ...blueprint, q2: Math.max(0, Number(e.target.value)) })} 
+                                            className="w-full p-2 text-center rounded-xl bg-black/60 border border-white/10 text-white text-xs" 
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[9px] text-gray-500 mb-1">Medium (3 Marks)</label>
+                                        <input 
+                                            type="number" 
+                                            min="0" 
+                                            value={blueprint.q3} 
+                                            onChange={e => setBlueprint({ ...blueprint, q3: Math.max(0, Number(e.target.value)) })} 
+                                            className="w-full p-2 text-center rounded-xl bg-black/60 border border-white/10 text-white text-xs" 
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[9px] text-gray-500 mb-1">Long (4 Marks)</label>
+                                        <input 
+                                            type="number" 
+                                            min="0" 
+                                            value={blueprint.q4} 
+                                            onChange={e => setBlueprint({ ...blueprint, q4: Math.max(0, Number(e.target.value)) })} 
+                                            className="w-full p-2 text-center rounded-xl bg-black/60 border border-white/10 text-white text-xs" 
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[9px] text-gray-500 mb-1">Essay (5 Marks)</label>
+                                        <input 
+                                            type="number" 
+                                            min="0" 
+                                            value={blueprint.q5} 
+                                            onChange={e => setBlueprint({ ...blueprint, q5: Math.max(0, Number(e.target.value)) })} 
+                                            className="w-full p-2 text-center rounded-xl bg-black/60 border border-white/10 text-white text-xs" 
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* File Uploads vs Text Paste Area */}
                     {sourceType === 'file' ? (
-                        <div className="mb-6 p-4 border border-dashed border-slate-500 rounded bg-slate-900/50">
-                            <label className="block font-semibold mb-2 text-blue-300">
+                        <div className="mb-6 p-4 border border-dashed border-white/10 bg-black/40 rounded-2xl text-left">
+                            <label className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider mb-1.5 block">
                                 {inputMode === 'old_paper' ? 'Upload Old Question Paper (PDF or Photo)*' : 'Upload Study Material (PDF)*'}
                             </label>
-                            <p className="text-sm text-slate-400 mb-3">
+                            <p className="text-[11px] text-slate-400 mb-3">
                                 {inputMode === 'old_paper' 
                                     ? 'Upload a PDF or an Image photo of the old question paper. The AI will extract the questions and create a predicted model paper!' 
                                     : 'Any language is supported (Hindi, Gujarati, English). The AI will auto-detect it.'}
                             </p>
-                            <input type="file" accept="application/pdf, image/png, image/jpeg, image/jpg" onChange={handlePdfChange} className="w-full text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700" />
+                            <input type="file" accept="application/pdf, image/png, image/jpeg, image/jpg" onChange={handlePdfChange} className="w-full text-xs text-slate-400 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-655 file:text-white hover:file:bg-indigo-600" />
                         </div>
                     ) : (
-                        <div className="mb-6 p-4 border border-dashed border-slate-500 rounded bg-slate-900/50">
-                            <label className="block font-semibold mb-2 text-blue-300">
+                        <div className="mb-6 p-4 border border-dashed border-white/10 bg-black/40 rounded-2xl text-left">
+                            <label className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider mb-1.5 block">
                                 {inputMode === 'old_paper' ? 'Paste Old Question Paper Text*' : 'Paste Study Material / Syllabus Text*'}
                             </label>
-                            <p className="text-sm text-slate-400 mb-3">Copy and paste the text content directly into the box below:</p>
+                            <p className="text-[11px] text-slate-400 mb-3">Copy and paste the text content directly into the box below:</p>
                             <textarea 
                                 value={pastedText} 
                                 onChange={e => setPastedText(e.target.value)}
                                 placeholder={inputMode === 'old_paper' ? "Paste questions from old papers here..." : "Paste syllabus content or chapter chapters here..."}
                                 rows={8}
-                                className="w-full p-3 rounded bg-slate-950 border border-slate-700 text-white outline-none focus:border-blue-500 text-sm"
+                                className="w-full bg-slate-950 border border-white/10 rounded-xl p-3 text-xs text-white outline-none focus:border-indigo-500/40"
                             />
                         </div>
                     )}
 
                     {/* Reference File Upload */}
-                    <div className="mb-8 p-4 border border-dashed border-slate-500 rounded bg-slate-900/50">
-                        <label className="block font-semibold mb-2 text-purple-300">Upload Reference Paper Format (PDF/Photo) <span className="text-slate-400 font-normal">[Optional]</span></label>
-                        <p className="text-sm text-slate-400 mb-3">Upload a previous year paper or sample paper to mimic its structure.</p>
-                        <input type="file" accept="application/pdf, image/png, image/jpeg, image/jpg" onChange={handleReferenceChange} className="w-full text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700" />
+                    <div className="mb-8 p-4 border border-dashed border-white/10 bg-black/40 rounded-2xl text-left">
+                        <label className="text-[10px] text-purple-400 font-bold uppercase tracking-wider mb-1.5 block">Upload Reference Paper Format (PDF/Photo) <span className="text-slate-400 font-normal">[Optional]</span></label>
+                        <p className="text-[11px] text-slate-400 mb-3">Upload a previous year paper or sample paper to mimic its structure.</p>
+                        <input type="file" accept="application/pdf, image/png, image/jpeg, image/jpg" onChange={handleReferenceChange} className="w-full text-xs text-slate-400 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-purple-655 file:text-white hover:file:bg-purple-600" />
                     </div>
 
                     {loading && (
-                        <div className="mb-6 bg-slate-900 border border-slate-700 p-6 rounded-xl space-y-4">
-                            <div className="flex justify-between items-center text-sm font-semibold text-slate-300">
+                        <div className="mb-6 bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-4 text-left">
+                            <div className="flex justify-between items-center text-xs font-semibold text-slate-300">
                                 <span>{progressText}</span>
                                 <span className="text-blue-400 font-bold">{Math.round(progress)}%</span>
                             </div>
@@ -359,7 +526,7 @@ const ExamGeneratorPage: React.FC = () => {
                                     style={{ width: `${progress}%` }}
                                 ></div>
                             </div>
-                            <p className="text-xs text-slate-500 italic">
+                            <p className="text-[10px] text-slate-500 italic">
                                 Note: Parsing large textbooks and generating answers takes around 15-30 seconds.
                             </p>
                         </div>
@@ -368,7 +535,7 @@ const ExamGeneratorPage: React.FC = () => {
                     <button 
                         onClick={handleGenerate} 
                         disabled={loading}
-                        className={`w-full p-4 rounded-lg font-bold text-lg transition-colors ${loading ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
+                        className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-90 disabled:opacity-50 text-white font-bold py-3.5 rounded-2xl transition-all text-xs shadow-lg flex items-center justify-center gap-1.5 active:scale-[0.99] mt-2"
                     >
                         {loading ? 'Processing Document & Generating AI Exam... Please wait' : 'Generate Smart Exam Paper'}
                     </button>
@@ -542,6 +709,27 @@ const ExamGeneratorPage: React.FC = () => {
                                                                 <li key={oIdx} className="text-slate-800">{opt}</li>
                                                             ))}
                                                         </ol>
+                                                    )}
+
+                                                    {(!q.options || q.options.length === 0) && (
+                                                        (() => {
+                                                            const ans = String(q.answer || '').trim().toLowerCase();
+                                                            const isTF = ans === 'true' || ans === 'false' || ans === 'સાચું' || ans === 'ખોટું' || ans === 'सत्य' || ans === 'असत्य';
+                                                            if (!isTF) return null;
+                                                            
+                                                            const isGuj = language === 'Gujarati' || String(generatedExam?.title || '').includes('ગુજરાતી') || ans === 'સાચું' || ans === 'ખોટું';
+                                                            const isHin = language === 'Hindi' || ans === 'सत्य' || ans === 'असत्य';
+                                                            
+                                                            let tfLabel = "(A) True     (B) False";
+                                                            if (isGuj) tfLabel = "(A) સાચું     (B) ખોટું";
+                                                            else if (isHin) tfLabel = "(A) सत्य     (B) असत्य";
+                                                            
+                                                            return (
+                                                                <div className="ml-8 mt-2 text-slate-800 font-semibold text-sm">
+                                                                    {tfLabel}
+                                                                </div>
+                                                            );
+                                                        })()
                                                     )}
          
                                                     <div className="bg-slate-100 p-4 rounded-md mt-4 text-slate-700 border border-slate-200 answer-block">

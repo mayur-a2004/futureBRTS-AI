@@ -13,6 +13,8 @@ export interface IExamPaper extends Document {
     filePath: string;
     referenceFileName?: string;
     referenceFilePath?: string;
+    blueprint?: any;
+    language?: string;
     generatedPaper: any; // JSON containing questions
     createdAt: Date;
 }
@@ -30,6 +32,8 @@ const ExamPaperSchema: Schema = new Schema({
     filePath: { type: String, required: false },
     referenceFileName: { type: String, required: false },
     referenceFilePath: { type: String, required: false },
+    blueprint: { type: Schema.Types.Mixed, required: false },
+    language: { type: String, required: false },
     generatedPaper: { type: Schema.Types.Mixed }, // Store the complete AI JSON output
     createdAt: { type: Date, default: Date.now }
 });

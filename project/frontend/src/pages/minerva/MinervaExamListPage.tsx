@@ -30,6 +30,7 @@ const MinervaExamListPage: React.FC = () => {
     const [selectedSession, setSelectedSession] = useState('');
     const [examType, setExamType] = useState('chapter_test');
     const [totalMarks, setTotalMarks] = useState(50);
+    const [examLanguage, setExamLanguage] = useState('english');
 
     // ─── custom generator states ───
     const [sourceType, setSourceType] = useState<'file' | 'text'>('file');
@@ -47,9 +48,50 @@ const MinervaExamListPage: React.FC = () => {
     const [customTopic, setCustomTopic] = useState('');
     const [customMarks, setCustomMarks] = useState('50');
     const [customDifficulty, setCustomDifficulty] = useState('Medium');
+    const [customLanguage, setCustomLanguage] = useState('Auto-Detect');
+    const [customCustomizeBlueprint, setCustomCustomizeBlueprint] = useState(false);
+    const [customBlueprint, setCustomBlueprint] = useState({
+        mcq: 10,
+        true_false: 5,
+        blank: 5,
+        q1: 10,
+        q2: 5,
+        q3: 5,
+        q4: 0,
+        q5: 1
+    });
     const [errorMsg, setErrorMsg] = useState('');
+    const [archiveFilter, setArchiveFilter] = useState<'all' | 'pass' | 'failed' | 'ai'>('all');
+    const [showAllArchive, setShowAllArchive] = useState(false);
     const [progress, setProgress] = useState(0);
     const [progressText, setProgressText] = useState('');
+
+    useEffect(() => {
+        const totalMarks = Number(customMarks) || 50;
+        if (totalMarks === 10) {
+            setCustomBlueprint({ mcq: 5, true_false: 0, blank: 0, q1: 5, q2: 0, q3: 0, q4: 0, q5: 0 });
+        } else if (totalMarks === 20) {
+            setCustomBlueprint({ mcq: 5, true_false: 3, blank: 2, q1: 5, q2: 2, q3: 0, q4: 0, q5: 0 });
+        } else if (totalMarks === 25) {
+            setCustomBlueprint({ mcq: 5, true_false: 5, blank: 5, q1: 5, q2: 2, q3: 1, q4: 0, q5: 0 });
+        } else if (totalMarks === 50) {
+            setCustomBlueprint({ mcq: 10, true_false: 5, blank: 5, q1: 10, q2: 5, q3: 5, q4: 0, q5: 1 });
+        } else if (totalMarks === 80) {
+            setCustomBlueprint({ mcq: 15, true_false: 5, blank: 5, q1: 15, q2: 10, q3: 5, q4: 0, q5: 3 });
+        } else if (totalMarks === 100) {
+            setCustomBlueprint({ mcq: 20, true_false: 10, blank: 10, q1: 20, q2: 10, q3: 10, q4: 0, q5: 2 });
+        }
+    }, [customMarks]);
+
+    const customBlueprintSum = 
+        (customBlueprint.mcq * 1) + 
+        (customBlueprint.true_false * 1) + 
+        (customBlueprint.blank * 1) + 
+        (customBlueprint.q1 * 1) + 
+        (customBlueprint.q2 * 2) + 
+        (customBlueprint.q3 * 3) + 
+        (customBlueprint.q4 * 4) + 
+        (customBlueprint.q5 * 5);
 
     useEffect(() => {
         const subjects = STANDARD_SUBJECTS_MAP[customStandard];
@@ -121,7 +163,8 @@ const MinervaExamListPage: React.FC = () => {
         const res = await minervaApi.generateExam(token, { 
             session_id: selectedSession, 
             exam_type: examType, 
-            total_marks: totalMarks 
+            total_marks: totalMarks,
+            language: examLanguage
         });
         setGenLoading(false);
         if (res.success) {
@@ -143,6 +186,10 @@ const MinervaExamListPage: React.FC = () => {
         }
         if (!customSubject || (isSchoolStandard(customStandard) && !customBoard) || !customStandard || !customMarks) {
             setErrorMsg('Please fill all required fields.');
+            return;
+        }
+        if (customCustomizeBlueprint && customBlueprintSum !== Number(customMarks)) {
+            setErrorMsg(`Blueprint marks total (${customBlueprintSum} Marks) does not match Selected Target Marks (${customMarks} Marks). Please adjust question counts.`);
             return;
         }
 
@@ -193,6 +240,10 @@ const MinervaExamListPage: React.FC = () => {
         formData.append('topic', customTopic);
         formData.append('marks', customMarks);
         formData.append('difficulty', customDifficulty);
+        formData.append('language', customLanguage);
+        if (customCustomizeBlueprint) {
+            formData.append('blueprint', JSON.stringify(customBlueprint));
+        }
 
         try {
             const res = await fetch('/api/exam/upload', {
@@ -481,6 +532,27 @@ const MinervaExamListPage: React.FC = () => {
                                                                 ))}
                                                             </ol>
                                                         )}
+
+                                                        {(!q.options || q.options.length === 0) && (
+                                                            (() => {
+                                                                const ans = String(q.answer || '').trim().toLowerCase();
+                                                                const isTF = ans === 'true' || ans === 'false' || ans === 'સાચું' || ans === 'ખોટું' || ans === 'सत्य' || ans === 'असत्य';
+                                                                if (!isTF) return null;
+                                                                
+                                                                const isGuj = customLanguage === 'Gujarati' || String(loadedCustomExam?.title || '').includes('ગુજરાતી') || ans === 'સાચું' || ans === 'ખોટું';
+                                                                const isHin = customLanguage === 'Hindi' || ans === 'सत्य' || ans === 'असत्य';
+                                                                
+                                                                let tfLabel = "(A) True     (B) False";
+                                                                if (isGuj) tfLabel = "(A) સાચું     (B) ખોટું";
+                                                                else if (isHin) tfLabel = "(A) सत्य     (B) असत्य";
+                                                                
+                                                                return (
+                                                                    <div className="ml-8 mt-2 text-slate-800 font-semibold text-xs">
+                                                                        {tfLabel}
+                                                                    </div>
+                                                                );
+                                                            })()
+                                                        )}
                                                         {q.answer && (
                                                             <div className="bg-emerald-50 border border-emerald-200/60 p-3.5 rounded-2xl mt-3 text-xs text-slate-800">
                                                                 <strong className="text-emerald-700 block mb-1">Answer / solution:</strong> 
@@ -507,11 +579,25 @@ const MinervaExamListPage: React.FC = () => {
                                 <span>{customEditMode ? '✓ Save Edits' : '✍️ Edit Paper'}</span>
                             </button>
                             <button 
+                                onClick={downloadQuestionPaper} 
+                                disabled={customEditMode}
+                                className="px-5 py-2.5 bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-colors shadow-lg flex items-center gap-1.5"
+                            >
+                                <FileText size={14} /> Download Question Paper
+                            </button>
+                            <button 
+                                onClick={downloadAnswerKey} 
+                                disabled={customEditMode}
+                                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-colors shadow-lg flex items-center gap-1.5"
+                            >
+                                <span>🔑 Download Answer Key</span>
+                            </button>
+                            <button 
                                 onClick={downloadBothPDFs} 
                                 disabled={customEditMode}
-                                className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-colors shadow-lg flex items-center gap-1.5"
+                                className="px-5 py-2.5 bg-purple-650 hover:opacity-90 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-colors shadow-lg flex items-center gap-1.5"
                             >
-                                <FileText size={14} /> Download PDF Pack
+                                <span>📦 Download Both PDFs</span>
                             </button>
                             <button 
                                 onClick={handlePrintPaper} 
@@ -565,7 +651,7 @@ const MinervaExamListPage: React.FC = () => {
                                             ))}
                                         </select>
                                     </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div>
                                             <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1.5 block">Exam Format</label>
                                             <select value={examType} onChange={e => setExamType(e.target.value)}
@@ -584,6 +670,24 @@ const MinervaExamListPage: React.FC = () => {
                                                 {[25, 30, 50, 70, 80, 100].map(m => (
                                                     <option key={m} value={m}>{m} Marks Paper</option>
                                                 ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1.5 block">Exam Language</label>
+                                            <select value={examLanguage} onChange={e => setExamLanguage(e.target.value)}
+                                                className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none">
+                                                <option value="english">English (English)</option>
+                                                <option value="hinglish">Hinglish (Mix)</option>
+                                                <option value="hindi">Hindi (हिंदी)</option>
+                                                <option value="marathi">Marathi (मराठी)</option>
+                                                <option value="gujarati">Gujarati (ગુજરાતી)</option>
+                                                <option value="bengali">Bengali (বাংলা)</option>
+                                                <option value="tamil">Tamil (தமிழ்)</option>
+                                                <option value="telugu">Telugu (తెలుగు)</option>
+                                                <option value="kannada">Kannada (ಕನ್ನಡ)</option>
+                                                <option value="malayalam">Malayalam (മലയാളം)</option>
+                                                <option value="punjabi">Punjabi (ਪੰਜਾਬੀ)</option>
+                                                <option value="urdu">Urdu (اردو)</option>
                                             </select>
                                         </div>
                                     </div>
@@ -682,7 +786,7 @@ const MinervaExamListPage: React.FC = () => {
                                     )}
 
                                     {/* Marks & Difficulty */}
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-3 gap-3">
                                         <div>
                                             <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1.5 block">Marks*</label>
                                             <select value={customMarks} onChange={e => setCustomMarks(e.target.value)}
@@ -704,7 +808,122 @@ const MinervaExamListPage: React.FC = () => {
                                                 <option value="Hard">Hard</option>
                                             </select>
                                         </div>
+                                        <div>
+                                            <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1.5 block">Language</label>
+                                            <select value={customLanguage} onChange={e => setCustomLanguage(e.target.value)}
+                                                className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none">
+                                                <option value="Auto-Detect">Auto-Detect</option>
+                                                <option value="English">English</option>
+                                                <option value="Hindi">Hindi</option>
+                                                <option value="Gujarati">Gujarati</option>
+                                            </select>
+                                        </div>
                                     </div>
+
+                                    {/* Blueprint Section */}
+                                    {inputMode !== 'old_paper' && (
+                                        <div className="p-4 border border-white/5 rounded-2xl bg-black/40">
+                                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                                <label className="flex items-center gap-2 text-xs font-semibold text-slate-350 cursor-pointer">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={customCustomizeBlueprint} 
+                                                        onChange={e => setCustomCustomizeBlueprint(e.target.checked)} 
+                                                        className="w-4 h-4 rounded border-white/10 bg-slate-900 text-indigo-500 focus:ring-indigo-500" 
+                                                    />
+                                                    Customize Blueprint
+                                                </label>
+                                                <span className={`text-[10px] font-black ${customBlueprintSum === Number(customMarks) ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                    Sum: {customBlueprintSum} / {customMarks} M
+                                                </span>
+                                            </div>
+
+                                            {customCustomizeBlueprint && (
+                                                <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2.5 border-t border-white/5 pt-3">
+                                                    <div>
+                                                        <label className="block text-[9px] text-gray-500 mb-1">MCQs</label>
+                                                        <input 
+                                                            type="number" 
+                                                            min="0" 
+                                                            value={customBlueprint.mcq} 
+                                                            onChange={e => setCustomBlueprint({ ...customBlueprint, mcq: Math.max(0, Number(e.target.value)) })} 
+                                                            className="w-full p-2 text-center rounded-xl bg-black/60 border border-white/10 text-white text-xs" 
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-[9px] text-gray-500 mb-1">True/False</label>
+                                                        <input 
+                                                            type="number" 
+                                                            min="0" 
+                                                            value={customBlueprint.true_false} 
+                                                            onChange={e => setCustomBlueprint({ ...customBlueprint, true_false: Math.max(0, Number(e.target.value)) })} 
+                                                            className="w-full p-2 text-center rounded-xl bg-black/60 border border-white/10 text-white text-xs" 
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-[9px] text-gray-500 mb-1">Blanks</label>
+                                                        <input 
+                                                            type="number" 
+                                                            min="0" 
+                                                            value={customBlueprint.blank} 
+                                                            onChange={e => setCustomBlueprint({ ...customBlueprint, blank: Math.max(0, Number(e.target.value)) })} 
+                                                            className="w-full p-2 text-center rounded-xl bg-black/60 border border-white/10 text-white text-xs" 
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-[9px] text-gray-500 mb-1">Very Short</label>
+                                                        <input 
+                                                            type="number" 
+                                                            min="0" 
+                                                            value={customBlueprint.q1} 
+                                                            onChange={e => setCustomBlueprint({ ...customBlueprint, q1: Math.max(0, Number(e.target.value)) })} 
+                                                            className="w-full p-2 text-center rounded-xl bg-black/60 border border-white/10 text-white text-xs" 
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-[9px] text-gray-500 mb-1">Short (2m)</label>
+                                                        <input 
+                                                            type="number" 
+                                                            min="0" 
+                                                            value={customBlueprint.q2} 
+                                                            onChange={e => setCustomBlueprint({ ...customBlueprint, q2: Math.max(0, Number(e.target.value)) })} 
+                                                            className="w-full p-2 text-center rounded-xl bg-black/60 border border-white/10 text-white text-xs" 
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-[9px] text-gray-500 mb-1">Medium (3m)</label>
+                                                        <input 
+                                                            type="number" 
+                                                            min="0" 
+                                                            value={customBlueprint.q3} 
+                                                            onChange={e => setCustomBlueprint({ ...customBlueprint, q3: Math.max(0, Number(e.target.value)) })} 
+                                                            className="w-full p-2 text-center rounded-xl bg-black/60 border border-white/10 text-white text-xs" 
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-[9px] text-gray-500 mb-1">Long (4m)</label>
+                                                        <input 
+                                                            type="number" 
+                                                            min="0" 
+                                                            value={customBlueprint.q4} 
+                                                            onChange={e => setCustomBlueprint({ ...customBlueprint, q4: Math.max(0, Number(e.target.value)) })} 
+                                                            className="w-full p-2 text-center rounded-xl bg-black/60 border border-white/10 text-white text-xs" 
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-[9px] text-gray-500 mb-1">Essay (5m)</label>
+                                                        <input 
+                                                            type="number" 
+                                                            min="0" 
+                                                            value={customBlueprint.q5} 
+                                                            onChange={e => setCustomBlueprint({ ...customBlueprint, q5: Math.max(0, Number(e.target.value)) })} 
+                                                            className="w-full p-2 text-center rounded-xl bg-black/60 border border-white/10 text-white text-xs" 
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
 
                                     {/* Source Input details */}
                                     {sourceType === 'file' ? (
@@ -764,60 +983,120 @@ const MinervaExamListPage: React.FC = () => {
 
                         {/* Completed Exams Archive */}
                         <div>
-                            <h2 className="font-bold text-xs text-gray-400 mb-4 flex items-center gap-2 uppercase tracking-wider">
-                                <span>📜</span> Completed Exams Archive ({exams.length})
-                            </h2>
-                            {exams.length === 0 ? (
-                                <div className="text-center py-12 bg-white/[0.01] border border-dashed border-white/5 rounded-3xl p-6 shadow-md">
-                                    <div className="text-gray-500 text-xs italic">
-                                        No exam records found in your database. Generate an exam above to test your skills!
-                                    </div>
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 border-b border-white/5 pb-3">
+                                <h2 className="font-bold text-xs text-gray-400 flex items-center gap-2 uppercase tracking-wider">
+                                    <span>📜</span> Completed Exams Archive
+                                </h2>
+                                {/* Tabs/Pills filter */}
+                                <div className="flex flex-wrap gap-1 bg-white/[0.02] p-1 rounded-xl border border-white/5">
+                                    <button 
+                                        onClick={() => setArchiveFilter('all')}
+                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${archiveFilter === 'all' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+                                    >
+                                        All ({exams.length})
+                                    </button>
+                                    <button 
+                                        onClick={() => setArchiveFilter('pass')}
+                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${archiveFilter === 'pass' ? 'bg-emerald-600/90 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+                                    >
+                                        Passed ({exams.filter(e => e.status === 'submitted' && !e.isCustom && e.grade !== 'F').length})
+                                    </button>
+                                    <button 
+                                        onClick={() => setArchiveFilter('failed')}
+                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${archiveFilter === 'failed' ? 'bg-rose-600/95 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+                                    >
+                                        Failed ({exams.filter(e => e.status === 'submitted' && !e.isCustom && e.grade === 'F').length})
+                                    </button>
+                                    <button 
+                                        onClick={() => setArchiveFilter('ai')}
+                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${archiveFilter === 'ai' ? 'bg-purple-600/90 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+                                    >
+                                        AI Papers ({exams.filter(e => e.isCustom).length})
+                                    </button>
                                 </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {exams.map((exam: any) => {
-                                        const handleClick = () => {
-                                            if (exam.isCustom) {
-                                                setCustomExamId(exam._id);
-                                                setLoadedCustomExam(exam.generatedPaper);
-                                            } else {
-                                                navigate(`/future-education/exam/${exam._id}`);
-                                            }
-                                        };
+                            </div>
 
-                                        return (
-                                            <div key={exam._id} onClick={handleClick}
-                                                className="flex items-center gap-4 p-4 bg-white/[0.01] border border-white/5 hover:bg-white/5 hover:border-indigo-500/30 rounded-2xl cursor-pointer transition-all shadow-lg hover:shadow-indigo-500/5 hover:-translate-y-0.5 duration-300 group">
-                                                <div className={`text-2.5xl font-black w-16 text-center flex-shrink-0 ${gradeColor[exam.grade] || 'text-gray-500'}`}>
-                                                    {exam.isCustom ? '📋' : (exam.status === 'submitted' ? (exam.grade || '–') : '📋')}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="text-xs font-semibold text-gray-200 group-hover:text-white transition-colors truncate">{exam.title}</div>
-                                                    <div className="text-[10px] text-gray-500 mt-1">
-                                                        {exam.subject} • {exam.board?.toUpperCase()} • {exam.total_marks || exam.marks} Marks
-                                                        {exam.isCustom && <span className="ml-2 bg-purple-950/60 border border-purple-800 text-purple-400 px-1.5 py-0.5 rounded text-[8px] font-black uppercase">AI Prediction</span>}
-                                                    </div>
-                                                    <div className={`text-[10px] font-bold mt-1.5 flex items-center gap-1.5
-                                                        ${(exam.status === 'submitted' || exam.isCustom) ? 'text-emerald-400' : 'text-amber-400'}`}>
-                                                        {(exam.status === 'submitted' || exam.isCustom) ? (
-                                                            <>
-                                                                <CheckCircle size={10} />
-                                                                <span>Graded: {exam.percentage || 100}% Score</span>
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <Clock size={10} className="animate-pulse" />
-                                                                <span>Pending Attempt</span>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div className="text-gray-500 group-hover:text-indigo-400 transition-colors text-xs">→</div>
+                            {(() => {
+                                const filteredExams = exams.filter((exam: any) => {
+                                    if (archiveFilter === 'pass') {
+                                        return exam.status === 'submitted' && !exam.isCustom && exam.grade !== 'F';
+                                    }
+                                    if (archiveFilter === 'failed') {
+                                        return exam.status === 'submitted' && !exam.isCustom && exam.grade === 'F';
+                                    }
+                                    if (archiveFilter === 'ai') {
+                                        return exam.isCustom;
+                                    }
+                                    return true;
+                                });
+
+                                if (filteredExams.length === 0) {
+                                    return (
+                                        <div className="text-center py-12 bg-white/[0.01] border border-dashed border-white/5 rounded-3xl p-6 shadow-md">
+                                            <div className="text-gray-500 text-xs italic">
+                                                No matching exam records found.
                                             </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
+                                        </div>
+                                    );
+                                }
+
+                                const displayedExams = showAllArchive ? filteredExams : filteredExams.slice(0, 4);
+
+                                return (
+                                    <div className="space-y-3">
+                                        {displayedExams.map((exam: any) => {
+                                            const handleClick = () => {
+                                                if (exam.isCustom) {
+                                                    setCustomExamId(exam._id);
+                                                    setLoadedCustomExam(exam.generatedPaper);
+                                                } else {
+                                                    navigate(`/future-education/exam/${exam._id}`);
+                                                }
+                                            };
+
+                                            return (
+                                                <div key={exam._id} onClick={handleClick}
+                                                    className="flex items-center gap-4 p-4 bg-white/[0.01] border border-white/5 hover:bg-white/5 hover:border-indigo-500/30 rounded-2xl cursor-pointer transition-all shadow-lg hover:shadow-indigo-500/5 hover:-translate-y-0.5 duration-300 group">
+                                                    <div className={`text-2.5xl font-black w-16 text-center flex-shrink-0 ${gradeColor[exam.grade] || 'text-gray-500'}`}>
+                                                        {exam.isCustom ? '📋' : (exam.status === 'submitted' ? (exam.grade || '–') : '📋')}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-xs font-semibold text-gray-200 group-hover:text-white transition-colors truncate">{exam.title}</div>
+                                                        <div className="text-[10px] text-gray-500 mt-1">
+                                                            {exam.subject} • {exam.board?.toUpperCase()} • {exam.total_marks || exam.marks} Marks
+                                                            {exam.isCustom && <span className="ml-2 bg-purple-950/60 border border-purple-800 text-purple-400 px-1.5 py-0.5 rounded text-[8px] font-black uppercase">AI Prediction</span>}
+                                                        </div>
+                                                        <div className={`text-[10px] font-bold mt-1.5 flex items-center gap-1.5
+                                                            ${(exam.status === 'submitted' || exam.isCustom) ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                                            {(exam.status === 'submitted' || exam.isCustom) ? (
+                                                                <>
+                                                                    <CheckCircle size={10} />
+                                                                    <span>Graded: {exam.percentage || 100}% Score</span>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Clock size={10} className="animate-pulse" />
+                                                                    <span>Pending Attempt</span>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-gray-500 group-hover:text-indigo-400 transition-colors text-xs">→</div>
+                                                </div>
+                                            );
+                                        })}
+
+                                        {filteredExams.length > 4 && (
+                                            <button 
+                                                onClick={() => setShowAllArchive(!showAllArchive)}
+                                                className="w-full py-3 bg-white/[0.02] border border-white/5 hover:bg-white/10 text-gray-300 hover:text-white font-bold rounded-2xl text-xs transition-colors shadow-lg mt-2 cursor-pointer"
+                                            >
+                                                {showAllArchive ? 'Show Less' : `Show More (${filteredExams.length - 4} more)`}
+                                            </button>
+                                        )}
+                                    </div>
+                                );
+                            })()}
                         </div>
 
                     </div>

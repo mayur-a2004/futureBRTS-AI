@@ -26,6 +26,7 @@ import {
     getCombinedMinervaResponse,
     appealExamGrading,
     validateAndResolveSketchfabModel,
+    translateExamPaper,
 } from './minerva.service';
 
 // ─────────────────────────────────────────────────────────────────
@@ -1340,7 +1341,7 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
     generateExam: async (req: Request | any, res: Response) => {
         try {
             const userId = req.user?.id || req.user?._id;
-            const { session_id, exam_type = 'chapter_test', total_marks = 50 } = req.body;
+            const { session_id, exam_type = 'chapter_test', total_marks = 50, language } = req.body;
 
             if (!session_id) {
                 return res.status(400).json({ success: false, error: 'session_id is required' });
@@ -1359,7 +1360,9 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                 return res.status(400).json({ success: false, error: 'Pehle kuch topics complete karo phir exam generate hoga!' });
             }
 
-            const examData = await generateExamPaper(
+            const profile = await getOrCreateProfile(userId);
+
+            let examData = await generateExamPaper(
                 session,
                 weakNodes.length > 0 ? weakNodes : allDoneNodes,
                 strongNodes,
@@ -1371,6 +1374,12 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
 
             if (!examData) {
                 return res.status(500).json({ success: false, error: 'Exam generate nahi hua. Dobara try karo.' });
+            }
+
+            // Translate exam paper if target language is specified or stored in profile
+            const targetLang = language || profile.language_preference || 'english';
+            if (targetLang && targetLang.toLowerCase() !== 'english') {
+                examData = await translateExamPaper(examData, targetLang);
             }
 
             // Flatten questions from sections and check for total marks mismatch
@@ -2149,6 +2158,21 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
             });
 
             await task.save();
+
+            // Notify via Tutor Chat Discussion
+            try {
+                let activeChatSession = await MinervaChatSession.findOne({ userId }).sort({ updatedAt: -1 });
+                if (!activeChatSession) {
+                    activeChatSession = await MinervaChatSession.create({ userId, title: 'Study Discussion' });
+                }
+                const formattedDueDate = due_date ? new Date(due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No due date';
+                const chatContent = `📚 **Naye Homework Task Setup!**\n\nEk naya study task assign kiya gaya hai:\n- **Topic:** ${topic_title.trim()}\n- **Subject:** ${subject.trim()}\n- **Task Details:** ${prompt.trim()}\n- **Due Date:** ${formattedDueDate}\n\nAaj ye work complete karke submit karna hai, updates ke liye track rakhein!`;
+                
+                await saveChatMessage(userId, 'minerva', chatContent, 'text', null, null, activeChatSession._id);
+            } catch (chatErr) {
+                console.error('[Homework Notification Error] Failed to send chat message:', chatErr);
+            }
+
             return res.json({ success: true, task });
         } catch (err: any) {
             console.error('[Minerva Task Create Custom Error]', err);

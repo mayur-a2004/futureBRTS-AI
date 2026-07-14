@@ -6,6 +6,13 @@ import { ChevronLeft, BookOpen, Sparkles, Youtube, Lightbulb, Play, Check, Messa
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+const cleanOptionText = (opt: string, letter: string): string => {
+    if (!opt) return '';
+    const trimmed = opt.trim();
+    const regex = new RegExp(`^${letter}\\s*[.)\\-:]\\s*`, 'i');
+    return trimmed.replace(regex, '').trim();
+};
+
 const MinervaLearnPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const { token } = useAuth() as any;
@@ -836,7 +843,7 @@ const MinervaLearnPage: React.FC = () => {
                                                             ? 'bg-indigo-600/20 border-indigo-500/50 text-white shadow-lg shadow-indigo-950/20'
                                                             : 'bg-white/[0.01] border-white/5 text-gray-400 hover:bg-white/5 hover:text-white'
                                                         } ${task.submitted ? 'cursor-default' : 'cursor-pointer'}`}>
-                                                    <span className="font-black mr-2">{String.fromCharCode(65 + oi)}.</span>{opt}
+                                                    <span className="font-black mr-2">{String.fromCharCode(65 + oi)}.</span>{cleanOptionText(opt, String.fromCharCode(65 + oi))}
                                                 </button>
                                             ))}
                                         </div>

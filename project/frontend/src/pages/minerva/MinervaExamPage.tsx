@@ -5,6 +5,13 @@ import { minervaApi } from '../../api/minerva.api';
 import { Clock, FileText, CheckCircle2, MessageSquare } from 'lucide-react';
 import { LevelUpModal } from '../../components/ui/LevelUpModal';
 
+const cleanOptionText = (opt: string, letter: string): string => {
+    if (!opt) return '';
+    const trimmed = opt.trim();
+    const regex = new RegExp(`^${letter}\\s*[.)\\-:]\\s*`, 'i');
+    return trimmed.replace(regex, '').trim();
+};
+
 const MinervaExamPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const { user, token } = useAuth() as any;
@@ -484,7 +491,7 @@ const MinervaExamPage: React.FC = () => {
                                                                 ? 'bg-red-500/10 border-red-500/35 text-red-400 font-bold'
                                                                 : 'bg-white/[0.01] border-white/5 text-gray-500'
                                                         }`}>
-                                                        <span><span className="font-bold mr-2">{letter}.</span>{opt}</span>
+                                                        <span><span className="font-bold mr-2">{letter}.</span>{cleanOptionText(opt, letter)}</span>
                                                         {isExpected && <span className="text-[9px] font-black tracking-widest uppercase bg-emerald-500/15 px-2 py-0.5 rounded text-emerald-400 border border-emerald-500/20">Ideal</span>}
                                                         {isSelected && !isExpected && <span className="text-[9px] font-black tracking-widest uppercase bg-red-500/15 px-2 py-0.5 rounded text-red-400 border border-red-500/20">Your Selection</span>}
                                                     </div>
@@ -709,7 +716,7 @@ const MinervaExamPage: React.FC = () => {
                                                         ${answers[q.question_number] === opt
                                                             ? 'bg-indigo-600/20 border-indigo-500/50 text-white'
                                                             : 'bg-white/[0.01] border-white/5 text-gray-400 hover:bg-white/5'}`}>
-                                                    <span className="font-black mr-2">{String.fromCharCode(65 + oi)}.</span>{opt}
+                                                    <span className="font-black mr-2">{String.fromCharCode(65 + oi)}.</span>{cleanOptionText(opt, String.fromCharCode(65 + oi))}
                                                 </button>
                                             ))}
                                         </div>

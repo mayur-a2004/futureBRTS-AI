@@ -131,7 +131,7 @@ export const minervaApi = {
         const res = await fetch(`${BASE_URL}/exams`, { headers: authHeaders(token) });
         return handleRes(res);
     },
-    generateExam: async (token: string, data: { session_id: string; exam_type?: string; total_marks?: number }) => {
+    generateExam: async (token: string, data: { session_id: string; exam_type?: string; total_marks?: number; language?: string }) => {
         const res = await fetch(`${BASE_URL}/exam/generate`, {
             method: 'POST',
             headers: authHeaders(token),

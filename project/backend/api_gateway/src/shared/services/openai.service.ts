@@ -391,13 +391,14 @@ export const getProviderResponse = async (
                             'Authorization': `Bearer ${activeNvidiaKey}`,
                             'Content-Type': 'application/json'
                         },
-                        timeout: 90000
+                        timeout: 30000
                     }
                 );
                 console.log(`✅ [NVIDIA] ${model} responded successfully.`);
                 return response.data;
             } catch (nvidiaErr: any) {
                 const errData = nvidiaErr.response?.data || nvidiaErr.message;
+                console.error(`❌ [NVIDIA-${i} Error] ${model} failed:`, errData);
                 console.warn(`⚠️ [NVIDIA-${i}] ${model} failed. Trying next...`);
                 lastError = errData;
             }

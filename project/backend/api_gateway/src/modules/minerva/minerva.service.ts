@@ -1074,6 +1074,51 @@ Total marks: ${totalMarks}`
     return safeJsonParse(text);
 };
 
+// Translate generated exam paper to target language
+export const translateExamPaper = async (exam: any, targetLanguage: string): Promise<any> => {
+    if (!exam || !targetLanguage || targetLanguage.toLowerCase() === 'english') {
+        return exam;
+    }
+
+    try {
+        console.log(`🌐 [Exam Translator] Translating exam paper from English to ${targetLanguage}`);
+        
+        if (exam.title) {
+            exam.title = await translateContent(exam.title, targetLanguage);
+        }
+        if (exam.instructions) {
+            exam.instructions = await translateContent(exam.instructions, targetLanguage);
+        }
+
+        if (Array.isArray(exam.sections)) {
+            for (const section of exam.sections) {
+                if (section.section_name) {
+                    section.section_name = await translateContent(section.section_name, targetLanguage);
+                }
+                if (Array.isArray(section.questions)) {
+                    for (const question of section.questions) {
+                        if (question.question) {
+                            question.question = await translateContent(question.question, targetLanguage);
+                        }
+                        if (Array.isArray(question.options)) {
+                            question.options = await Promise.all(question.options.map(async (opt: string) => {
+                                return await translateContent(opt, targetLanguage);
+                            }));
+                        }
+                        if (question.expected_answer) {
+                            question.expected_answer = await translateContent(question.expected_answer, targetLanguage);
+                        }
+                    }
+                }
+            }
+        }
+    } catch (err: any) {
+        console.error('[Exam Translation Error] Fallback to original English exam paper', err);
+    }
+    
+    return exam;
+};
+
 // ─────────────────────────────────────────────
 // 7. ONBOARDING — Quick profile from chat
 // ─────────────────────────────────────────────
@@ -1190,26 +1235,32 @@ export const generateStudentStudyMaterial = async (
     grade_level: string,
     board: string
 ): Promise<any> => {
+    // Generate in English first to ensure high-quality structure, standard terminology, and prevent loops/duplications
+    const generationLanguage = 'english'; 
+    
     let systemInstruction = "";
     if (type === 'flashcards') {
         systemInstruction = `You are an expert tutor. Create a list of 8-12 interactive flashcards for the topic.
 Format: JSON array of objects: [{"term": "concept name", "definition": "clear concise explanation"}]
-Language: ${language} | Grade: ${grade_level} | Board: ${board}
+Language: ${generationLanguage} | Grade: ${grade_level} | Board: ${board}
 
 Return ONLY a valid JSON array. Do not put markdown wrapping or code blocks around it.`;
     } else if (type === 'cheatsheet') {
         systemInstruction = `You are an expert tutor. Create a high-yield exam cheatsheet for the topic.
 Include key formulas, quick definitions, laws, and common board-exam tips.
 Format: Markdown. Keep it structured and bulleted.
-Language: ${language} | Grade: ${grade_level} | Board: ${board}`;
+Language: ${generationLanguage} | Grade: ${grade_level} | Board: ${board}
+CRITICAL: Do NOT repeat the same formulas or sections. Ensure each point adds new value.`;
     } else if (type === 'essay') {
         systemInstruction = `You are an expert tutor. Create a detailed study guide or essay outline for the topic.
 Format: Markdown with clean heading structure (H1, H2, H3).
-Language: ${language} | Grade: ${grade_level} | Board: ${board}`;
+Language: ${generationLanguage} | Grade: ${grade_level} | Board: ${board}
+CRITICAL: Do NOT duplicate or repeat paragraphs or sections under different heading levels. Each heading (e.g. H3 vs H4) MUST contain completely unique, distinct content. Do NOT pad length by cloning sentences.`;
     } else { // summary / revision notes
         systemInstruction = `You are an expert tutor. Create comprehensive yet clear revision notes for the topic.
 Format: Markdown with bullet points, brief examples, and analogies.
-Language: ${language} | Grade: ${grade_level} | Board: ${board}`;
+Language: ${generationLanguage} | Grade: ${grade_level} | Board: ${board}
+CRITICAL: Do NOT repeat paragraphs or sentences. Keep it clean and concise. Each section must introduce new insights.`;
     }
 
     const messages = [
@@ -1220,10 +1271,39 @@ Language: ${language} | Grade: ${grade_level} | Board: ${board}`;
     const res = await getProviderResponse(messages, {
         jsonMode: type === 'flashcards',
         maxTokens: 3000,
-        temperature: 0.5
+        temperature: 0.3 // Lower temperature for more deterministic, non-repetitive text
     });
 
-    const content = res?.choices?.[0]?.message?.content || '';
+    let content = res?.choices?.[0]?.message?.content || '';
+
+    // If target language is not English, translate the clean English content to the target language
+    const targetLanguage = language.trim().toLowerCase();
+    if (targetLanguage !== 'english' && content) {
+        console.log(`🌐 [E-Builder Translator] Translating generated ${type} from English to ${language}`);
+        if (type === 'flashcards') {
+            // Translate flashcards array
+            let parsed = safeJsonParse(content);
+            if (parsed && !Array.isArray(parsed) && Array.isArray(parsed.flashcards)) {
+                parsed = parsed.flashcards;
+            }
+            if (Array.isArray(parsed)) {
+                const translatedCards = await Promise.all(parsed.map(async (item: any) => {
+                    const term = String(item.term || item.front || item.concept || item.word || item.question || '').trim();
+                    const definition = String(item.definition || item.back || item.explanation || item.desc || item.description || item.answer || '').trim();
+                    
+                    const tTerm = await translateContent(term, language);
+                    const tDefinition = await translateContent(definition, language);
+                    return { term: tTerm, definition: tDefinition };
+                }));
+                return translatedCards.filter(item => item.term.length > 0 && item.definition.length > 0);
+            }
+            return [];
+        } else {
+            // Translate markdown text
+            content = await translateContent(content, language);
+        }
+    }
+
     if (type === 'flashcards') {
         let parsed = safeJsonParse(content);
         if (parsed && !Array.isArray(parsed) && Array.isArray(parsed.flashcards)) {
@@ -1238,6 +1318,7 @@ Language: ${language} | Grade: ${grade_level} | Board: ${board}`;
         }
         return [];
     }
+
     return content;
 };
 
