@@ -461,20 +461,32 @@ const MinervaExamPage: React.FC = () => {
                                         <div className="ml-11 mb-4 space-y-1.5">
                                             {q.options.map((opt: string, oi: number) => {
                                                 const letter = String.fromCharCode(65 + oi);
-                                                const isExpected = opt.trim().toLowerCase() === q.expected_answer?.trim().toLowerCase();
-                                                const isSelected = opt.trim().toLowerCase() === studentAns?.student_answer?.trim().toLowerCase();
+                                                
+                                                // Robust checks for expected answer (Ideal)
+                                                const cleanExpected = q.expected_answer?.trim().toLowerCase() || '';
+                                                const isExpected = opt.trim().toLowerCase() === cleanExpected ||
+                                                                   cleanExpected === letter.toLowerCase() ||
+                                                                   cleanExpected === `${letter.toLowerCase()}.` ||
+                                                                   (cleanExpected.startsWith(`${letter.toLowerCase()}.`) && cleanExpected.includes(opt.trim().toLowerCase()));
+
+                                                // Robust checks for student's selected answer
+                                                const cleanStudentAns = studentAns?.student_answer?.trim().toLowerCase() || '';
+                                                const isSelected = opt.trim().toLowerCase() === cleanStudentAns ||
+                                                                   cleanStudentAns === letter.toLowerCase() ||
+                                                                   cleanStudentAns === `${letter.toLowerCase()}.` ||
+                                                                   (cleanStudentAns.startsWith(`${letter.toLowerCase()}.`) && cleanStudentAns.includes(opt.trim().toLowerCase()));
 
                                                 return (
                                                     <div key={oi} className={`px-4 py-2.5 rounded-xl border text-xs font-medium flex items-center justify-between
                                                         ${isExpected 
-                                                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-bold'
+                                                            ? 'bg-emerald-500/10 border-emerald-500/35 text-emerald-400 font-bold'
                                                             : isSelected
-                                                                ? 'bg-red-500/10 border-red-500/30 text-red-400 font-bold'
+                                                                ? 'bg-red-500/10 border-red-500/35 text-red-400 font-bold'
                                                                 : 'bg-white/[0.01] border-white/5 text-gray-500'
                                                         }`}>
                                                         <span><span className="font-bold mr-2">{letter}.</span>{opt}</span>
-                                                        {isExpected && <span className="text-[9px] font-black tracking-widest uppercase bg-emerald-500/15 px-2 py-0.5 rounded">Ideal</span>}
-                                                        {isSelected && !isExpected && <span className="text-[9px] font-black tracking-widest uppercase bg-red-500/15 px-2 py-0.5 rounded">Your Selection</span>}
+                                                        {isExpected && <span className="text-[9px] font-black tracking-widest uppercase bg-emerald-500/15 px-2 py-0.5 rounded text-emerald-400 border border-emerald-500/20">Ideal</span>}
+                                                        {isSelected && !isExpected && <span className="text-[9px] font-black tracking-widest uppercase bg-red-500/15 px-2 py-0.5 rounded text-red-400 border border-red-500/20">Your Selection</span>}
                                                     </div>
                                                 );
                                             })}

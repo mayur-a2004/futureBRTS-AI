@@ -1524,9 +1524,29 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                 let correction = '';
 
                 if (question.type === 'mcq' && question.expected_answer) {
-                    const isCorrect = studentAnswer.trim().toLowerCase() === question.expected_answer.trim().toLowerCase();
+                    const cleanExpected = question.expected_answer.trim().toLowerCase();
+                    const cleanStudent = studentAnswer.trim().toLowerCase();
+                    
+                    // Determine index of expected and student choices to get option letters (A, B, C, D)
+                    const expectedIdx = question.options?.findIndex((o: string) => o.trim().toLowerCase() === cleanExpected);
+                    const selectedIdx = question.options?.findIndex((o: string) => o.trim().toLowerCase() === cleanStudent);
+                    
+                    const expectedLetter = expectedIdx !== -1 ? String.fromCharCode(65 + expectedIdx) : '';
+                    const selectedLetter = selectedIdx !== -1 ? String.fromCharCode(65 + selectedIdx) : '';
+
+                    const isCorrect = cleanStudent === cleanExpected ||
+                                      (selectedLetter && selectedLetter.toLowerCase() === cleanExpected) ||
+                                      (expectedLetter && expectedLetter.toLowerCase() === cleanStudent);
+
                     obtained = isCorrect ? question.marks : 0;
-                    feedback = isCorrect ? 'Correct Answer!' : `Incorrect. Expected: ${question.expected_answer}`;
+
+                    if (isCorrect) {
+                        feedback = 'Correct Answer!';
+                    } else {
+                        const selectedText = selectedLetter ? `${selectedLetter}. ${studentAnswer}` : (studentAnswer || 'no option selected');
+                        const expectedText = expectedLetter ? `${expectedLetter}. ${question.expected_answer}` : question.expected_answer;
+                        feedback = `Incorrect. You selected "${selectedText}", but the correct answer is "${expectedText}".`;
+                    }
                 } else {
                     // Written answer
                     const aiGrade = aiGrades[question.question_number];
