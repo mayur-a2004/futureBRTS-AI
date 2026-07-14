@@ -25,7 +25,7 @@ import {
     generatePYQRoadmap,
     getCombinedMinervaResponse,
     appealExamGrading,
-    SKETCHFAB_HINTS,
+    validateAndResolveSketchfabModel,
 } from './minerva.service';
 
 // ─────────────────────────────────────────────────────────────────
@@ -699,13 +699,21 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                     }
                     if (lab.three_js_config) {
                         layers.push('threejs');
-                    } else if (lab.sketchfab_hint) {
+                    }
+                    if (lab.sketchfab_hint) {
                         layers.push('sketchfab');
                     }
                     if (lab.simulation_config) {
                         layers.push('sandbox');
                     }
+                    if (lab.interactive_config && lab.interactive_config.type) {
+                        layers.push('interactive');
+                    }
                     lab.content_layers = layers;
+                } else {
+                    if (lab.interactive_config && lab.interactive_config.type && !lab.content_layers.includes('interactive')) {
+                        lab.content_layers.push('interactive');
+                    }
                 }
             }
 
@@ -767,7 +775,7 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                 }
                 await User.findByIdAndUpdate(userId, {
                     schoolName: school_name || '',
-                    city: state || 'Gandhinagar', // Fallback to Gandhinagar (our main launch target)
+                    city: state || '', // Fallback to empty string
                     grade: numericGrade
                 });
             } catch (syncErr: any) {
@@ -988,13 +996,27 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                 // Update node with task IDs
                 await MinervaKnowledgeNode.findByIdAndUpdate(id, { micro_tasks: taskIds });
 
-                // Build YouTube queries (return search queries, frontend will display)
-                youtubeLinks = (content.youtube_queries || []).map((q: string) => ({
-                    title: q,
-                    url: `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
-                    channel: 'YouTube',
-                    language: profile.language_preference || 'hindi',
-                }));
+                // Build YouTube video links from AI-generated video objects
+                const rawYoutubeVideos = content.youtube_videos || content.youtube_queries || [];
+                youtubeLinks = rawYoutubeVideos.map((item: any) => {
+                    // If item is an object with url (new format)
+                    if (typeof item === 'object' && item.url) {
+                        return {
+                            title: item.title || 'Educational Video',
+                            url: item.url,
+                            channel: item.channel || 'YouTube',
+                            language: profile.language_preference || 'hindi',
+                        };
+                    }
+                    // If item is a string (old format — search query)
+                    const q = String(item);
+                    return {
+                        title: q,
+                        url: `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
+                        channel: 'YouTube',
+                        language: profile.language_preference || 'hindi',
+                    };
+                });
 
                 await MinervaKnowledgeNode.findByIdAndUpdate(id, { youtube_links: youtubeLinks });
 
@@ -2256,150 +2278,22 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
                 return res.status(400).json({ success: false, error: 'query is required' });
             }
 
-            // Map natural language medical, physics, chemistry and business queries to standard educational keywords
-            const mapQueryToEducationalKeyword = (qStr: string): string => {
-                const q = qStr.toLowerCase().trim();
-                
-                if (q.includes('heart') || q.includes('cardiac') || q.includes('blood pressure') || q.includes('pulse') || q.includes('artery') || q.includes('vein') || q.includes('circulatory') || q.includes('dil')) {
-                    return 'heart';
-                }
-                if (q.includes('lungs') || q.includes('respiratory') || q.includes('breath') || q.includes('oxygen') || q.includes('alveoli') || q.includes('trachea') || q.includes('phephde') || q.includes('phephda') || q.includes('lung')) {
-                    return 'lungs';
-                }
-                if (q.includes('brain') || q.includes('cerebral') || q.includes('nervous') || q.includes('mind') || q.includes('head') || q.includes('skull') || q.includes('dimag') || q.includes('dimagh') || q.includes('brian')) {
-                    return 'brain';
-                }
-                if (q.includes('dna') || q.includes('rna') || q.includes('chromosome') || q.includes('gene') || q.includes('helix') || q.includes('genetic') || q.includes('adn')) {
-                    return 'dna';
-                }
-                if (q.includes('stomach') || q.includes('gastric') || q.includes('digestive') || q.includes('gut') || q.includes('intestine') || q.includes('digestion') || q.includes('pet')) {
-                    return 'stomach';
-                }
-                if (q.includes('kidney') || q.includes('renal') || q.includes('urine') || q.includes('excretory') || q.includes('nephron') || q.includes('pathri')) {
-                    return 'kidney';
-                }
-                if (q.includes('eye') || q.includes('optics') || q.includes('vision') || q.includes('lens') || q.includes('cornea') || q.includes('retina') || q.includes('aankh') || q.includes('ankh')) {
-                    return 'eye';
-                }
-                if (q.includes('ear') || q.includes('hearing') || q.includes('cochlea') || q.includes('sound') || q.includes('auditory') || q.includes('kaan') || q.includes('kan')) {
-                    return 'ear';
-                }
-                if (q.includes('cell') || q.includes('cellular') || q.includes('mitosis') || q.includes('meiosis') || q.includes('prokaryote') || q.includes('eukaryote') || q.includes('célula') || q.includes('cel')) {
-                    return 'cell';
-                }
-                if (q.includes('neuron') || q.includes('nerve cell') || q.includes('synapse')) {
-                    return 'neuron';
-                }
-                if (q.includes('muscle') || q.includes('muscular') || q.includes('tendon') || q.includes('tissue')) {
-                    return 'muscle';
-                }
-                if (q.includes('bone') || q.includes('skeleton') || q.includes('joint') || q.includes('rib') || q.includes('spine')) {
-                    return 'skeleton';
-                }
-                if (q.includes('atom') || q.includes('electron') || q.includes('proton') || q.includes('neutron') || q.includes('nucleus')) {
-                    return 'atom';
-                }
-                if (q.includes('solar') || q.includes('planet') || q.includes('space') || q.includes('orbit') || q.includes('sun') || q.includes('galaxy') || q.includes('astronomy') || q.includes('universe')) {
-                    return 'solar';
-                }
-                if (q.includes('vagina') || q.includes('uterus') || q.includes('ovary') || q.includes('pregnancy') || q.includes('placenta') || q.includes('cervix') || q.includes('female reproductive') || q.includes('female reproduction') || q.includes('menstru') || q.includes('period') || q.includes('fallopian') || q.includes('womb')) {
-                    return 'female_reproductive';
-                }
-                if (q.includes('penis') || q.includes('testis') || q.includes('sperm') || q.includes('semen') || q.includes('scrotum') || q.includes('male reproductive') || q.includes('male reproduction')) {
-                    return 'male_reproductive';
-                }
-                if (q.includes('reproduction') || q.includes('reproductive') || q.includes('sex') || q.includes('gender')) {
-                    return 'female_reproductive';
-                }
-                if (q.includes('plant') || q.includes('photosynthesis') || q.includes('leaf') || q.includes('stem') || q.includes('root') || q.includes('chloroplast')) {
-                    return 'plant';
-                }
-                if (q.includes('volcano') || q.includes('lava') || q.includes('earthquake') || q.includes('crust') || q.includes('tectonic')) {
-                    return 'volcano';
-                }
-                if (q.includes('engine') || q.includes('motor') || q.includes('gear') || q.includes('machine') || q.includes('combustion') || q.includes('piston') || q.includes('car') || q.includes('automotive')) {
-                    return 'engine';
-                }
-                if (q.includes('microscope') || q.includes('magnify') || q.includes('laboratory')) {
-                    return 'microscope';
-                }
-                if (q.includes('prism') || q.includes('spectrum') || q.includes('refraction') || q.includes('light')) {
-                    return 'prism';
-                }
-                if (q.includes('magnet') || q.includes('magnetic') || q.includes('field') || q.includes('electromagnet')) {
-                    return 'magnet';
-                }
-                if (q.includes('gravity') || q.includes('force') || q.includes('attraction') || q.includes('pull')) {
-                    return 'gravity';
-                }
-                if (q.includes('liver') || q.includes('hepatic') || q.includes('bile')) {
-                    return 'liver';
-                }
-                if (q.includes('virus') || q.includes('pathogen') || q.includes('corona') || q.includes('infection')) {
-                    return 'virus';
-                }
-                if (q.includes('bacteria') || q.includes('microbe') || q.includes('germ')) {
-                    return 'bacteria';
-                }
-                if (q.includes('digestive')) {
-                    return 'digestive';
-                }
-                
-                return '';
-            };
+            console.log(`🔍 [Sketchfab API Search Request] Query: "${query}"`);
+            const resolved = await validateAndResolveSketchfabModel(query);
 
-            const mappedKeyword = mapQueryToEducationalKeyword(query);
-            const lookupKeyword = mappedKeyword || query.toLowerCase().trim();
-
-            for (const [kw, modelId] of Object.entries(SKETCHFAB_HINTS)) {
-                if (lookupKeyword === kw || lookupKeyword.includes(kw) || kw.includes(lookupKeyword)) {
-                    console.log(`⚡ [Sketchfab Cache] Instant matched lookup keyword "${lookupKeyword}" (original: "${query}") to verified model ID "${modelId}" (${kw})`);
-                    return res.json({
-                        success: true,
-                        model_id: modelId,
-                        name: kw.toUpperCase(),
-                        viewer_url: `https://sketchfab.com/models/${modelId}`,
-                        thumbnail: null
-                    });
-                }
-            }
-
-            const fetch = (await import('node-fetch')).default;
-            
-            // Try searching with "annotated" suffix first to prioritize models with interactive hotspots
-            let searchUrl = `https://api.sketchfab.com/v3/search?type=models&q=${encodeURIComponent(query + ' annotated')}`;
-            let response = await fetch(searchUrl, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
-                }
-            });
-            let data: any = await response.json();
-
-            // If no annotated models found, fallback to original query
-            if (!data?.results || data.results.length === 0) {
-                searchUrl = `https://api.sketchfab.com/v3/search?type=models&q=${encodeURIComponent(query)}`;
-                response = await fetch(searchUrl, {
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
-                    }
-                });
-                data = await response.json();
-            }
-
-            if (data?.results?.length > 0) {
-                const bestModel = data.results.find((item: any) => !item.isAgeRestricted) || data.results[0];
+            if (resolved && resolved.model_id) {
                 return res.json({
                     success: true,
-                    model_id: bestModel.uid,
-                    name: bestModel.name,
-                    viewer_url: bestModel.viewerUrl,
-                    thumbnail: bestModel.thumbnails?.images?.[0]?.url || null
+                    model_id: resolved.model_id,
+                    name: resolved.name,
+                    viewer_url: resolved.viewer_url,
+                    thumbnail: resolved.thumbnail
                 });
             }
 
             return res.json({
                 success: false,
-                error: 'No Sketchfab models found for the query'
+                error: 'No Sketchfab models found or validated for the query'
             });
 
         } catch (err: any) {

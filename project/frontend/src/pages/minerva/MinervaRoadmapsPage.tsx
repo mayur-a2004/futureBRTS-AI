@@ -217,11 +217,49 @@ const MinervaRoadmapsPage: React.FC = () => {
                                         onChange={e => setBoard(e.target.value)}
                                         className="w-full bg-[#030209] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-indigo-500/50"
                                     >
-                                        <option value="cbse">CBSE (NCERT)</option>
-                                        <option value="icse">ICSE / ISC</option>
-                                        <option value="msbshse">Maharashtra Board</option>
-                                        <option value="upmsp">UP Board</option>
-                                        <option value="general">General / Custom</option>
+                                        <optgroup label="── Central Boards ──">
+                                            <option value="cbse">CBSE (NCERT)</option>
+                                            <option value="icse">ICSE / ISC</option>
+                                            <option value="nios">NIOS (Open School)</option>
+                                            <option value="cbse_vocational">CBSE Vocational</option>
+                                        </optgroup>
+                                        <optgroup label="── State Boards ──">
+                                            <option value="msbshse">Maharashtra Board (SSC / HSC)</option>
+                                            <option value="upmsp">UP Board (UPMSP)</option>
+                                            <option value="bseb">Bihar Board (BSEB)</option>
+                                            <option value="rbse">Rajasthan Board (RBSE)</option>
+                                            <option value="mpbse">MP Board (MPBSE)</option>
+                                            <option value="gseb">Gujarat Board (GSEB)</option>
+                                            <option value="pseb">Punjab Board (PSEB)</option>
+                                            <option value="hpbose">Himachal Pradesh Board (HPBOSE)</option>
+                                            <option value="bseh">Haryana Board (BSEH)</option>
+                                            <option value="uk_board">Uttarakhand Board (UBSE)</option>
+                                            <option value="jkbose">J&amp;K Board (JKBOSE)</option>
+                                            <option value="wbbse">West Bengal Board (WBBSE)</option>
+                                            <option value="tbse">Tripura Board (TBSE)</option>
+                                            <option value="bsem">Manipur Board (BSEM)</option>
+                                            <option value="nbse">Nagaland Board (NBSE)</option>
+                                            <option value="seba">Assam Board (SEBA / AHSEC)</option>
+                                            <option value="meghalaya">Meghalaya Board (MBOSE)</option>
+                                            <option value="arunachal">Arunachal Board (DERT)</option>
+                                            <option value="mizoram">Mizoram Board (MBSE)</option>
+                                            <option value="tnbse">Tamil Nadu Board (TNBSE)</option>
+                                            <option value="ap_bse">Andhra Pradesh Board (APBSE)</option>
+                                            <option value="tsbie">Telangana Board (TSBIE)</option>
+                                            <option value="kseeb">Karnataka Board (KSEAB)</option>
+                                            <option value="keralapare">Kerala Board (DHSE / SCERT)</option>
+                                            <option value="goa_board">Goa Board (GBSHSE)</option>
+                                            <option value="bsea">Odisha Board (BSE Odisha)</option>
+                                            <option value="chse_odisha">Odisha +2 (CHSE)</option>
+                                            <option value="cgbse">Chhattisgarh Board (CGBSE)</option>
+                                            <option value="jac">Jharkhand Board (JAC)</option>
+                                        </optgroup>
+                                        <optgroup label="── Competitive / Custom ──">
+                                            <option value="jee">JEE (Mains &amp; Advanced)</option>
+                                            <option value="neet">NEET (Medical)</option>
+                                            <option value="upsc">UPSC (Civil Services)</option>
+                                            <option value="general">General / Custom</option>
+                                        </optgroup>
                                     </select>
                                 </div>
                                 <div>
@@ -236,6 +274,15 @@ const MinervaRoadmapsPage: React.FC = () => {
                                         <option value="hindi">Hindi (हिंदी)</option>
                                         <option value="marathi">Marathi (मराठी)</option>
                                         <option value="gujarati">Gujarati (ગુજરાતી)</option>
+                                        <option value="bengali">Bengali (বাংলা)</option>
+                                        <option value="tamil">Tamil (தமிழ்)</option>
+                                        <option value="telugu">Telugu (తెలుగు)</option>
+                                        <option value="kannada">Kannada (ಕನ್ನಡ)</option>
+                                        <option value="malayalam">Malayalam (മലയാളം)</option>
+                                        <option value="punjabi">Punjabi (ਪੰਜਾਬੀ)</option>
+                                        <option value="odia">Odia (ଓଡ଼ିଆ)</option>
+                                        <option value="assamese">Assamese (অসমীয়া)</option>
+                                        <option value="urdu">Urdu (اردو)</option>
                                     </select>
                                 </div>
                             </div>

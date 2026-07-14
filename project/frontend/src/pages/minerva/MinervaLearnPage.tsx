@@ -11,6 +11,20 @@ const MinervaLearnPage: React.FC = () => {
     const { token } = useAuth() as any;
     const navigate = useNavigate();
 
+    // Extract YouTube video ID from various URL formats
+    const extractYouTubeId = (url: string): string | null => {
+        if (!url) return null;
+        const patterns = [
+            /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([\w-]{11})/,
+            /[?&]v=([\w-]{11})/
+        ];
+        for (const pattern of patterns) {
+            const match = url.match(pattern);
+            if (match) return match[1];
+        }
+        return null;
+    };
+
     const showChemistryLab = () => {
         const titleMatch = (node?.title || '').toLowerCase();
         const subjectMatch = (node?.subject || '').toLowerCase();
@@ -430,6 +444,21 @@ const MinervaLearnPage: React.FC = () => {
                             </div>
                         </div>
 
+                        {/* Dynamic AI Viva Illustration */}
+                        {node?.title && (
+                            <div className="mt-4 mb-2 rounded-2xl overflow-hidden border border-cyan-500/10 shadow-lg relative group">
+                                <img
+                                    src={`https://image.pollinations.ai/prompt/${encodeURIComponent(`conceptual diagram for oral viva exam on ${node.title}, scientific illustration, dark background, glowing neon lines, educational poster style`)  }?width=800&height=260&nologo=true&seed=${encodeURIComponent('viva-' + node.title)}`}
+                                    alt={`Viva visual for ${node.title}`}
+                                    className="w-full h-36 object-cover opacity-80 transition-opacity duration-300 group-hover:opacity-100"
+                                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                />
+                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent px-3 py-2">
+                                    <span className="text-[10px] text-cyan-400/70 font-bold uppercase tracking-wider">📸 Topic Visual — {node.title}</span>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Interactive Waveform / Dialog space */}
                         <div className="flex-1 flex flex-col items-center justify-center py-6 text-center w-full">
                             {vivaState === 'listening' && !useTextMode ? (
@@ -557,6 +586,25 @@ const MinervaLearnPage: React.FC = () => {
                                 )}
                             </button>
                         </div>
+
+                        {/* Dynamic AI Topic Illustration — Pollinations AI (Free, No API Key) */}
+                        {node?.title && (
+                            <div className="mb-5 rounded-2xl overflow-hidden border border-white/5 shadow-xl relative group">
+                                <img
+                                    src={`https://image.pollinations.ai/prompt/${encodeURIComponent(`educational illustration of ${node.title}, ${view === 'simple' ? 'simple colorful story style' : 'detailed scientific textbook diagram'}, clean white background, vibrant colors, highly detailed, professional educational artwork`)  }?width=800&height=360&nologo=true&seed=${encodeURIComponent(node.title)}`}
+                                    alt={`Visual illustration of ${node.title}`}
+                                    className="w-full h-52 object-cover transition-transform duration-500 group-hover:scale-105"
+                                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                />
+                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-4 py-3">
+                                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                                        <Sparkles size={10} className="text-indigo-400" />
+                                        AI-Generated Visual — {node.title}
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="text-gray-300 text-xs leading-relaxed font-medium prose prose-invert max-w-none space-y-3 [&_p]:mb-3 [&_p]:leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-3 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-3 [&_strong]:text-white [&_strong]:font-bold [&_code]:bg-white/10 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-indigo-300 [&_code]:font-mono [&_code]:text-[11px]">
                             {translating ? (
                                 <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -651,27 +699,102 @@ const MinervaLearnPage: React.FC = () => {
                     </div>
                 )}
 
-                {/* Youtube Videos */}
+                {/* Youtube Videos — Smart Cards with Language Labels */}
                 {ytLinks.length > 0 && (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                         <h2 className="font-bold text-xs text-gray-200 flex items-center gap-2 uppercase tracking-wider">
                             <Youtube size={16} className="text-red-500 animate-pulse" />
                             Curated YouTube Lessons
+                            <span className="ml-auto text-[9px] text-gray-500 font-normal normal-case tracking-normal">Hindi • English • Regional</span>
                         </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {ytLinks.map((yt: any, i: number) => (
-                                <a key={i} href={yt.url} target="_blank" rel="noreferrer"
-                                    className="flex items-center gap-3 p-4 bg-white/[0.01] hover:bg-white/5 border border-white/5 hover:border-red-500/30 rounded-2xl transition-all group shadow-lg">
-                                    <div className="w-10 h-10 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-center text-red-400 flex-shrink-0 group-hover:bg-red-500/20 group-hover:text-red-300 transition-colors">
-                                        <Play size={16} />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="text-xs font-semibold text-gray-200 group-hover:text-white transition-colors truncate">{yt.title}</div>
-                                        <div className="text-[10px] text-gray-500 mt-1">{yt.channel}</div>
-                                    </div>
-                                    <span className="text-gray-600 group-hover:text-red-400 transition-colors text-sm">↗</span>
-                                </a>
-                            ))}
+                        <div className="grid grid-cols-1 gap-4">
+                            {ytLinks.map((yt: any, i: number) => {
+                                const videoId = extractYouTubeId(yt.url);
+                                const langLabel: Record<string, string> = {
+                                    hindi: '🇮🇳 Hindi', english: '🇬🇧 English', hinglish: '🔀 Hinglish',
+                                    marathi: 'मराठी', gujarati: 'ગુજ', bengali: 'বাং', tamil: 'தமிழ்',
+                                    telugu: 'తెలుగు', kannada: 'ಕನ್ನಡ', malayalam: 'മലയാ', punjabi: 'ਪੰਜਾਬ',
+                                    odia: 'ଓଡ଼ିଆ', assamese: 'অসমীয়া', urdu: 'اردو',
+                                };
+                                const langBadge = yt.lang ? (langLabel[yt.lang] || yt.lang.toUpperCase()) : null;
+
+                                // If it's a real video URL with ID — embed as full inline iframe
+                                if (videoId) {
+                                    return (
+                                        <div key={i} className="bg-black/40 border border-white/5 hover:border-red-500/30 rounded-2xl overflow-hidden shadow-xl transition-all group">
+                                            {/* Language badge overlay */}
+                                            {langBadge && (
+                                                <div className="px-4 pt-3 pb-1 flex items-center gap-2">
+                                                    <span className="text-[9px] font-black bg-red-600/20 text-red-300 px-2.5 py-0.5 rounded-full border border-red-500/20 uppercase tracking-wide">{langBadge}</span>
+                                                    {yt.channel && <span className="text-[9px] text-gray-500 font-semibold">{yt.channel}</span>}
+                                                </div>
+                                            )}
+                                            {/* Inline iframe — plays directly on page */}
+                                            <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                                                <iframe
+                                                    src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1&color=red`}
+                                                    title={yt.title || `Video ${i + 1}`}
+                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                                    allowFullScreen
+                                                    className="absolute inset-0 w-full h-full"
+                                                    loading="lazy"
+                                                />
+                                            </div>
+                                            <div className="p-3 border-t border-white/5">
+                                                <div className="text-xs font-semibold text-gray-200 line-clamp-2 leading-snug">{yt.title}</div>
+                                            </div>
+                                        </div>
+                                    );
+                                }
+
+                                // Search URL — render as a YouTube-style search card (old data)
+                                const searchQuery = yt.title || '';
+                                const searchUrl = yt.url || `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`;
+                                
+                                return (
+                                    <a
+                                        key={i}
+                                        href={searchUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="block bg-black/40 border border-white/5 hover:border-red-500/40 rounded-2xl overflow-hidden shadow-xl transition-all group"
+                                    >
+                                        {/* YouTube-style thumbnail area */}
+                                        <div className="relative w-full bg-gradient-to-br from-red-950/40 via-black to-gray-950/60" style={{ paddingBottom: '45%' }}>
+                                            <div className="absolute inset-0 flex items-center justify-center">
+                                                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(239,68,68,0.08)_0%,_transparent_70%)]" />
+                                                <div className="relative z-10 flex flex-col items-center gap-3">
+                                                    <div className="w-16 h-16 bg-red-600 group-hover:bg-red-500 rounded-2xl flex items-center justify-center shadow-[0_0_30px_rgba(239,68,68,0.4)] group-hover:shadow-[0_0_40px_rgba(239,68,68,0.6)] transition-all duration-300 group-hover:scale-110">
+                                                        <Play size={28} className="text-white ml-1" />
+                                                    </div>
+                                                    <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Find on YouTube</span>
+                                                </div>
+                                                <div className="absolute bottom-3 right-4 flex items-center gap-1.5">
+                                                    <Youtube size={14} className="text-red-500" />
+                                                    <span className="text-[10px] font-black text-white/40 tracking-wide">YouTube</span>
+                                                </div>
+                                                {langBadge && (
+                                                    <div className="absolute top-3 left-3">
+                                                        <span className="text-[9px] font-black bg-red-600/80 text-white px-2 py-0.5 rounded-full uppercase tracking-wider border border-red-500/30 backdrop-blur-sm">
+                                                            {langBadge}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        {/* Card info footer */}
+                                        <div className="px-4 py-3 flex items-center gap-3 border-t border-white/5">
+                                            <div className="w-7 h-7 bg-red-500/15 border border-red-500/25 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                <Youtube size={13} className="text-red-400" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-xs font-semibold text-gray-200 group-hover:text-white transition-colors line-clamp-2 leading-snug">{searchQuery}</div>
+                                                <div className="text-[10px] text-red-400/60 mt-0.5 font-semibold">Tap to open on YouTube — regenerate topic for inline embed ↗</div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                );
+                            })}
                         </div>
                     </div>
                 )}

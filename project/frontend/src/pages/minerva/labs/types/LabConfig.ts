@@ -15,7 +15,8 @@ export type ContentLayer =
   | 'sketchfab'
   | 'youtube'
   | 'voice'
-  | 'sandbox';
+  | 'sandbox'
+  | 'interactive';
 
 export interface SliderControl {
   name: string;
@@ -77,6 +78,11 @@ export interface LabConfig {
     default_code: string;
     expected_output?: string;
   };
+  interactive_config?: {
+    type: 'geogebra' | 'phet' | 'chemistry' | null;
+    query?: string;
+    phet_url?: string;
+  } | null;
 }
 
 export const SUBJECT_COLORS: Record<SubjectType, {
@@ -116,6 +122,7 @@ export const LAYER_ICONS: Record<ContentLayer, string> = {
   youtube:   '▶️',
   voice:     '🔊',
   sandbox:   '💻',
+  interactive: '⚙️',
 };
 
 export const LAYER_LABELS: Record<ContentLayer, string> = {
@@ -126,4 +133,5 @@ export const LAYER_LABELS: Record<ContentLayer, string> = {
   youtube:   'Video',
   voice:     'Voice',
   sandbox:   'Sandbox',
+  interactive: 'Interactive Lab',
 };

@@ -2,6 +2,8 @@
 import { getProviderResponse } from '../../shared/services/openai.service';
 import MinervaNeuralMemory from './models/minerva_neural_memory.model';
 import MinervaLabCache from './models/minerva_lab_cache.model';
+import MinervaSketchfabCache from './models/minerva_sketchfab_cache.model';
+
 
 // ─────────────────────────────────────────────
 // HELPER: Repair truncated JSON
@@ -275,98 +277,11 @@ const THREE_JS_CONFIGS: Record<string, (msg: string) => any> = {
     })
 };
 
-export const SKETCHFAB_HINTS: Record<string, string> = {
-    cell: '0d9f7f4257224975b2ef83a283709b2f', // Animal cell 2.0 - annotated in English
-    heart: '1a9d90dbfe834fc49f6121bb0b7f245e', // Heart, Annotated
-    brain: '66fb24485d744556bb0628d6d1ffa1e2', // Human Brain Annotated
-    dna: '57e27538f97a4617a716c3ca5448b6b7', // E47:SCL and DNA - Annotated
-    h2o: 'e181944932084b5dbb4d5b625a5e9b10', // water molecule (H2O)
-    co2: 'ce63b22e3d464453a89623f15e24d368', // carbon dioxide (CO2)
-    benzene: '7fc04cef71174d93893db16e364768f5',
-    digestive: '9b0b079953b840bc9a13f524b60041e4',
-    eye: '5f741793c4654d14aa8257eec1f1a393', // Human eye anatomy (Ebers - Annotated)
-    ear: '4f5438fc9337454587ec4a2c30c8c42f', // Ear cross-section (Ebers - Annotated)
-    lungs: '13c8cd9fcf654bec89d40d48de9f4202', // Reza Lungs Model ANNOTATED
-    female_reproductive: '6b66a5c37841496a8492067424614660', // Female reproductive system (Ebers - Annotated)
-    female_reproduction: '6b66a5c37841496a8492067424614660',
-    vagina: '6b66a5c37841496a8492067424614660',
-    uterus: '6b66a5c37841496a8492067424614660',
-    ovary: '6b66a5c37841496a8492067424614660',
-    pregnancy: '6b66a5c37841496a8492067424614660',
-    male_reproductive: 'b77f14ee1cf743ffbac365b045598c48', // Male reproductive system (Ebers - Annotated)
-    male_reproduction: 'b77f14ee1cf743ffbac365b045598c48',
-    sex: '6b66a5c37841496a8492067424614660', 
-    gender: '6b66a5c37841496a8492067424614660',
-    reproduction: '6b66a5c37841496a8492067424614660',
-    // --- EXPANDED TECHNICAL & SCIENCE MODELS ---
-    atom: '6cfa067d5fb44d22aecbe79e779a9cc1', // atom model
-    molecule: '79cdb9e65b7d43a281e14472baa2502e', 
-    solar: '298e1ac1fdb048e892d036d588d4322c', // solar system
-    earth: 'eb88f06b4bc342d6bfa99e7608f1d7be', // planet earth
-    mars: '83ced347037f47aba8473147d65df074',
-    skeleton: '856558a230884dbca4f4da2831755e8a', // human skeleton
-    skull: '9fba7c12454a45499557b6281eb61b34',
-    kidney: '0dea52d6f6a848ab8f2cdc3f5b3ba212', // Kidney cross-section (Ebers - Annotated)
-    virus: '51b922522a404ad2aef55335403fa12d', // covid virus model
-    bacteria: '42439edc90cd4d87b8ae322a4dcee8de', // bacteria cell structure
-    plant: '70679a304b324ca8941c214875acf6a9', // plant model
-    mitochondria: 'acc7d71759a1441e8409ebb31e3c3c0d', // powerhouse of cell
-    chloroplast: '9a244f04a73d46cd8801fd3d9d40726b', 
-    volcano: 'b658640c4857474e842a20f355f9b0be', // active volcano
-    tectonic: '4a052941a17941b39052fa1451c63928', // plate tectonics
-    wind: '4751f056d2f945208ca6be646aef4bf4', 
-    engine: 'eea9d9252ab14298b50699a471dc2cee', // internal combustion engine
-    car: '29c76ea294264212b0598f358fbce111', 
-    telescope: '9c54f8af0bbc4c0caa86c0f0d0ce2a67', 
-    microscope: 'a9c83e6af504463aa354e3b7e1b21c53', 
-    prism: '3b9f61aa97f9470e847d2b0bffdc16c4', 
-    magnet: '6609c99e41d04c5aa87884950c54dcb2', 
-    gravity: '16c161157c0f468686b3c8abc61722e3', 
-    water_cycle: 'b3ca8dc1cbc6486fbac6ba6c32062d14', 
-    carbon_cycle: '9a2a8748b33e48b884437906482f1e90',
-    photosynthesis: '75a7e01336e34d4898c97495593aeacb',
-    neuron: '20e930a5fae5457fa6d1738afa00c7bb', 
-    spinal: '5b56a47b386443ad81e1f273fe483d0b', 
-    muscle: '8c1bcc3685cd40b3bd6b42e0445522a5', 
-    liver: '061ac581a81547fc9e31f66dc4329a92',
-    stomach: '6b5ba1999b164b0ca667af5333bd6748'
-};
-
 const getStandardConceptKey = (msg: string): string => {
-    const q = msg.toLowerCase().trim();
-    if (q.includes('heart') || q.includes('cardiac') || q.includes('blood pressure') || q.includes('pulse') || q.includes('artery') || q.includes('vein') || q.includes('circulatory') || q.includes('dil')) return 'heart';
-    if (q.includes('lung') || q.includes('respiratory') || q.includes('breath') || q.includes('oxygen') || q.includes('alveoli') || q.includes('trachea') || q.includes('phephde')) return 'lungs';
-    if (q.includes('brain') || q.includes('cerebral') || q.includes('nervous') || q.includes('mind') || q.includes('head') || q.includes('skull') || q.includes('dimag')) return 'brain';
-    if (q.includes('dna') || q.includes('rna') || q.includes('chromosome') || q.includes('gene') || q.includes('helix') || q.includes('genetic') || q.includes('adn')) return 'dna';
-    if (q.includes('stomach') || q.includes('gastric') || q.includes('digestive') || q.includes('gut') || q.includes('intestine') || q.includes('digestion') || q.includes('pet')) return 'stomach';
-    if (q.includes('kidney') || q.includes('renal') || q.includes('urine') || q.includes('excretory') || q.includes('nephron') || q.includes('pathri')) return 'kidney';
-    if (q.includes('eye') || q.includes('vision') || q.includes('lens') || q.includes('cornea') || q.includes('retina') || q.includes('aankh')) return 'eye';
-    if (q.includes('ear') || q.includes('hearing') || q.includes('cochlea') || q.includes('sound') || q.includes('auditory') || q.includes('kaan')) return 'ear';
-    if (q.includes('cell') || q.includes('cellular') || q.includes('mitosis') || q.includes('meiosis') || q.includes('prokaryote') || q.includes('eukaryote') || q.includes('célula')) return 'cell';
-    if (q.includes('neuron') || q.includes('nerve cell') || q.includes('synapse')) return 'neuron';
-    if (q.includes('muscle') || q.includes('muscular') || q.includes('tendon')) return 'muscle';
-    if (q.includes('bone') || q.includes('skeleton') || q.includes('joint') || q.includes('spine')) return 'skeleton';
-    if (q.includes('atom') || q.includes('electron') || q.includes('proton') || q.includes('nucleus')) return 'atom';
-    if (q.includes('solar') || q.includes('planet') || q.includes('space') || q.includes('orbit') || q.includes('sun') || q.includes('galaxy') || q.includes('universe')) return 'solar';
-    if (q.includes('vagina') || q.includes('uterus') || q.includes('ovary') || q.includes('pregnancy') || q.includes('placenta') || q.includes('cervix') || q.includes('female reproductive') || q.includes('female reproduction') || q.includes('menstru') || q.includes('period') || q.includes('fallopian') || q.includes('womb')) return 'female_reproductive';
-    if (q.includes('penis') || q.includes('testis') || q.includes('sperm') || q.includes('semen') || q.includes('scrotum') || q.includes('male reproductive') || q.includes('male reproduction')) return 'male_reproductive';
-    if (q.includes('reproduction') || q.includes('reproductive')) return 'female_reproductive';
-    if (q.includes('plant') || q.includes('photosynthesis') || q.includes('leaf') || q.includes('stem') || q.includes('root') || q.includes('chloroplast')) return 'plant';
-    if (q.includes('volcano') || q.includes('lava') || q.includes('earthquake') || q.includes('crust') || q.includes('tectonic')) return 'volcano';
-    if (q.includes('engine') || q.includes('motor') || q.includes('gear') || q.includes('combustion') || q.includes('piston') || q.includes('car')) return 'engine';
-    if (q.includes('microscope') || q.includes('magnify')) return 'microscope';
-    if (q.includes('prism') || q.includes('spectrum') || q.includes('refraction') || q.includes('light')) return 'prism';
-    if (q.includes('magnet') || q.includes('magnetic') || q.includes('field')) return 'magnet';
-    if (q.includes('gravity') || q.includes('force') || q.includes('attraction')) return 'gravity';
-    if (q.includes('liver') || q.includes('hepatic') || q.includes('bile')) return 'liver';
-    if (q.includes('virus') || q.includes('pathogen') || q.includes('corona') || q.includes('infection')) return 'virus';
-    if (q.includes('bacteria') || q.includes('microbe')) return 'bacteria';
-    if (q.includes('digestive')) return 'digestive';
-    
-    return q.replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/).slice(0, 3).join('_');
+    return msg.toLowerCase().trim().replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/).slice(0, 4).join('_');
 };
 
-const generateLabConfig = async (message: string, reply: string, studentProfile: any): Promise<any | null> => {
+export const generateLabConfig = async (message: string, reply: string, studentProfile: any): Promise<any | null> => {
     if (!message || message.trim().length < 3) return null;
     const msg = message.toLowerCase();
 
@@ -387,10 +302,6 @@ const generateLabConfig = async (message: string, reply: string, studentProfile:
     // Fallback static config
     const defaultDiagramType = `${subject}_general_diagram`;
     const defaultYoutubeQuery = `${message.substring(0, 40)} simple animated explanation tutorial`;
-    let fallbackSketchfab: string | null = null;
-    for (const [kw, hint] of Object.entries(SKETCHFAB_HINTS)) {
-        if (msg.includes(kw)) { fallbackSketchfab = hint; break; }
-    }
 
     const conceptKey = getStandardConceptKey(message);
 
@@ -398,12 +309,15 @@ const generateLabConfig = async (message: string, reply: string, studentProfile:
     try {
         const cached = await MinervaLabCache.findOne({ concept_key: conceptKey });
         if (cached) {
-            const resolvedSketchfabHint = cached.three_js_config && !fallbackSketchfab ? null : (cached.sketchfab_hint || fallbackSketchfab);
+            const resolvedSketchfabHint = cached.sketchfab_hint || null;
             const content_layers = ['text', 'voice', 'youtube', 'diagram'];
             if (cached.three_js_config) {
                 content_layers.push('threejs');
             } else if (resolvedSketchfabHint) {
                 content_layers.push('sketchfab');
+            }
+            if (cached.interactive_config) {
+                content_layers.push('interactive');
             }
             return {
                 subject: cached.subject || subject,
@@ -415,6 +329,7 @@ const generateLabConfig = async (message: string, reply: string, studentProfile:
                 diagram_type: cached.mermaid_schema ? 'dynamic_mermaid' : `${cached.subject}_general_diagram`,
                 mermaid_schema: cached.mermaid_schema,
                 three_js_config: cached.three_js_config,
+                interactive_config: cached.interactive_config || null,
                 sketchfab_hint: resolvedSketchfabHint,
                 youtube_query: cached.youtube_query || defaultYoutubeQuery,
                 voice_script: cached.voice_script || reply,
@@ -434,6 +349,7 @@ This configuration will dynamically drive:
 1. An easy-to-understand YouTube video search.
 2. A custom Mermaid.js flowchart or diagram illustrating the concept.
 3. An interactive simulator with sliders and graphs for the student to experiment with the parameters.
+4. An interactive simulation widget (GeoGebra, PhET, or a custom Chemistry titration lab) to provide realistic visuals and inputs.
 
 You MUST return ONLY a valid JSON object matching the schema below. No conversational text, no markdown formatting (do not wrap in \`\`\`json).
 
@@ -443,7 +359,12 @@ SCHEMA:
   "voice_script": "Detailed, structured masterclass academic explanation (300-500 words) using clean markdown formatting (headings like ##, ###, bullets like -, formulas). Walk through basic definitions, advanced deep dives, real-world examples, and step-by-step mechanisms to take the student from beginner to advanced. MUST be in Hinglish or target language.",
   "youtube_query": "specific search query terms optimized for the absolute simplest, animated, easy-to-understand explanation video of this concept (DO NOT include terms like NCERT, CBSE, class, short, or demo. Optimize for clean concept visualization)",
   "mermaid_schema": "valid Mermaid.js flowchart code starting strictly with 'graph TD' or 'graph LR'. Do NOT include any descriptive text, class definitions, pseudocode, JSON or explanations inside this field. It must be strictly parsable Mermaid flowchart syntax showing the relationships or steps. Example: 'graph TD\\n    A[Artificial Intelligence] --> B[Machine Learning]\\n    B --> C[Deep Learning]'",
-  "sketchfab_hint": "Single descriptive keyword from this verified list: cell, heart, brain, dna, eye, ear, lungs, stomach, kidney, skeleton, atom, molecule, solar, earth, plant, mitochondria, chloroplast, volcano, engine, microscope, prism, magnet, gravity, neuron, spinal, muscle, liver, female_reproductive, male_reproductive. DO NOT make up arbitrary keys. NEVER return hex IDs.",
+  "sketchfab_query": "An optimized, high-precision 3D model search query (2-4 words in English) representing the exact biological structure, physical mechanism, chemical compound, or machine being discussed. Examples: 'female reproductive system', 'mitochondria organelle', 'internal combustion engine', 'solar system', 'double helix dna'. MUST be extremely specific. Do not output generic categories like 'plant' or 'biology'. If the topic is abstract and has no physical 3D model representation, return null.",
+  "interactive_config": {
+    "type": "geogebra" | "phet" | "chemistry" | null,
+    "query": "A mathematical formula or equation for GeoGebra (e.g., 'y = 3*x + 1' or 'f(x) = sin(x)') OR Chemistry experiment query name (e.g., 'acid_base_titration', 'HCl_NaOH_titration'). Return null if not applicable.",
+    "phet_url": "Highly specific name of a relevant free PhET HTML5 simulator if applicable (e.g., 'Ohm\\'s Law', 'Circuit Construction Kit: DC', 'Wave Interference', 'Bending Light', 'Optics'). Return null if not applicable."
+  },
   "simulation_config": {
     "type": "unique_simulation_id_lowercase_with_underscores",
     "title": "Title of the interactive experiment",
@@ -467,7 +388,7 @@ SCHEMA:
       }
     ],
     "equations": {
-      "output_variable_name": "JS mathematical expression string using control names, e.g., 'slider_var1 * 2'"
+      "output_variable_name": "JS mathematical expression string using ONLY defined control names (e.g. 'slider_var1 * 2'). Crucial: Do NOT write assignments or formulas with equals signs (e.g. do NOT write 'F = m * a'). Write ONLY the right-hand side expression (e.g. write 'mass_slider * gravity_slider'). Every variable in the expression MUST be either defined in controls, outputs, or be a predefined math constant. Do NOT use undefined variables."
     },
     "visual_mapping": {
       "elements": [
@@ -506,8 +427,9 @@ Tutor Explanation: "${reply.substring(0, 500)}..."`;
                         subject: resultJson.subject || subject,
                         title: resultJson.simulation_config?.title || resultJson.topic || message.substring(0, 60),
                         description: resultJson.simulation_config?.description || '',
-                        sketchfab_hint: resultJson.sketchfab_hint || null,
+                        sketchfab_hint: resultJson.sketchfab_query || null,
                         three_js_config: resultJson.simulation_config || null,
+                        interactive_config: resultJson.interactive_config || null,
                         youtube_query: resultJson.youtube_query || defaultYoutubeQuery,
                         mermaid_schema: resultJson.mermaid_schema || null,
                         voice_script: resultJson.voice_script || null
@@ -527,21 +449,26 @@ Tutor Explanation: "${reply.substring(0, 500)}..."`;
             subject,
             youtube_query: defaultYoutubeQuery,
             mermaid_schema: `graph TD\n    A[${message.substring(0, 20)}] --> B[Learn Concept]\n    B --> C[Verify via Lab]`,
-            sketchfab_hint: fallbackSketchfab,
-            simulation_config: null
+            sketchfab_query: null,
+            simulation_config: null,
+            interactive_config: null
         };
     }
 
     const threeJsFn = THREE_JS_CONFIGS[resultJson.subject || subject];
     const three_js_config = resultJson.simulation_config || (threeJsFn ? threeJsFn(message) : null);
-
-    const resolvedSketchfabHint = three_js_config && !fallbackSketchfab ? null : (resultJson.sketchfab_hint !== undefined && resultJson.sketchfab_hint !== null ? resultJson.sketchfab_hint : fallbackSketchfab);
+    const resolvedSketchfabHint = resultJson.sketchfab_query || null;
+    const interactive_config = resultJson.interactive_config || null;
 
     const content_layers = ['text', 'voice', 'youtube', 'diagram'];
     if (three_js_config) {
         content_layers.push('threejs');
-    } else if (resolvedSketchfabHint) {
+    }
+    if (resolvedSketchfabHint) {
         content_layers.push('sketchfab');
+    }
+    if (interactive_config && interactive_config.type) {
+        content_layers.push('interactive');
     }
 
     return {
@@ -554,6 +481,7 @@ Tutor Explanation: "${reply.substring(0, 500)}..."`;
         diagram_type: resultJson.mermaid_schema ? 'dynamic_mermaid' : defaultDiagramType,
         mermaid_schema: resultJson.mermaid_schema || null,
         three_js_config,
+        interactive_config,
         sketchfab_hint: resolvedSketchfabHint,
         youtube_query: resultJson.youtube_query || defaultYoutubeQuery,
         voice_script: resultJson.voice_script || reply,
@@ -818,7 +746,7 @@ export const getMinervaChat = async (
     ];
 
     const res = await getProviderResponse(messages, { maxTokens: 2000, temperature: 0.75 });
-    const reply = res?.choices?.[0]?.message?.content || 'Main samajh nahi paya. Kya aap dobara bata sakte ho?';
+    const reply = res?.choices?.[0]?.message?.content || 'The server is currently busy or experiencing high traffic. Please try again in a few moments.';
 
     // Generate 3 contextual follow-up suggestion questions dynamically using LLM
     let suggestions: string[] = [];
@@ -956,7 +884,11 @@ Return ONLY valid JSON:
     "key_formulas": ["any formulas or rules, empty array if none"],
     "memory_trick": "A clever mnemonic or trick to remember this topic",
     "board_specific_note": "What to specifically focus on for ${board} exam format",
-    "youtube_queries": ["3 specific YouTube search queries to find best videos for this topic in ${lang}"],
+    "youtube_videos": [
+        {"title": "Best English explanation video title", "url": "https://www.youtube.com/watch?v=REAL_11CHAR_ID", "channel": "Channel Name", "lang": "english"},
+        {"title": "Hindi mein best explanation video title", "url": "https://www.youtube.com/watch?v=REAL_11CHAR_ID", "channel": "Channel Name", "lang": "hindi"},
+        {"title": "Video in ${lang} for this exact topic", "url": "https://www.youtube.com/watch?v=REAL_11CHAR_ID", "channel": "Channel Name", "lang": "${lang}"}
+    ],
     "micro_tasks": [
         {
             "type": "text_answer" | "fill_blank" | "mcq" | "numerical",
@@ -988,7 +920,7 @@ RULES:
   - explanation_detailed (Step-by-Step Solution): Must be the complete, step-by-step resolved answer/solution to that exact question (instead of generic theory). Show calculations, equations, derivations, or structural points clearly.
   - micro_tasks: Generate 3-4 progressive practice tasks (easy, medium, hard) that are direct clones/variations of the uploaded question (e.g. testing the same concept with different numbers or structures) to ensure the student can apply the learning.
   - homework_tasks: Generate 2-3 similar homework practice tasks, slightly harder than the micro_tasks, testing the same core concepts with their correct expected answers.
-- youtube_queries: specific enough to find real educational videos
+- youtube_videos: CRITICAL — Provide 3 YouTube videos with REAL, ACTUAL 11-character video IDs that exist on YouTube. Include: 1 English video, 1 Hindi video, and 1 video in ${lang} (mother tongue if different). Use well-known channels: Khan Academy, Physics Wallah (PW), Vedantu, Unacademy, Doubtnut, NCERT official, etc. The video MUST be specifically about "${node.title}" topic. DO NOT make up video IDs — only use IDs from videos you know exist.
 - Key formulas: include in proper format (e.g., "F = ma (Force = mass × acceleration)")`
         },
         {
@@ -1174,26 +1106,55 @@ export const extractProfileFromChat = async (message: string): Promise<any> => {
 // ─────────────────────────────────────────────
 export const getBoardLabel = (board: string): string => {
     const labels: Record<string, string> = {
-        cbse: 'CBSE (Central Board)',
-        icse: 'ICSE/ISC',
+        // Central Boards
+        cbse: 'CBSE (NCERT) — Central Board of Secondary Education',
+        icse: 'ICSE / ISC — Indian Certificate of Secondary Education',
+        nios: 'NIOS — National Institute of Open Schooling',
+        cbse_vocational: 'CBSE Vocational (Skill Education)',
+        // State Boards
+        msbshse: 'Maharashtra Board (SSC/HSC) — Maharashtra State Board',
+        upmsp: 'UP Board (UPMSP) — Uttar Pradesh Madhyamik Shiksha Parishad',
+        bseb: 'Bihar Board (BSEB) — Bihar School Examination Board',
+        rbse: 'Rajasthan Board (RBSE) — Rajasthan Board of Secondary Education',
+        mpbse: 'MP Board (MPBSE) — Madhya Pradesh Board of Secondary Education',
+        gseb: 'Gujarat Board (GSEB) — Gujarat Secondary and Higher Secondary Education Board',
+        pseb: 'Punjab Board (PSEB) — Punjab School Education Board',
+        hpbose: 'Himachal Pradesh Board (HPBOSE)',
+        bseh: 'Haryana Board (BSEH) — Board of School Education Haryana',
+        uk_board: 'Uttarakhand Board (UBSE) — Uttarakhand Board of School Education',
+        jkbose: 'J&K Board (JKBOSE) — Jammu & Kashmir Board of School Education',
+        wbbse: 'West Bengal Board (WBBSE) — West Bengal Board of Secondary Education',
+        tbse: 'Tripura Board (TBSE) — Tripura Board of Secondary Education',
+        bsem: 'Manipur Board (BSEM) — Board of Secondary Education Manipur',
+        nbse: 'Nagaland Board (NBSE) — Nagaland Board of School Education',
+        seba: 'Assam Board (SEBA/AHSEC) — Board of Secondary Education Assam',
+        meghalaya: 'Meghalaya Board (MBOSE) — Meghalaya Board of School Education',
+        arunachal: 'Arunachal Board (DERT) — Directorate of Education Arunachal Pradesh',
+        mizoram: 'Mizoram Board (MBSE) — Mizoram Board of School Education',
+        tnbse: 'Tamil Nadu Board (TNBSE/Samacheer Kalvi)',
+        ap_bse: 'Andhra Pradesh Board (APBSE)',
+        tsbie: 'Telangana Board (TSBIE) — Telangana State Board of Intermediate Education',
+        kseeb: 'Karnataka Board (KSEAB) — Karnataka School Examination and Assessment Board',
+        keralapare: 'Kerala Board (DHSE/SCERT) — Department of Higher Secondary Education Kerala',
+        goa_board: 'Goa Board (GBSHSE) — Goa Board of Secondary and Higher Secondary Education',
+        bsea: 'Odisha Board (BSE Odisha) — Board of Secondary Education Odisha',
+        chse_odisha: 'Odisha +2 (CHSE) — Council of Higher Secondary Education Odisha',
+        cgbse: 'Chhattisgarh Board (CGBSE)',
+        jac: 'Jharkhand Board (JAC) — Jharkhand Academic Council',
+        // Competitive / Custom
+        jee: 'JEE (Mains & Advanced) — Joint Entrance Examination',
+        neet: 'NEET (Medical Entrance) — National Eligibility cum Entrance Test',
+        upsc: 'UPSC Civil Services — Union Public Service Commission',
+        developer: 'Developer / Software Engineering Profile',
+        general: 'General / Custom Curriculum',
+        // Legacy keys (keep for backward compat)
         maharashtra_ssc: 'Maharashtra SSC/HSC Board',
         up_board: 'UP Board (UPMSP)',
-        gseb: 'Gujarat Board (GSEB)',
-        rbse: 'Rajasthan Board (RBSE)',
-        mpbse: 'MP Board (MPBSE)',
-        tnbse: 'Tamil Nadu Board (Samacheer)',
-        kseeb: 'Karnataka Board (KSEEB)',
-        wbbse: 'West Bengal Board (WBBSE)',
-        pseb: 'Punjab Board (PSEB)',
+        tnbse_legacy: 'Tamil Nadu Board (Samacheer)',
         hbse: 'Haryana Board (HBSE)',
-        bseb: 'Bihar Board (BSEB)',
-        general: 'General',
-        upsc: 'UPSC Civil Services',
-        ssc: 'SSC (Staff Selection)',
+        ssc: 'SSC (Staff Selection Commission)',
         banking: 'Banking Exams (IBPS/SBI)',
         railway: 'Railway (RRB)',
-        jee: 'JEE Mains & Advanced',
-        neet: 'NEET UG/PG',
         gate: 'GATE',
         cat: 'CAT/MBA Entrance',
         ca: 'CA (ICAI)',
@@ -1620,7 +1581,12 @@ Return ONLY a valid JSON object matching the following structure (do not wrap in
     "voice_script": "Detailed, structured masterclass explanation (300-500 words) using clean markdown formatting (headings like ##, ###, bullets like -, formulas). Walk through basic definitions, advanced deep dives, real-world examples, and step-by-step mechanisms to take the student from beginner to advanced. MUST be in Hinglish or target language.",
     "youtube_query": "simplest animated NCERT explanation search query",
     "mermaid_schema": "valid Mermaid.js flowchart code starting strictly with 'graph TD' or 'graph LR'. Crucial: Double quote all node labels containing special characters or punctuation, e.g. A[\"Topic (Detail)\"] instead of A[Topic (Detail)]. Do NOT include any descriptive text, class definitions, pseudocode, JSON or explanations inside this field. It must be strictly parsable Mermaid flowchart syntax.",
-    "sketchfab_hint": "sketchfab query string in English. ALWAYS translate non-English/Hinglish terms and correct spelling mistakes to standard correct English scientific/anatomical terms (e.g. 'heart', 'cell', 'brain', 'dna', 'lungs', 'kidney', 'eye', 'ear', 'stomach', 'male reproductive system'). NEVER return raw hex IDs.",
+    "sketchfab_query": "An optimized, high-precision 3D model search query (2-4 words in English) representing the exact biological structure, physical mechanism, chemical compound, or machine being discussed. Examples: 'female reproductive system', 'mitochondria organelle', 'internal combustion engine', 'solar system', 'double helix dna'. MUST be extremely specific. Do not output generic categories like 'plant' or 'biology'. If the topic is abstract and has no physical 3D model representation, return null.",
+    "interactive_config": {
+      "type": "geogebra" | "phet" | "chemistry" | null,
+      "query": "A mathematical formula or equation for GeoGebra (e.g., 'y = 3*x + 1' or 'f(x) = sin(x)') OR Chemistry experiment query name (e.g., 'acid_base_titration', 'HCl_NaOH_titration'). Return null if not applicable.",
+      "phet_url": "Highly specific name of a relevant free PhET HTML5 simulator if applicable (e.g., 'Ohm\\'s Law', 'Circuit Construction Kit: DC', 'Wave Interference', 'Bending Light', 'Optics'). Return null if not applicable."
+    },
     "simulation_config": {
       "type": "unique_simulation_id_lowercase_with_underscores",
       "title": "Title of the interactive experiment",
@@ -1632,7 +1598,7 @@ Return ONLY a valid JSON object matching the following structure (do not wrap in
         { "name": "output_variable_name", "label": "Display label for output value", "unit": "units" }
       ],
       "equations": {
-        "output_variable_name": "JS mathematical expression string using control names, e.g. 'slider_var1 * 2'"
+        "output_variable_name": "JS mathematical expression string using ONLY defined control names (e.g. 'slider_var1 * 2'). Crucial: Do NOT write assignments or formulas with equals signs (e.g. do NOT write 'F = m * a'). Write ONLY the right-hand side expression (e.g. write 'mass_slider * gravity_slider'). Every variable in the expression MUST be either defined in controls, outputs, or be a predefined math constant. Do NOT use undefined variables."
       },
       "visual_mapping": {
         "elements": [
@@ -1652,7 +1618,7 @@ Return ONLY a valid JSON object matching the following structure (do not wrap in
 }
 `;
 
-    let promptSuffix = '\n\n⚠️ IMPORTANT: If the topic involves graphs, waves, curves, projectile motion, functions, signals, or custom formulas (e.g. sin/cos wave, parabolas, linear equations, etc.), you MUST include a "graph" type element in "visual_mapping.elements" and provide a valid mathematical formula in "plotExpr" (e.g. "amplitude * sin(frequency * x - time)") so that a real interactive curve is plotted on the screen. Do NOT use "circle" or "rect" as a substitute for graph elements.';
+    let promptSuffix = '\n\n⚠️ IMPORTANT: If the topic involves graphs, waves, curves, projectile motion, functions, signals, or custom formulas (e.g. sin/cos wave, parabolas, linear equations, etc.), you MUST include a "graph" type element in "visual_mapping.elements" and provide a valid mathematical formula in "plotExpr" (e.g. "amplitude * sin(frequency * x - time)") so that a real interactive curve is plotted on the screen. Do NOT use "circle" or "rect" as a substitute for graph elements.\n\n⚠️ IMPORTANT FOR INTERACTIVE SIMULATIONS:\n- If the topic is a Mathematics topic, you MUST set "interactive_config" with type "geogebra" and provide the mathematical formula in the "query" field (e.g. "f(x) = sin(x)").\n- If the topic is a Physics topic, you MUST set "interactive_config" with type "phet" and provide the relevant simulator name in the "phet_url" field (e.g. "Ohm\'s Law", "Circuit Construction Kit: DC", "Wave Interference", "Bending Light", "Optics").\n- If the topic is a Chemistry topic, you MUST set "interactive_config" with type "chemistry" and provide the chemical reaction name in the "query" field.\n- Do NOT leave "interactive_config" null or empty for Math, Physics, or Chemistry topics!';
     if (forceLab) {
         promptSuffix += `\n\n⚠️ IMPORTANT: The student is explicitly launching a virtual lab simulator. You MUST force the intent to be "ask_doubt", detect the correct academic subject, and populate the "lab_config" field with a fully functional visual simulation config (appropriate slider controls, equations, and visual mapping) and Mermaid chart. Do NOT leave the lab_config field null!`;
     }
@@ -1696,15 +1662,23 @@ Return ONLY a valid JSON object matching the following structure (do not wrap in
         const parsed = safeJsonParse(text) || {};
 
         const intent = parsed.intent || { intent: 'general_chat', confidence: 0.5 };
-        const reply = parsed.reply || 'Samajh nahi paya. Dobara poochiye.';
+        const reply = parsed.reply || 'The server is currently busy or experiencing high traffic. Please try again in a few moments.';
         const suggestions = parsed.suggestions || [];
         const lab_config = parsed.lab_config || null;
         if (lab_config) {
             lab_config.auto_open = true;
+            if (lab_config.sketchfab_query !== undefined) {
+                lab_config.sketchfab_hint = lab_config.sketchfab_query;
+            }
             const threeJsFn = THREE_JS_CONFIGS[lab_config.subject];
             const three_js_config = lab_config.simulation_config || (threeJsFn ? threeJsFn(message) : null);
             if (three_js_config) {
                 lab_config.three_js_config = three_js_config;
+            }
+            if (lab_config.content_layers && lab_config.interactive_config && lab_config.interactive_config.type) {
+                if (!lab_config.content_layers.includes('interactive')) {
+                    lab_config.content_layers.push('interactive');
+                }
             }
         }
 
@@ -1722,7 +1696,7 @@ Return ONLY a valid JSON object matching the following structure (do not wrap in
         console.error("Combined Minerva response failed, using fallback:", err);
         return {
             intent: { intent: 'general_chat', confidence: 0.5 },
-            reply: 'Samajh nahi paya. Dobara poochiye.',
+            reply: 'The server is currently busy or experiencing high traffic. Please try again in a few moments.',
             content_type: 'text',
             metadata: null
         };
@@ -1819,6 +1793,209 @@ Average Exam Score: ${stats.averageScore}%`
         console.error("AI Parent Guidance generation failed:", err);
         return "Encourage daily practice to reinforce key concepts.";
     }
+};
+
+export const validateAndResolveSketchfabModel = async (rawQuery: string): Promise<any> => {
+    const cleanQuery = rawQuery.trim().toLowerCase();
+    if (!cleanQuery) return null;
+
+    // Check cache first
+    try {
+        const cached = await MinervaSketchfabCache.findOne({ query: cleanQuery });
+        if (cached) {
+            console.log(`📦 [Sketchfab Cache Hit] Found cached resolution for "${cleanQuery}": "${cached.model_id}"`);
+            if (!cached.is_3d_possible || !cached.model_id) return null;
+            return {
+                model_id: cached.model_id,
+                name: cached.name,
+                viewer_url: cached.viewer_url,
+                thumbnail: cached.thumbnail
+            };
+        }
+    } catch (cacheErr) {
+        console.error("[Sketchfab Cache Lookup Error]", cacheErr);
+    }
+
+    // Step 1: Concept Extraction & 3D Relevance Check via LLM
+    let is3dPossible = false;
+    let englishConcept = '';
+    let searchQuery = '';
+
+    try {
+        const conceptMessages = [
+            {
+                role: 'system',
+                content: `You are an expert educational AI. Your job is to extract the core physical concept from the student's topic/sought term.
+Analyze if the topic represents a physical biological structure, chemical compound/apparatus, physical mechanism, engine, celestial body, or machine that can be realistically represented by a 3D model on Sketchfab.
+- Abstract topics (e.g. "democracy", "grammar", "philosophy", "calculus", "multiplication", general chat) CANNOT be represented as a 3D model. Set "is_3d_possible" to false.
+- Concrete physical concepts (e.g. "human heart", "photosynthesis process plant cell", "internal combustion engine", "water molecule", "horse") CAN be represented as a 3D model. Set "is_3d_possible" to true.
+- If target language is Hinglish, Hindi, Gujarati, or any other regional Indian language, translate it to its standard scientific English equivalent.
+
+You MUST return ONLY valid JSON:
+{
+  "is_3d_possible": boolean,
+  "english_concept": "standard scientific English name of the concept",
+  "search_query": "optimized English search keywords for Sketchfab (2-4 words, e.g. 'horse anatomy', 'mitochondria organelle', 'car engine')"
+}`
+            },
+            {
+                role: 'user',
+                content: `Topic query: "${cleanQuery}"`
+            }
+        ];
+
+        const llmRes = await getProviderResponse(conceptMessages, { jsonMode: true, maxTokens: 250, temperature: 0.1 });
+        const resText = llmRes?.choices?.[0]?.message?.content || '{}';
+        const parsed = JSON.parse(resText);
+
+        is3dPossible = !!parsed.is_3d_possible;
+        englishConcept = parsed.english_concept || cleanQuery;
+        searchQuery = parsed.search_query || englishConcept;
+
+        console.log(`🤖 [Sketchfab Concept Extractor] Query: "${cleanQuery}" -> Concept: "${englishConcept}", 3D Possible: ${is3dPossible}`);
+
+        if (!is3dPossible) {
+            // Cache failure and return
+            await MinervaSketchfabCache.create({
+                query: cleanQuery,
+                english_concept: englishConcept,
+                is_3d_possible: false,
+                model_id: null,
+                validated: true
+            }).catch(e => console.error("Cache save error:", e));
+            return null;
+        }
+    } catch (err) {
+        console.error("[Sketchfab Concept Extractor Error]", err);
+        // Fallback: try search query anyway using raw query
+        englishConcept = cleanQuery;
+        searchQuery = cleanQuery;
+        is3dPossible = true;
+    }
+
+    // Step 2: Fetch Candidates from Sketchfab API
+    const candidatesMap = new Map<string, any>();
+    try {
+        const fetch = (await import('node-fetch')).default;
+        
+        // Fetch annotated results
+        const annUrl = `https://api.sketchfab.com/v3/search?type=models&q=${encodeURIComponent(searchQuery + ' annotated')}`;
+        const annRes = await fetch(annUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36' }
+        });
+        const annData: any = await annRes.json();
+        if (annData?.results) {
+            annData.results.forEach((item: any) => {
+                if (item.uid && !item.isAgeRestricted) candidatesMap.set(item.uid, item);
+            });
+        }
+
+        // Fetch general results
+        const genUrl = `https://api.sketchfab.com/v3/search?type=models&q=${encodeURIComponent(searchQuery)}`;
+        const genRes = await fetch(genUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36' }
+        });
+        const genData: any = await genRes.json();
+        if (genData?.results) {
+            genData.results.forEach((item: any) => {
+                if (item.uid && !item.isAgeRestricted) candidatesMap.set(item.uid, item);
+            });
+        }
+    } catch (apiErr) {
+        console.error("[Sketchfab API Search Call Error]", apiErr);
+    }
+
+    const candidates = Array.from(candidatesMap.values()).slice(0, 5); // Limit to top 5 candidates for validation
+    if (candidates.length === 0) {
+        // Cache as no-model and return
+        await MinervaSketchfabCache.create({
+            query: cleanQuery,
+            english_concept: englishConcept,
+            is_3d_possible: true,
+            model_id: null,
+            validated: true
+        }).catch(e => console.error("Cache save error:", e));
+        return null;
+    }
+
+    // Step 3: AI Candidate Model Validator
+    try {
+        const candidateDetails = candidates.map(c => ({
+            uid: c.uid,
+            title: c.name || '',
+            description: (c.description || '').substring(0, 150),
+            tags: (c.tags || []).map((t: any) => t.name || t)
+        }));
+
+        const validatorMessages = [
+            {
+                role: 'system',
+                content: `You are an expert Academic Model Validator. Your job is to select the absolute best, most accurate, non-fake educational/scientific 3D model for the concept.
+Concept: "${englishConcept}"
+
+Compare the search candidates below. Reject any models that are generic geometric shapes, game assets (e.g. fantasy weapons, toys, cartoons), furniture, unrelated products, or fake models.
+The model must be a high-quality educational, biological, anatomical, physical, chemical, or mechanical model representing the concept.
+If none of the candidates are a high-quality match, return "has_match": false.
+
+Return ONLY valid JSON:
+{
+  "has_match": boolean,
+  "best_model_uid": "the matching model's exact uid" | null,
+  "reason": "short explanation of why it is valid or rejected"
+}`
+            },
+            {
+                role: 'user',
+                content: `Candidates: ${JSON.stringify(candidateDetails)}`
+            }
+        ];
+
+        const valRes = await getProviderResponse(validatorMessages, { jsonMode: true, maxTokens: 250, temperature: 0.1 });
+        const valText = valRes?.choices?.[0]?.message?.content || '{}';
+        const valParsed = JSON.parse(valText);
+
+        if (valParsed.has_match && valParsed.best_model_uid) {
+            const bestModel = candidates.find(c => c.uid === valParsed.best_model_uid);
+            if (bestModel) {
+                console.log(`✅ [Sketchfab AI Validator] Valid model found for "${englishConcept}": "${bestModel.name}" (UID: ${bestModel.uid})`);
+                
+                const cachedEntry = {
+                    query: cleanQuery,
+                    english_concept: englishConcept,
+                    is_3d_possible: true,
+                    model_id: bestModel.uid,
+                    name: bestModel.name,
+                    viewer_url: bestModel.viewerUrl,
+                    thumbnail: bestModel.thumbnails?.images?.[0]?.url || null,
+                    validated: true
+                };
+
+                await MinervaSketchfabCache.create(cachedEntry).catch(e => console.error("Cache save error:", e));
+
+                return {
+                    model_id: bestModel.uid,
+                    name: bestModel.name,
+                    viewer_url: bestModel.viewerUrl,
+                    thumbnail: cachedEntry.thumbnail
+                };
+            }
+        }
+        
+        console.log(`❌ [Sketchfab AI Validator] No suitable models matched the concept "${englishConcept}" out of candidates.`);
+    } catch (valErr) {
+        console.error("[Sketchfab Validation Step Error]", valErr);
+    }
+
+    // Cache failure if we reach here
+    await MinervaSketchfabCache.create({
+        query: cleanQuery,
+        english_concept: englishConcept,
+        is_3d_possible: true,
+        model_id: null,
+        validated: true
+    }).catch(e => console.error("Cache save error:", e));
+
+    return null;
 };
 
 

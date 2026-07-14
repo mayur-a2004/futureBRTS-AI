@@ -7,6 +7,7 @@ import DiagramLab from './modules/DiagramLab';
 import VideoLab from './modules/VideoLab';
 import { Model3DLab } from './modules/Model3DLab';
 import SandboxLab from './modules/SandboxLab';
+import { InteractiveLab } from './modules/InteractiveLab';
 
 
 interface DynamicLabEngineProps {
@@ -223,6 +224,14 @@ export const DynamicLabEngine: React.FC<DynamicLabEngineProps> = ({
             subject={labConfig.subject}
             topic={labConfig.topic}
             sandboxConfig={labConfig.sandbox_config}
+          />
+        );
+      case 'interactive':
+        return (
+          <InteractiveLab
+            subject={labConfig.subject}
+            topic={labConfig.topic}
+            interactiveConfig={labConfig.interactive_config}
           />
         );
       default:

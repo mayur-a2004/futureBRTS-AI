@@ -96,13 +96,20 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
                       sketchfab_hint === '3d6e5d8a9e7f4c17b5f00e28f3a38ca4' || 
                       sketchfab_hint.includes('default') || 
                       sketchfab_hint.includes('3d model ID') || 
-                      sketchfab_hint.length > 45;
+                      sketchfab_hint.length > 45 ||
+                      sketchfab_hint === 'none' ||
+                      sketchfab_hint === 'null';
+
+    if (isInvalid) {
+      setActiveModelId(null);
+      setSketchfabLoading(false);
+      return;
+    }
 
     setSketchfabLoading(true);
     const token = localStorage.getItem('fbrts_token');
     
-    const searchQuery = (!isInvalid && sketchfab_hint) ? sketchfab_hint : (three_js_config?.title || _subject || 'science');
-    const cleanQuery = searchQuery
+    const cleanQuery = sketchfab_hint
       .replace(/Interactive/gi, '')
       .replace(/Simulator/gi, '')
       .replace(/Simulation/gi, '')
@@ -116,12 +123,14 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
         if (data.success && data.model_id) {
           setActiveModelId(data.model_id);
         } else {
-          setActiveModelId('57e27538f97a4617a716c3ca5448b6b7'); // DNA model fallback
+          setActiveModelId(null);
         }
+        setSketchfabLoading(false);
       })
       .catch(err => {
         console.error('Sketchfab dynamic search failed:', err);
-        setActiveModelId('57e27538f97a4617a716c3ca5448b6b7');
+        setActiveModelId(null);
+        setSketchfabLoading(false);
       });
   }, [sketchfab_hint, three_js_config, _subject]);
 
@@ -1898,7 +1907,7 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
     setParams((prev) => ({ ...prev, [key]: val }));
   };
 
-  const isSketchfab = !!sketchfab_hint;
+  const isSketchfab = !!sketchfab_hint && !!activeModelId;
 
   return (
     <div
@@ -2007,12 +2016,14 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
         ) : (three_js_config || show2DInterpretation) ? (
           <canvas ref={canvasRef} className="w-full h-full block cursor-pointer" />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-950/80">
-            <div className="relative w-16 h-16">
-              <div className="absolute inset-0 border-2 border-indigo-500/20 rounded-lg"></div>
-              <div className="absolute inset-0 border-2 border-t-indigo-500 rounded-lg animate-spin"></div>
+          <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-950/80 p-6 text-center">
+            <div className="w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[20px] mb-3">
+              🧊
             </div>
-            <p className="mt-4 text-zinc-400 text-sm font-medium">Virtual 3D Model Loading...</p>
+            <h5 className="text-sm font-bold text-white mb-1">No 3D Model Available</h5>
+            <p className="text-xs text-zinc-400 max-w-[280px] leading-relaxed">
+              This specific topic does not have a 3D model representation. Try switching to the <strong>Explain</strong>, <strong>Diagram</strong>, or <strong>Interactive Lab</strong> tabs above!
+            </p>
           </div>
         )}
       </div>

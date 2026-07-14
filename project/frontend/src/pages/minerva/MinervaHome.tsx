@@ -282,7 +282,7 @@ const MinervaHome: React.FC = () => {
     const [mobileNumber, setMobileNumber] = useState('');
     const [standard, setStandard] = useState('10');
     const [board, setBoard] = useState('CBSE');
-    const [onboardingCity, setOnboardingCity] = useState('Gandhinagar');
+    const [onboardingCity, setOnboardingCity] = useState('');
     const [suggestedSchools, setSuggestedSchools] = useState<string[]>([]);
     const [showSchoolSuggestions, setShowSchoolSuggestions] = useState(false);
     const [onboardingSubmitting, setOnboardingSubmitting] = useState(false);
@@ -501,7 +501,7 @@ const MinervaHome: React.FC = () => {
                     setMobileNumber(res.profile.mobile_number || '');
                     setStandard(res.profile.grade_level || '10');
                     setBoard(res.profile.board || 'CBSE');
-                    setOnboardingCity(res.profile.state || 'Gandhinagar');
+                    setOnboardingCity(res.profile.state || '');
                 }
             }
         } catch (err) {
@@ -648,6 +648,39 @@ const MinervaHome: React.FC = () => {
         try {
             const res = await minervaApi.sendChat(token, msgText, undefined, activeSessionId || undefined, isDeepStudy);
             if (res.success) {
+                // Extract & load Virtual Lab Config
+                if (res.metadata?.lab_config) {
+                    const config = res.metadata.lab_config;
+                    const validSubjects = ['physics', 'chemistry', 'mathematics', 'biology'];
+                    if (validSubjects.includes(config.subject?.toLowerCase())) {
+                        setActiveLabConfig(config);
+                        if (config.auto_open) {
+                            setLabPanelOpen(true);
+                        }
+
+                        // Dynamically fetch YouTube video ID if not preset
+                        if (config.youtube_query && !config.youtube_video_id) {
+                            try {
+                                const ytRes = await fetch(`/api/future-education/lab/youtube-search?query=${encodeURIComponent(config.youtube_query)}`, {
+                                    headers: { 'Authorization': `Bearer ${token}` }
+                                });
+                                const ytData = await ytRes.json();
+                                if (ytData.success && ytData.video_id) {
+                                    setActiveLabConfig((prev: any) => prev ? { ...prev, youtube_video_id: ytData.video_id } : null);
+                                }
+                            } catch (err) {
+                                console.error('Failed to pre-fetch YouTube video ID for lab:', err);
+                            }
+                        }
+                    } else {
+                        setActiveLabConfig(null);
+                        setLabPanelOpen(false);
+                    }
+                } else {
+                    setActiveLabConfig(null);
+                    setLabPanelOpen(false);
+                }
+
                 const minervaMsg: ChatMessage = {
                     role: 'minerva',
                     content: res.reply,
@@ -655,30 +688,6 @@ const MinervaHome: React.FC = () => {
                     metadata: res.metadata,
                 };
                 setMessages(prev => [...prev, minervaMsg]);
-
-                // Extract & load Virtual Lab Config
-                if (res.metadata?.lab_config) {
-                    const config = res.metadata.lab_config;
-                    setActiveLabConfig(config);
-                    if (config.auto_open) {
-                        setLabPanelOpen(true);
-                    }
-
-                    // Dynamically fetch YouTube video ID if not preset
-                    if (config.youtube_query && !config.youtube_video_id) {
-                        try {
-                            const ytRes = await fetch(`/api/future-education/lab/youtube-search?query=${encodeURIComponent(config.youtube_query)}`, {
-                                headers: { 'Authorization': `Bearer ${token}` }
-                            });
-                            const ytData = await ytRes.json();
-                            if (ytData.success && ytData.video_id) {
-                                setActiveLabConfig((prev: any) => prev ? { ...prev, youtube_video_id: ytData.video_id } : null);
-                            }
-                        } catch (err) {
-                            console.error('Failed to pre-fetch YouTube video ID for lab:', err);
-                        }
-                    }
-                }
 
                 // Auto-read response removed (manual play only)
 
@@ -1528,6 +1537,7 @@ const MinervaHome: React.FC = () => {
                                         placeholder="Enter your name" 
                                         value={studentName}
                                         onChange={e => setStudentName(e.target.value)}
+                                        autoComplete="new-password"
                                         className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none focus:border-indigo-500/40"
                                     />
                                 </div>
@@ -1540,6 +1550,7 @@ const MinervaHome: React.FC = () => {
                                         placeholder="Enter your city (e.g. Surat, Mumbai, Jaipur...)"
                                         value={onboardingCity}
                                         onChange={e => setOnboardingCity(e.target.value)}
+                                        autoComplete="new-password"
                                         className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none focus:border-indigo-500/40 placeholder:text-gray-700"
                                     />
                                 </div>
@@ -1559,6 +1570,7 @@ const MinervaHome: React.FC = () => {
                                         }}
                                         onFocus={() => setShowSchoolSuggestions(true)}
                                         onBlur={() => setTimeout(() => setShowSchoolSuggestions(false), 200)}
+                                        autoComplete="new-password"
                                         className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none focus:border-indigo-500/40"
                                     />
                                     {showSchoolSuggestions && suggestedSchools.length > 0 && (
@@ -1593,6 +1605,7 @@ const MinervaHome: React.FC = () => {
                                         placeholder="Enter 10-digit mobile number" 
                                         value={mobileNumber}
                                         onChange={e => setMobileNumber(e.target.value)}
+                                        autoComplete="new-password"
                                         className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none focus:border-indigo-500/40"
                                     />
                                 </div>

@@ -30,7 +30,7 @@ export const LabControlPanel: React.FC<LabControlPanelProps> = ({
   return (
     <div className="w-full flex flex-col bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden shadow-xl">
       {/* Tab Navigation */}
-      <div className="flex border-b border-zinc-800 overflow-x-auto scrollbar-thin">
+      <div className="flex border-b border-zinc-800 overflow-x-auto visible-scrollbar">
         {availableLayers.map((layer) => {
           const isActive = activeLayer === layer;
           return (
@@ -114,6 +114,21 @@ export const LabControlPanel: React.FC<LabControlPanelProps> = ({
           </div>
         </div>
       </div>
+      <style>{`
+        .visible-scrollbar::-webkit-scrollbar {
+          height: 5px;
+        }
+        .visible-scrollbar::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.03);
+        }
+        .visible-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(99, 102, 241, 0.4);
+          border-radius: 99px;
+        }
+        .visible-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(99, 102, 241, 0.7);
+        }
+      `}</style>
     </div>
   );
 };

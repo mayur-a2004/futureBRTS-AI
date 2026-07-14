@@ -281,6 +281,12 @@ export default function Builder() {
                     setUserRank(data.session.userContext.rank);
                 }
                 localStorage.setItem('fbrts_active_session', id); // Remember for subsequent page reloads
+            } else {
+                console.warn('⚠️ Session not found on server. Clearing active session.');
+                localStorage.removeItem('fbrts_active_session');
+                setSearchParams({});
+                setCurrentLoadedId(null);
+                setMessages([]);
             }
         } catch (e) {
             console.error(e);

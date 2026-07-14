@@ -7,6 +7,7 @@ export interface IMinervaLabCache extends Document {
     description: string;
     sketchfab_hint: string | null;
     three_js_config: any | null;
+    interactive_config: any | null;
     youtube_query: string;
     mermaid_schema: string | null;
     voice_script: string | null;
@@ -21,6 +22,7 @@ const MinervaLabCacheSchema = new Schema({
     description: { type: String, default: '' },
     sketchfab_hint: { type: String, default: null },
     three_js_config: { type: Schema.Types.Mixed, default: null },
+    interactive_config: { type: Schema.Types.Mixed, default: null },
     youtube_query: { type: String, default: '' },
     mermaid_schema: { type: String, default: null },
     voice_script: { type: String, default: null }

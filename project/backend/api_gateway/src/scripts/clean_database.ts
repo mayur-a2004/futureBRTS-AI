@@ -25,6 +25,30 @@ const cleanDatabase = async () => {
             }
         }
 
+        // 🔄 Reset onboarding and stats for all users
+        const userRes = await db.collection('users').updateMany({}, {
+            $set: {
+                onboarding_status: 'NOT_STARTED',
+                onboardingCompleted: false,
+                xp: 0,
+                level: 1,
+                badges: [],
+                battleStats: {
+                    totalBattles: 0,
+                    wins: 0,
+                    losses: 0,
+                    draws: 0,
+                    totalDamageDealt: 0,
+                    longestStreak: 0
+                },
+                tokenBalance: 1000,
+                isPremium: false,
+                subscriptionTier: 'free',
+                adConsumptionCount: 0
+            }
+        });
+        console.log(`🔄 Reset onboarding and stats for ${userRes.modifiedCount} users.`);
+
         console.log('✨ Database clean-up process completed successfully!');
         process.exit(0);
     } catch (err) {
