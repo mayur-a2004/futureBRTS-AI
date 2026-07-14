@@ -82,7 +82,7 @@ const cleanQuestionText = (text?: string): string => {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const MODES = [
-    { id: 'SOLO_VS_AI',    label: 'Solo vs AI',    icon: '🤖', desc: 'Battle Minerva AI' },
+    { id: 'SOLO_VS_AI',    label: 'Solo vs AI',    icon: '🤖', desc: 'Battle Future Education OS AI' },
     { id: 'SOLO_VS_SOLO',  label: 'Solo vs Solo',  icon: '⚔️', desc: '1v1 Duel' },
     { id: 'SOLO_VS_DUO',   label: 'Solo vs Duo',   icon: '⚡',    desc: '1 vs 2' },
     { id: 'SOLO_VS_TRIO',  label: 'Solo vs Trio',  icon: '💀', desc: '1 vs 3 – Brave!' },
@@ -742,7 +742,7 @@ export default function MinervaQuizBattlePage() {
         },
         {
             id: 't2',
-            title: 'Minerva Weekly Math Olympiad',
+            title: 'Future Education OS Weekly Math Olympiad',
             subject: 'Mathematics',
             startTime: new Date(Date.now() + 115 * 60 * 1000 + 30 * 1000),
             prizePool: '3,000 XP + Scholar Rank Up multiplier',
@@ -1076,8 +1076,8 @@ export default function MinervaQuizBattlePage() {
             // Add detailed battle feed activity message
             if (d.event === 'AI_ANSWER') {
                 const msg = d.isCorrect
-                    ? `🤖 Minerva AI answered CORRECTLY! Dealt ${d.damage} damage to Team Alpha.`
-                    : `💥 Minerva AI got it WRONG! Minerva took ${d.damage} self-damage.`;
+                    ? `🤖 Future Education OS AI answered CORRECTLY! Dealt ${d.damage} damage to Team Alpha.`
+                    : `💥 Future Education OS AI got it WRONG! It took ${d.damage} self-damage.`;
                 setBattleFeed(prev => [msg, ...prev].slice(0, 15));
             } else if (d.event === 'ANSWER') {
                 const name = d.playerName || 'Teammate';
@@ -1698,7 +1698,7 @@ export default function MinervaQuizBattlePage() {
     const tutorialSteps = [
         {
             title: "Welcome to the Quiz Arena! ⚔️",
-            desc: "The Quiz Arena is an RPG battle simulator where knowledge is your ultimate weapon. You'll compete against other students or our intelligent Minerva Bot using standard curriculum-aligned questions.",
+            desc: "The Quiz Arena is an RPG battle simulator where knowledge is your ultimate weapon. You'll compete against other students or our intelligent Future Education OS Bot using standard curriculum-aligned questions.",
             icon: "🏆"
         },
         {
@@ -2144,7 +2144,7 @@ export default function MinervaQuizBattlePage() {
                                             </div>
                                             <h3 className="text-xl font-black text-white">Daily Battle Challenge</h3>
                                             <p className="text-xs text-slate-400 mt-1">
-                                                Today's Subject: <span className="font-bold text-slate-200">{dailySubject}</span> · 10 rounds against Minerva Scholar AI.
+                                                Today's Subject: <span className="font-bold text-slate-200">{dailySubject}</span> · 10 rounds against Future Education OS Scholar AI.
                                             </p>
                                         </div>
                                         <div className="shrink-0 w-full md:w-auto">
@@ -2412,7 +2412,7 @@ export default function MinervaQuizBattlePage() {
                         {/* AI Difficulty */}
                         {selMode === 'SOLO_VS_AI' && (
                             <div className="mb-6">
-                                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Minerva AI Difficulty</div>
+                                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Future Education OS AI Difficulty</div>
                                 <div className="grid grid-cols-3 gap-3">
                                     {AI_DIFFS.map(a => (
                                         <button key={a.id} onClick={() => setSelAiDiff(a.id)}
@@ -2810,13 +2810,13 @@ export default function MinervaQuizBattlePage() {
                             <div className="bg-[#210b10] border border-rose-900/30 rounded-3xl p-5 shadow-xl">
                                 <div className="text-xs font-black uppercase tracking-widest text-rose-450 mb-4 flex items-center gap-2 border-b border-rose-950/40 pb-2">
                                     {room.mode === 'SOLO_VS_AI' ? <Bot className="w-4 h-4 text-rose-450" /> : <Flame className="w-4 h-4 text-rose-450" />}
-                                    {room.mode === 'SOLO_VS_AI' ? `Minerva AI Bot` : `Team Omega (${teamBPlayers.length} / ${room.teamBSizeTarget})`}
+                                    {room.mode === 'SOLO_VS_AI' ? `Future Education OS Bot` : `Team Omega (${teamBPlayers.length} / ${room.teamBSizeTarget})`}
                                 </div>
                                 <div className="space-y-2">
                                     {room.mode === 'SOLO_VS_AI' ? (
                                         <div className="flex items-center gap-3 bg-[#1d080c]/60 border border-rose-950/30 px-3.5 py-2.5 rounded-2xl">
                                             <div className="w-7 h-7 rounded-full bg-rose-600 flex items-center justify-center"><Bot className="w-4 h-4 text-white" /></div>
-                                            <span className="font-bold text-sm">Minerva Bot</span>
+                                            <span className="font-bold text-sm">Future Education OS Bot</span>
                                             <span className="ml-auto text-[10px] bg-rose-900/40 text-rose-305 px-2.5 py-0.5 rounded-full font-black">{room.aiDifficulty}</span>
                                         </div>
                                     ) : (
@@ -2929,7 +2929,7 @@ export default function MinervaQuizBattlePage() {
                                     </div>
                                     <div className="text-left min-w-0">
                                         <div className="text-xs font-black text-rose-450 tracking-widest uppercase">
-                                            {room.mode === 'SOLO_VS_AI' ? 'Minerva AI' : 'Team Omega'}
+                                            {room.mode === 'SOLO_VS_AI' ? 'Future Education OS AI' : 'Team Omega'}
                                         </div>
                                         <div className="text-[9px] text-slate-500 truncate">
                                             {room.mode === 'SOLO_VS_AI' ? `${room.aiDifficulty} Cyborg` : 'Challengers'}
@@ -2944,7 +2944,7 @@ export default function MinervaQuizBattlePage() {
                                         return (
                                             <div className="flex items-center justify-between text-[10px]">
                                                 <span className="font-bold text-rose-300">
-                                                    🤖 Minerva Bot
+                                                    🤖 Future Education OS Bot
                                                 </span>
                                                 <span className={`text-[8px] font-black px-2 py-0.5 rounded-full ${answered ? 'bg-emerald-950/60 text-emerald-450 border border-emerald-500/20' : 'bg-slate-900 text-slate-500 border border-slate-800'}`}>
                                                     {answered ? '✓ DONE' : '⏳ THINKING'}
@@ -3207,7 +3207,7 @@ export default function MinervaQuizBattlePage() {
                         {/* Scorecards */}
                         <div className="space-y-4 mb-6">
                             {[{ players: teamAPlayers, teamKey: 'A', label: 'Team Alpha', icon: <Shield className="w-3.5 h-3.5" />, color: 'indigo' },
-                              { players: room.mode === 'SOLO_VS_AI' ? [] : teamBPlayers, teamKey: 'B', label: room.mode === 'SOLO_VS_AI' ? 'Minerva AI' : 'Team Omega', icon: room.mode === 'SOLO_VS_AI' ? <Bot className="w-3.5 h-3.5" /> : <Flame className="w-3.5 h-3.5" />, color: 'rose' }
+                              { players: room.mode === 'SOLO_VS_AI' ? [] : teamBPlayers, teamKey: 'B', label: room.mode === 'SOLO_VS_AI' ? 'Future Education OS AI' : 'Team Omega', icon: room.mode === 'SOLO_VS_AI' ? <Bot className="w-3.5 h-3.5" /> : <Flame className="w-3.5 h-3.5" />, color: 'rose' }
                             ].map(({ players, teamKey, label, icon, color }) => (
                                 <div key={teamKey} className={`bg-${color}-950/15 border border-${color}-900/35 rounded-3xl p-4.5 shadow-xl`}>
                                     <div className={`text-[10px] font-black uppercase tracking-widest text-${color}-400 mb-3 flex items-center gap-1.5 border-b border-${color}-950/30 pb-2`}>
@@ -3217,7 +3217,7 @@ export default function MinervaQuizBattlePage() {
                                     {room.mode === 'SOLO_VS_AI' && teamKey === 'B' ? (
                                         <div className="flex items-center gap-3 bg-slate-900/40 rounded-2xl px-4 py-3">
                                             <Bot className="w-5 h-5 text-rose-450" />
-                                            <span className="font-bold text-sm">Minerva Bot</span>
+                                            <span className="font-bold text-sm">Future Education OS Bot</span>
                                             <span className="ml-auto text-xs text-slate-500 font-bold">Grade Adaptive AI ({room.aiDifficulty})</span>
                                         </div>
                                     ) : players.map(p => {

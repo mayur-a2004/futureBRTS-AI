@@ -366,10 +366,10 @@ const MinervaExamPage: React.FC = () => {
                         {/* Holographic Verification Stamp */}
                         <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between relative z-10 text-[9px]">
                             <div className="text-gray-500 uppercase tracking-wider font-bold">
-                                SIGNED BY: <span className="text-indigo-400">Minerva AI Grader Engine</span>
+                                SIGNED BY: <span className="text-indigo-400">Future Education OS Grader Engine</span>
                             </div>
                             <div className="flex items-center gap-1 bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 px-2 py-0.5 rounded uppercase tracking-wider font-bold">
-                                🛡️ Minerva Verified
+                                🛡️ Future Education OS Verified
                             </div>
                         </div>
                     </div>

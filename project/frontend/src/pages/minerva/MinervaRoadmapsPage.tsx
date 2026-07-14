@@ -119,7 +119,7 @@ const MinervaRoadmapsPage: React.FC = () => {
                         <h2 className="text-2xl font-black font-display tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-200 mb-3">Structured, Board-Aligned Study Pathways</h2>
                         <p className="text-gray-400 text-xs leading-relaxed font-normal">
                             Start study sessions for school boards (CBSE, Maharashtra SSC, State Boards) or competitive exams (JEE, NEET, UPSC). 
-                            Minerva's AI will draft a customized step-by-step pathway, complete with detailed notes, exercises, and exams.
+                            Future Education OS's AI will draft a customized step-by-step pathway, complete with detailed notes, exercises, and exams.
                         </p>
                     </div>
                 </div>

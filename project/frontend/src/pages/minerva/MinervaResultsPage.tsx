@@ -97,7 +97,7 @@ const MinervaResultsPage: React.FC = () => {
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
                         <div>
                             <div className="text-[10px] font-black text-indigo-400 tracking-[0.25em] uppercase mb-1">
-                                {profile?.school_name || 'MINERVA ACADEMY OS'}
+                                {profile?.school_name || 'FUTURE EDUCATION OS ACADEMY'}
                             </div>
                             <h2 className="text-xl font-black text-white uppercase tracking-wide">
                                 {profile?.name || user?.name || 'Scholar Student'}

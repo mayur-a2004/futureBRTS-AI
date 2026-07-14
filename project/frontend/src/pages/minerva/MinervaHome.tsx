@@ -1203,10 +1203,10 @@ const MinervaHome: React.FC = () => {
                             
                             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/25 text-indigo-300 text-[10px] font-bold tracking-wider uppercase mb-4 shadow-lg">
                                 <Brain size={12} className="animate-pulse text-indigo-400" /> 
-                                <span className="font-display">Future Education OS</span>
+                                <span className="font-display">Future BRTS</span>
                             </div>
                             <h1 className="text-4xl font-black font-display tracking-tight leading-none bg-clip-text text-transparent bg-gradient-to-b from-white via-gray-100 to-indigo-200">
-                                Meet Minerva
+                                Future Education OS
                             </h1>
                             <p className="text-indigo-300/90 text-sm font-semibold tracking-wide mt-1 uppercase font-display">
                                 Your Advanced Personal AI Tutor
