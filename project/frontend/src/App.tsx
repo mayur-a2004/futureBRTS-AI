@@ -68,6 +68,7 @@ const PermissionsManager = lazy(() => import('./pages/admin/PermissionsManager')
 const AdvancedSettings = lazy(() => import('./pages/admin/AdvancedSettings'));
 const TrackingLogs = lazy(() => import('./pages/admin/TrackingLogs'));
 const IntelligenceDashboard = lazy(() => import('./pages/admin/IntelligenceDashboard'));
+const EducationOSManager = lazy(() => import('./pages/admin/EducationOSManager'));
 
 const Checkout = lazy(() => import('./pages/payment/Checkout'));
 const Success = lazy(() => import('./pages/payment/Success'));
@@ -301,6 +302,7 @@ function App() {
                                                     <Route path="settings" element={<AdvancedSettings />} />
                                                     <Route path="tracking" element={<TrackingLogs />} />
                                                     <Route path="intelligence" element={<IntelligenceDashboard />} />
+                                                    <Route path="education" element={<EducationOSManager />} />
                                                     <Route index element={<Navigate to="dashboard" replace />} />
                                                 </Route>
 

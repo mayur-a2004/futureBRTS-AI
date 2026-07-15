@@ -57,6 +57,7 @@ router.get('/projects', adminController.getAllCollageProjects);
 router.get('/user/:userId', adminController.getUserFullDetail);
 router.get('/session/:sessionId/messages', adminController.getSessionMessages);
 router.get('/seo-analytics', adminController.getSEOKeywordAnalytics);
+router.get('/education-stats', adminController.getFutureEducationOSStats);
 
 // 🛡️ Advanced Config (New)
 router.post('/settings/ai', adminController.updateAISettings);

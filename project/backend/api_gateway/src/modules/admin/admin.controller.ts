@@ -506,6 +506,61 @@ export const adminController = {
         } catch (err: any) {
             res.status(500).json({ success: false, error: err.message });
         }
+    },
+
+    // 🎓 Future Education OS Analytics
+    getFutureEducationOSStats: async (req: Request, res: Response) => {
+        try {
+            // Lazy load the models to prevent circular dependencies or import order issues
+            const MinervaStudentProfile = require('../minerva/models/minerva_student_profile.model').default;
+            const MinervaStudySession = require('../minerva/models/minerva_study_session.model').default;
+            const MinervaExam = require('../minerva/models/minerva_exam.model').default;
+            const MinervaTask = require('../minerva/models/minerva_task.model').default;
+            const ArenaRoom = require('../minerva/models/quiz_battle.model').default;
+            const ExamPaper = require('../../models/exam_paper.model').default;
+
+            const [
+                totalProfiles,
+                totalStudySessions,
+                totalExamsGraded,
+                totalTasksCreated,
+                totalBattlesPlayed,
+                totalTeacherPapers,
+                recentExams,
+                recentSessions,
+                recentBattles,
+                studentProfiles
+            ] = await Promise.all([
+                MinervaStudentProfile.countDocuments(),
+                MinervaStudySession.countDocuments(),
+                MinervaExam.countDocuments(),
+                MinervaTask.countDocuments(),
+                ArenaRoom.countDocuments(),
+                ExamPaper.countDocuments(),
+                MinervaExam.find().populate('userId', 'firstName lastName email').sort({ createdAt: -1 }).limit(10),
+                MinervaStudySession.find().populate('userId', 'firstName lastName email').sort({ createdAt: -1 }).limit(10),
+                ArenaRoom.find().populate('players.userId', 'firstName lastName').sort({ createdAt: -1 }).limit(10),
+                MinervaStudentProfile.find().populate('userId', 'firstName lastName email').sort({ coins: -1 }).limit(20)
+            ]);
+
+            res.json({
+                success: true,
+                stats: {
+                    totalProfiles,
+                    totalStudySessions,
+                    totalExamsGraded,
+                    totalTasksCreated,
+                    totalBattlesPlayed,
+                    totalTeacherPapers
+                },
+                recentExams,
+                recentSessions,
+                recentBattles,
+                studentProfiles
+            });
+        } catch (err: any) {
+            res.status(500).json({ success: false, error: err.message });
+        }
     }
 };
 

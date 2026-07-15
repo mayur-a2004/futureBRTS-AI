@@ -18,7 +18,8 @@ import {
     Coins,
     MessageSquare,
     Sparkles,
-    Briefcase
+    Briefcase,
+    GraduationCap
 } from 'lucide-react';
 
 interface SidebarItemProps {
@@ -50,6 +51,7 @@ export default function AdminSidebar({ isCollapsed, toggleSidebar, logout }: { i
         { name: "Users", path: "/admin/users", icon: <Users size={20} /> },
         { name: "Project Registry", path: "/admin/projects", icon: <Briefcase size={20} /> },
         { name: "AI Config", path: "/admin/ai", icon: <Brain size={20} /> },
+        { name: "Future Education OS", path: "/admin/education", icon: <GraduationCap size={20} /> },
         { name: "Economy Hub", path: "/admin/economy", icon: <Coins size={20} /> },
         { name: "Chat Monitor", path: "/admin/chats", icon: <MessageSquare size={20} /> },
         { name: "SEO Management", path: "/admin/seo", icon: <Search size={20} /> },
