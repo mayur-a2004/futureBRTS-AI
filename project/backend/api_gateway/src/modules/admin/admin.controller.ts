@@ -15,6 +15,16 @@ import StrategicAnalytic from '../analytics/strategic.analytic.model';
 import SkillGap from '../analytics/skill.gap.model';
 import { OnboardingProfile } from '../onboarding/onboarding.model';
 import CollageProject from '../collage_project/collage_project.model';
+import LandingIntent from '../analytics/intent.model';
+
+// Future Education OS Models
+import MinervaChatSession from '../minerva/models/minerva_chat_session.model';
+import MinervaChatMessage from '../minerva/models/minerva_chat_message.model';
+import MinervaStudySession from '../minerva/models/minerva_study_session.model';
+import MinervaTask from '../minerva/models/minerva_task.model';
+import ArenaRoom from '../minerva/models/quiz_battle.model';
+import MinervaExam from '../minerva/models/minerva_exam.model';
+import ExamPaper from '../../models/exam_paper.model';
 
 export const adminController = {
     // 🧠 Intelligence & SEO Analytics
@@ -410,32 +420,7 @@ export const adminController = {
         }
     },
 
-    // 📈 Detailed SEO & Intelligence Audit
-    getSEOKeywordAnalytics: async (req: Request, res: Response) => {
-        try {
-            const data = await analyticsService.getIntelligenceData();
-            const keywordDeepAnalysis = data?.keywords.map((k: any) => {
-                // Generate deterministic ranking instead of Math.random()
-                const hashValue = k._id.split('').reduce((a: number, b: string) => a + b.charCodeAt(0), 0);
-                return {
-                    keyword: k._id,
-                    volume: (k.count || 1) * 12,
-                    ranking: (hashValue % 10) + 1, // Deterministic ranking between 1 and 10 based on keyword string
-                    difficulty: hashValue % 2 === 0 ? 'Hard' : 'Medium',
-                    trend: k.count > 5 ? 'Increasing' : 'Stable'
-                };
-            });
 
-            res.json({
-                success: true,
-                currentKeywords: keywordDeepAnalysis,
-                locations: data?.locations,
-                intents: data?.intents
-            });
-        } catch (err: any) {
-            res.status(500).json({ success: false, error: err.message });
-        }
-    },
 
     // 🗺️🎯✅ Chat → Roadmap → Task → Verification Pipeline Overview
     getChatRoadmapTaskOverview: async (req: Request, res: Response) => {
@@ -557,6 +542,346 @@ export const adminController = {
                 recentSessions,
                 recentBattles,
                 studentProfiles
+            });
+        } catch (err: any) {
+            res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    // 🎓 Future Education OS: Tutor Chat Logs
+    getEducationTutorChats: async (req: Request, res: Response) => {
+        try {
+            const sessions = await MinervaChatSession.find()
+                .populate('userId', 'firstName lastName email')
+                .sort({ updatedAt: -1 });
+            
+            const logs = await Promise.all(sessions.map(async (s: any) => {
+                const messageCount = await MinervaChatMessage.countDocuments({ chat_session_id: s._id });
+                const lastMsg = await MinervaChatMessage.findOne({ chat_session_id: s._id }).sort({ createdAt: -1 });
+                return {
+                    id: s._id,
+                    user: s.userId ? `${s.userId.firstName} ${s.userId.lastName}` : 'Guest',
+                    email: s.userId?.email || 'N/A',
+                    userId: s.userId ? s.userId._id : null,
+                    title: s.title,
+                    summary: s.summary || 'No summary',
+                    messageCount,
+                    lastMessage: lastMsg?.content || 'No messages yet',
+                    lastRole: lastMsg?.role || 'minerva',
+                    timestamp: s.updatedAt
+                };
+            }));
+
+            res.json({ success: true, logs });
+        } catch (err: any) {
+            res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    // 🎓 Future Education OS: Study Roadmaps
+    getEducationRoadmaps: async (req: Request, res: Response) => {
+        try {
+            const roadmaps = await MinervaStudySession.find()
+                .populate('userId', 'firstName lastName email')
+                .sort({ updatedAt: -1 });
+            
+            const logs = roadmaps.map((r: any) => ({
+                id: r._id,
+                user: r.userId ? `${r.userId.firstName} ${r.userId.lastName}` : 'Unknown',
+                email: r.userId?.email || 'N/A',
+                userId: r.userId ? r.userId._id : null,
+                title: r.title,
+                subject: r.subject || 'General',
+                board: r.board,
+                grade: r.grade_level,
+                progress: r.progress_percent,
+                nodesCount: r.total_nodes,
+                completedNodes: r.completed_nodes,
+                source: r.source_type,
+                timestamp: r.updatedAt
+            }));
+
+            res.json({ success: true, roadmaps: logs });
+        } catch (err: any) {
+            res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    // 🎓 Future Education OS: Study Tasks
+    getEducationTasks: async (req: Request, res: Response) => {
+        try {
+            const tasks = await MinervaTask.find()
+                .populate('userId', 'firstName lastName email')
+                .sort({ updatedAt: -1 });
+            
+            const logs = tasks.map((t: any) => ({
+                id: t._id,
+                user: t.userId ? `${t.userId.firstName} ${t.userId.lastName}` : 'Unknown',
+                email: t.userId?.email || 'N/A',
+                userId: t.userId ? t.userId._id : null,
+                type: t.type,
+                taskType: t.task_type,
+                topic: t.topic_title || 'General',
+                subject: t.subject || 'Unknown',
+                prompt: t.prompt,
+                answer: t.student_answer,
+                score: t.ai_score,
+                feedback: t.ai_feedback,
+                passed: t.passed,
+                submitted: t.submitted,
+                timestamp: t.submitted_at || t.updatedAt
+            }));
+
+            res.json({ success: true, tasks: logs });
+        } catch (err: any) {
+            res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    // 🎓 Future Education OS: 1v1 Quiz Battles
+    getEducationBattles: async (req: Request, res: Response) => {
+        try {
+            const battles = await ArenaRoom.find()
+                .populate('hostId', 'firstName lastName email')
+                .sort({ updatedAt: -1 });
+            
+            const logs = battles.map((b: any) => ({
+                id: b._id,
+                roomCode: b.roomCode,
+                host: b.hostId ? `${b.hostId.firstName} ${b.hostId.lastName}` : 'System',
+                userId: b.hostId ? b.hostId._id : null,
+                status: b.status,
+                mode: b.mode,
+                style: b.battleStyle,
+                subject: b.subject,
+                standard: b.standard,
+                board: b.board,
+                topic: b.topicRaw || b.topicConcept || 'General',
+                playersCount: b.players?.length || 0,
+                players: b.players?.map((p: any) => ({
+                    name: p.firstName,
+                    team: p.team,
+                    hp: p.hp,
+                    score: p.score
+                })) || [],
+                rounds: b.currentRound,
+                totalRounds: b.totalRounds,
+                winner: b.winnerTeam || 'N/A',
+                timestamp: b.updatedAt
+            }));
+
+            res.json({ success: true, battles: logs });
+        } catch (err: any) {
+            res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    // 🎓 Future Education OS: E-Builder Projects
+    getEducationBuilderProjects: async (req: Request, res: Response) => {
+        try {
+            const projects = await CollageProject.find()
+                .populate('userId', 'firstName lastName email')
+                .sort({ updatedAt: -1 });
+            
+            const logs = projects.map((p: any) => ({
+                id: p._id,
+                user: p.userId ? `${p.userId.firstName} ${p.userId.lastName}` : 'Unknown',
+                email: p.userId?.email || 'N/A',
+                userId: p.userId ? p.userId._id : null,
+                title: p.title || 'Untitled App',
+                category: p.category,
+                field: p.field,
+                subCategory: p.subCategory,
+                tech: p.technologyStack,
+                status: p.status,
+                step: p.currentStep,
+                progress: p.todoList?.length > 0 
+                    ? Math.round((p.todoList.filter((x: any) => x.done).length / p.todoList.length) * 100)
+                    : 0,
+                cost: p.billingAndUsage?.estimatedCostUSD || 0,
+                timestamp: p.updatedAt
+            }));
+
+            res.json({ success: true, projects: logs });
+        } catch (err: any) {
+            res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    // 🎓 Future Education OS: Practice Exams & Solved Papers
+    getEducationExams: async (req: Request, res: Response) => {
+        try {
+            const papers = await ExamPaper.find()
+                .populate('creatorId', 'firstName lastName email')
+                .sort({ createdAt: -1 })
+                .limit(100);
+            
+            const solvedExams = await MinervaExam.find()
+                .populate('userId', 'firstName lastName email')
+                .sort({ updatedAt: -1 })
+                .limit(100);
+
+            // Compute teacher stats count
+            const teacherCounts: Record<string, { name: string; email: string; count: number }> = {};
+            for (const p of papers) {
+                const creator = p.creatorId as any;
+                if (creator) {
+                    const key = creator._id.toString();
+                    if (!teacherCounts[key]) {
+                        teacherCounts[key] = {
+                            name: `${creator.firstName} ${creator.lastName}`,
+                            email: creator.email,
+                            count: 0
+                        };
+                    }
+                    teacherCounts[key].count++;
+                }
+            }
+            const teacherStats = Object.values(teacherCounts);
+
+            const paperLogs = papers.map((p: any) => ({
+                id: p._id,
+                user: p.creatorId ? `${(p.creatorId as any).firstName} ${(p.creatorId as any).lastName}` : 'System Grader',
+                email: p.creatorId ? (p.creatorId as any).email : 'AI Auto-Generated',
+                userId: p.creatorId ? (p.creatorId as any)._id : null,
+                title: `${p.examScope} - ${p.subject}`,
+                subject: p.subject,
+                board: p.board,
+                standard: p.standard,
+                marks: p.marks,
+                difficulty: p.difficulty,
+                language: p.language || 'English',
+                status: 'generated',
+                score: 'N/A',
+                timestamp: p.createdAt
+            }));
+
+            const solvedLogs = solvedExams.map((e: any) => ({
+                id: e._id,
+                user: e.userId ? `${e.userId.firstName} ${e.userId.lastName}` : 'Unknown',
+                email: e.userId?.email || 'N/A',
+                userId: e.userId ? e.userId._id : null,
+                title: e.title,
+                subject: e.subject,
+                board: e.board,
+                standard: e.grade_level,
+                marks: e.total_marks,
+                difficulty: 'Medium',
+                language: 'English',
+                status: e.status,
+                score: `${e.total_obtained} (${e.percentage}%)`,
+                tabOutCount: e.tabOutCount || 0,
+                copyCount: e.copyCount || 0,
+                proctoringLogs: e.proctoringLogs || [],
+                timestamp: e.updatedAt
+            }));
+
+            res.json({ success: true, exams: [...solvedLogs, ...paperLogs], teacherStats });
+        } catch (err: any) {
+            res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    // 🎓 Future Education OS: Academic Results
+    getEducationResults: async (req: Request, res: Response) => {
+        try {
+            const studentProfiles = await (require('../minerva/models/minerva_student_profile.model').default).find()
+                .populate('userId', 'firstName lastName email')
+                .sort({ xp: -1 });
+            
+            const logs = studentProfiles.map((p: any) => ({
+                id: p._id,
+                user: p.userId ? `${p.userId.firstName} ${p.userId.lastName}` : 'Unknown',
+                email: p.userId?.email || 'N/A',
+                userId: p.userId ? p.userId._id : null,
+                xp: p.xp || 0,
+                coins: p.coins || 0,
+                rank: p.rank || 'Bronze Scholar',
+                schoolName: p.school_name || 'N/A',
+                board: p.board || 'CBSE',
+                standard: p.grade_level || '10',
+                completedRoadmaps: p.stats?.completed_roadmaps || 0,
+                xpHistory: p.xp_history || [],
+                timestamp: p.updatedAt
+            }));
+
+            res.json({ success: true, results: logs });
+        } catch (err: any) {
+            res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    // 🎓 Future Education OS: Parent Links
+    getEducationParents: async (req: Request, res: Response) => {
+        try {
+            const parents = await User.find({ "parentDetails.parentEmail": { $ne: null } })
+                .select('firstName lastName email parentDetails')
+                .sort({ createdAt: -1 });
+            
+            const logs = parents.map((p: any) => ({
+                id: p._id,
+                student: `${p.firstName} ${p.lastName}`,
+                studentEmail: p.email,
+                userId: p._id,
+                parentEmail: p.parentDetails?.parentEmail,
+                parentVerified: p.parentDetails?.isVerified || false,
+                notifyOnFail: p.parentDetails?.notifyOnFail || false,
+                notifyOnDailyReport: p.parentDetails?.notifyOnDailyReport || false,
+                timestamp: p.parentDetails?.linkedAt || p.updatedAt
+            }));
+
+            res.json({ success: true, parents: logs });
+        } catch (err: any) {
+            res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    // 🕵️ Traffic Surveillance & SEO Intent Analytics
+    getSEOKeywordAnalytics: async (req: Request, res: Response) => {
+        try {
+            const intents = await LandingIntent.find();
+            
+            // Analyze query frequencies
+            const kwMap: Record<string, number> = {};
+            intents.forEach((i: any) => {
+                if (!i.text) return;
+                const normalized = i.text.toLowerCase().trim();
+                kwMap[normalized] = (kwMap[normalized] || 0) + 1;
+            });
+
+            // Sort and take top 10 keywords
+            const keywords = Object.entries(kwMap)
+                .map(([keyword, count]) => ({ keyword, count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 10);
+
+            // Determine top subject based on queries
+            let topSubject = 'Science & Mathematics';
+            let maxCount = 0;
+            const subjectKeywords = ['math', 'science', 'history', 'geography', 'physics', 'chemistry', 'biology', 'coding', 'english'];
+            const subMap: Record<string, number> = {};
+            intents.forEach((i: any) => {
+                if (!i.text) return;
+                const text = i.text.toLowerCase();
+                subjectKeywords.forEach(sub => {
+                    if (text.includes(sub)) {
+                        subMap[sub] = (subMap[sub] || 0) + 1;
+                    }
+                });
+            });
+
+            const topSubEntry = Object.entries(subMap).sort((a, b) => b[1] - a[1])[0];
+            if (topSubEntry) {
+                topSubject = topSubEntry[0];
+                maxCount = topSubEntry[1];
+            }
+
+            res.json({
+                success: true,
+                keywords,
+                topSubject,
+                subjectCount: Object.keys(subMap).length,
+                totalQueries: intents.length
             });
         } catch (err: any) {
             res.status(500).json({ success: false, error: err.message });

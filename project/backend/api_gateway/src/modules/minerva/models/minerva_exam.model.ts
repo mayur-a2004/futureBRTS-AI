@@ -38,6 +38,9 @@ export interface IMinervaExam extends Document {
     // PDF
     pdf_path: string;
     appeals: any[];
+    tabOutCount?: number;
+    copyCount?: number;
+    proctoringLogs?: Array<{ event: string; timestamp: Date; details: string }>;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -86,6 +89,16 @@ const MinervaExamSchema = new Schema({
     time_taken_minutes: { type: Number, default: 0 },
     pdf_path: { type: String, default: '' },
     appeals: { type: Schema.Types.Mixed, default: [] },
+    tabOutCount: { type: Number, default: 0 },
+    copyCount: { type: Number, default: 0 },
+    proctoringLogs: {
+        type: [{
+            event: { type: String, required: true },
+            timestamp: { type: Date, default: Date.now },
+            details: { type: String, default: '' }
+        }],
+        default: []
+    }
 }, { timestamps: true });
 
 MinervaExamSchema.index({ userId: 1, status: 1 });

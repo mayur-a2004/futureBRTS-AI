@@ -1030,8 +1030,27 @@ export default function MinervaQuizBattlePage() {
         fetchActiveRooms();
         fetchDailyChallengeStatus();
         const isProd = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-        const socketUrl = (import.meta as any).env?.VITE_SOCKET_URL || 
-            (isProd ? window.location.origin : window.location.origin.replace(/:\d+$/, ':7001'));
+        // 🔧 PROD FIX: VITE_API_URL is baked at build-time (points to localhost:7001).
+        // On futurebrts.com we MUST use window.location.origin, never the inlined localhost URL.
+        let socketUrl = (import.meta as any).env?.VITE_SOCKET_URL;
+        if (!socketUrl) {
+            if (isProd) {
+                // Production: always connect to the live domain (futurebrts.com)
+                socketUrl = window.location.origin;
+            } else {
+                const viteApiUrl = (import.meta as any).env?.VITE_API_URL;
+                if (viteApiUrl) {
+                    try {
+                        const url = new URL(viteApiUrl);
+                        socketUrl = url.origin;
+                    } catch (e) {
+                        socketUrl = viteApiUrl;
+                    }
+                } else {
+                    socketUrl = window.location.origin.replace(/:\d+$/, ':7001');
+                }
+            }
+        }
         const s = io(socketUrl);
 
         setSocket(s);

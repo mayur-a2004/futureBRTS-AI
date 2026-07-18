@@ -35,11 +35,19 @@ export const minervaApi = {
     },
 
     // ── CHAT ──────────────────────────────────────
-    sendChat: async (token: string, message: string, session_id?: string, chat_session_id?: string, deep_study?: boolean) => {
+    sendChat: async (token: string, message: string, session_id?: string, chat_session_id?: string, deep_study?: boolean, forceRoadmap?: boolean, file_url?: string, file_type?: string, response_mode?: string) => {
         const res = await fetch(`${BASE_URL}/chat`, {
             method: 'POST',
             headers: authHeaders(token),
-            body: JSON.stringify({ message, session_id, chat_session_id, deep_study }),
+            body: JSON.stringify({ message, session_id, chat_session_id, deep_study, forceRoadmap, file_url, file_type, response_mode }),
+        });
+        return handleRes(res);
+    },
+    logMessageFeedback: async (token: string, messageId: string, type: 'up' | 'down', sessionId: string) => {
+        const res = await fetch(`${BASE_URL}/chat/message/${messageId}/feedback`, {
+            method: 'POST',
+            headers: authHeaders(token),
+            body: JSON.stringify({ type, sessionId }),
         });
         return handleRes(res);
     },

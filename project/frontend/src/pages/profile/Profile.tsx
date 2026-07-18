@@ -19,6 +19,12 @@ export default function Profile() {
         lastName: user?.lastName || '',
         parentEmail: user?.parentDetails?.parentEmail || '',
         parentPhone: user?.parentDetails?.parentPhone || '',
+        school_name: '',
+        grade_level: 'class_10',
+        board: 'cbse',
+        state: 'general',
+        medium: 'english',
+        mobile_number: '',
         profile: {
             bio: user?.profile?.bio || '',
             location: user?.profile?.location || '',
@@ -32,8 +38,16 @@ export default function Profile() {
         }
     });
 
+    // Password change state
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [passwordChanging, setPasswordChanging] = useState(false);
+    const [showPasswordSection, setShowPasswordSection] = useState(false);
+
     useEffect(() => {
-        setFormData({
+        setFormData(prev => ({
+            ...prev,
             firstName: user?.firstName || '',
             lastName: user?.lastName || '',
             parentEmail: user?.parentDetails?.parentEmail || '',
@@ -49,7 +63,7 @@ export default function Profile() {
                     website: user?.profile?.socialLinks?.website || ''
                 }
             }
-        });
+        }));
     }, [user]);
 
     const handleResendParentVerification = async () => {
@@ -79,16 +93,29 @@ export default function Profile() {
                 const token = localStorage.getItem('fbrts_token');
                 if (!token) return;
                 
-                const [statsRes, projRes] = await Promise.all([
+                const [statsRes, projRes, minervaProfileRes] = await Promise.all([
                     fetch('/api/builder/dashboard', { headers: { 'Authorization': `Bearer ${token}` } }),
-                    fetch('/api/collage-project/list', { headers: { 'Authorization': `Bearer ${token}` } })
+                    fetch('/api/collage-project/list', { headers: { 'Authorization': `Bearer ${token}` } }),
+                    fetch('/api/future-education/profile', { headers: { 'Authorization': `Bearer ${token}` } })
                 ]);
                 
                 const statsData = await statsRes.json();
                 const projData = await projRes.json();
+                const minervaData = await minervaProfileRes.json();
  
                 if (statsData.success) setStats(statsData.stats);
                 if (projData.success) setProjects(projData.projects.slice(0, 4));
+                if (minervaData.success && minervaData.profile) {
+                    setFormData(prev => ({
+                        ...prev,
+                        school_name: minervaData.profile.school_name || '',
+                        grade_level: minervaData.profile.grade_level || 'class_10',
+                        board: minervaData.profile.board || 'cbse',
+                        state: minervaData.profile.state || 'general',
+                        medium: minervaData.profile.medium || 'english',
+                        mobile_number: minervaData.profile.mobile_number || ''
+                    }));
+                }
             } catch (e) {
                 console.error("Profile data fetch error", e);
             }
@@ -132,19 +159,79 @@ export default function Profile() {
             });
             const parentData = await parentRes.json();
 
-            if (data.success && parentData.success) {
+            // Save Minerva academic/school profile details
+            const minervaRes = await fetch('/api/future-education/profile', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    name: `${formData.firstName} ${formData.lastName}`.trim(),
+                    school_name: formData.school_name,
+                    grade_level: formData.grade_level,
+                    board: formData.board,
+                    state: formData.state,
+                    medium: formData.medium,
+                    mobile_number: formData.mobile_number,
+                    learning_style: 'mixed',
+                    daily_time_minutes: 60,
+                    language_preference: 'english'
+                })
+            });
+            const minervaProfileData = await minervaRes.json();
+
+            if (data.success && parentData.success && minervaProfileData.success) {
                 setUser({
                     ...data.user,
                     parentDetails: parentData.parentDetails
                 });
                 setIsEditing(false);
-                toast.success("Identity Matrix & Parent Alerts Sync Successful! 🚀");
+                toast.success("Identity Matrix & School Profile Sync Successful! 🚀");
             } else {
-                toast.error(data.error || parentData.error || "Update Failed");
+                toast.error(data.error || parentData.error || minervaProfileData.error || "Update Failed");
             }
         } catch (e) {
             console.error(e);
             toast.error("Critical System Error during Sync");
+        }
+    };
+
+    const handleChangePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            toast.error("All password fields are required");
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            toast.error("New passwords do not match");
+            return;
+        }
+        setPasswordChanging(true);
+        try {
+            const token = localStorage.getItem('fbrts_token');
+            const res = await fetch('/api/auth/change-password', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ currentPassword, newPassword })
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast.success("Vault password updated successfully! 🔒");
+                setCurrentPassword('');
+                setNewPassword('');
+                setConfirmPassword('');
+                setShowPasswordSection(false);
+            } else {
+                toast.error(data.error || "Failed to change password");
+            }
+        } catch (e) {
+            toast.error("Failed to connect to authentication server");
+        } finally {
+            setPasswordChanging(false);
         }
     };
 
@@ -370,6 +457,194 @@ export default function Profile() {
                                     <span className="text-sm font-bold text-gray-300">{user?.parentDetails?.parentPhone || 'Not Configured'}</span>
                                 </div>
                             </div>
+                        )}
+                    </div>
+
+                    {/* School & Academic Profile Card */}
+                    <div className="bg-black/40 backdrop-blur-3xl border border-white/5 p-8 rounded-[40px] shadow-3xl space-y-6">
+                        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-gray-500 border-b border-white/5 pb-4 italic">Academic Profile 🎓</h3>
+                        {isEditing ? (
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">School / Academy Name</label>
+                                    <input
+                                        value={formData.school_name}
+                                        onChange={(e) => setFormData({ ...formData, school_name: e.target.value })}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none"
+                                        placeholder="e.g. Divine Buds School"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Student Mobile Number</label>
+                                    <input
+                                        value={formData.mobile_number}
+                                        onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none"
+                                        placeholder="e.g. 9876543210"
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Standard/Grade</label>
+                                        <select
+                                            value={formData.grade_level}
+                                            onChange={(e) => setFormData({ ...formData, grade_level: e.target.value })}
+                                            className="w-full bg-[#111] border border-white/10 rounded-xl px-3 py-3 text-sm text-white focus:border-indigo-500 outline-none"
+                                        >
+                                            <option value="class_6">Class 6</option>
+                                            <option value="class_7">Class 7</option>
+                                            <option value="class_8">Class 8</option>
+                                            <option value="class_9">Class 9</option>
+                                            <option value="class_10">Class 10</option>
+                                            <option value="class_11">Class 11</option>
+                                            <option value="class_12">Class 12</option>
+                                            <option value="college">College</option>
+                                            <option value="govt_exam">Govt Exam</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Board / Exam</label>
+                                        <select
+                                            value={formData.board}
+                                            onChange={(e) => setFormData({ ...formData, board: e.target.value })}
+                                            className="w-full bg-[#111] border border-white/10 rounded-xl px-3 py-3 text-sm text-white focus:border-indigo-500 outline-none"
+                                        >
+                                            <option value="cbse">CBSE</option>
+                                            <option value="icse">ICSE</option>
+                                            <option value="gseb">GSEB</option>
+                                            <option value="up_board">UP Board</option>
+                                            <option value="maharashtra_ssc">Maharashtra SSC</option>
+                                            <option value="state_board">Other State Board</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Medium</label>
+                                        <select
+                                            value={formData.medium}
+                                            onChange={(e) => setFormData({ ...formData, medium: e.target.value })}
+                                            className="w-full bg-[#111] border border-white/10 rounded-xl px-3 py-3 text-sm text-white focus:border-indigo-500 outline-none"
+                                        >
+                                            <option value="english">English</option>
+                                            <option value="hindi">Hindi</option>
+                                            <option value="gujarati">Gujarati</option>
+                                            <option value="marathi">Marathi</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">State</label>
+                                        <input
+                                            value={formData.state}
+                                            onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none"
+                                            placeholder="Gujarat"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="flex flex-col gap-1">
+                                    <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">School / Academy</span>
+                                    <span className="text-sm font-bold text-gray-300">{formData.school_name || 'Not Configured'}</span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5">
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Standard / Class</span>
+                                        <span className="text-sm font-bold text-gray-300 uppercase">{formData.grade_level?.replace('_', ' ')}</span>
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Board</span>
+                                        <span className="text-sm font-bold text-gray-300 uppercase">{formData.board}</span>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5">
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Medium</span>
+                                        <span className="text-sm font-bold text-gray-300 uppercase">{formData.medium}</span>
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">State</span>
+                                        <span className="text-sm font-bold text-gray-300 uppercase">{formData.state}</span>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col gap-1 pt-4 border-t border-white/5">
+                                    <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Student Mobile</span>
+                                    <span className="text-sm font-bold text-gray-300">{formData.mobile_number || 'Not Configured'}</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Security Credentials Card */}
+                    <div className="bg-black/40 backdrop-blur-3xl border border-white/5 p-8 rounded-[40px] shadow-3xl space-y-6">
+                        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-gray-500 border-b border-white/5 pb-4 italic">Security Credentials 🔒</h3>
+                        {!showPasswordSection ? (
+                            <Button
+                                onClick={() => setShowPasswordSection(true)}
+                                className="w-full bg-white/5 hover:bg-white/10 text-white rounded-2xl h-12 font-black uppercase tracking-widest text-xs border border-white/10"
+                            >
+                                Change Vault Password
+                            </Button>
+                        ) : (
+                            <form onSubmit={handleChangePassword} className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Current Password</label>
+                                    <input
+                                        type="password"
+                                        required
+                                        value={currentPassword}
+                                        onChange={(e) => setCurrentPassword(e.target.value)}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none"
+                                        placeholder="••••••••"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">New Password</label>
+                                    <input
+                                        type="password"
+                                        required
+                                        value={newPassword}
+                                        onChange={(e) => setNewPassword(e.target.value)}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none"
+                                        placeholder="••••••••"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Confirm New Password</label>
+                                    <input
+                                        type="password"
+                                        required
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none"
+                                        placeholder="••••••••"
+                                    />
+                                </div>
+                                <div className="flex gap-2 pt-2">
+                                    <Button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowPasswordSection(false);
+                                            setCurrentPassword('');
+                                            setNewPassword('');
+                                            setConfirmPassword('');
+                                        }}
+                                        variant="ghost"
+                                        className="w-full bg-white/5 hover:bg-white/10 text-gray-400 rounded-xl h-10 text-xs font-black uppercase"
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        type="submit"
+                                        disabled={passwordChanging}
+                                        className="w-full bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl h-10 text-xs font-black uppercase"
+                                    >
+                                        {passwordChanging ? 'Syncing...' : 'Sync Key'}
+                                    </Button>
+                                </div>
+                            </form>
                         )}
                     </div>
                 </div>

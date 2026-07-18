@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ThreeJsConfig } from '../types/LabConfig';
+import { Search } from 'lucide-react';
 
 interface Model3DLabProps {
   three_js_config: ThreeJsConfig | null;
   sketchfab_hint: string | null;
+  topic?: string;           // readable topic name for search display
   subject: string;
   sensitivity_level: number;
+  onNoModel?: () => void;  // called when no 3D model found for this topic
 }
 
 const evaluateExpr = (expr: string, context: Record<string, number>): number => {
@@ -47,15 +50,61 @@ const evaluateExpr = (expr: string, context: Record<string, number>): number => 
 export const Model3DLab: React.FC<Model3DLabProps> = ({
   three_js_config,
   sketchfab_hint,
+  topic,
   subject: _subject,
   sensitivity_level: _sensitivity_level,
+  onNoModel,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [params, setParams] = useState<Record<string, number>>({});
   const [sketchfabLoading, setSketchfabLoading] = useState(true);
   const [activeModelId, setActiveModelId] = useState<string | null>(sketchfab_hint);
-  const [show2DInterpretation, setShow2DInterpretation] = useState(false);
+
   const [selectedPart, setSelectedPart] = useState<string | null>(null);
+  // Readable keyword for search box: prefer topic name, fallback to hint (if not a UID)
+  const isHexUid = (s: string | null) => !!s && /^[a-fA-F0-9]{32}$/.test(s.trim());
+  const initialKeyword = topic || (isHexUid(sketchfab_hint) ? '' : (sketchfab_hint || ''));
+
+  const [searchQuery, setSearchQuery] = useState(initialKeyword);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  // Track the last topic we auto-searched to avoid re-running when user types manually
+  const lastAutoSearchedTopic = useRef<string>('');
+
+  const handleManualSearch = async (q: string) => {
+    if (!q.trim()) return;
+    setSearching(true);
+    setSearchError('');
+    setSearchResults([]);
+    try {
+      const token = localStorage.getItem('fbrts_token');
+      const res = await fetch(`/api/future-education/lab/sketchfab-search-list?query=${encodeURIComponent(q.trim())}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success && data.results && data.results.length > 0) {
+        setSearchResults(data.results.slice(0, 12));
+      } else {
+        setSearchError('No models found. Try a different keyword!');
+      }
+    } catch (err) {
+      setSearchError('Search failed. Check your internet connection.');
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  // Auto-search ONLY when the topic changes (readable keyword, not the hex UID)
+  useEffect(() => {
+    const keyword = topic || (isHexUid(sketchfab_hint) ? '' : (sketchfab_hint || ''));
+    if (keyword && keyword !== lastAutoSearchedTopic.current) {
+      lastAutoSearchedTopic.current = keyword;
+      setSearchQuery(keyword);
+      handleManualSearch(keyword);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topic, sketchfab_hint]);
   const [annotations, setAnnotations] = useState<any[]>([]);
   const [selectedAnnotationIndex, setSelectedAnnotationIndex] = useState<number | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -92,6 +141,9 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
   const projectileStateRef = useRef({ x: 0, y: 0, vx: 0, vy: 0, t: 0, path: [] as { x: number; y: number }[] });
 
   useEffect(() => {
+    let cancelTimeout: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false; // Guard against calls after cleanup
+
     const isInvalid = !sketchfab_hint || 
                       sketchfab_hint === '3d6e5d8a9e7f4c17b5f00e28f3a38ca4' || 
                       sketchfab_hint.includes('default') || 
@@ -100,10 +152,20 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
                       sketchfab_hint === 'none' ||
                       sketchfab_hint === 'null';
 
+    const hasCanvas = !!(three_js_config?.visual_mapping?.elements?.length);
+
     if (isInvalid) {
       setActiveModelId(null);
       setSketchfabLoading(false);
-      return;
+      if (!hasCanvas) {
+        cancelTimeout = setTimeout(() => {
+          if (!cancelled) onNoModel?.();
+        }, 1500);
+      }
+      return () => {
+        cancelled = true;
+        if (cancelTimeout) clearTimeout(cancelTimeout);
+      };
     }
 
     setSketchfabLoading(true);
@@ -120,18 +182,35 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
     })
       .then(r => r.json())
       .then(data => {
+        if (cancelled) return; // Component unmounted — ignore
         if (data.success && data.model_id) {
           setActiveModelId(data.model_id);
         } else {
           setActiveModelId(null);
+          if (!hasCanvas) {
+            cancelTimeout = setTimeout(() => {
+              if (!cancelled) onNoModel?.();
+            }, 2000);
+          }
         }
         setSketchfabLoading(false);
       })
       .catch(err => {
+        if (cancelled) return;
         console.error('Sketchfab dynamic search failed:', err);
         setActiveModelId(null);
         setSketchfabLoading(false);
+        if (!hasCanvas) {
+          cancelTimeout = setTimeout(() => {
+            if (!cancelled) onNoModel?.();
+          }, 2000);
+        }
       });
+
+    return () => {
+      cancelled = true;
+      if (cancelTimeout) clearTimeout(cancelTimeout);
+    };
   }, [sketchfab_hint, three_js_config, _subject]);
 
   // Load Sketchfab Viewer API script once
@@ -145,7 +224,7 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
 
   // Initialize Sketchfab API on iframe
   useEffect(() => {
-    if (!activeModelId || show2DInterpretation) {
+    if (!activeModelId) {
       setAnnotations([]);
       setSelectedAnnotationIndex(null);
       sketchfabApiRef.current = null;
@@ -213,7 +292,7 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
         try { apiInstance.stop(); } catch (e) {}
       }
     };
-  }, [activeModelId, show2DInterpretation]);
+  }, [activeModelId]);
 
   const handleSelectAnnotation = (idx: number) => {
     setSelectedAnnotationIndex(idx);
@@ -258,7 +337,7 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
   // Handle Canvas Render Loop
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || (!three_js_config && !show2DInterpretation)) return;
+    if (!canvas || !three_js_config) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -1517,8 +1596,137 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
         }
         else if (lowerSubject.includes('math') || lowerSubject.includes('algebra') || lowerSubject.includes('geometry') || lowerTitle.includes('math')) {
           // --- MATHEMATICS SIMULATION ---
-          const isShape = lowerTopic.includes('shape') || lowerTopic.includes('area') || lowerTopic.includes('geometry') || lowerTopic.includes('circle') || lowerTopic.includes('triangle');
-          if (isShape) {
+          const isPythagoras = lowerTopic.includes('pythagoras') || 
+                               lowerTopic.includes('theorem') || 
+                               lowerTopic.includes('right triangle') ||
+                               (three_js_config && three_js_config.type === 'pythagoras_theorem');
+          
+          if (isPythagoras) {
+            drawGrid(ctx, cx, cy + 40);
+            const aVal = params.a ?? 3; // Height
+            const bVal = params.b ?? 4; // Base
+            const cVal = Math.sqrt(aVal * aVal + bVal * bVal); // Hypotenuse
+
+            // Scale to fit canvas nicely
+            const scale = Math.min(width * 0.35 / bVal, height * 0.35 / aVal);
+            
+            // Positioning coordinates (right-angled corner at x0, y0)
+            const x0 = cx - (bVal * scale) * 0.4;
+            const y0 = cy + (aVal * scale) * 0.4 + 20;
+
+            const xA = x0;
+            const yA = y0 - aVal * scale;
+
+            const xB = x0 + bVal * scale;
+            const yB = y0;
+
+            // 1. Draw Square on Height (a^2) - Left
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.08)';
+            ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(x0, y0);
+            ctx.lineTo(x0 - aVal * scale, y0);
+            ctx.lineTo(x0 - aVal * scale, yA);
+            ctx.lineTo(x0, yA);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            
+            ctx.fillStyle = '#f43f5e';
+            ctx.font = 'bold 9px sans-serif';
+            ctx.fillText(`a² = ${(aVal * aVal).toFixed(1)}`, x0 - aVal * scale / 2 - 18, y0 - aVal * scale / 2);
+
+            // 2. Draw Square on Base (b^2) - Bottom
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.08)';
+            ctx.strokeStyle = 'rgba(16, 185, 129, 0.4)';
+            ctx.beginPath();
+            ctx.moveTo(x0, y0);
+            ctx.lineTo(x0, y0 + bVal * scale);
+            ctx.lineTo(xB, y0 + bVal * scale);
+            ctx.lineTo(xB, y0);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#10b981';
+            ctx.fillText(`b² = ${(bVal * bVal).toFixed(1)}`, x0 + bVal * scale / 2 - 18, y0 + bVal * scale / 2 + 5);
+
+            // 3. Draw Square on Hypotenuse (c^2) - Diagonal outward
+            // Direction of hypotenuse from A to B: dx = xB - xA, dy = yB - yA
+            const dx = xB - xA;
+            const dy = yB - yA;
+            // Normal vector (outward/upward-right): (dy, -dx)
+            const v3x = xB + dy;
+            const v3y = yB - dx;
+            const v4x = xA + dy;
+            const v4y = yA - dx;
+
+            ctx.fillStyle = 'rgba(99, 102, 241, 0.08)';
+            ctx.strokeStyle = 'rgba(99, 102, 241, 0.4)';
+            ctx.beginPath();
+            ctx.moveTo(xA, yA);
+            ctx.lineTo(xB, yB);
+            ctx.lineTo(v3x, v3y);
+            ctx.lineTo(v4x, v4y);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#818cf8';
+            const midX = (xA + xB + dy) / 2;
+            const midY = (yA + yB - dx) / 2;
+            ctx.fillText(`c² = ${(cVal * cVal).toFixed(1)}`, midX - 18, midY);
+
+            // 4. Draw Right Triangle ABC on top
+            ctx.fillStyle = 'rgba(99, 102, 241, 0.22)';
+            ctx.strokeStyle = '#6366f1';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(xA, yA);
+            ctx.lineTo(x0, y0);
+            ctx.lineTo(xB, yB);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Right-angle square marker at C (x0, y0)
+            ctx.strokeStyle = '#6366f1';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(x0 + 8, y0);
+            ctx.lineTo(x0 + 8, y0 - 8);
+            ctx.lineTo(x0, y0 - 8);
+            ctx.stroke();
+
+            // Text side lengths labels
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 11px sans-serif';
+            ctx.fillText(`a = ${aVal.toFixed(1)}`, x0 + 10, y0 - aVal * scale / 2);
+            ctx.fillText(`b = ${bVal.toFixed(1)}`, x0 + bVal * scale / 2 - 15, y0 + 15);
+            ctx.fillText(`c = ${cVal.toFixed(1)}`, x0 + bVal * scale / 2 + 10, y0 - aVal * scale / 2 - 10);
+
+            // Top overlay stats board
+            ctx.fillStyle = 'rgba(15, 12, 30, 0.9)';
+            ctx.strokeStyle = '#6366f1';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.roundRect(15, 15, width - 30, 70, 16);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.fillText('Mathematics: Pythagoras Theorem Explorer', 30, 34);
+            ctx.fillStyle = '#a1a1aa';
+            ctx.font = '11px sans-serif';
+            ctx.fillText(`Height (a): ${aVal.toFixed(1)}cm • Base (b): ${bVal.toFixed(1)}cm • Hypotenuse (c): ${cVal.toFixed(2)}cm`, 30, 52);
+            ctx.fillStyle = '#818cf8';
+            ctx.font = 'bold 11px sans-serif';
+            ctx.fillText(`Proof: a² + b² = c²  ➔  ${(aVal*aVal).toFixed(1)} + ${(bVal*bVal).toFixed(1)} = ${(cVal*cVal).toFixed(1)}`, 30, 70);
+          } else {
+            const isShape = lowerTopic.includes('shape') || lowerTopic.includes('area') || lowerTopic.includes('geometry') || lowerTopic.includes('circle') || lowerTopic.includes('triangle');
+            if (isShape) {
             const shapeSize = params.radius ?? params.size ?? 40;
             const mx = cx;
             const my = cy + 40;
@@ -1611,6 +1819,7 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
             ctx.fillText(`Slope (m): ${slope.toFixed(2)} • Intercept (c): ${intercept.toFixed(1)}`, 30, 53);
           }
         }
+      }
         else if (lowerSubject.includes('history') || lowerSubject.includes('social') || lowerTitle.includes('history') || lowerTitle.includes('timeline')) {
           // --- HISTORY SIMULATION ---
           const activeYear = params.year ?? 1947;
@@ -1901,13 +2110,16 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
       resizeObserver.disconnect();
       if (canvas) canvas.removeEventListener('click', handleCanvasClick);
     };
-  }, [three_js_config, params, show2DInterpretation, _subject, sketchfab_hint]);
+  }, [three_js_config, params, _subject, sketchfab_hint]);
 
   const handleSliderChange = (key: string, val: number) => {
     setParams((prev) => ({ ...prev, [key]: val }));
   };
 
   const isSketchfab = !!sketchfab_hint && !!activeModelId;
+  const hasVisualCanvas = !!(three_js_config && three_js_config.visual_mapping?.elements && three_js_config.visual_mapping.elements.length > 0);
+
+
 
   return (
     <div
@@ -1917,26 +2129,25 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
       }`}
     >
       {/* Dynamic Lab Guide Description */}
-      {three_js_config?.description && (
+      {three_js_config?.description && !isFullscreen && (
         <div className="p-3.5 bg-indigo-950/20 border-b border-zinc-800 text-xs text-zinc-300">
           <strong>🔬 Lab Guide: </strong> {three_js_config.description}
         </div>
       )}
 
-      <div className="flex-1 min-h-[300px] relative flex flex-col md:flex-row">
-        {/* Switch button overlay for Sketchfab models */}
-        {isSketchfab && (
-          <div className="absolute top-3 left-3 z-20 flex gap-2">
-            <button
-              type="button"
-              onClick={() => setShow2DInterpretation(!show2DInterpretation)}
-              className="px-3.5 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-lg shadow-black/50 active:scale-95 border border-indigo-400/20"
-            >
-              {show2DInterpretation ? "🔬 Switch to 3D View" : "🎨 Switch to Interactive 2D Simulation"}
-            </button>
+      {/* Main View Container */}
+      <div className={`flex-1 min-h-0 flex ${
+        isFullscreen ? 'flex-col md:flex-row gap-4' : 'flex-col'
+      } relative`}>
 
-            {/* Fullscreen Button */}
-            {!show2DInterpretation && (
+        {/* 1. Visualizer Container (Iframe / Canvas / Placeholder) */}
+        <div className={`relative ${
+          isFullscreen 
+            ? 'flex-1 h-full min-h-[300px] md:min-h-0' 
+            : 'h-[280px] flex-shrink-0 border-b border-zinc-900/50'
+        }`}>
+          {isSketchfab && (
+            <div className="absolute top-3 left-3 z-20 flex gap-2">
               <button
                 type="button"
                 onClick={toggleFullscreen}
@@ -1944,468 +2155,268 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
               >
                 <span>{isFullscreen ? "🗖 Exit Fullscreen" : "🗖 Go Fullscreen"}</span>
               </button>
-            )}
-          </div>
-        )}
+            </div>
+          )}
 
-        {isSketchfab && !show2DInterpretation ? (
-          <div className={`flex-1 flex w-full h-full min-h-[450px] ${
-            isFullscreen ? 'flex-col md:flex-row' : 'flex-col'
-          }`}>
-            {/* Iframe View */}
-            <div className={`flex-1 relative ${
-              isFullscreen ? 'min-h-[300px] md:min-h-0 h-full' : 'h-[320px] min-h-[320px]'
-            }`}>
+          {isSketchfab ? (
+            <>
               {sketchfabLoading && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950 z-10">
-                  <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                  <p className="mt-4 text-zinc-400 text-sm">Loading 3D Model from Sketchfab...</p>
+                  <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="mt-4 text-zinc-400 text-xs">Loading 3D Model from Sketchfab...</p>
                 </div>
               )}
               <iframe
+                key={activeModelId || 'empty'}
                 ref={iframeRef}
                 id="sketchfab-iframe"
                 title="3D Model Viewer"
                 className="w-full h-full border-none"
                 allow="autoplay; fullscreen; xr-spatial-tracking"
               />
-            </div>
-
-            {/* Interactive Annotations Panel */}
-            {annotations.length > 0 && (
-              <div className={`${
-                isFullscreen 
-                  ? 'w-full md:w-72 border-t md:border-t-0 md:border-l' 
-                  : 'w-full border-t border-zinc-800'
-              } bg-zinc-950/80 p-4 overflow-y-auto flex flex-col gap-2.5 max-h-[250px] md:max-h-none flex-1`}>
-                <h4 className="text-xs font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1.5 mb-1.5">
-                  <span>📍 Hotspots</span>
-                  <span className="px-1.5 py-0.5 bg-indigo-500/20 text-[9px] rounded-full text-indigo-300 font-mono">{annotations.length}</span>
-                </h4>
-                <div className="flex flex-col gap-2 overflow-y-auto pr-1">
-                  {annotations.map((ann, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleSelectAnnotation(idx)}
-                      className={`text-left p-3 rounded-xl text-xs transition-all flex flex-col gap-1 border ${
-                        selectedAnnotationIndex === idx
-                          ? 'bg-indigo-600/20 border-indigo-500 text-white font-medium shadow-md shadow-indigo-500/10'
-                          : 'bg-zinc-900/40 border-zinc-800/80 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'
-                      }`}
-                    >
-                      <span className="font-bold flex items-center gap-2">
-                        <span className={`w-5 h-5 rounded-full flex items-center justify-center font-mono text-[9px] transition-colors ${
-                          selectedAnnotationIndex === idx ? 'bg-indigo-500 text-white' : 'bg-zinc-800 text-zinc-400'
-                        }`}>
-                          {idx + 1}
-                        </span>
-                        {ann.name || `Annotation ${idx + 1}`}
-                      </span>
-                      {selectedAnnotationIndex === idx && ann.description && (
-                        <p className="text-[10px] text-zinc-300 font-normal leading-relaxed mt-2 pt-2 border-t border-zinc-800">
-                          {ann.description.replace(/<[^>]*>/g, '') /* strip html */}
-                        </p>
-                      )}
-                    </button>
-                  ))}
-                </div>
+            </>
+          ) : hasVisualCanvas ? (
+            <canvas ref={canvasRef} className="w-full h-full block cursor-pointer" />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center text-center p-6 bg-zinc-950/80">
+              <div className="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center mb-3">
+                <Search className="text-indigo-400 animate-pulse" size={24} />
               </div>
+              <p className="text-zinc-400 text-xs font-bold">Select or search for a 3D model below to load...</p>
+            </div>
+          )}
+        </div>
+
+        {/* 2. Scrollable Side/Bottom Panel (Hotspots, Controls, Search) */}
+        <div className={`overflow-y-auto flex flex-col scrollbar-thin ${
+          isFullscreen 
+            ? 'w-full md:w-80 h-full border-t md:border-t-0 md:border-l border-zinc-800 bg-zinc-950/40 p-4 gap-4' 
+            : 'flex-1 min-h-0 bg-zinc-950'
+        }`}>
+          {/* A. Simulation Sliders (only if local canvas simulation) */}
+          {hasVisualCanvas && (
+            <div className="p-4 bg-zinc-900/40 flex flex-col gap-3">
+              {/* 1. Dynamic Sliders from config */}
+              {three_js_config?.controls && three_js_config.controls.map((control) => {
+                const val = Number(params[control.name] ?? control.defaultValue ?? 0);
+                return (
+                  <div key={control.name} className="flex flex-col gap-1">
+                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
+                      <span>{control.label}</span>
+                      <span className="text-indigo-400 font-mono">
+                        {isNaN(val) ? '0.0' : val.toFixed(1)} {control.unit || ''}
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={control.min}
+                      max={control.max}
+                      step={control.step}
+                      value={val}
+                      onChange={(e) => handleSliderChange(control.name, parseFloat(e.target.value))}
+                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                    />
+                  </div>
+                );
+              })}
+
+              {/* 2. Legacy fallback sliders */}
+              {three_js_config && !three_js_config.controls && three_js_config.sliders && three_js_config.sliders.map((sliderKey) => {
+                let min = 0;
+                let max = 100;
+                let step = 1;
+                let label = sliderKey;
+
+                if (sliderKey === 'a') { min = -5; max = 5; step = 0.1; label = 'Curvature (a)' }
+                else if (sliderKey === 'b') { min = -10; max = 10; step = 0.5; label = 'Slope offset (b)' }
+                else if (sliderKey === 'c') { min = -10; max = 10; step = 0.5; label = 'Y-Intercept (c)' }
+                else if (sliderKey === 'm') { min = -5; max = 5; step = 0.1; label = 'Slope (m)' }
+                else if (sliderKey === 'amplitude') { min = 0.5; max = 4; step = 0.1; label = 'Amplitude (A)' }
+                else if (sliderKey === 'frequency') { min = 0.2; max = 5; step = 0.1; label = 'Frequency (f)' }
+                else if (sliderKey === 'mean') { min = -5; max = 5; step = 0.1; label = 'Mean (μ)' }
+                else if (sliderKey === 'std') { min = 0.2; max = 3; step = 0.1; label = 'Standard Deviation (σ)' }
+                else if (sliderKey === 'angle') { min = 10; max = 80; step = 1; label = 'Launch Angle (θ)' }
+                else if (sliderKey === 'speed') { min = 5; max = 45; step = 1; label = 'Initial Speed (v)' }
+                else if (sliderKey === 'gravity') { min = 2; max = 25; step = 0.2; label = 'Gravity (g)' }
+                else if (sliderKey === 'voltage') { min = 2; max = 24; step = 1; label = 'Voltage (V)' }
+                else if (sliderKey === 'resistance') { min = 1; max = 20; step = 0.5; label = 'Resistance (R)' }
+                else if (sliderKey === 'pour') { min = 0; max = 100; step = 1; label = 'Pour Amount (%)' }
+                else if (sliderKey === 'temperature') { min = 0; max = 100; step = 1; label = 'Reaction Temp (°C)' }
+
+                const val = Number(params[sliderKey] ?? 0);
+
+                return (
+                  <div key={sliderKey} className="flex flex-col gap-1">
+                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
+                      <span>{label}</span>
+                      <span className="text-indigo-400 font-mono">{isNaN(val) ? '0.0' : val.toFixed(1)}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={min}
+                      max={max}
+                      step={step}
+                      value={val}
+                      onChange={(e) => handleSliderChange(sliderKey, parseFloat(e.target.value))}
+                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* B. Hotspots / Annotations (if Sketchfab model active and has annotations) */}
+          {isSketchfab && annotations.length > 0 && (
+            <div className="p-4 border-b border-zinc-900 bg-zinc-950/80 flex flex-col gap-2.5">
+              <h4 className="text-xs font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1.5 mb-1.5">
+                <span>📍 Hotspots</span>
+                <span className="px-1.5 py-0.5 bg-indigo-500/20 text-[9px] rounded-full text-indigo-300 font-mono">{annotations.length}</span>
+              </h4>
+              <div className="flex flex-col gap-2 pr-1">
+                {annotations.map((ann, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleSelectAnnotation(idx)}
+                    className={`text-left p-3 rounded-xl text-xs transition-all flex flex-col gap-1 border ${
+                      selectedAnnotationIndex === idx
+                        ? 'bg-indigo-600/20 border-indigo-500 text-white font-medium shadow-md shadow-indigo-500/10'
+                        : 'bg-zinc-900/40 border-zinc-800/80 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'
+                    }`}
+                  >
+                    <span className="font-bold flex items-center gap-2">
+                      <span className={`w-5 h-5 rounded-full flex items-center justify-center font-mono text-[9px] transition-colors ${
+                        selectedAnnotationIndex === idx ? 'bg-indigo-500 text-white' : 'bg-zinc-800 text-zinc-400'
+                      }`}>
+                        {idx + 1}
+                      </span>
+                      {ann.name || `Annotation ${idx + 1}`}
+                    </span>
+                    {selectedAnnotationIndex === idx && ann.description && (
+                      <p className="text-[10px] text-zinc-300 font-normal leading-relaxed mt-2 pt-2 border-t border-zinc-800">
+                        {ann.description.replace(/<[^>]*>/g, '') /* strip html */}
+                      </p>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* C. Explore Models & Search — always visible for ALL subjects/topics */}
+          <div className="p-4 bg-zinc-900/10 flex flex-col gap-3 flex-1">
+            <div className="flex items-center gap-2 mb-0.5">
+              <p className="text-zinc-400 text-[10px] font-black uppercase tracking-wider shrink-0">🔬 Explore 3D Models</p>
+              <span className="text-zinc-700 text-[9px]">— search any topic from any subject</span>
+            </div>
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleManualSearch(searchQuery);
+              }}
+              className="flex gap-2"
+            >
+              <input
+                type="text"
+                className="flex-1 min-w-0 bg-zinc-900/80 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500/50 transition-colors"
+                placeholder="e.g. human heart, solar system, water molecule..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <button
+                type="submit"
+                disabled={searching}
+                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-600/50 text-white rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5"
+              >
+                {searching ? (
+                  <>
+                    <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin inline-block" />
+                    Searching...
+                  </>
+                ) : (
+                  <>
+                    <Search size={11} />
+                    Search
+                  </>
+                )}
+              </button>
+            </form>
+
+            {searchError && (
+              <p className="text-rose-400 text-[10px] font-semibold">{searchError}</p>
+            )}
+
+            {/* Search Results — 3-column grid, up to 24 results, vertical scroll */}
+            {searching ? (
+              <div className="flex items-center gap-2 py-2 text-zinc-500">
+                <div className="w-3.5 h-3.5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                <p className="text-[10px] uppercase font-bold tracking-wider">Searching Sketchfab...</p>
+              </div>
+            ) : searchResults.length > 0 ? (
+              <>
+                <div className="flex items-center justify-between">
+                  <p className="text-zinc-500 text-[9px]">{searchResults.length} models found — click any to load</p>
+                  <p className="text-zinc-700 text-[8px]">scroll ↕ for more</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2 overflow-y-auto max-h-80 pr-0.5 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+                  {searchResults.map((model) => {
+                    const isActive = activeModelId === model.uid;
+                    const thumbUrl = model.thumbnails?.images?.[1]?.url || model.thumbnails?.images?.[0]?.url || '';
+                    const authorName: string = model.user?.displayName || model.user?.username || '';
+                    const viewCount: number = model.viewCount || 0;
+                    return (
+                      <div
+                        key={model.uid}
+                        onClick={() => setActiveModelId(model.uid)}
+                        title={model.name}
+                        className={`rounded-lg overflow-hidden cursor-pointer transition-all active:scale-[0.97] border ${
+                          isActive
+                            ? 'border-indigo-500 ring-1 ring-indigo-500/30 bg-indigo-950/30'
+                            : 'border-zinc-800 hover:border-indigo-600/50 bg-zinc-900/60 hover:bg-zinc-900'
+                        }`}
+                      >
+                        <div className="relative w-full aspect-video bg-zinc-950 overflow-hidden">
+                          {thumbUrl ? (
+                            <img
+                              src={thumbUrl}
+                              alt={model.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-zinc-700">
+                              <Search size={14} />
+                            </div>
+                          )}
+                          {isActive && (
+                            <div className="absolute inset-0 bg-indigo-500/20 flex items-center justify-center">
+                              <span className="bg-indigo-500 text-white text-[7px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider">● Active</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="px-1.5 py-1 flex flex-col gap-0">
+                          <p className="text-white text-[8px] font-bold truncate leading-tight">{model.name}</p>
+                          {authorName && (
+                            <p className="text-indigo-400/70 text-[7px] truncate">by {authorName}</p>
+                          )}
+                          {viewCount > 0 && (
+                            <p className="text-zinc-700 text-[7px]">👁 {viewCount >= 1000 ? `${(viewCount / 1000).toFixed(1)}k` : viewCount}</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <p className="text-zinc-600 text-[10px] italic">
+                {searchQuery ? 'No results found — try a different keyword.' : 'Type anything above and press Search to explore all of Sketchfab.'}
+              </p>
             )}
           </div>
-        ) : (three_js_config || show2DInterpretation) ? (
-          <canvas ref={canvasRef} className="w-full h-full block cursor-pointer" />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-950/80 p-6 text-center">
-            <div className="w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[20px] mb-3">
-              🧊
-            </div>
-            <h5 className="text-sm font-bold text-white mb-1">No 3D Model Available</h5>
-            <p className="text-xs text-zinc-400 max-w-[280px] leading-relaxed">
-              This specific topic does not have a 3D model representation. Try switching to the <strong>Explain</strong>, <strong>Diagram</strong>, or <strong>Interactive Lab</strong> tabs above!
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Control sliders */}
-      {(three_js_config || show2DInterpretation) && (
-        <div className="p-4 bg-zinc-900/80 border-t border-zinc-800 flex flex-col gap-3">
-          {/* 1. Dynamic Sliders from config */}
-          {three_js_config?.controls && three_js_config.controls.map((control) => {
-            const val = Number(params[control.name] ?? control.defaultValue ?? 0);
-            return (
-              <div key={control.name} className="flex flex-col gap-1">
-                <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                  <span>{control.label}</span>
-                  <span className="text-indigo-400 font-mono">
-                    {isNaN(val) ? '0.0' : val.toFixed(1)} {control.unit || ''}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={control.min}
-                  max={control.max}
-                  step={control.step}
-                  value={val}
-                  onChange={(e) => handleSliderChange(control.name, parseFloat(e.target.value))}
-                  className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-                />
-              </div>
-            );
-          })}
-
-          {/* 2. Legacy fallback sliders */}
-          {three_js_config && !three_js_config.controls && three_js_config.sliders && three_js_config.sliders.map((sliderKey) => {
-            let min = 0;
-            let max = 100;
-            let step = 1;
-            let label = sliderKey;
-
-            if (sliderKey === 'a') { min = -5; max = 5; step = 0.1; label = 'Curvature (a)' }
-            else if (sliderKey === 'b') { min = -10; max = 10; step = 0.5; label = 'Slope offset (b)' }
-            else if (sliderKey === 'c') { min = -10; max = 10; step = 0.5; label = 'Y-Intercept (c)' }
-            else if (sliderKey === 'm') { min = -5; max = 5; step = 0.1; label = 'Slope (m)' }
-            else if (sliderKey === 'amplitude') { min = 0.5; max = 4; step = 0.1; label = 'Amplitude (A)' }
-            else if (sliderKey === 'frequency') { min = 0.2; max = 5; step = 0.1; label = 'Frequency (f)' }
-            else if (sliderKey === 'mean') { min = -5; max = 5; step = 0.1; label = 'Mean (μ)' }
-            else if (sliderKey === 'std') { min = 0.2; max = 3; step = 0.1; label = 'Standard Deviation (σ)' }
-            else if (sliderKey === 'angle') { min = 10; max = 80; step = 1; label = 'Launch Angle (θ)' }
-            else if (sliderKey === 'speed') { min = 5; max = 45; step = 1; label = 'Initial Speed (v)' }
-            else if (sliderKey === 'gravity') { min = 2; max = 25; step = 0.2; label = 'Gravity (g)' }
-            else if (sliderKey === 'voltage') { min = 2; max = 24; step = 1; label = 'Voltage (V)' }
-            else if (sliderKey === 'resistance') { min = 1; max = 20; step = 0.5; label = 'Resistance (R)' }
-            else if (sliderKey === 'pour') { min = 0; max = 100; step = 1; label = 'Pour Amount (%)' }
-            else if (sliderKey === 'temperature') { min = 0; max = 100; step = 1; label = 'Reaction Temp (°C)' }
-
-            const val = Number(params[sliderKey] ?? 0);
-
-            return (
-              <div key={sliderKey} className="flex flex-col gap-1">
-                <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                  <span>{label}</span>
-                  <span className="text-indigo-400 font-mono">{isNaN(val) ? '0.0' : val.toFixed(1)}</span>
-                </div>
-                <input
-                  type="range"
-                  min={min}
-                  max={max}
-                  step={step}
-                  value={val}
-                  onChange={(e) => handleSliderChange(sliderKey, parseFloat(e.target.value))}
-                  className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-                />
-              </div>
-            );
-          })}
-
-          {/* 3. Custom interactive 2D Simulation sliders (when no config) */}
-          {!three_js_config && show2DInterpretation && (() => {
-            const lowerSubject = _subject.toLowerCase();
-            const lowerTitle = (sketchfab_hint || '').toLowerCase();
-            const lowerTopic = ((three_js_config as any)?.title || '').toLowerCase();
-            
-            const isBio = lowerSubject.includes('biology') || lowerSubject.includes('fungi') || lowerSubject.includes('life') || lowerTitle.includes('fungi') || lowerTitle.includes('mushroom') || lowerTitle.includes('cell') || lowerTitle.includes('mitosis');
-            const isChem = lowerSubject.includes('chemistry') || lowerTitle.includes('molecule') || lowerTitle.includes('atom');
-            const isGeog = lowerSubject.includes('geography');
-            const isAcct = lowerSubject.includes('accounting');
-            const isStats = lowerSubject.includes('statistics');
-            const isEcon = lowerSubject.includes('economics');
-            const isPhysics = lowerSubject.includes('physics') || lowerTitle.includes('circuit') || lowerTitle.includes('wave') || lowerTitle.includes('optics') || lowerTitle.includes('kinetics');
-            const isMath = lowerSubject.includes('math') || lowerSubject.includes('algebra') || lowerSubject.includes('geometry') || lowerTitle.includes('math');
-            const isHistory = lowerSubject.includes('history') || lowerSubject.includes('social') || lowerTitle.includes('history') || lowerTitle.includes('timeline');
-
-            if (isBio) {
-              const isMitosis = lowerTopic.includes('mitosis') || lowerTopic.includes('split') || lowerTopic.includes('division');
-              if (isMitosis) {
-                const phaseVal = params.mitosisPhase ?? 1;
-                return (
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                      <span>Mitosis Division Phase</span>
-                      <span className="text-indigo-400 font-mono">Phase {phaseVal.toFixed(0)}</span>
-                    </div>
-                    <input type="range" min="1" max="5" step="1" value={phaseVal} onChange={e => handleSliderChange('mitosisPhase', parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                  </div>
-                );
-              }
-              const rateVal = params.rate ?? 50;
-              const windVal = params.wind ?? 10;
-              return (
-                <>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                      <span>Spore Release Rate</span>
-                      <span className="text-indigo-400 font-mono">{rateVal.toFixed(0)}</span>
-                    </div>
-                    <input type="range" min="10" max="100" step="5" value={rateVal} onChange={e => handleSliderChange('rate', parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                      <span>Wind Velocity</span>
-                      <span className="text-indigo-400 font-mono">{windVal.toFixed(0)} m/s</span>
-                    </div>
-                    <input type="range" min="0" max="40" step="2" value={windVal} onChange={e => handleSliderChange('wind', parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                  </div>
-                </>
-              );
-            }
-            if (isChem) {
-              const protVal = params.protons ?? 6;
-              const elecVal = params.electrons ?? 6;
-              const energyVal = params.energy ?? 1;
-              return (
-                <>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                      <span>Protons / Neutrons</span>
-                      <span className="text-indigo-400 font-mono">{protVal.toFixed(0)}</span>
-                    </div>
-                    <input type="range" min="1" max="10" step="1" value={protVal} onChange={e => handleSliderChange('protons', parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                      <span>Electrons Count</span>
-                      <span className="text-indigo-400 font-mono">{elecVal.toFixed(0)}</span>
-                    </div>
-                    <input type="range" min="1" max="10" step="1" value={elecVal} onChange={e => handleSliderChange('electrons', parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                      <span>Excitation Level</span>
-                      <span className="text-indigo-400 font-mono">Shell {energyVal.toFixed(0)}</span>
-                    </div>
-                    <input type="range" min="1" max="3" step="1" value={energyVal} onChange={e => handleSliderChange('energy', parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                  </div>
-                </>
-              );
-            }
-            if (isGeog) {
-              const driftVal = params.drift ?? 5;
-              const windVal = params.wind ?? 15;
-              return (
-                <>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                      <span>Tectonic Drift Speed</span>
-                      <span className="text-indigo-400 font-mono">{driftVal.toFixed(0)}x</span>
-                    </div>
-                    <input type="range" min="1" max="10" step="1" value={driftVal} onChange={e => handleSliderChange('drift', parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                      <span>Monsoon Winds Force</span>
-                      <span className="text-indigo-400 font-mono">{windVal.toFixed(0)} m/s</span>
-                    </div>
-                    <input type="range" min="0" max="40" step="2" value={windVal} onChange={e => handleSliderChange('wind', parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                  </div>
-                </>
-              );
-            }
-            if (isAcct) {
-              const revVal = params.revenue ?? 10000;
-              const expVal = params.expenses ?? 6500;
-              return (
-                <>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                      <span>Gross Sales Revenue</span>
-                      <span className="text-indigo-400 font-mono">${revVal.toLocaleString()}</span>
-                    </div>
-                    <input type="range" min="1000" max="25000" step="500" value={revVal} onChange={e => handleSliderChange('revenue', parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                      <span>Operating Expenses</span>
-                      <span className="text-indigo-400 font-mono">${expVal.toLocaleString()}</span>
-                    </div>
-                    <input type="range" min="500" max="15000" step="250" value={expVal} onChange={e => handleSliderChange('expenses', parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                  </div>
-                </>
-              );
-            }
-            if (isStats) {
-              const meanVal = params.mean ?? 0;
-              const stdVal = params.std ?? 1;
-              return (
-                <>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                      <span>Mean Offset (μ)</span>
-                      <span className="text-indigo-400 font-mono">{meanVal.toFixed(1)}</span>
-                    </div>
-                    <input type="range" min="-3" max="3" step="0.1" value={meanVal} onChange={e => handleSliderChange('mean', parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                      <span>Standard Deviation (σ)</span>
-                      <span className="text-indigo-400 font-mono">{stdVal.toFixed(2)}</span>
-                    </div>
-                    <input type="range" min="0.2" max="2.5" step="0.05" value={stdVal} onChange={e => handleSliderChange('std', parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                  </div>
-                </>
-              );
-            }
-            if (isEcon) {
-              const priceVal = params.price ?? 50;
-              const shiftVal = params.demandShift ?? 0;
-              return (
-                <>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                      <span>Market Retail Price</span>
-                      <span className="text-indigo-400 font-mono">${priceVal.toFixed(0)}</span>
-                    </div>
-                    <input type="range" min="10" max="90" step="1" value={priceVal} onChange={e => handleSliderChange('price', parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                      <span>Demand Curve Shift</span>
-                      <span className="text-indigo-400 font-mono">{shiftVal > 0 ? '+' : ''}{shiftVal.toFixed(0)}</span>
-                    </div>
-                    <input type="range" min="-50" max="50" step="5" value={shiftVal} onChange={e => handleSliderChange('demandShift', parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                  </div>
-                </>
-              );
-            }
-            if (isPhysics) {
-              const isWave = lowerTopic.includes('wave');
-              if (isWave) {
-                const ampVal = params.amplitude ?? 2;
-                const freqVal = params.frequency ?? 1.5;
-                return (
-                  <>
-                    <div className="flex flex-col gap-1">
-                      <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                        <span>Wave Amplitude</span>
-                        <span className="text-indigo-400 font-mono">{ampVal.toFixed(1)}</span>
-                      </div>
-                      <input type="range" min="0.5" max="4" step="0.1" value={ampVal} onChange={e => handleSliderChange('amplitude', parseFloat(e.target.value))}
-                        className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                        <span>Wave Frequency</span>
-                        <span className="text-indigo-400 font-mono">{freqVal.toFixed(2)}Hz</span>
-                      </div>
-                      <input type="range" min="0.2" max="5" step="0.1" value={freqVal} onChange={e => handleSliderChange('frequency', parseFloat(e.target.value))}
-                        className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                    </div>
-                  </>
-                );
-              }
-              const angleVal = params.angle ?? 45;
-              const speedVal = params.speed ?? 20;
-              const gravVal = params.gravity ?? 9.8;
-              return (
-                <>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                      <span>Launch Angle (θ)</span>
-                      <span className="text-indigo-400 font-mono">{angleVal.toFixed(0)}°</span>
-                    </div>
-                    <input type="range" min="10" max="80" step="1" value={angleVal} onChange={e => handleSliderChange('angle', parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                      <span>Initial Speed (v)</span>
-                      <span className="text-indigo-400 font-mono">{speedVal.toFixed(0)} m/s</span>
-                    </div>
-                    <input type="range" min="5" max="45" step="1" value={speedVal} onChange={e => handleSliderChange('speed', parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                      <span>Gravity Acceleration (g)</span>
-                      <span className="text-indigo-400 font-mono">{gravVal.toFixed(1)} m/s²</span>
-                    </div>
-                    <input type="range" min="1" max="25" step="0.5" value={gravVal} onChange={e => handleSliderChange('gravity', parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                  </div>
-                </>
-              );
-            }
-            if (isMath) {
-              const isShape = lowerTopic.includes('shape') || lowerTopic.includes('area') || lowerTopic.includes('geometry') || lowerTopic.includes('circle') || lowerTopic.includes('triangle');
-              if (isShape) {
-                const shapeSize = params.radius ?? params.size ?? 40;
-                return (
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                      <span>Shape Size / Radius</span>
-                      <span className="text-indigo-400 font-mono">{shapeSize.toFixed(0)}px</span>
-                    </div>
-                    <input type="range" min="15" max="90" step="1" value={shapeSize} onChange={e => handleSliderChange('radius', parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                  </div>
-                );
-              }
-              const mVal = params.m ?? 1.5;
-              const cVal = params.c ?? 0;
-              return (
-                <>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                      <span>Slope (m)</span>
-                      <span className="text-indigo-400 font-mono">{mVal.toFixed(2)}</span>
-                    </div>
-                    <input type="range" min="-3" max="3" step="0.1" value={mVal} onChange={e => handleSliderChange('m', parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                      <span>Intercept (c)</span>
-                      <span className="text-indigo-400 font-mono">{cVal.toFixed(1)}</span>
-                    </div>
-                    <input type="range" min="-4" max="4" step="0.2" value={cVal} onChange={e => handleSliderChange('c', parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                  </div>
-                </>
-              );
-            }
-            if (isHistory) {
-              const yearVal = params.year ?? 1947;
-              return (
-                <div className="flex flex-col gap-1">
-                  <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                    <span>Timeline Year</span>
-                    <span className="text-indigo-400 font-mono">{yearVal.toFixed(0)}</span>
-                  </div>
-                  <input type="range" min="1947" max="2024" step="1" value={yearVal} onChange={e => handleSliderChange('year', parseFloat(e.target.value))}
-                    className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                </div>
-              );
-            }
-
-            const gravVal = params.gravity ?? 9.8;
-            return (
-              <div className="flex flex-col gap-1">
-                <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                  <span>Gravitational Acceleration</span>
-                  <span className="text-indigo-400 font-mono">{gravVal.toFixed(1)} m/s²</span>
-                </div>
-                <input type="range" min="1" max="25" step="0.5" value={gravVal} onChange={e => handleSliderChange('gravity', parseFloat(e.target.value))}
-                  className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-              </div>
-            );
-          })()}
         </div>
-      )}
+      </div>
     </div>
   );
 };

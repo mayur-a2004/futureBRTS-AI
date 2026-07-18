@@ -6,7 +6,8 @@ export type SubjectType =
   | 'statistics'
   | 'accounting'
   | 'geography'
-  | 'economics';
+  | 'economics'
+  | 'general';
 
 export type ContentLayer =
   | 'text'
@@ -79,7 +80,7 @@ export interface LabConfig {
     expected_output?: string;
   };
   interactive_config?: {
-    type: 'geogebra' | 'phet' | 'chemistry' | null;
+    type: 'geogebra' | 'phet' | 'chemistry' | 'desmos' | null;
     query?: string;
     phet_url?: string;
   } | null;
@@ -101,6 +102,7 @@ export const SUBJECT_COLORS: Record<SubjectType, {
   accounting:  { primary: 'amber',   gradient: 'from-amber-900/50 to-yellow-900/50',   border: 'border-amber-500/30',   badge: 'bg-amber-500/20 text-amber-300 border-amber-500/40',   text: 'text-amber-400',   accent: '#f59e0b' },
   geography:   { primary: 'emerald', gradient: 'from-emerald-900/50 to-green-900/50',  border: 'border-emerald-500/30', badge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40', text: 'text-emerald-400', accent: '#10b981' },
   economics:   { primary: 'yellow',  gradient: 'from-yellow-900/50 to-amber-900/50',   border: 'border-yellow-500/30',  badge: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40', text: 'text-yellow-400',  accent: '#eab308' },
+  general:     { primary: 'slate',   gradient: 'from-slate-900/50 to-zinc-900/50',     border: 'border-slate-500/30',   badge: 'bg-slate-500/20 text-slate-300 border-slate-500/40',   text: 'text-slate-400',   accent: '#6366f1' },
 };
 
 export const SUBJECT_ICONS: Record<SubjectType, string> = {
@@ -112,6 +114,7 @@ export const SUBJECT_ICONS: Record<SubjectType, string> = {
   accounting:  '📒',
   geography:   '🌍',
   economics:   '📈',
+  general:     '🔬',
 };
 
 export const LAYER_ICONS: Record<ContentLayer, string> = {

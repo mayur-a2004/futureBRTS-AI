@@ -28,7 +28,7 @@ export const getDynamicConfig = async (key: string, defaultValue: any = null) =>
  * 🤖 SPECIALIZED: Get AI API Key
  * Specifically looks for AI_GROQ_KEY, etc., but falls back to GROQ_API_KEY for compatibility.
  */
-export const getAiKey = async (provider: 'GROQ' | 'GEMINI' | 'OPENROUTER' | 'NVIDIA') => {
+export const getAiKey = async (provider: 'GROQ' | 'GEMINI' | 'OPENROUTER' | 'NVIDIA' | 'OPENAI' | 'ANTHROPIC' | 'BLUESMINDS') => {
     const primaryKey = `AI_${provider}_KEY`;
     const secondaryKey = `${provider}_API_KEY`;
 

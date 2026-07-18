@@ -4,10 +4,11 @@ import { useAuth } from '../../context/AuthContext';
 import { minervaApi } from '../../api/minerva.api';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    X, Loader2, Map, CheckSquare,
-    FileText, GraduationCap, Award, RefreshCw, Send, Languages,
-    Atom, Landmark, Zap, Dna, Brain, ChevronRight, Mic, Plus,
-    Volume2, VolumeX, Menu
+    X, Map, CheckSquare,
+    FileText, GraduationCap, Award, RefreshCw, Send,
+    Atom, Brain, Mic, Plus, Loader2,
+    Volume2, VolumeX, Menu,
+    ThumbsUp, ThumbsDown, Copy, Check, RotateCw, Edit2, ExternalLink
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -15,6 +16,12 @@ import mermaid from 'mermaid';
 import { DynamicLabEngine } from './labs/DynamicLabEngine';
 import { SUBJECT_COLORS, SUBJECT_ICONS, LabConfig } from './labs/types/LabConfig';
 import { STANDARDS, BOARDS, isSchoolStandard } from './MinervaQuizBattlePage';
+import { useModal } from '../../context/ModalContext';
+import { CitationTooltip } from '../../components/ui/CitationTooltip';
+import { sanitizeExternalUrl } from '../../utils/url';
+import { NeuralTooltip } from '../../components/ui/NeuralTooltip';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 mermaid.initialize({
   startOnLoad: false,
@@ -87,6 +94,50 @@ interface ChatMessage {
     createdAt?: string;
 }
 
+// ── DEFAULT LAB CONFIG (module-level constant) ────
+const DEFAULT_LAB_CONFIG: LabConfig = {
+    subject: 'general',
+    topic: 'Science & Mathematics',
+    grade_level: 'class_10',
+    board: 'cbse',
+    sensitivity_level: 0,
+    content_layers: ['interactive', 'youtube'],
+    diagram_type: null,
+    three_js_config: null,
+    auto_open: false,
+    voice_script: `## Welcome to the Virtual Lab Studio\n\nI am Minerva, your personal tutor. Ask me any question about Math, Physics, Chemistry, Biology, or Computer Science to load a tailored interactive simulator, 3D model, or molecular visualizer here!`,
+    youtube_query: 'science animated explanation',
+    mermaid_schema: `graph TD\n  A["Student Question"] --> B("Tutor Explanation")\n  B --> C("Interactive Virtual Lab")`,
+    sketchfab_hint: 'dna helix',
+    interactive_config: {
+        type: 'desmos',
+        query: 'y = x^2',
+        phet_url: undefined
+    }
+};
+
+// 🧠 Minerva Neural Loading Text (matches Builder's NeuralLoadingText)
+const MinervaLoadingText = () => {
+    const [index, setIndex] = useState(0);
+    const thoughts = [
+        "Synthesizing Knowledge Base...",
+        "Analyzing Academic Patterns...",
+        "Mining Curriculum Intelligence...",
+        "Calibrating Neural Pathways...",
+        "Preparing Virtual Lab Config...",
+        "Resonating Learning Signals...",
+    ];
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setIndex((prev) => (prev + 1) % thoughts.length);
+        }, 2200);
+        return () => clearInterval(interval);
+    }, []);
+
+    return <span>{thoughts[index]}</span>;
+};
+
 // ── COMPONENT ────────────────────────────────────
 const MinervaHome: React.FC = () => {
     const { user, token } = useAuth() as any;
@@ -102,9 +153,14 @@ const MinervaHome: React.FC = () => {
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
-    const [uploadedFile, setUploadedFile] = useState<{ name: string; text: string } | null>(null);
+    const [uploadedFile, setUploadedFile] = useState<{ name: string; text: string; url?: string; type?: string } | null>(null);
     const [isDeepStudy, setIsDeepStudy] = useState(false);
     const [showHoloAlert, setShowHoloAlert] = useState(false);
+    const [responseMode] = useState<string>('normal');
+    const { showAlert } = useModal();
+    const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
+    const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
+    const [editValue, setEditValue] = useState('');
 
     // Voice / TTS States
     const [isSpeaking, setIsSpeaking] = useState<string | null>(null);
@@ -230,7 +286,7 @@ const MinervaHome: React.FC = () => {
     }, []);
 
     // ── VIRTUAL LAB STATE ──────────────────────────────────────────
-    const [activeLabConfig, setActiveLabConfig] = useState<LabConfig | null>(null);
+    const [activeLabConfig, setActiveLabConfig] = useState<LabConfig | null>(DEFAULT_LAB_CONFIG);
     const [labPanelOpen, setLabPanelOpen] = useState(false);
     const [labDetached, setLabDetached] = useState(false);
 
@@ -555,25 +611,37 @@ const MinervaHome: React.FC = () => {
             if (activeSessionId) {
                 const res = await minervaApi.getChatSessionMessages(token, activeSessionId);
                 if (res.success) {
-                    setMessages(res.messages || []);
+                    const fixMsg = (m: any) => ({
+                        ...m,
+                        content: typeof m.content === 'string'
+                            ? m.content.replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\"/g, '"')
+                            : m.content
+                    });
+                    setMessages((res.messages || []).map(fixMsg));
                     // Restore latest virtual lab state from history
                     if (res.messages) {
                         const lastLabMsg = [...res.messages].reverse().find(m => m.metadata?.lab_config);
                         if (lastLabMsg?.metadata?.lab_config) {
                             setActiveLabConfig(lastLabMsg.metadata.lab_config);
+                            setLabPanelOpen(true);
+                        } else {
+                            setActiveLabConfig(DEFAULT_LAB_CONFIG);
+                            setLabPanelOpen(false);
                         }
+                    } else {
+                        setActiveLabConfig(DEFAULT_LAB_CONFIG);
+                        setLabPanelOpen(false);
                     }
                 } else {
                     setMessages([]);
+                    setActiveLabConfig(DEFAULT_LAB_CONFIG);
+                    setLabPanelOpen(false);
                 }
             } else {
-
-                // Welcome message in English by default for new chats
-                setMessages([{
-                    role: 'minerva',
-                    content: `Welcome to **Future Education OS**! 🎓\n\nI am your AI Personal Tutor. I communicate in **English by default**, but you can speak or ask to learn in any language (Hindi, Hinglish, Marathi, Gujarati, etc.) at any time — just ask!\n\n**How we can help you today:**\n• **Ask doubts** on any subject from Class 1 to 12, Masters, or PhD research.\n• **Upload PDF notes** or **textbook photos** (scans) for automatic curriculum analysis.\n• **Generate custom roadmaps** and target weak topics with **daily homework**.\n\nType a topic below or click a quick action to get started! 🚀`,
-                    content_type: 'text',
-                }]);
+                setActiveLabConfig(DEFAULT_LAB_CONFIG);
+                setLabPanelOpen(false);
+                // Start with empty chat — student types directly
+                setMessages([]);
             }
         } catch (err) {
             console.error('Error loading chat session messages:', err);
@@ -603,7 +671,9 @@ const MinervaHome: React.FC = () => {
             if (data.success) {
                 setUploadedFile({
                     name: data.filename,
-                    text: data.extractedText
+                    text: data.extractedText,
+                    url: data.url || null,
+                    type: data.type || 'other'
                 });
             } else {
                 alert(data.error || 'File upload failed');
@@ -632,52 +702,57 @@ const MinervaHome: React.FC = () => {
             displayContent = `📁 ${uploadedFile.name}\n\n${currentInput.trim() || 'Explain this uploaded study material.'}`;
         }
 
-        const userMsg: ChatMessage = { role: 'student', content: displayContent, content_type: 'text' };
+        const userMsg: ChatMessage = {
+            role: 'student',
+            content: displayContent,
+            content_type: 'text',
+            metadata: uploadedFile?.url ? { file_url: uploadedFile.url, file_type: uploadedFile.type, filename: uploadedFile.name } : undefined
+        };
         setMessages(prev => [...prev, userMsg]);
         const msgText = finalContent;
+        const fileUrl = uploadedFile?.url;
+        const fileType = uploadedFile?.type;
         setInput('');
         setUploadedFile(null);
         setLoading(true);
 
         try {
-            const res = await minervaApi.sendChat(token, msgText, undefined, activeSessionId || undefined, isDeepStudy);
+            const res = await minervaApi.sendChat(token, msgText, undefined, activeSessionId || undefined, isDeepStudy, undefined, fileUrl, fileType, responseMode);
             if (res.success) {
                 // Extract & load Virtual Lab Config
                 if (res.metadata?.lab_config) {
                     const config = res.metadata.lab_config;
-                    const validSubjects = ['physics', 'chemistry', 'mathematics', 'biology'];
-                    if (validSubjects.includes(config.subject?.toLowerCase())) {
-                        setActiveLabConfig(config);
-                        if (config.auto_open) {
-                            setLabPanelOpen(true);
-                        }
+                    setActiveLabConfig(config);
+                    setLabPanelOpen(true);
 
-                        // Dynamically fetch YouTube video ID if not preset
-                        if (config.youtube_query && !config.youtube_video_id) {
-                            try {
-                                const ytRes = await fetch(`/api/future-education/lab/youtube-search?query=${encodeURIComponent(config.youtube_query)}`, {
-                                    headers: { 'Authorization': `Bearer ${token}` }
-                                });
-                                const ytData = await ytRes.json();
-                                if (ytData.success && ytData.video_id) {
-                                    setActiveLabConfig((prev: any) => prev ? { ...prev, youtube_video_id: ytData.video_id } : null);
-                                }
-                            } catch (err) {
-                                console.error('Failed to pre-fetch YouTube video ID for lab:', err);
+                    // Dynamically fetch YouTube video ID if not preset
+                    if (config.youtube_query && !config.youtube_video_id) {
+                        try {
+                            const ytRes = await fetch(`/api/future-education/lab/youtube-search?query=${encodeURIComponent(config.youtube_query)}`, {
+                                headers: { 'Authorization': `Bearer ${token}` }
+                            });
+                            const ytData = await ytRes.json();
+                            if (ytData.success && ytData.video_id) {
+                                setActiveLabConfig((prev: any) => prev ? { ...prev, youtube_video_id: ytData.video_id } : null);
                             }
+                        } catch (err) {
+                            console.error('Failed to pre-fetch YouTube video ID for lab:', err);
                         }
-                    } else {
-                        setActiveLabConfig(null);
-                        setLabPanelOpen(false);
                     }
-                } else {
-                    setActiveLabConfig(null);
-                    setLabPanelOpen(false);
                 }
 
+                const sanitizeReply = (text: string) =>
+                    text
+                        .replace(/\\n/g, '\n')   // literal \n → newline
+                        .replace(/\\t/g, '\t')   // literal \t → tab
+                        .replace(/\\"/g, '"');   // literal \" → quote
+
+                const sanitizedContent = sanitizeReply(res.reply);
                 const minervaMsg: ChatMessage = {
                     role: 'minerva',
-                    content: res.reply,
+                    content: sanitizedContent?.trim() 
+                        ? sanitizedContent 
+                        : '⚡ I received your message! Please try again — the response was empty due to a server hiccup.',
                     content_type: res.content_type,
                     metadata: res.metadata,
                 };
@@ -772,12 +847,62 @@ const MinervaHome: React.FC = () => {
         ];
     };
 
-    const quickPrompts = [
-        { title: 'Class 10 Science Roadmap', prompt: 'Generate a detailed Class 10 Science study roadmap with board patterns, key topics & study times.', icon: Atom, desc: 'Board patterns, key topics & study times', color: 'from-blue-500/10 to-indigo-500/10 border-indigo-500/20 text-indigo-400' },
-        { title: 'UPSC General Studies Prep', prompt: 'Generate a roadmap for UPSC General Studies preparation focusing on Indian Polity, History, and Geography.', icon: Landmark, desc: 'Indian Polity, History, and geography', color: 'from-amber-500/10 to-orange-500/10 border-orange-500/20 text-amber-400' },
-        { title: 'JEE Physics - Mechanics', prompt: 'Provide a revision roadmap for JEE Physics - Mechanics with key formulas and mock questions practice.', icon: Zap, desc: 'Formulas, mock questions & quick revision', color: 'from-red-500/10 to-orange-500/10 border-red-500/20 text-orange-400' },
-        { title: 'NEET Biology - Cell Division', prompt: 'Create a roadmap for NEET Biology starting with Cell Division, providing analogy-rich concepts and diagram breakdowns.', icon: Dna, desc: 'Analogy-rich concepts & diagram breakdowns', color: 'from-emerald-500/10 to-teal-500/10 border-emerald-500/20 text-emerald-400' }
-    ];
+
+
+    const handleCopy = (msgId: string, content: string) => {
+        navigator.clipboard.writeText(content);
+        setCopiedMsgId(msgId);
+        setTimeout(() => setCopiedMsgId(null), 2000);
+    };
+
+    const handleRetry = async (idx: number) => {
+        let userMsgText = "";
+        let fileData = null;
+        for (let i = idx - 1; i >= 0; i--) {
+            if (messages[i].role === 'student') {
+                userMsgText = messages[i].content;
+                if (messages[i].metadata?.file_url) {
+                    fileData = {
+                        name: messages[i].metadata.filename || 'File',
+                        text: messages[i].metadata.file_content || '',
+                        url: messages[i].metadata.file_url,
+                        type: messages[i].metadata.file_type
+                    };
+                }
+                break;
+            }
+        }
+        if (!userMsgText) return;
+        
+        const newMessages = messages.slice(0, idx);
+        setMessages(newMessages);
+        if (fileData) {
+            setUploadedFile(fileData);
+        }
+        await sendMessage(userMsgText);
+    };
+
+    const handleEditResend = async (idx: number, newText: string) => {
+        const newMessages = messages.slice(0, idx);
+        setMessages(newMessages);
+        setEditingMsgId(null);
+        await sendMessage(newText);
+    };
+
+    const handleFeedback = async (msgId: string, type: 'up' | 'down') => {
+        try {
+            const token = localStorage.getItem('fbrts_token') || '';
+            await minervaApi.logMessageFeedback(token, msgId, type, activeSessionId);
+            showAlert(
+                "Feedback Received",
+                type === 'up' 
+                    ? "Thank you! Minerva will keep explaining this way. 🎓" 
+                    : "Feedback noted! Minerva will adjust its explanation style. 📝"
+            );
+        } catch (e: any) {
+            console.error("Feedback log error:", e.message);
+        }
+    };
 
     // ── RENDER MESSAGE ────────────────────────────
     const renderMessage = (msg: ChatMessage, idx: number) => {
@@ -786,7 +911,7 @@ const MinervaHome: React.FC = () => {
 
         const msgId = msg._id || String(idx);
         const activeLang = messageSelectedLangs[msgId] || 'original';
-        let displayContent = msg.content;
+        let displayContent = msg.content || '';
         
         if (activeLang !== 'original' && messageTranslations[msgId]?.[activeLang]) {
             displayContent = messageTranslations[msgId][activeLang];
@@ -801,161 +926,433 @@ const MinervaHome: React.FC = () => {
             displayContent = `📁 ${filename}\n\n${studentQuery}`;
         }
 
+        // Minerva icon for avatar
+        const minervaIcon = isDeepStudy
+            ? <Atom size={14} className="animate-spin-slow text-cyan-300" />
+            : <GraduationCap size={14} className="text-white" />;
+
         return (
-            <div key={idx} className={`flex gap-4 mb-6 ${isAI ? 'flex-row' : 'flex-row-reverse'}`}>
-                {/* Avatar */}
-                <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shadow-lg transition-all duration-300 hover:scale-105 border border-white/10
-                    ${isAI 
-                        ? isDeepStudy 
-                            ? 'bg-gradient-to-br from-cyan-400 via-teal-500 to-indigo-600 shadow-[0_0_15px_rgba(6,182,212,0.4)] text-white' 
-                            : 'bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-600 text-white' 
-                        : 'bg-gradient-to-br from-emerald-400 via-teal-500 to-indigo-500 text-white'}`}>
-                    {isAI ? <GraduationCap size={18} /> : (user?.name?.[0] || 'S')}
-                </div>
+            <React.Fragment key={idx}>
+                {/* ── MessageBubble-style premium layout ── */}
+                <div className={`flex items-start gap-2.5 mx-auto max-w-4xl w-full group ${
+                    isAI ? '' : 'flex-row-reverse'
+                } animate-in fade-in slide-in-from-bottom-2 duration-300 mb-3`}>
 
-                {/* Bubble */}
-                <div className={`max-w-[80%] rounded-2xl px-5 py-4 text-sm leading-relaxed whitespace-pre-wrap shadow-[0_8px_30px_rgb(0,0,0,0.4)] border backdrop-blur-md transition-all duration-500
-                    ${isAI
-                        ? isError
-                            ? 'bg-red-950/20 border-red-500/30 text-red-200'
-                            : isDeepStudy
-                                ? 'smart-board-bubble'
-                                : 'bg-white/[0.03] border-white/10 text-gray-200 shadow-indigo-500/5'
-                        : 'bg-gradient-to-br from-indigo-600/90 via-indigo-700/90 to-purple-800/90 border-indigo-500/30 text-white shadow-purple-500/5'
+                    {/* Avatar */}
+                    <div className={`w-8 h-8 md:w-9 md:h-9 shrink-0 flex items-center justify-center relative rounded-xl shadow-xl ${
+                        isAI
+                            ? isDeepStudy
+                                ? 'bg-gradient-to-br from-cyan-500 to-indigo-700 shadow-[0_0_15px_rgba(6,182,212,0.35)]'
+                                : 'bg-gradient-to-br from-indigo-600 to-purple-700 shadow-[0_0_15px_rgba(99,102,241,0.35)]'
+                            : 'bg-white/5 border border-white/10'
                     }`}>
-
-                    {isAI && isDeepStudy && (
-                        <div className="flex items-center gap-2 mb-2 pb-2 border-b border-cyan-500/25 smart-board-title text-cyan-300 text-[10px] uppercase tracking-widest select-none">
-                            <Atom size={12} className="animate-spin-slow text-cyan-400" />
-                            <span>Minerva Interactive Smartboard Note</span>
+                        {isAI && (
+                            <div className="absolute inset-0 bg-indigo-500 blur-sm opacity-40 rounded-xl animate-pulse" />
+                        )}
+                        <div className="relative z-10 flex items-center justify-center w-full h-full">
+                            {isAI
+                                ? minervaIcon
+                                : <span className="font-black text-[12px] text-white">{user?.name?.[0] || 'S'}</span>
+                            }
                         </div>
-                    )}
-
-                    <div className={`prose prose-invert max-w-none text-[13px] space-y-2 [&_p]:mb-2 [&_p]:leading-relaxed [&_ul]:list-disc [&_ul]:pl-4 [&_ul]:my-2 [&_ol]:list-decimal [&_ol]:pl-4 [&_ol]:my-2 [&_strong]:font-bold [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:font-mono [&_code]:text-[11px]
-                        ${isAI && isDeepStudy
-                            ? 'smart-board-content text-[#e2f9f6] [&_strong]:text-cyan-200 [&_code]:bg-cyan-950/40 [&_code]:text-cyan-300 [&_code]:border-cyan-500/10'
-                            : 'text-gray-300 [&_strong]:text-white [&_code]:bg-white/10 [&_code]:text-indigo-300'
-                        }`}>
-                        <ReactMarkdown 
-                            remarkPlugins={[remarkGfm]} 
-                            components={{
-                                a: ({ node, ...props }) => (
-                                    <a 
-                                        {...props} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer" 
-                                        className="text-cyan-400 hover:text-cyan-300 underline font-semibold inline-flex items-center gap-1"
-                                    />
-                                ),
-                                code: ({ node, inline, className, children, ...props }: any) => {
-                                    const match = /language-(\w+)/.exec(className || '');
-                                    const lang = match ? match[1] : '';
-                                    if (!inline && lang === 'mermaid') {
-                                        return <MermaidChatRenderer chart={String(children).replace(/\n$/, '')} />;
-                                    }
-                                    return <code className={className} {...props}>{children}</code>;
-                                }
-                            }}
-                        >
-                            {displayContent}
-                        </ReactMarkdown>
                     </div>
 
-                    {/* Roadmap metadata badge */}
-                    {msg.content_type === 'roadmap' && msg.metadata && (
-                        <div className="mt-4 p-4 bg-indigo-950/30 rounded-xl border border-indigo-500/30 shadow-inner flex flex-col gap-2 backdrop-blur-md">
-                            <div className="text-xs text-indigo-300 font-bold flex items-center gap-1.5">
-                                <Map size={14} className="animate-pulse" /> Roadmap Created Successfully
-                            </div>
-                            <div className="text-gray-300 text-xs">{msg.metadata.total_nodes} key chapters • Estimated {msg.metadata.estimated_hours} study hours</div>
-                            <button
-                                onClick={() => navigate(`/future-education/session/${msg.metadata.session_id}`)}
-                                className="mt-1 w-fit text-xs font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-4 py-2 rounded-lg transition-all shadow-md hover:shadow-indigo-500/20 active:scale-95">
-                                View Curriculum Roadmap →
-                            </button>
-                        </div>
-                    )}
+                    {/* Message content */}
+                    <div className="flex-1 min-w-0">
+                        {/* User bubble (gradient pill) */}
+                        {!isAI ? (
+                            editingMsgId === msgId ? (
+                                <div className="bg-[#2f2f2f] border border-white/10 text-white rounded-2xl px-5 py-4 text-[14px] leading-relaxed max-w-[85%] ml-auto space-y-3 min-w-[300px]">
+                                    <textarea
+                                        className="w-full bg-[#1e1e1e] border border-white/10 rounded-xl p-3 text-sm focus:ring-1 focus:ring-indigo-500 outline-none resize-none min-h-[100px] text-white"
+                                        value={editValue}
+                                        onChange={(e) => setEditValue(e.target.value)}
+                                    />
+                                    <div className="flex justify-end gap-2">
+                                        <button onClick={() => setEditingMsgId(null)} className="px-3 py-1 text-xs text-gray-400 hover:text-white transition-colors cursor-pointer">Cancel</button>
+                                        <button onClick={() => handleEditResend(idx, editValue)} className="px-3 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 rounded-lg font-bold transition-all cursor-pointer">Save & Resend</button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="bg-[#1e1e2e] border border-white/8 text-white rounded-2xl px-4 py-3 text-[13.5px] leading-snug w-fit max-w-[75%] ml-auto group/bubble">
+                                    {/* Inline image preview if uploaded image */}
+                                    {msg.metadata?.file_url && msg.metadata?.file_type === 'image' && (
+                                        <div className="mb-2 rounded-xl overflow-hidden border border-white/10">
+                                            <img
+                                                src={`http://localhost:7001${msg.metadata.file_url}`}
+                                                alt={msg.metadata.filename || 'Uploaded image'}
+                                                className="max-w-full max-h-48 object-contain w-full"
+                                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                            />
+                                        </div>
+                                    )}
+                                    {/* PDF/Other file badge */}
+                                    {msg.metadata?.file_url && msg.metadata?.file_type !== 'image' && (
+                                        <div className="flex items-center gap-1.5 mb-2 bg-white/8 px-2.5 py-1.5 rounded-lg text-xs text-gray-300 border border-white/8">
+                                            <span>📄</span>
+                                            <span className="truncate max-w-[180px]">{msg.metadata.filename}</span>
+                                        </div>
+                                    )}
+                                    <span className="whitespace-pre-wrap">{displayContent}</span>
 
-                    {/* Homework metadata */}
-                    {msg.content_type === 'homework' && msg.metadata && (
-                        <button
-                            onClick={() => navigate('/future-education/homework')}
-                            className="mt-3 text-xs font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-4 py-2 rounded-lg transition-all shadow-md hover:shadow-emerald-500/20 active:scale-95 flex items-center gap-1.5">
-                            <CheckSquare size={14} /> Open Homework Sheet →
-                        </button>
-                    )}
-                    {/* Exam metadata */}
-                    {msg.content_type === 'exam_ready' && (
-                        <button
-                            onClick={() => navigate('/future-education/exams')}
-                            className="mt-3 text-xs font-semibold bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white px-4 py-2 rounded-lg transition-all shadow-md hover:shadow-amber-500/20 active:scale-95 flex items-center gap-1.5">
-                            <Award size={14} /> Take Subject Exam →
-                        </button>
-                    )}
+                                    {/* Edit & Copy — compact action bar */}
+                                    <div className="flex items-center gap-1.5 pt-2 mt-2 border-t border-white/5 opacity-0 group-hover/bubble:opacity-100 transition-opacity duration-150">
+                                        <button
+                                            onClick={() => {
+                                                setEditingMsgId(msgId);
+                                                setEditValue(msg.content);
+                                            }}
+                                            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-gray-400 hover:text-white transition-colors cursor-pointer"
+                                            title="Edit question"
+                                        >
+                                            <Edit2 size={10} />
+                                            <span className="font-semibold uppercase tracking-widest text-[9px]">Edit</span>
+                                        </button>
+                                        <div className="w-px h-3 bg-white/10" />
+                                        <button
+                                            onClick={() => handleCopy(msgId, msg.content)}
+                                            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-gray-400 hover:text-white transition-colors cursor-pointer"
+                                            title="Copy question"
+                                        >
+                                            {copiedMsgId === msgId ? <Check size={10} className="text-green-400" /> : <Copy size={10} />}
+                                            <span className="font-semibold uppercase tracking-widest text-[9px]">{copiedMsgId === msgId ? 'Copied' : 'Copy'}</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            )
+                        ) : (
+                            /* AI message: open / borderless — Builder style */
+                            <div className={`w-full ${
+                                isError ? 'px-4 py-3 rounded-2xl bg-red-950/20 border border-red-500/30 text-red-200 text-sm' : ''
+                            }`}>
 
-                    {/* AI Speaker Button */}
-                    {isAI && !isError && (
-                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/5 gap-1.5 flex-wrap">
-                            {/* Premium Language Translator */}
-                            <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                                <span>🗣️ Translate:</span>
-                                <select
-                                    value={activeLang}
-                                    disabled={translatingMsgId === msgId}
-                                    onChange={(e) => translateMessage(msgId, msg.content, e.target.value)}
-                                    className="bg-black/40 border border-white/10 rounded-md px-1.5 py-0.5 text-[9px] text-white outline-none focus:border-cyan-500/50 transition-all font-semibold cursor-pointer hover:border-white/20"
-                                >
-                                    <option value="original">Original (English)</option>
-                                    <option value="hinglish">Hinglish</option>
-                                    <option value="hindi">Hindi (हिंदी)</option>
-                                    <option value="marathi">Marathi (मराठी)</option>
-                                    <option value="gujarati">Gujarati (ગુજરાતી)</option>
-                                    <option value="bengali">Bengali (বাংলা)</option>
-                                    <option value="tamil">Tamil (தமிழ்)</option>
-                                    <option value="telugu">Telugu (తెలుగు)</option>
-                                    <option value="kannada">Kannada (ಕನ್ನಡ)</option>
-                                    <option value="punjabi">Punjabi (ਪੰਜਾਬੀ)</option>
-                                    <option value="spanish">Spanish (Español)</option>
-                                </select>
-                                {translatingMsgId === msgId && (
-                                    <Loader2 size={10} className="animate-spin text-cyan-400" />
+                                {/* Deep Study header badge */}
+                                {isDeepStudy && !isError && (
+                                    <div className="flex items-center gap-2 mb-3 text-cyan-300 text-[10px] uppercase tracking-widest select-none">
+                                        <Atom size={11} className="animate-spin-slow text-cyan-400" />
+                                        <span>Minerva Interactive Smartboard Note</span>
+                                    </div>
+                                )}
+
+                                {/* ── MAIN MARKDOWN (Builder MessageBubble style) ── */}
+                                {!isError && (
+                                    <div className="prose prose-invert max-w-none break-words !pt-0
+                                        prose-headings:!text-white prose-headings:!mb-6 prose-headings:!mt-10 first:prose-headings:!mt-0 prose-headings:!tracking-tight
+                                        prose-h1:!text-[1.8rem] prose-h1:!font-black prose-h1:!italic prose-h1:!uppercase prose-h1:!leading-tight
+                                        prose-h2:!text-[1.5rem] prose-h2:!font-black prose-h2:!tracking-tight prose-h2:!mb-4
+                                        prose-h3:!text-[1.2rem] prose-h3:!font-bold prose-h3:!mb-3
+                                        prose-p:!text-[1.05rem] prose-p:!leading-[1.8] prose-p:!mb-6 prose-p:!text-[#f3f4f6]
+                                        prose-ul:!my-8 prose-ul:!list-none prose-ul:!pl-0 
+                                        prose-li:text-[#f3f4f6] prose-li:!mb-6 prose-li:!pl-0
+                                        prose-strong:text-white prose-strong:font-black prose-strong:text-[1.1rem]
+                                        prose-code:text-indigo-300 prose-code:bg-indigo-500/10 prose-code:px-2.5 prose-code:py-1 prose-code:rounded-lg prose-code:before:content-none prose-code:after:content-none prose-code:font-mono prose-code:text-[11px] prose-code:border prose-code:border-indigo-500/20 prose-code:shadow-[0_0_10px_rgba(99,102,241,0.05)]
+                                        prose-pre:bg-transparent prose-pre:border-0 prose-pre:p-0 prose-pre:my-8
+                                        prose-blockquote:border-l-4 prose-blockquote:border-indigo-500 prose-blockquote:pl-6 prose-blockquote:italic prose-blockquote:text-gray-300 prose-blockquote:bg-indigo-500/5 prose-blockquote:py-6 prose-blockquote:rounded-r-2xl
+                                        prose-hr:border-white/10 prose-hr:my-12
+                                        [&_li_li]:ml-8 [&_li_li]:mt-4 [&_li_li]:!mb-2 [&_li_li_.neural-dot]:w-2 [&_li_li_.neural-dot]:h-2 [&_li_li_.neural-dot]:bg-indigo-400/60 [&_li_li_.neural-dot]:shadow-none [&_li_li_.neural-dot]:cursor-default [&_li_li_.neural-text]:text-[0.95rem] [&_li_li_.neural-text]:text-gray-400">
+                                        <ReactMarkdown
+                                            remarkPlugins={[remarkGfm]}
+                                            components={{
+                                                h1: ({ node, ...props }) => <h1 className="!text-[1.8rem] !font-black !text-white !mb-6 first:!mt-0 !mt-10 !italic !uppercase !leading-tight !tracking-tighter" {...props} />,
+                                                h2: ({ node, ...props }) => <h2 className="!text-[1.5rem] !font-black !text-white !mb-4 first:!mt-0 !mt-8 !tracking-tight" {...props} />,
+                                                h3: ({ node, ...props }) => <h3 className="!text-[1.2rem] !font-bold !text-white !mb-3 first:!mt-0 !mt-6" {...props} />,
+                                                ul: ({ children }) => <ul className="space-y-6 my-8">{children}</ul>,
+                                                ol: ({ children }) => <ol className="space-y-4 my-6 pl-6 list-decimal">{children}</ol>,
+                                                li: ({ children }) => {
+                                                    return (
+                                                        <li className="flex gap-5 items-start group/li relative">
+                                                            <div className="relative mt-2.5 shrink-0">
+                                                                <div className="w-3 h-3 rounded-full bg-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.5)] transition-all duration-300 relative z-10" />
+                                                            </div>
+                                                            <div className="neural-text flex-1 text-[1.05rem] leading-relaxed group-hover/li:text-white transition-colors">
+                                                                {children}
+                                                            </div>
+                                                        </li>
+                                                    );
+                                                },
+                                                p: ({ children }) => {
+                                                    const childrenArray = React.Children.toArray(children);
+                                                    return (
+                                                        <p className="mb-6 first:!mt-0 leading-relaxed font-medium text-[#f3f4f6]">
+                                                            {childrenArray.map((child) => {
+                                                                if (typeof child === 'string') {
+                                                                    const parts = child.split(/(\[\[Citation:.*?\]\])/g);
+                                                                    return parts.map((part, k) => {
+                                                                        if (part.startsWith('[[Citation:')) {
+                                                                            const content = part.replace('[[Citation:', '').replace(']]', '');
+                                                                            const [name, url, snippet] = content.split('|').map(s => s.trim());
+                                                                            const finalName = name || "Source";
+                                                                            const finalUrl = url || `https://google.com/search?q=${encodeURIComponent(finalName)}`;
+                                                                            const sanitizedUrl = sanitizeExternalUrl(finalUrl);
+                                                                            const finalSnippet = snippet || `Verified external reference for ${finalName}.`;
+                                                                            return (
+                                                                                <CitationTooltip key={k} citation={{ name: finalName, url: sanitizedUrl, snippet: finalSnippet }}>
+                                                                                    {finalName}
+                                                                                </CitationTooltip>
+                                                                            );
+                                                                        }
+                                                                        return part;
+                                                                    });
+                                                                }
+                                                                return child;
+                                                            })}
+                                                        </p>
+                                                    );
+                                                },
+                                                pre: ({ children }) => {
+                                                    return <div className="rounded-[22px] overflow-hidden border border-white/10 bg-[#0d0d0d] my-6 shadow-2xl">{children}</div>;
+                                                },
+                                                code({ node, className, children, ...props }: any) {
+                                                    const match = /language-(\w+)/.exec(className || '');
+                                                    const isInline = !match;
+                                                    if (!isInline && match?.[1] === 'mermaid') {
+                                                        return <MermaidChatRenderer chart={String(children).replace(/\n$/, '')} />;
+                                                    }
+                                                    if (isInline) {
+                                                        return (
+                                                            <NeuralTooltip text={String(children)}>
+                                                                <code className="text-white bg-indigo-500/10 px-2.5 py-1 rounded-lg font-mono text-[11px] border border-indigo-500/20 hover:bg-indigo-500/20 transition-all font-black group/node shadow-[0_0_10px_rgba(99,102,241,0.1)]" {...props}>
+                                                                    {children}
+                                                                </code>
+                                                            </NeuralTooltip>
+                                                        );
+                                                    }
+                                                    const codeContent = String(children).replace(/\n$/, '');
+                                                    return (
+                                                        <div className="relative group/code text-[13px]">
+                                                            <div className="flex items-center justify-between px-6 py-3 bg-white/5 border-b border-white/5">
+                                                                <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">{match?.[1] || 'code'}</span>
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        navigator.clipboard.writeText(codeContent);
+                                                                        const btn = e.currentTarget as HTMLButtonElement;
+                                                                        if (btn) btn.innerHTML = '<span class="text-emerald-400">COPIED</span>';
+                                                                        setTimeout(() => { if (btn) btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>'; }, 2000);
+                                                                    }}
+                                                                    className="text-gray-500 hover:text-white transition-all active:scale-95 cursor-pointer"
+                                                                >
+                                                                    <Copy size={14} />
+                                                                </button>
+                                                            </div>
+                                                            <div className="flex-1 overflow-auto max-h-[600px] scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                                                                <SyntaxHighlighter
+                                                                    style={atomDark}
+                                                                    language={match?.[1] || 'text'}
+                                                                    PreTag="div"
+                                                                    className="!bg-transparent !p-6 !m-0 !text-[13px]"
+                                                                    customStyle={{
+                                                                        margin: 0,
+                                                                        background: 'transparent',
+                                                                        minWidth: '100%',
+                                                                        width: 'max-content'
+                                                                    }}
+                                                                >
+                                                                    {codeContent}
+                                                                </SyntaxHighlighter>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                },
+                                                a: ({ node, href, children, ...props }: any) => {
+                                                    const sanitizedHref = href ? sanitizeExternalUrl(href) : href;
+                                                    return (
+                                                        <a href={sanitizedHref || '#'} target="_blank" rel="noopener noreferrer"
+                                                            className="text-indigo-400 hover:text-indigo-300 transition-colors inline-flex items-center gap-1 font-bold"
+                                                            {...props}>{children} <ExternalLink size={12} /></a>
+                                                    );
+                                                },
+                                                blockquote: ({ children }) => (
+                                                    <blockquote className="border-l-4 border-indigo-500 pl-6 italic text-gray-300 bg-indigo-500/5 py-6 rounded-r-2xl my-6">{children}</blockquote>
+                                                ),
+                                            }}
+                                        >
+                                            {displayContent}
+                                        </ReactMarkdown>
+                                    </div>
+                                )}
+
+                                {isError && <span>{displayContent}</span>}
+
+                                {/* ── Roadmap metadata badge ── */}
+                                {msg.content_type === 'roadmap' && msg.metadata && (
+                                    <div className="mt-5 p-4 bg-indigo-950/30 rounded-2xl border border-indigo-500/30 shadow-inner flex flex-col gap-2 backdrop-blur-md">
+                                        <div className="text-xs text-indigo-300 font-bold flex items-center gap-1.5">
+                                            <Map size={13} className="animate-pulse" /> Roadmap Created Successfully
+                                        </div>
+                                        <div className="text-gray-300 text-xs">{msg.metadata.total_nodes} key chapters • Estimated {msg.metadata.estimated_hours} study hours</div>
+                                        <button
+                                            onClick={() => navigate(`/future-education/session/${msg.metadata.session_id}`)}
+                                            className="mt-1 w-fit text-xs font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-4 py-2 rounded-lg transition-all shadow-md hover:shadow-indigo-500/20 active:scale-95">
+                                            View Curriculum Roadmap →
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* ── Homework metadata ── */}
+                                {msg.content_type === 'homework' && msg.metadata && (
+                                    <button
+                                        onClick={() => navigate('/future-education/homework')}
+                                        className="mt-4 text-xs font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-4 py-2 rounded-lg transition-all shadow-md hover:shadow-emerald-500/20 active:scale-95 flex items-center gap-1.5">
+                                        <CheckSquare size={13} /> Open Homework Sheet →
+                                    </button>
+                                )}
+
+                                {/* ── Exam metadata ── */}
+                                {msg.content_type === 'exam_ready' && (
+                                    <button
+                                        onClick={() => navigate('/future-education/exams')}
+                                        className="mt-4 text-xs font-semibold bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white px-4 py-2 rounded-lg transition-all shadow-md hover:shadow-amber-500/20 active:scale-95 flex items-center gap-1.5">
+                                        <Award size={13} /> Take Subject Exam →
+                                    </button>
+                                )}
+
+                                {/* ── Neural Recommendations (suggestions) ── */}
+                                {msg.metadata?.suggestions && msg.metadata.suggestions.length > 0 && (
+                                    <div className="mt-7 pt-5 border-t border-white/5">
+                                        <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3">Neural Recommendations</div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {msg.metadata.suggestions.map((sug: string, sIdx: number) => (
+                                                <button
+                                                    key={sIdx}
+                                                    onClick={() => sendMessage(sug)}
+                                                    className="px-4 py-2 rounded-full border border-white/10 bg-white/5 hover:bg-indigo-500/10 hover:border-indigo-500/30 text-[12px] font-bold text-gray-400 hover:text-white transition-all active:scale-95 flex items-center gap-2 group cursor-pointer"
+                                                >
+                                                    {sug} <span className="text-indigo-400 group-hover:animate-pulse text-xs">✦</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* ── Translate + Voice action bar ── */}
+                                {!isError && (
+                                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-white/5 gap-2 flex-wrap opacity-60 group-hover:opacity-100 transition-opacity duration-200">
+                                        {/* Translate dropdown */}
+                                        <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                                            <span>🗣️ Translate:</span>
+                                            <select
+                                                value={activeLang}
+                                                disabled={translatingMsgId === msgId}
+                                                onChange={(e) => translateMessage(msgId, msg.content, e.target.value)}
+                                                className="bg-black/40 border border-white/10 rounded-md px-1.5 py-0.5 text-[9px] text-white outline-none focus:border-cyan-500/50 transition-all font-semibold cursor-pointer hover:border-white/20"
+                                            >
+                                                <option value="original">Original (English)</option>
+                                                <option value="hinglish">Hinglish</option>
+                                                <option value="hindi">Hindi (हिंदी)</option>
+                                                <option value="marathi">Marathi (मराठी)</option>
+                                                <option value="gujarati">Gujarati (ગુજરાતી)</option>
+                                                <option value="bengali">Bengali (বাংলা)</option>
+                                                <option value="tamil">Tamil (தமிழ்)</option>
+                                                <option value="telugu">Telugu (తెలుగు)</option>
+                                                <option value="kannada">Kannada (ಕನ್ನಡ)</option>
+                                                <option value="punjabi">Punjabi (ਪੰਜਾਬੀ)</option>
+                                                <option value="spanish">Spanish (Español)</option>
+                                            </select>
+                                            {translatingMsgId === msgId && (
+                                                <Loader2 size={10} className="animate-spin text-cyan-400" />
+                                            )}
+                                        </div>
+
+                                        {/* AI Action Buttons */}
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => handleCopy(msgId, msg.content)}
+                                                className="p-1 px-2 rounded-lg bg-white/5 border border-white/5 text-gray-400 hover:text-white transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 text-[10px] font-bold"
+                                                title="Copy explanation"
+                                            >
+                                                {copiedMsgId === msgId ? <Check size={11} className="text-green-400" /> : <Copy size={11} />}
+                                                <span>{copiedMsgId === msgId ? 'Copied' : 'Copy'}</span>
+                                            </button>
+
+                                            <button
+                                                onClick={() => handleRetry(idx)}
+                                                className="p-1 px-2 rounded-lg bg-white/5 border border-white/5 text-gray-400 hover:text-white transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 text-[10px] font-bold"
+                                                title="Retry / Regenerate explanation"
+                                            >
+                                                <RotateCw size={11} />
+                                                <span>Retry</span>
+                                            </button>
+
+                                            <div className="w-px h-3 bg-white/10 mx-0.5" />
+
+                                            <button
+                                                onClick={() => handleFeedback(msgId, 'up')}
+                                                className="p-1.5 rounded-lg bg-white/5 border border-white/5 text-gray-400 hover:text-emerald-400 transition-all active:scale-95 cursor-pointer"
+                                                title="Good answer"
+                                            >
+                                                <ThumbsUp size={11} />
+                                            </button>
+
+                                            <button
+                                                onClick={() => handleFeedback(msgId, 'down')}
+                                                className="p-1.5 rounded-lg bg-white/5 border border-white/5 text-gray-400 hover:text-rose-400 transition-all active:scale-95 cursor-pointer"
+                                                title="Poor answer"
+                                            >
+                                                <ThumbsDown size={11} />
+                                            </button>
+
+                                            <div className="w-px h-3 bg-white/10 mx-0.5" />
+
+                                            {/* Voice speaker */}
+                                            <button
+                                                onClick={() => {
+                                                    if (isSpeaking === msgId) {
+                                                        stopSpeech();
+                                                    } else {
+                                                        const textToSpeak = activeLang !== 'original' && messageTranslations[msgId]?.[activeLang]
+                                                            ? messageTranslations[msgId][activeLang]
+                                                            : msg.content;
+                                                        speakText(textToSpeak, msgId, activeLang);
+                                                    }
+                                                }}
+                                                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all active:scale-95 cursor-pointer ${
+                                                    isSpeaking === msgId
+                                                        ? 'bg-cyan-500/20 border-cyan-500/30 text-cyan-300 animate-pulse'
+                                                        : 'bg-white/5 border-white/5 text-gray-400 hover:text-white'
+                                                }`}
+                                                title={isSpeaking === msgId ? 'Mute Voice' : 'Play Voice'}
+                                            >
+                                                {isSpeaking === msgId
+                                                    ? <><Volume2 size={11} className="text-cyan-400" /><span>Mute</span></>
+                                                    : <><VolumeX size={11} /><span>Play Voice</span></>
+                                                }
+                                            </button>
+                                        </div>
+                                    </div>
                                 )}
                             </div>
-
-                            <button
-                                onClick={() => {
-                                    if (isSpeaking === msgId) {
-                                        stopSpeech();
-                                    } else {
-                                        const textToSpeak = activeLang !== 'original' && messageTranslations[msgId]?.[activeLang] 
-                                            ? messageTranslations[msgId][activeLang] 
-                                            : msg.content;
-                                        speakText(textToSpeak, msgId, activeLang);
-                                    }
-                                }}
-                                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all active:scale-95 cursor-pointer
-                                    ${isSpeaking === msgId
-                                        ? 'bg-cyan-500/20 border-cyan-500/30 text-cyan-300 animate-pulse'
-                                        : 'bg-white/5 border-white/5 text-gray-400 hover:text-white'
-                                    }`}
-                                title={isSpeaking === msgId ? "Mute Voice" : "Play Voice"}
-                            >
-                                {isSpeaking === msgId ? (
-                                    <>
-                                        <Volume2 size={11} className="text-cyan-400" />
-                                        <span>Mute</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <VolumeX size={11} />
-                                        <span>Play Voice</span>
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
-            </div>
+
+                {/* ── Inline quick-action suggestions (last AI msg only) ── */}
+                {isAI && idx === messages.length - 1 && !loading && (
+                    <div className="flex flex-wrap gap-2 mt-1 mb-6 ml-12 animate-in fade-in slide-in-from-bottom-2 duration-300 max-w-4xl">
+                        {/* Generate Roadmap button */}
+                        <button
+                            onClick={() => {
+                                const topicText = msg.content || 'this topic';
+                                sendMessage(`Create a roadmap for: ${topicText}`);
+                            }}
+                            className="bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 hover:border-cyan-500/50 rounded-full px-3.5 py-1.5 text-[10px] font-black text-cyan-300 uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
+                        >
+                            <span>🧭</span>
+                            <span>Generate Roadmap for this topic</span>
+                        </button>
+
+                        {/* Fallback category suggestions (if no dynamic suggestions) */}
+                        {!msg.metadata?.suggestions && getTopicSuggestions().map((sug, sIdx) => (
+                            <button
+                                key={sIdx}
+                                onClick={() => sendMessage(sug.prompt)}
+                                className="bg-white/[0.02] hover:bg-[#120a2e]/20 border border-white/[0.05] hover:border-indigo-500/25 rounded-full px-3.5 py-1.5 text-[10px] font-bold text-gray-300 hover:text-indigo-200 transition-all flex items-center gap-1 shadow-md active:scale-95 cursor-pointer"
+                            >
+                                <span>{sug.text}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </React.Fragment>
         );
     };
 
@@ -1008,19 +1405,18 @@ const MinervaHome: React.FC = () => {
                     </motion.div>
                 )}
             </AnimatePresence>
-
             {/* Header */}
-            <header className="flex flex-col md:flex-row md:items-center md:justify-between px-4 md:px-6 py-3 md:py-3.5 border-b border-white/[0.06] bg-black/20 backdrop-blur-xl flex-shrink-0 z-10 shadow-lg gap-3 md:gap-0">
+            <header className="relative w-full z-30 flex flex-col md:flex-row md:items-center md:justify-between px-4 md:px-6 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-3 md:py-3.5 border-b border-white/[0.06] bg-[#030209]/80 backdrop-blur-2xl flex-shrink-0 shadow-lg gap-3 md:gap-0">
                 {/* Top Row on Mobile, Full Left Side on Desktop */}
                 <div className="flex items-center justify-between md:justify-start gap-3 w-full md:w-auto">
                     <div className="flex items-center gap-3">
                         {/* Mobile Menu Button */}
                         <button
                             onClick={() => window.dispatchEvent(new Event('toggle-mobile-menu'))}
-                            className="md:hidden p-2 bg-white/[0.03] hover:bg-white/10 border border-white/5 hover:border-indigo-500/30 rounded-xl transition-all text-gray-400 hover:text-white flex items-center justify-center active:scale-95 shrink-0"
+                            className="md:hidden p-2.5 bg-white/[0.03] hover:bg-white/10 border border-white/5 hover:border-indigo-500/30 rounded-xl transition-all text-gray-400 hover:text-white flex items-center justify-center active:scale-95 shrink-0"
                             title="Toggle menu"
                         >
-                            <Menu size={16} />
+                            <Menu size={18} />
                         </button>
 
                         {/* Brand Title */}
@@ -1108,47 +1504,7 @@ const MinervaHome: React.FC = () => {
                         </select>
                     </div>
 
-                    <div className="hidden md:block h-4 w-px bg-white/10 shrink-0" />
 
-                    {/* Dashboard Button */}
-                    <button
-                        onClick={() => navigate('/future-education/dashboard')}
-                        title="View progress analytics dashboard"
-                        className="px-3 py-1.5 md:px-3.5 md:py-2 text-[10px] md:text-xs font-bold bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-indigo-500/30 text-gray-300 hover:text-white rounded-xl transition-all active:scale-95 flex items-center gap-1.5 shadow-md shrink-0"
-                    >
-                        <Brain size={12} className="text-yellow-400" />
-                        <span>Analytics</span>
-                    </button>
-
-                    {/* Roadmaps Button */}
-                    <button
-                        onClick={() => navigate('/future-education/roadmaps')}
-                        title="View study roadmaps"
-                        className="px-3 py-1.5 md:px-3.5 md:py-2 text-[10px] md:text-xs font-bold bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-indigo-500/30 text-gray-300 hover:text-white rounded-xl transition-all active:scale-95 flex items-center gap-1.5 shadow-md shrink-0"
-                    >
-                        <Map size={12} className="text-indigo-400" />
-                        <span>Roadmaps</span>
-                    </button>
-
-                    {/* Tasks Button */}
-                    <button
-                        onClick={() => navigate('/future-education/tasks')}
-                        title="View daily learning tasks"
-                        className="px-3 py-1.5 md:px-3.5 md:py-2 text-[10px] md:text-xs font-bold bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-indigo-500/30 text-gray-300 hover:text-white rounded-xl transition-all active:scale-95 flex items-center gap-1.5 shadow-md shrink-0"
-                    >
-                        <CheckSquare size={12} className="text-emerald-400" />
-                        <span>Tasks</span>
-                    </button>
-
-                    {/* Results Button */}
-                    <button
-                        onClick={() => navigate('/future-education/results')}
-                        title="View academic results transcript"
-                        className="px-3 py-1.5 md:px-3.5 md:py-2 text-[10px] md:text-xs font-bold bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-indigo-500/30 text-gray-300 hover:text-white rounded-xl transition-all active:scale-95 flex items-center gap-1.5 shadow-md shrink-0"
-                    >
-                        <Award size={12} className="text-purple-400" />
-                        <span>Results</span>
-                    </button>
 
                     {/* Global Voice/Mute Toggle */}
                     <button
@@ -1191,98 +1547,50 @@ const MinervaHome: React.FC = () => {
             <div className="flex-1 flex min-w-0 w-full overflow-hidden relative">
                 {/* Left Side: Active Chat Column */}
                 <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+
+                    {/* Empty state — absolutely centered when no messages */}
+                    {messages.length === 0 && !loading && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center select-none pointer-events-none z-0">
+                            <div className="opacity-25 flex flex-col items-center">
+                                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-600 flex items-center justify-center shadow-xl mb-4">
+                                    <GraduationCap size={26} className="text-white" />
+                                </div>
+                                <p className="text-sm font-bold text-gray-400 tracking-wide">Future Education OS</p>
+                                <p className="text-[11px] text-gray-500 mt-1">Type your question to get started</p>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Messages Space */}
-                    <div className="flex-1 overflow-y-auto px-6 pt-6 pb-6 space-y-4">
-                {/* Welcome screen — only when no messages */}
-                {messages.length <= 1 && (
-                    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-700">
-                        {/* Hero Section */}
-                        <div className="text-center py-8 relative bg-cyber-dots rounded-3xl border border-white/[0.02] p-6 shadow-inner overflow-hidden">
-                            <div className="absolute inset-0 blueprint-mesh opacity-25 pointer-events-none" />
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-indigo-600/10 rounded-full blur-[80px] pointer-events-none" />
-                            
-                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/25 text-indigo-300 text-[10px] font-bold tracking-wider uppercase mb-4 shadow-lg">
-                                <Brain size={12} className="animate-pulse text-indigo-400" /> 
-                                <span className="font-display">Future BRTS</span>
-                            </div>
-                            <h1 className="text-4xl font-black font-display tracking-tight leading-none bg-clip-text text-transparent bg-gradient-to-b from-white via-gray-100 to-indigo-200">
-                                Future Education OS
-                            </h1>
-                            <p className="text-indigo-300/90 text-sm font-semibold tracking-wide mt-1 uppercase font-display">
-                                Your Advanced Personal AI Tutor
-                            </p>
-                            <p className="text-gray-400 text-xs mt-4 max-w-2xl mx-auto leading-relaxed font-normal">
-                                Empowering students through personalized curriculum mappings, textbook scans, handwritten notes, and standard school/college subjects across all Indian state boards, Master's research, and PhD prep.
-                            </p>
-                        </div>
+                    <div className="flex-1 overflow-y-auto px-6 pt-6 pb-6 relative z-10">
+                        <div className="space-y-4 max-w-4xl mx-auto">
+                            {/* List of chat bubbles */}
+                            {messages.map((msg, i) => renderMessage(msg, i))}
 
-                        {/* Feature Cards Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="glass-card hover:bg-white/[0.02] border border-white/5 focus-within:border-indigo-500/30 rounded-2xl p-6 transition-all hover:-translate-y-0.5 duration-300 group relative overflow-hidden shadow-2xl">
-                                <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-indigo-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 mb-4 group-hover:scale-105 transition-transform shadow-md">
-                                    <Languages size={20} />
-                                </div>
-                                <h4 className="text-sm font-bold text-white mb-2 flex items-center gap-1.5">Language Auto-Switch</h4>
-                                <p className="text-xs text-gray-400 leading-relaxed">I teach in English by default. Speak or ask questions in Hindi, Hinglish, or any regional language and I will automatically switch for you!</p>
-                            </div>
-                            <div className="glass-card hover:bg-white/[0.02] border border-white/5 focus-within:border-indigo-500/30 rounded-2xl p-6 transition-all hover:-translate-y-0.5 duration-300 group relative overflow-hidden shadow-2xl">
-                                <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-purple-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 mb-4 group-hover:scale-105 transition-transform shadow-md">
-                                    <FileText size={20} />
-                                </div>
-                                <h4 className="text-sm font-bold text-white mb-2 flex items-center gap-1.5">Photo & Document Uploads</h4>
-                                <p className="text-xs text-gray-400 leading-relaxed">Click the Paperclip button below to upload textbook page photos, notes scans, or research PDFs for analysis.</p>
-                            </div>
-                        </div>
-
-                        {/* Quick suggestions */}
-                        <div className="pt-4">
-                            <div className="text-[10px] text-indigo-400/60 font-black uppercase tracking-[0.2em] mb-4 text-center">Suggested Topics to Launch</div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {quickPrompts.map((qp, i) => (
-                                    <button key={i}
-                                        onClick={() => { setInput(''); sendMessage(qp.prompt); }}
-                                        className="text-left text-xs bg-[#0b0813]/40 hover:bg-[#120a2e]/40 border border-white/5 hover:border-indigo-500/30 rounded-2xl p-4 transition-all text-gray-300 hover:text-white shadow-xl flex items-start gap-4 hover:-translate-y-1 duration-300 group backdrop-blur-md"
-                                    >
-                                        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${qp.color} flex items-center justify-center shadow-md shrink-0 group-hover:scale-110 transition-transform`}>
-                                            <qp.icon size={18} />
+                            {/* Loading bubble — Builder style */}
+                            {loading && (
+                                <div className="flex gap-4 mx-auto max-w-4xl w-full animate-in fade-in slide-in-from-bottom-2 duration-500 pb-10">
+                                    <div className="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0 shadow-[0_0_20px_rgba(79,70,229,0.2)]">
+                                        <Brain size={18} className="text-indigo-400 animate-pulse" />
+                                    </div>
+                                    <div className="flex flex-col gap-2 pt-1.5">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" />
+                                            <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce delay-75" />
+                                            <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce delay-150" />
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="font-bold text-gray-200 group-hover:text-white transition-colors flex items-center justify-between">
-                                                <span>{qp.title}</span>
-                                                <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity translate-x-1 duration-300" />
-                                            </div>
-                                            <div className="text-[10px] text-gray-400 mt-1 leading-relaxed truncate">{qp.desc}</div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em] animate-pulse">
+                                                <MinervaLoadingText />
+                                            </span>
                                         </div>
-                                    </button>
-                                ))}
-                            </div>
+                                    </div>
+                                </div>
+                            )}
+                            <div ref={chatEndRef} />
                         </div>
                     </div>
-                )}
 
-                {/* List of chat bubbles */}
-                {messages.map((msg, i) => renderMessage(msg, i))}
-
-                {/* Loading bubble */}
-                {loading && (
-                    <div className="flex gap-4 mb-6">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-600 flex items-center justify-center text-sm font-bold flex-shrink-0 shadow-md">
-                            <Loader2 size={18} className="animate-spin text-white" />
-                        </div>
-                        <div className="bg-white/[0.03] border border-white/10 rounded-2xl px-5 py-4 flex items-center gap-3 max-w-[80%] shadow-xl">
-                            <div className="flex gap-1.5">
-                                {[0, 1, 2].map(i => (
-                                    <div key={i} className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
-                                ))}
-                            </div>
-                            <span className="text-xs text-indigo-300 font-medium">Tutor is analyzing curriculum...</span>
-                        </div>
-                    </div>
-                )}
-                <div ref={chatEndRef} />
-            </div>
 
             {/* Bottom Input Area */}
             <div className="px-6 pb-3 pt-3 bg-gradient-to-t from-black/95 via-black/90 to-transparent z-10 border-t border-white/[0.04]">
@@ -1290,13 +1598,34 @@ const MinervaHome: React.FC = () => {
                     
                     {/* Uploaded attachment indicator */}
                     {uploadedFile && (
-                        <div className="flex items-center gap-3 bg-gradient-to-r from-indigo-950/40 to-purple-950/20 border border-indigo-500/30 rounded-2xl p-3 mb-3 w-fit max-w-full shadow-2xl relative overflow-hidden">
-                            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 animate-[pulse_2s_infinite]" />
-                            <span className="text-xs text-indigo-300 font-medium truncate flex items-center gap-2">
-                                <FileText size={14} className="text-indigo-400" />
-                                Attachment: {uploadedFile.name}
-                            </span>
-                            <span className="text-[10px] text-gray-500">Ready to Analyze</span>
+                        <div className="flex items-center gap-3 bg-gradient-to-r from-indigo-950/60 to-purple-950/30 border border-indigo-500/40 rounded-2xl p-2.5 mb-3 w-fit max-w-full shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-200">
+                            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-indigo-400 via-purple-500 to-teal-400 animate-[pulse_2s_infinite]" />
+                            
+                            {/* Thumbnail preview if it's an image */}
+                            {uploadedFile.type === 'image' && uploadedFile.url ? (
+                                <div className="w-10 h-10 rounded-lg overflow-hidden border border-white/10 bg-black/40 flex-shrink-0">
+                                    <img 
+                                        src={`http://localhost:7001${uploadedFile.url}`} 
+                                        alt="Attachment preview" 
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                            (e.target as HTMLImageElement).src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>';
+                                        }}
+                                    />
+                                </div>
+                            ) : (
+                                <div className="w-10 h-10 rounded-lg bg-indigo-950/60 border border-indigo-500/20 flex items-center justify-center text-indigo-400 flex-shrink-0">
+                                    <FileText size={18} />
+                                </div>
+                            )}
+
+                            <div className="flex flex-col min-w-0 pr-2">
+                                <span className="text-xs text-indigo-200 font-bold truncate max-w-[180px]">
+                                    {uploadedFile.name}
+                                </span>
+                                <span className="text-[10px] text-indigo-400/80 font-medium">Ready to Analyze</span>
+                            </div>
+
                             <button
                                 onClick={() => setUploadedFile(null)}
                                 className="text-indigo-400 hover:text-indigo-200 transition-colors p-1 rounded-full hover:bg-white/10 ml-2"
@@ -1320,65 +1649,7 @@ const MinervaHome: React.FC = () => {
                     )}
 
                     {/* Active Roadmap Suggestions */}
-                    {!loading && (
-                        <div className="flex flex-wrap gap-2 mb-3 animate-in fade-in slide-in-from-bottom-2 duration-300 max-w-4xl">
-                            {input.trim().length > 3 && (
-                                <button
-                                    onClick={() => {
-                                        const originalInput = input;
-                                        setInput('');
-                                        sendMessage(`Create a roadmap for: ${originalInput}`);
-                                    }}
-                                    className="bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/30 hover:border-indigo-500/50 rounded-full px-3.5 py-1.5 text-[10px] font-black text-indigo-300 uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
-                                >
-                                    <span>🗺️</span>
-                                    <span>Create Study Roadmap for "{input.substring(0, 30)}{input.length > 30 ? '...' : ''}"</span>
-                                </button>
-                            )}
 
-                            {messages.length > 1 && (
-                                <button
-                                    onClick={() => {
-                                        const lastUserMsg = [...messages].reverse().find(m => m.role === 'student');
-                                        const topicText = lastUserMsg?.content || 'this topic';
-                                        sendMessage(`Create a roadmap for: ${topicText}`);
-                                    }}
-                                    className="bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 hover:border-cyan-500/50 rounded-full px-3.5 py-1.5 text-[10px] font-black text-cyan-300 uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
-                                >
-                                    <span>🧭</span>
-                                    <span>Generate Roadmap for this topic</span>
-                                </button>
-                            )}
-
-                            {/* Dynamic LLM-generated or Category-based Suggestions */}
-                            {(() => {
-                                const lastAIMsg = [...messages].reverse().find(m => m.role === 'minerva' && m.metadata?.suggestions?.length > 0);
-                                if (lastAIMsg && lastAIMsg.metadata.suggestions) {
-                                    return lastAIMsg.metadata.suggestions.map((sug: string, sIdx: number) => (
-                                        <button
-                                            key={sIdx}
-                                            onClick={() => sendMessage(sug)}
-                                            className="bg-[#0f0b24]/80 hover:bg-indigo-500/10 border border-indigo-500/20 hover:border-indigo-500/40 rounded-full px-3.5 py-1.5 text-[10px] font-bold text-indigo-300 hover:text-indigo-200 transition-all flex items-center gap-1 shadow-md active:scale-95 cursor-pointer"
-                                        >
-                                            <span>💡</span>
-                                            <span>{sug}</span>
-                                        </button>
-                                    ));
-                                }
-                                // Fallback to category-based suggestions
-                                return getTopicSuggestions().map((sug, sIdx) => (
-                                    <button
-                                        key={sIdx}
-                                        onClick={() => sendMessage(sug.prompt)}
-                                        className="bg-white/[0.02] hover:bg-[#120a2e]/20 border border-white/[0.05] hover:border-indigo-500/25 rounded-full px-3.5 py-1.5 text-[10px] font-bold text-gray-300 hover:text-indigo-200 transition-all flex items-center gap-1 shadow-md active:scale-95 cursor-pointer"
-                                    >
-                                        <span>{sug.text}</span>
-                                    </button>
-                                ));
-                            })()}
-
-                        </div>
-                    )}
 
                     {/* Styled Card Container */}
                     <div className={`flex flex-col gap-3.5 bg-[#0B0915]/60 border ${isDeepStudy ? 'deep-study-gradient-border deep-study-input-glow border-cyan-500/30' : 'border-white/[0.06] shadow-[0_12px_40px_rgba(0,0,0,0.6)]'} rounded-[24px] p-3 backdrop-blur-2xl relative transition-all duration-500`}>
@@ -1406,6 +1677,7 @@ const MinervaHome: React.FC = () => {
                                 <Atom size={11} className={`text-cyan-400 ${isDeepStudy ? 'animate-spin-slow' : ''}`} />
                                 Deep Study
                             </button>
+
 
                             <div className="ml-auto flex items-center gap-2">
                                 {activeLabConfig ? (
@@ -1532,6 +1804,9 @@ const MinervaHome: React.FC = () => {
                                 )}
                             </div>
                         </div>
+                    </div>
+                    <div className="text-[10px] text-gray-500 text-center mt-2 font-medium tracking-wide">
+                        Future BRTS and Future education os is AI and can make mistakes.
                     </div>
                 </div>
             </div>

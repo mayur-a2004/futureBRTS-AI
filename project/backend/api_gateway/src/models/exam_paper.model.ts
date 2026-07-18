@@ -16,6 +16,7 @@ export interface IExamPaper extends Document {
     blueprint?: any;
     language?: string;
     generatedPaper: any; // JSON containing questions
+    creatorId?: mongoose.Types.ObjectId;
     createdAt: Date;
 }
 
@@ -35,6 +36,7 @@ const ExamPaperSchema: Schema = new Schema({
     blueprint: { type: Schema.Types.Mixed, required: false },
     language: { type: String, required: false },
     generatedPaper: { type: Schema.Types.Mixed }, // Store the complete AI JSON output
+    creatorId: { type: Schema.Types.ObjectId, ref: 'User', required: false },
     createdAt: { type: Date, default: Date.now }
 });
 

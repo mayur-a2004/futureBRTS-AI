@@ -33,14 +33,20 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// ⚡ Synchronous check at module load — zero delay for returning users
+const _hasStoredToken = !!localStorage.getItem('fbrts_token');
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<any>(null);
     const [token, setToken] = useState<string | null>(localStorage.getItem('fbrts_token'));
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    // ⚡ Optimistic auth: if token exists → assume authenticated immediately.
+    // The API call below will confirm or revoke this within ~200ms.
+    const [isAuthenticated, setIsAuthenticated] = useState(_hasStoredToken);
     const [onboardingCompleted, setOnboardingCompleted] = useState(false);
     const [initialIntent, setInitialIntent] = useState(localStorage.getItem('fbrts_intent') || '');
-
-    const [loading, setLoading] = useState(true);
+    // loading = true ONLY while we are verifying the token with the server.
+    // If no token → loading = false immediately (new user sees landing page instantly).
+    const [loading, setLoading] = useState(_hasStoredToken);
 
     useEffect(() => {
         const initAuth = async () => {
@@ -54,11 +60,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         setOnboardingCompleted(res.user.onboardingCompleted);
                         setToken(tokenVal);
                     } else {
+                        // Token rejected by server — clear storage and reset auth
                         localStorage.removeItem('fbrts_token');
                         setToken(null);
+                        setIsAuthenticated(false);
                     }
                 } catch (err) {
                     console.error("Auth init failed", err);
+                    // Network error: keep optimistic state so offline users
+                    // are not forced to re-login unnecessarily.
                 }
             }
             setLoading(false);

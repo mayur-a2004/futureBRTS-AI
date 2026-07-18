@@ -57,7 +57,7 @@ router.get('/projects', adminController.getAllCollageProjects);
 router.get('/user/:userId', adminController.getUserFullDetail);
 router.get('/session/:sessionId/messages', adminController.getSessionMessages);
 router.get('/seo-analytics', adminController.getSEOKeywordAnalytics);
-router.get('/education-stats', adminController.getFutureEducationOSStats);
+router.get('/seo-keyword-analytics', adminController.getSEOKeywordAnalytics);
 
 // 🛡️ Advanced Config (New)
 router.post('/settings/ai', adminController.updateAISettings);
@@ -65,6 +65,16 @@ router.post('/settings/payment-gateway', adminController.updatePaymentGatewayCon
 
 // 🗺️🎯✅ Full Pipeline: Chat → Roadmap → Task → VIVA Verification
 router.get('/pipeline', adminController.getChatRoadmapTaskOverview);
+
+// 🎓 Future Education OS Analytics Tracking
+router.get('/education/tutor-chats', adminController.getEducationTutorChats);
+router.get('/education/roadmaps', adminController.getEducationRoadmaps);
+router.get('/education/tasks', adminController.getEducationTasks);
+router.get('/education/battles', adminController.getEducationBattles);
+router.get('/education/builder', adminController.getEducationBuilderProjects);
+router.get('/education/exams', adminController.getEducationExams);
+router.get('/education/results', adminController.getEducationResults);
+router.get('/education/parents', adminController.getEducationParents);
 
 export default router;
 

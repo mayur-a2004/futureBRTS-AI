@@ -424,6 +424,9 @@ const MinervaBuilderPage: React.FC = () => {
                                     <span>Assemble Study Material</span>
                                 </button>
                             </form>
+                            <div className="text-[10px] text-gray-500 text-center mt-4 font-medium tracking-wide">
+                                Future BRTS and Future education os is AI and can make mistakes.
+                            </div>
                         </div>
                     </div>
                 </div>

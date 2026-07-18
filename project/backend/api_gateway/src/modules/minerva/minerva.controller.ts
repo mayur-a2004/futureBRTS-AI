@@ -27,7 +27,11 @@ import {
     appealExamGrading,
     validateAndResolveSketchfabModel,
     translateExamPaper,
+    generateUniqueMixTasks,
+    searchSketchfabModelsList,
+    searchYoutubeVideosList,
 } from './minerva.service';
+import { analyticsService } from '../analytics/analytics.service';
 
 // ─────────────────────────────────────────────────────────────────
 // HELPER: Resolve real YouTube video ID from search query
@@ -68,10 +72,10 @@ const resolveYoutubeVideoId = async (searchQuery: string): Promise<string | null
             } catch (_) {}
         }
         
-        // Regex fallback
-        const watchRegex = /\/watch\?v=([a-zA-Z0-9_-]{11})/g;
+        // Regex fallback: match specific videoId fields inside JSON strings in the HTML
+        const videoIdRegex = /"videoId":"([a-zA-Z0-9_-]{11})"/g;
         let m;
-        while ((m = watchRegex.exec(html)) !== null) {
+        while ((m = videoIdRegex.exec(html)) !== null) {
             const id = m[1];
             if (id !== 'dQw4w9WgXcQ') {
                 return id;
@@ -223,6 +227,26 @@ const generationLocks = new Map<string, Promise<any>>();
 // ─────────────────────────────────────────────────────────────────
 export const minervaController = {
 
+    // ❤️ Message Feedback Logic
+    logMessageFeedback: async (req: Request | any, res: Response) => {
+        try {
+            const { type, sessionId } = req.body;
+            const { messageId } = req.params;
+            const userId = req.user?.id || req.user?._id;
+
+            await analyticsService.logFeedback({
+                userId,
+                sessionId,
+                messageId,
+                type
+            });
+
+            res.json({ success: true, message: 'Feedback logged successfully' });
+        } catch (err: any) {
+            res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
     // ──────────────────────────────────────────
     // PARENT DETAILS UPDATE
     // PUT /api/minerva/parent/details
@@ -357,7 +381,7 @@ export const minervaController = {
     chat: async (req: Request | any, res: Response) => {
         try {
             const userId = req.user?.id || req.user?._id;
-            let { message, session_id, chat_session_id, deep_study } = req.body;
+            let { message, session_id, chat_session_id, deep_study, forceRoadmap, file_url, file_type, response_mode } = req.body;
 
             if (!message?.trim()) {
                 return res.status(400).json({ success: false, error: 'Message is required' });
@@ -473,7 +497,12 @@ export const minervaController = {
                 cleanDisplayContent,
                 'text',
                 activeSessionId,
-                fullExtractedText ? { file_text: fullExtractedText, filename } : null,
+                {
+                    file_text: fullExtractedText || undefined,
+                    filename: filename || undefined,
+                    file_url: file_url || undefined,
+                    file_type: file_type || undefined
+                },
                 activeChatSessionId
             );
 
@@ -490,13 +519,37 @@ export const minervaController = {
                 return { ...m, content };
             });
 
+            // If image was uploaded, read it as base64 for vision analysis
+            let imageBase64: string | null = null;
+            let imageMimeType: string | null = null;
+            if (file_url && file_type === 'image') {
+                try {
+                    const fs = require('fs');
+                    const path = require('path');
+                    const uploadDir = path.join(__dirname, '../../../../../uploads');
+                    const fname = file_url.replace('/uploads/', '');
+                    const imgPath = path.join(uploadDir, fname);
+                    if (fs.existsSync(imgPath)) {
+                        imageBase64 = fs.readFileSync(imgPath).toString('base64');
+                        const ext = fname.split('.').pop()?.toLowerCase();
+                        imageMimeType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+                    }
+                } catch (imgErr) {
+                    console.error('[Image read error for vision]', imgErr);
+                }
+            }
+
             // Get combined intent detection, response explanation, follow-up suggestions, and virtual lab config in 1 AI call
             const combinedRes = await getCombinedMinervaResponse(
                 fullExtractedText ? `[Uploaded File: ${filename}]\n\nExtracted Content:\n"""\n${fullExtractedText}\n"""\n\nStudent Query: ${studentQuery}` : studentQuery,
                 profile,
                 chatHistory,
                 !!deep_study,
-                !!forceLab
+                !!forceLab,
+                imageBase64,
+                imageMimeType,
+                studentQuery,
+                response_mode
             );
 
             const intent = combinedRes.intent;
@@ -505,7 +558,8 @@ export const minervaController = {
             let metadata: any = combinedRes.metadata;
 
             // ── ROUTE BY INTENT ──
-            const isRoadmapRequest = studentQuery.toLowerCase().includes('roadmap') || 
+            const isRoadmapRequest = !!forceRoadmap ||
+                                     studentQuery.toLowerCase().includes('roadmap') || 
                                      studentQuery.toLowerCase().includes('syllabus') || 
                                      studentQuery.toLowerCase().includes('path') ||
                                      studentQuery.toLowerCase().includes('schedule') ||
@@ -521,7 +575,7 @@ export const minervaController = {
                                  studentQuery.toLowerCase().includes('sem ') ||
                                  studentQuery.toLowerCase().includes('prep');
 
-            if ((isRoadmapRequest || isPYQRequest) && (intent.intent === 'create_session' || intent.intent === 'learn_topic' || isPYQRequest)) {
+            if ((isRoadmapRequest || isPYQRequest) && (intent.intent === 'create_session' || intent.intent === 'learn_topic' || isPYQRequest || !!forceRoadmap)) {
                 // Auto-detect profile info and update
                 if (intent.grade_level && !profile.onboarding_done) {
                     await MinervaStudentProfile.findByIdAndUpdate(profile._id, {
@@ -687,7 +741,7 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                     grade_level: profile.grade_level || 'class_10',
                     board: profile.board || 'cbse',
                     sensitivity_level: 0,
-                    content_layers: ['text', 'diagram', 'youtube', 'threejs'],
+                    content_layers: ['text', 'diagram', 'youtube', 'threejs', 'sketchfab'],
                     diagram_type: 'dynamic_mermaid',
                     mermaid_schema: `graph TD\n    A[${parsedTopic}] --> B[Structure Analysis]\n    B --> C[Run 2D Simulation]`,
                     three_js_config: {
@@ -715,7 +769,7 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                     grade_level: profile.grade_level || 'class_10',
                     board: profile.board || 'cbse',
                     sensitivity_level: 0,
-                    content_layers: ['text', 'sandbox'],
+                    content_layers: ['text', 'sandbox', 'sketchfab'],
                     diagram_type: null,
                     three_js_config: null,
                     sketchfab_hint: null,
@@ -755,7 +809,8 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                     if (lab.three_js_config) {
                         layers.push('threejs');
                     }
-                    if (lab.sketchfab_hint) {
+                    // Always include sketchfab — students can search any topic anytime
+                    if (!layers.includes('sketchfab')) {
                         layers.push('sketchfab');
                     }
                     if (lab.simulation_config) {
@@ -768,6 +823,10 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                 } else {
                     if (lab.interactive_config && lab.interactive_config.type && !lab.content_layers.includes('interactive')) {
                         lab.content_layers.push('interactive');
+                    }
+                    // Always ensure sketchfab is present
+                    if (!lab.content_layers.includes('sketchfab')) {
+                        lab.content_layers.push('sketchfab');
                     }
                 }
             }
@@ -933,6 +992,57 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                 const rawTasks = await MinervaTask.find(query)
                     .select('type prompt options marks difficulty submitted passed ai_score').lean();
                 
+                // Check if student completed all tasks but failed the node assessment overall
+                const allSubmitted = rawTasks.length > 0 && rawTasks.every(t => t.submitted);
+                if ((node.passed === false || node.status === 'NEEDS_REVIEW') && allSubmitted) {
+                    console.log(`♻️ [learnNode] Automatically regenerating unique mix tasks for failed node: ${id}`);
+                    
+                    // Exclude old prompts to guarantee uniqueness
+                    const excludePrompts = rawTasks.map(t => t.prompt);
+                    await MinervaTask.deleteMany(query);
+
+                    const profile = await getOrCreateProfile(userId);
+                    const session = await MinervaStudySession.findById(node.session_id);
+                    const sessionLanguage = session?.medium || session?.detected_language || profile.language_preference || 'hinglish';
+
+                    const newTasksData = await generateUniqueMixTasks(node, profile, sessionLanguage, excludePrompts);
+                    const taskIds: any[] = [];
+                    for (const t of newTasksData) {
+                        const task = await MinervaTask.create({
+                            node_id: id,
+                            session_id: node.session_id,
+                            userId,
+                            type: t.type,
+                            task_type: 'micro_task',
+                            prompt: t.prompt,
+                            options: t.options || [],
+                            correct_answer: t.correct_answer || '',
+                            topic_title: node.title,
+                            subject: node.topic,
+                            marks: t.marks || 2,
+                            difficulty: t.difficulty || 'medium',
+                            is_homework: false,
+                        });
+                        taskIds.push(task._id);
+                    }
+
+                    const updatedNode = await MinervaKnowledgeNode.findByIdAndUpdate(id, {
+                        passed: null,
+                        status: 'IN_PROGRESS',
+                        micro_tasks: taskIds
+                    }, { new: true });
+
+                    const freshTasks = await MinervaTask.find({ _id: { $in: taskIds } })
+                        .select('type prompt options marks difficulty submitted passed ai_score').lean();
+
+                    return res.json({
+                        success: true,
+                        node: updatedNode,
+                        tasks: freshTasks,
+                        youtube_links: (node as any).youtube_links || []
+                    });
+                }
+
                 // Deduplicate tasks based on prompt to handle existing duplicates
                 const uniqueTasksMap = new Map();
                 for (const t of rawTasks) {
@@ -1915,17 +2025,22 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
                 }
             }
 
-            // Cleanup local file after extraction to save space
-            try {
-                fs.unlinkSync(filePath);
-            } catch (err) {
-                console.error('File cleanup error:', err);
+            // Keep images and PDFs to allow rendering in the frontend, clean up others
+            const isPersisted = ext === 'pdf' || ['png', 'jpg', 'jpeg', 'webp'].includes(ext || '');
+            if (!isPersisted) {
+                try {
+                    fs.unlinkSync(filePath);
+                } catch (err) {
+                    console.error('File cleanup error:', err);
+                }
             }
 
             return res.json({
                 success: true,
                 filename: originalName,
                 extractedText: extractedText.trim(),
+                url: `/uploads/${req.file.filename}`,
+                type: ext === 'pdf' ? 'pdf' : ['png', 'jpg', 'jpeg', 'webp'].includes(ext || '') ? 'image' : 'other',
                 message: 'File uploaded and parsed successfully'
             });
 
@@ -2308,26 +2423,16 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
             const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 
             if (YOUTUBE_API_KEY) {
-                // Real YouTube Data API v3 search
-                const apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&videoCategoryId=27&safeSearch=strict&maxResults=5&key=${YOUTUBE_API_KEY}`;
+                // Real YouTube Data API v3 search (broad search across all categories to fetch animations/3D visualization)
+                const apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&safeSearch=strict&maxResults=5&key=${YOUTUBE_API_KEY}`;
                 
                 const fetch = (await import('node-fetch')).default;
                 const apiRes = await fetch(apiUrl);
                 const data: any = await apiRes.json();
 
                 if (data?.items?.length > 0) {
-                    // Educational channel whitelist (prefer these channels)
-                    const whitelistedChannels = [
-                        'UCVcrMeNyQbr0RcKFjPqbqNw', // Khan Academy Hindi
-                        'UCiKHcNmFU3Vpp7TR4Ig_JrA', // Physics Wallah
-                        'UCzH2qCEPGTMJT9qFdQDGrMQ', // Vedantu
-                        'UCoQBfH4pK8KVMG1Iw5mWbRg', // Unacademy
-                    ];
-                    
-                    // Prefer whitelisted channels, fallback to first result
-                    let bestVideo = data.items.find((item: any) => 
-                        whitelistedChannels.includes(item.snippet?.channelId)
-                    ) || data.items[0];
+                    // Use the top relevance result directly for 100% accurate topic matching
+                    const bestVideo = data.items[0];
 
                     return res.json({
                         success: true,
@@ -2409,6 +2514,48 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
 
         } catch (err: any) {
             console.error('[Minerva Lab Sketchfab Search Error]', err);
+            return res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    labSketchfabSearchList: async (req: Request, res: Response) => {
+        try {
+            const { query } = req.query as { query: string };
+            if (!query) {
+                return res.status(400).json({ success: false, error: 'query is required' });
+            }
+
+            console.log(`🔍 [Sketchfab API Search List Request] Query: "${query}"`);
+            const results = await searchSketchfabModelsList(query);
+
+            return res.json({
+                success: true,
+                results: results.slice(0, 24)
+            });
+
+        } catch (err: any) {
+            console.error('[Minerva Lab Sketchfab Search List Error]', err);
+            return res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    labYoutubeSearchList: async (req: Request, res: Response) => {
+        try {
+            const { query } = req.query as { query: string };
+            if (!query) {
+                return res.status(400).json({ success: false, error: 'query is required' });
+            }
+
+            console.log(`🔍 [YouTube API Search List Request] Query: "${query}"`);
+            const results = await searchYoutubeVideosList(query);
+
+            return res.json({
+                success: true,
+                results: results.slice(0, 8)
+            });
+
+        } catch (err: any) {
+            console.error('[Minerva Lab YouTube Search List Error]', err);
             return res.status(500).json({ success: false, error: err.message });
         }
     },
@@ -2771,6 +2918,69 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
             });
         } catch (err: any) {
             console.error('[AppealExamQuestion Error]', err);
+            return res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    reportProctoringViolation: async (req: Request | any, res: Response) => {
+        try {
+            const userId = req.user?.id || req.user?._id;
+            const { id } = req.params;
+            const { event, details } = req.body;
+
+            if (!event) {
+                return res.status(400).json({ success: false, error: 'Proctoring event type is required.' });
+            }
+
+            const exam = await MinervaExam.findOne({ _id: id, userId });
+            if (!exam) return res.status(404).json({ success: false, error: 'Exam not found.' });
+
+            if (!exam.proctoringLogs) exam.proctoringLogs = [];
+            
+            const logEntry = {
+                event,
+                timestamp: new Date(),
+                details: details || ''
+            };
+            exam.proctoringLogs.push(logEntry);
+
+            if (event.toLowerCase().includes('tab') || event.toLowerCase().includes('blur') || event.toLowerCase().includes('exit') || event.toLowerCase().includes('visibility')) {
+                exam.tabOutCount = (exam.tabOutCount || 0) + 1;
+            } else if (event.toLowerCase().includes('copy') || event.toLowerCase().includes('paste') || event.toLowerCase().includes('clipboard')) {
+                exam.copyCount = (exam.copyCount || 0) + 1;
+            }
+
+            await exam.save();
+
+            try {
+                const SocketServiceImport = await import('../../services/socket.service');
+                const SocketService = SocketServiceImport.SocketService;
+                const io = (SocketService as any).io;
+                if (io) {
+                    io.emit('proctoring_alert', {
+                        examId: exam._id,
+                        examTitle: exam.title,
+                        userId,
+                        user: req.user ? `${req.user.firstName} ${req.user.lastName}` : 'Student',
+                        event,
+                        details,
+                        tabOutCount: exam.tabOutCount,
+                        copyCount: exam.copyCount,
+                        timestamp: new Date()
+                    });
+                }
+            } catch (err) {
+                console.error('[Socket Proctoring Emission Error]', err);
+            }
+
+            return res.json({
+                success: true,
+                message: 'Proctoring violation logged.',
+                tabOutCount: exam.tabOutCount,
+                copyCount: exam.copyCount
+            });
+        } catch (err: any) {
+            console.error('[reportProctoringViolation Error]', err);
             return res.status(500).json({ success: false, error: err.message });
         }
     },

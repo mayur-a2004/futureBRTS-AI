@@ -19,8 +19,26 @@ export const LabSidePanel: React.FC<LabSidePanelProps> = ({
   isDetached,
   children,
 }) => {
-  const [pos, setPos] = useState({ x: window.innerWidth - 450, y: 100 });
-  const size = { w: 420, h: 560 };
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 640 : false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const size = {
+    w: isMobile ? Math.min(window.innerWidth - 20, 420) : 420,
+    h: isMobile ? Math.min(window.innerHeight - 120, 560) : 560
+  };
+
+  const [pos, setPos] = useState({ 
+    x: typeof window !== 'undefined' ? window.innerWidth - (window.innerWidth < 640 ? window.innerWidth - 10 : 450) : 100, 
+    y: 100 
+  });
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
   const [isMinimized, setIsMinimized] = useState(false);
@@ -29,11 +47,11 @@ export const LabSidePanel: React.FC<LabSidePanelProps> = ({
     // Center it initially when detached
     if (isDetached) {
       setPos({
-        x: Math.max(50, window.innerWidth - size.w - 50),
+        x: Math.max(10, window.innerWidth - size.w - 10),
         y: 100,
       });
     }
-  }, [isDetached]);
+  }, [isDetached, isMobile]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!isDetached) return;
@@ -145,7 +163,7 @@ export const LabSidePanel: React.FC<LabSidePanelProps> = ({
 
   // Side Panel Layout (Standard Docked Mode)
   return (
-    <div className="fixed top-0 right-0 h-full w-[400px] bg-zinc-950/95 border-l border-zinc-800 z-[40] flex flex-col shadow-2xl backdrop-blur-md animate-[slideIn_0.3s_ease-out]">
+    <div className="fixed top-0 right-0 h-full w-full sm:w-[400px] bg-zinc-950/95 border-l border-zinc-800 z-[70] flex flex-col shadow-2xl backdrop-blur-md animate-[slideIn_0.3s_ease-out]">
       <style>{`
         @keyframes slideIn {
           from { transform: translateX(100%); }
@@ -170,13 +188,15 @@ export const LabSidePanel: React.FC<LabSidePanelProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5">
-          <button
-            onClick={onDetach}
-            className="p-1.5 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-zinc-200 border border-zinc-700/30 transition-all duration-200"
-            title="Detach into Floating Window"
-          >
-            <ExternalLink size={14} />
-          </button>
+          {!isMobile && (
+            <button
+              onClick={onDetach}
+              className="p-1.5 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-zinc-200 border border-zinc-700/30 transition-all duration-200"
+              title="Detach into Floating Window"
+            >
+              <ExternalLink size={14} />
+            </button>
+          )}
           <button
             onClick={onClose}
             className="p-1.5 bg-zinc-800/50 hover:bg-red-500/20 rounded-lg text-zinc-400 hover:text-red-400 border border-zinc-700/30 transition-all duration-200"

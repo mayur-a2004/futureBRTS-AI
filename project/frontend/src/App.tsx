@@ -68,7 +68,7 @@ const PermissionsManager = lazy(() => import('./pages/admin/PermissionsManager')
 const AdvancedSettings = lazy(() => import('./pages/admin/AdvancedSettings'));
 const TrackingLogs = lazy(() => import('./pages/admin/TrackingLogs'));
 const IntelligenceDashboard = lazy(() => import('./pages/admin/IntelligenceDashboard'));
-const EducationOSManager = lazy(() => import('./pages/admin/EducationOSManager'));
+const EducationOSAdmin = lazy(() => import('./pages/admin/EducationOSAdmin'));
 
 const Checkout = lazy(() => import('./pages/payment/Checkout'));
 const Success = lazy(() => import('./pages/payment/Success'));
@@ -112,16 +112,42 @@ const NeuralLoader = () => (
 // Public Pages
 // ...
 
-// Protected Route Component
+// ⭐ PROTECTED ROUTE: Unauthenticated users → /auth/login
 const ProtectedRoute = () => {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, loading } = useAuth();
+    if (loading) return <NeuralLoader />;
     return isAuthenticated ? <Outlet /> : <Navigate to="/auth/login" replace />;
 };
 
-// Onboarding Guard component
+// ⏎ ONBOARDING GUARD: Logged-in users who haven't finished onboarding → /onboarding
 const OnboardingGuard = () => {
-    const { onboardingCompleted } = useAuth();
+    const { onboardingCompleted, loading } = useAuth();
+    if (loading) return <NeuralLoader />;
     return onboardingCompleted ? <Outlet /> : <Navigate to="/onboarding" replace />;
+};
+
+// ⚡ SMART ROOT: ChatGPT-style instant redirect for returning users.
+// • Token in localStorage + valid  → go to /dashboard (or /onboarding if not done)
+// • No token / invalid            → show LandingPage (normal visitor flow)
+const SmartRoot = () => {
+    const { isAuthenticated, loading, onboardingCompleted } = useAuth();
+    // Show loader only while verifying token with server (returning users only)
+    if (loading) return <NeuralLoader />;
+    if (isAuthenticated) {
+        return <Navigate to={onboardingCompleted ? '/dashboard' : '/onboarding'} replace />;
+    }
+    return <LandingPage />;
+};
+
+// 🚫 PUBLIC-ONLY ROUTE: Already logged-in users should not see login/register.
+// Accessing /auth/login while authenticated → redirected to /dashboard.
+const PublicOnlyRoute = () => {
+    const { isAuthenticated, loading, onboardingCompleted } = useAuth();
+    if (loading) return <NeuralLoader />;
+    if (isAuthenticated) {
+        return <Navigate to={onboardingCompleted ? '/dashboard' : '/onboarding'} replace />;
+    }
+    return <Outlet />;
 };
 
 import { useTrafficTracker } from './hooks/useTrafficTracker';
@@ -212,7 +238,8 @@ function App() {
                                             <Routes>
                                                 {/* Public Routes with Shared Layout */}
                                                 <Route element={<PublicLayout />}>
-                                                    <Route path="/" element={<LandingPage />} />
+                                                    {/* ⚡ SmartRoot: returning users skip landing page entirely */}
+                                                    <Route path="/" element={<SmartRoot />} />
                                                     <Route path="/pricing" element={<Pricing />} />
                                                     <Route path="/about" element={<About />} />
                                                     <Route path="/services" element={<Services />} />
@@ -228,8 +255,12 @@ function App() {
 
                                                 {/* Auth Routes */}
                                                 <Route path="/auth" element={<AuthLayout />}>
-                                                    <Route path="login" element={<Login />} />
-                                                    <Route path="register" element={<Register />} />
+                                                    {/* 🚫 Already logged-in? Redirect away from login/register */}
+                                                    <Route element={<PublicOnlyRoute />}>
+                                                        <Route path="login" element={<Login />} />
+                                                        <Route path="register" element={<Register />} />
+                                                    </Route>
+                                                    {/* These are fine to visit any time */}
                                                     <Route path="forgot-password" element={<ForgotPassword />} />
                                                     <Route path="reset-password" element={<ResetPassword />} />
                                                 </Route>
@@ -302,7 +333,7 @@ function App() {
                                                     <Route path="settings" element={<AdvancedSettings />} />
                                                     <Route path="tracking" element={<TrackingLogs />} />
                                                     <Route path="intelligence" element={<IntelligenceDashboard />} />
-                                                    <Route path="education" element={<EducationOSManager />} />
+                                                    <Route path="education/:tab" element={<EducationOSAdmin />} />
                                                     <Route index element={<Navigate to="dashboard" replace />} />
                                                 </Route>
 

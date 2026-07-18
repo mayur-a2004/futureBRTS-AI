@@ -39,6 +39,7 @@ router.get('/stats', authMiddleware, minervaController.getStats);
 
 // ─── CHAT (Main entry point) ───────────────────
 router.post('/chat', authMiddleware, minervaController.chat);
+router.post('/chat/message/:messageId/feedback', authMiddleware, minervaController.logMessageFeedback);
 router.get('/chat/history', authMiddleware, minervaController.getChatHistory);
 router.get('/chat/sessions', authMiddleware, minervaController.getChatSessions);
 router.post('/chat/session', authMiddleware, minervaController.createChatSession);
@@ -78,11 +79,14 @@ router.post('/exam/generate', authMiddleware, minervaController.generateExam);
 router.get('/exam/:id', authMiddleware, minervaController.getExam);
 router.post('/exam/:id/submit', authMiddleware, minervaController.submitExam);
 router.post('/exam/:id/appeal', authMiddleware, minervaController.appealExamQuestion);
+router.post('/exam/:id/proctoring', authMiddleware, minervaController.reportProctoringViolation);
 router.get('/leaderboard', authMiddleware, minervaController.getLeaderboard);
 
 // ─── VIRTUAL LAB ────────────────────────────────
 router.get('/lab/youtube-search', authMiddleware, minervaController.labYoutubeSearch);
+router.get('/lab/youtube-search-list', authMiddleware, minervaController.labYoutubeSearchList);
 router.get('/lab/sketchfab-search', authMiddleware, minervaController.labSketchfabSearch);
+router.get('/lab/sketchfab-search-list', authMiddleware, minervaController.labSketchfabSearchList);
 
 // ─── PARENT VERIFICATION & PORTAL ────────────────
 import { parentController } from './parent.controller';
@@ -118,3 +122,4 @@ router.get('/school/by-city', battleController.getSchoolsByCity);
 router.get('/battle/my-stats', authMiddleware, battleController.getMyBattleStats);
 
 export default router;
+// Touched for rebuild

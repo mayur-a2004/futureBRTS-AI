@@ -1,4 +1,5 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import {
     LayoutDashboard,
     Users,
@@ -19,7 +20,10 @@ import {
     MessageSquare,
     Sparkles,
     Briefcase,
-    GraduationCap
+    GraduationCap,
+    Flame,
+    FileText,
+    HeartHandshake
 } from 'lucide-react';
 
 interface SidebarItemProps {
@@ -45,13 +49,28 @@ const SidebarItem = ({ name, path, icon, isCollapsed, isActive }: SidebarItemPro
 
 export default function AdminSidebar({ isCollapsed, toggleSidebar, logout }: { isCollapsed: boolean, toggleSidebar: () => void, logout: () => void }) {
     const location = useLocation();
+    const navigate = useNavigate();
+    
+    // Switch between 'core' (Future BRTS) and 'education' (Future Education OS) admin layouts
+    const [sidebarMode, setSidebarMode] = useState<'core' | 'education'>(() => {
+        return (localStorage.getItem('admin_sidebar_mode') as 'core' | 'education') || 'core';
+    });
 
-    const menuItems = [
+    const handleModeChange = (mode: 'core' | 'education') => {
+        setSidebarMode(mode);
+        localStorage.setItem('admin_sidebar_mode', mode);
+        if (mode === 'core') {
+            navigate('/admin/dashboard');
+        } else {
+            navigate('/admin/education/tutor-chats');
+        }
+    };
+
+    const coreItems = [
         { name: "Dashboard", path: "/admin/dashboard", icon: <LayoutDashboard size={20} /> },
         { name: "Users", path: "/admin/users", icon: <Users size={20} /> },
         { name: "Project Registry", path: "/admin/projects", icon: <Briefcase size={20} /> },
         { name: "AI Config", path: "/admin/ai", icon: <Brain size={20} /> },
-        { name: "Future Education OS", path: "/admin/education", icon: <GraduationCap size={20} /> },
         { name: "Economy Hub", path: "/admin/economy", icon: <Coins size={20} /> },
         { name: "Chat Monitor", path: "/admin/chats", icon: <MessageSquare size={20} /> },
         { name: "SEO Management", path: "/admin/seo", icon: <Search size={20} /> },
@@ -65,22 +84,69 @@ export default function AdminSidebar({ isCollapsed, toggleSidebar, logout }: { i
         { name: "System Settings", path: "/admin/settings", icon: <Settings size={20} /> },
     ];
 
+    const educationItems = [
+        { name: "Users", path: "/admin/education/users", icon: <Users size={20} className="text-blue-400" /> },
+        { name: "Tutor Chats", path: "/admin/education/tutor-chats", icon: <MessageSquare size={20} className="text-violet-400" /> },
+        { name: "Study Roadmaps", path: "/admin/education/roadmaps", icon: <Map size={20} className="text-indigo-400" /> },
+        { name: "Study Tasks", path: "/admin/education/tasks", icon: <CheckSquare size={20} className="text-emerald-400" /> },
+        { name: "1v1 Quiz Battles", path: "/admin/education/battles", icon: <Flame size={20} className="text-orange-400" /> },
+        { name: "E-Builder Projects", path: "/admin/education/builder", icon: <Briefcase size={20} className="text-sky-400" /> },
+        { name: "Practice Exams", path: "/admin/education/exams", icon: <FileText size={20} className="text-pink-400" /> },
+        { name: "Academic Results", path: "/admin/education/results", icon: <GraduationCap size={20} className="text-amber-400" /> },
+        { name: "Teacher & Parent Hub", path: "/admin/education/parents", icon: <HeartHandshake size={20} className="text-rose-450" /> },
+    ];
+
+    const menuItems = sidebarMode === 'core' ? coreItems : educationItems;
+
     return (
         <aside className={`${isCollapsed ? 'w-20' : 'w-72'} border-r border-white/5 flex flex-col h-screen bg-black/40 backdrop-blur-2xl transition-all duration-300 ease-in-out`}>
-            <div className="p-5 border-b border-white/5 flex items-center justify-between">
+            <div className="p-5 border-b border-white/5 flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                    {!isCollapsed && (
+                        <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center font-black text-xs shrink-0">AD</div>
+                            <h1 className="text-lg font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 leading-none">Admin Panel</h1>
+                        </div>
+                    )}
+                    <button onClick={toggleSidebar} className="p-2 text-gray-500 hover:text-white hover:bg-white/5 rounded-lg transition-all ml-auto">
+                        {isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+                    </button>
+                </div>
+
+                {/* Mode Selector Segmented Tabs */}
                 {!isCollapsed && (
-                    <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center font-black text-xs shrink-0">AD</div>
-                        <h1 className="text-lg font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 leading-none">Admin Panel</h1>
+                    <div className="flex bg-black/45 p-1 rounded-xl border border-white/5">
+                        <button
+                            onClick={() => handleModeChange('core')}
+                            className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${sidebarMode === 'core' ? 'bg-indigo-650 text-white shadow-lg shadow-indigo-600/20' : 'text-slate-450 hover:text-white'}`}
+                        >
+                            Future BRTS
+                        </button>
+                        <button
+                            onClick={() => handleModeChange('education')}
+                            className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${sidebarMode === 'education' ? 'bg-indigo-650 text-white shadow-lg shadow-indigo-600/20' : 'text-slate-450 hover:text-white'}`}
+                        >
+                            Education OS
+                        </button>
                     </div>
                 )}
-                <button onClick={toggleSidebar} className="p-2 text-gray-500 hover:text-white hover:bg-white/5 rounded-lg transition-all ml-auto">
-                    {isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
-                </button>
+                {isCollapsed && (
+                    <button
+                        onClick={() => handleModeChange(sidebarMode === 'core' ? 'education' : 'core')}
+                        title={sidebarMode === 'core' ? 'Switch to Future Education OS' : 'Switch to Future BRTS'}
+                        className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-sm font-black mx-auto hover:bg-white/10 text-indigo-400 transition-all active:scale-95"
+                    >
+                        {sidebarMode === 'core' ? '🎓' : '💼'}
+                    </button>
+                )}
             </div>
 
             <div className="flex-1 px-4 py-6 space-y-2 overflow-y-auto scrollbar-hide">
-                {!isCollapsed && <div className="px-3 pb-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-600">Core Management</div>}
+                {!isCollapsed && (
+                    <div className="px-3 pb-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-600">
+                        {sidebarMode === 'core' ? 'Core Management' : 'Education OS Telemetry'}
+                    </div>
+                )}
                 {menuItems.map(item => (
                     <SidebarItem
                         key={item.path}

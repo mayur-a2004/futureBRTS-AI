@@ -443,7 +443,8 @@ Instructions:
                 referenceFilePath: referenceFile ? referenceFile.path : undefined,
                 blueprint: blueprintObj,
                 language: targetLanguage,
-                generatedPaper
+                generatedPaper,
+                creatorId: (req as any).user?.id || (req as any).user?._id
             });
 
             await newExam.save();

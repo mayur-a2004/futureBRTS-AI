@@ -24,6 +24,7 @@ import { createProjectZip, generateSetupScript, generateEnvExample } from './pac
 import { generateTestCasesPdf } from './test_engine';
 import { runSanityCheck } from './sanity_scanner';
 import { getDynamicConfig, getAiKey } from '../../shared/utils/dynamicConfig';
+import { getProviderResponse } from '../../shared/services/openai.service';
 
 
 // 🌐 KROKI.IO — Advanced SVG Diagram Generator (RFC 1951 compliant)
@@ -207,7 +208,9 @@ const getDegreeComplexity = (category: string, title?: string): { level: string;
     }
 };
 
-// 🤖 OPENROUTER — Master Neural Engine
+// ============================================================
+// 🤖 OPENROUTER — Master Neural Engine (model picker)
+// ============================================================
 const pickOpenRouterModel = (filePath?: string): string => {
     if (!filePath) return "openai/gpt-4o-mini";
     if (filePath.includes('frontend') || filePath.endsWith('.jsx') || filePath.endsWith('.tsx') || filePath.endsWith('.vue')) return "openai/gpt-4o-mini";
@@ -216,155 +219,83 @@ const pickOpenRouterModel = (filePath?: string): string => {
     return "openai/gpt-4o-mini";
 };
 
-export const callOpenRouterAI = async (prompt: string, projectId: string, modelOverride?: string): Promise<string> => {
-  const OPENROUTER_API_KEY = await getAiKey('OPENROUTER');
-  if (!OPENROUTER_API_KEY) return ""; // Fail silently to allow fallback to Groq
-  
-  try {
-      const res = await axios.post('https://openrouter.ai/api/v1/chat/completions', {
-          model: modelOverride || "openai/gpt-4o-mini", // Cost efficient fallback
-          messages: [{ role: "user", content: prompt }]
-      }, {
-          headers: { "Authorization": `Bearer ${OPENROUTER_API_KEY}`, "Content-Type": "application/json" },
-          timeout: 60000 // Ensure we never hang forever
-      });
-      return res.data.choices[0].message.content.trim();
-  } catch (e) {
-      console.error("OPENROUTER_ERROR:", e);
-      return "";
-  }
-};
-
 // ============================================================
-// GROQ AI CALLER — Real code generation engine
+// 🔗 UNIFIED SWARM AI — Routes via 15-model getProviderResponse
+//    (Groq 70B → Groq 8B → Groq Gemma → NVIDIA → Gemini → OpenAI → Anthropic → OpenRouter)
+//    All rate-limit + key-missing cases automatically skipped.
 // ============================================================
-export const callGroqAI = async (prompt: string, projectId: string, retries = 3): Promise<string> => {
-  const GROQ_API_KEY = await getAiKey('GROQ');
-  if (!GROQ_API_KEY) throw new Error('GROQ_API_KEY not configured in admin or .env');
 
-  for (let i = 0; i < retries; i++) {
-    try {
-      // Use 8b model for exam generator and quiz battle to avoid strict 12k TPM free tier limits
-      const model = (projectId === 'exam_generator' || projectId === 'quiz_battle') ? 'llama-3.1-8b-instant' : 'llama-3.3-70b-versatile';
-      const maxTokens = (projectId === 'exam_generator' || projectId === 'quiz_battle') ? 2500 : 8192;
-
-      const response = await axios.post(
-        'https://api.groq.com/openai/v1/chat/completions',
-        {
-          model: model,
-          messages: [
-            {
-              role: 'system',
-              content: projectId === 'discovery_agent'
-                ? `You are a brilliant Architectural AI Assistant conducting a Discovery Chat with a client. Be conversational, proactive, use the exact language they speak (Hindi/English), and output exactly as requested.`
-                : projectId === 'exam_generator'
-                ? `You are an Expert Academic Examiner.`
-                : projectId === 'quiz_battle'
-                ? `You are a CBSE/NCERT Expert Quiz Master. You generate highly accurate, curriculum-aligned multiple-choice questions matching NCERT syllabus guidelines. Output strictly valid JSON array. No markdown, no code block backticks.`
-                : `You are an ELITE DESIGN ENGINEER & FULL STACK ARCHITECT. 
+// System prompt builder for code-gen tasks
+const buildSystemPrompt = (projectId: string): string => {
+    if (projectId === 'discovery_agent')
+        return `You are a brilliant Architectural AI Assistant conducting a Discovery Chat with a client. Be conversational, proactive, use the exact language they speak (Hindi/English), and output exactly as requested.`;
+    if (projectId === 'exam_generator')
+        return `You are an Expert Academic Examiner. Return ONLY valid JSON. No markdown.`;
+    if (projectId === 'quiz_battle')
+        return `You are a CBSE/NCERT Expert Quiz Master. You generate highly accurate, curriculum-aligned multiple-choice questions matching NCERT syllabus guidelines. Output strictly valid JSON array. No markdown, no code block backticks.`;
+    return `You are an ELITE DESIGN ENGINEER & FULL STACK ARCHITECT. 
 You ONLY write complete, working, production-quality code.
 NEVER write placeholder comments like "// Add logic here".
 Write REAL, FUNCTIONAL code with real logic.
-Output ONLY the raw code, no markdown, no explanation.`
-            },
-            { role: 'user', content: prompt }
-          ],
-          temperature: 0.3,
-          max_tokens: maxTokens
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${GROQ_API_KEY}`,
-            'Content-Type': 'application/json'
-          },
-          timeout: 60000
-        }
-      );
-
-      return response.data.choices[0].message.content.trim();
-    } catch (e: any) {
-      const status = e.response?.status;
-      if (status === 429) {
-        console.error('GROQ_429: Rate Limit Hit. Failing fast to trigger OpenRouter.');
-        throw new Error('GROQ_RATE_LIMIT');
-      } else if (i === retries - 1) {
-        console.error('GROQ_API_ERROR:', e.response?.data || e.message);
-        throw new Error(`GROQ_CALL_FAILED: ${e.message}`);
-      } else {
-        await new Promise(r => setTimeout(r, 5000));
-      }
-    }
-  }
-  throw new Error("GROQ_CALL_FAILED: Max retries exhausted");
+Output ONLY the raw code, no markdown, no explanation.`;
 };
 
-// 🧠 GEMINI — Deep Synthesis Engine (Fallback for Rate Limits)
-export const callGeminiAI = async (prompt: string): Promise<string> => {
-    const GEMINI_API_KEY = await getAiKey('GEMINI');
-    if (!GEMINI_API_KEY) return "";
+// Core swarm helper used by all features
+const getSwarmResponse = async (
+    prompt: string,
+    projectId: string,
+    opts?: { jsonMode?: boolean; maxTokens?: number; temperature?: number }
+): Promise<string> => {
+    const isJsonTask = opts?.jsonMode ||
+        projectId === 'exam_generator' ||
+        projectId === 'quiz_battle';
+
+    const messages = [
+        { role: 'system', content: buildSystemPrompt(projectId) },
+        { role: 'user', content: prompt }
+    ];
+
+    const res = await getProviderResponse(messages, {
+        jsonMode: isJsonTask,
+        maxTokens: opts?.maxTokens ?? 8192,
+        temperature: opts?.temperature ?? 0.3,
+        taskType: 'chat'
+    });
+
+    const content = res?.choices?.[0]?.message?.content;
+    if (!content) {
+        throw new Error('SWARM_EXHAUSTED: All AI providers failed to return content.');
+    }
+    return content.trim();
+};
+
+// ── Legacy Exports (kept for backward-compat with battle.controller & minerva imports) ──
+export const callOpenRouterAI = async (prompt: string, projectId: string, _modelOverride?: string): Promise<string> => {
     try {
-        const res = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.3, maxOutputTokens: 8192 }
-        }, { timeout: 60000 });
-        return res.data.candidates[0].content.parts[0].text.trim();
-    } catch(e: any) {
-        console.error("GEMINI_ERROR:", e.response?.data?.error || e.message);
-        return "";
+        return await getSwarmResponse(prompt, projectId);
+    } catch {
+        return '';
+    }
+};
+
+export const callGroqAI = async (prompt: string, projectId: string, _retries = 3): Promise<string> => {
+    // Now routes through the resilient 15-model loop; retries handled internally
+    return getSwarmResponse(prompt, projectId);
+};
+
+export const callGeminiAI = async (prompt: string): Promise<string> => {
+    try {
+        return await getSwarmResponse(prompt, 'gemini_direct');
+    } catch {
+        return '';
     }
 };
 
 const callSwarmAI = async (prompt: string, projectId: string, filePath?: string): Promise<string> => {
-    // 🚀 DEDICATED DISCOVERY ROUTE 🚀
-    if (projectId === 'discovery_agent') {
-        try {
-            return await callGroqAI(prompt, projectId);
-        } catch (e: any) {
-            console.warn(`[SWARM:Discovery] Groq 70B rate limit hit. Routing to OpenRouter DeepSeek/Claude smart model...`);
-            const fallbackRes = await callOpenRouterAI(prompt, projectId, "anthropic/claude-3-haiku");
-            if (fallbackRes) return fallbackRes;
-            
-            throw new Error((e as Error).message);
-        }
-    }
-
-    // 🚀 EXAM GENERATOR / STUDY PORTAL -> GEMINI 2.5 FLASH ONLY 🚀
-    let isExamGen = projectId === 'exam_generator';
-    if (!isExamGen && mongoose.Types.ObjectId.isValid(projectId)) {
-        try {
-            const p = await CollageProject.findById(projectId).lean();
-            if (p) {
-                const text = `${p.title} ${p.requirements} ${p.category}`.toLowerCase();
-                isExamGen = text.includes('exam') || text.includes('paper') || text.includes('study') || text.includes('test');
-            }
-        } catch (e) {}
-    }
-
-    if (isExamGen) {
-        try {
-            console.log(`[SWARM:Exam] Routing to Gemini 1.5 Flash for project ${projectId}...`);
-            const geminiRes = await callGeminiAI(prompt);
-            if (geminiRes && geminiRes.length > 50) return geminiRes;
-        } catch (e: any) {
-            console.warn(`[SWARM:Exam] Gemini 1.5 Flash failed: ${e.message}. Falling back...`);
-        }
-    }
-
-    // Standard Strategy: Groq for hyper-speed -> OpenRouter Failover
-    try {
-        return await callGroqAI(prompt, projectId);
-    } catch (e: any) {
-        if (e.message?.includes('GROQ_RATE_LIMIT') || e.message?.includes('429')) {
-            console.warn(`[SWARM] Groq rate limit instantly hit. Routing to OpenRouter smart model...`);
-        } else {
-            console.warn(`[SWARM] Groq Exhausted/Failed. Escalating to OpenRouter...`);
-        }
-        const smartModel = pickOpenRouterModel(filePath);
-        const fallbackRes = await callOpenRouterAI(prompt, projectId, smartModel);
-        if (fallbackRes) return fallbackRes;
-
-        throw e; // Rethrow original error if everything fails
-    }
+    // All routes now go through the unified 15-model swarm via getSwarmResponse
+    // Discovery agent gets a fast path but still has full fallback
+    const isJsonTask = projectId === 'exam_generator' || projectId === 'quiz_battle';
+    return getSwarmResponse(prompt, projectId, { jsonMode: isJsonTask });
 };
 
 // ============================================================

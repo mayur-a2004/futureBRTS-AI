@@ -140,10 +140,28 @@ export default function ProjectStudio() {
         let socket: any;
 
         if (id) {
-            // L5: Hardened URL replacement regex so it doesn't break if port changes
+            // 🔧 PROD FIX: VITE_API_URL is baked at build-time (points to localhost:7001).
+            // On futurebrts.com we MUST use window.location.origin, never the inlined localhost URL.
             const isProd = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-            const socketUrl = (import.meta as any).env?.VITE_SOCKET_URL || 
-                (isProd ? window.location.origin : window.location.origin.replace(/:\d+$/, ':7001'));
+            const viteApiUrl = (import.meta as any).env?.VITE_API_URL;
+            let socketUrl = (import.meta as any).env?.VITE_SOCKET_URL;
+            if (!socketUrl) {
+                if (isProd) {
+                    // Production: always connect to the live domain (futurebrts.com)
+                    socketUrl = window.location.origin;
+                } else {
+                    if (viteApiUrl) {
+                        try {
+                            const url = new URL(viteApiUrl);
+                            socketUrl = url.origin;
+                        } catch (e) {
+                            socketUrl = viteApiUrl;
+                        }
+                    } else {
+                        socketUrl = window.location.origin.replace(/:\d+$/, ':7001');
+                    }
+                }
+            }
             socket = io(socketUrl);
 
             socket.on('connect', () => {

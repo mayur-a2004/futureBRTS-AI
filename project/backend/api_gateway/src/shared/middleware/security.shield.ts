@@ -78,7 +78,16 @@ export const hardenedHelmet = helmet({
             scriptSrc: ["'self'", "'unsafe-inline'"],
             styleSrc: ["'self'", "'unsafe-inline'"],
             imgSrc: ["'self'", "data:", "blob:"],
-            connectSrc: ["'self'", "http://127.0.0.1:8000", "http://localhost:7001"]
+            // 🔧 PROD FIX: Added futurebrts.com (https + wss) so browser CSP
+            // does not block socket.io WebSocket connections on live server.
+            connectSrc: [
+                "'self'",
+                "http://127.0.0.1:8000",
+                "http://localhost:7001",
+                "https://futurebrts.com",
+                "wss://futurebrts.com",
+                "ws://futurebrts.com"
+            ]
         }
     }
 });

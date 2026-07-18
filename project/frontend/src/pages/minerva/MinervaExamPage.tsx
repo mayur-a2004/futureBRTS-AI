@@ -39,6 +39,21 @@ const MinervaExamPage: React.FC = () => {
     const isSubmittedRef = useRef(false);
     const tabSwitchesRef = useRef(0);
 
+    const reportViolation = async (event: string, details: string) => {
+        try {
+            await fetch(`/api/minerva/exam/${id}/proctoring`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ event, details })
+            });
+        } catch (err) {
+            console.error('Error reporting proctoring violation:', err);
+        }
+    };
+
     useEffect(() => {
         answersRef.current = answers;
     }, [answers]);
@@ -77,6 +92,9 @@ const MinervaExamPage: React.FC = () => {
                 setTabSwitches(prev => {
                     const nextCount = prev + 1;
                     tabSwitchesRef.current = nextCount;
+                    
+                    reportViolation("Tab Switch / Window Blur", `Student tabbed out of the exam screen. Occurrence: ${nextCount}`);
+                    
                     if (nextCount >= 3) {
                         alert("TAB SWITCHING LIMIT EXCEEDED! You switched tabs 3 times. Your exam has been automatically submitted.");
                         handleSubmitDirect();
@@ -205,6 +223,7 @@ const MinervaExamPage: React.FC = () => {
 
     const handlePreventCopyPaste = (e: React.ClipboardEvent) => {
         e.preventDefault();
+        reportViolation("Copy/Paste Violation", "User attempted to copy or paste content inside the exam page.");
         alert("Copying and pasting is strictly prohibited during the exam to prevent cheating!");
     };
 

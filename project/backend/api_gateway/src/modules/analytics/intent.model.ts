@@ -15,4 +15,4 @@ const LandingIntentSchema = new Schema({
     createdAt: { type: Date, default: Date.now }
 });
 
-export default mongoose.model<ILandingIntent>('LandingIntent', LandingIntentSchema);
+export default (mongoose.models.LandingIntent || mongoose.model<ILandingIntent>('LandingIntent', LandingIntentSchema)) as mongoose.Model<ILandingIntent>;

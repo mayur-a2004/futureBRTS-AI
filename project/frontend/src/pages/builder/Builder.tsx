@@ -98,8 +98,19 @@ export default function Builder() {
 
     useEffect(() => {
         const isProd = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-        const socketUrl = (import.meta as any).env?.VITE_SOCKET_URL || 
-            (isProd ? window.location.origin : window.location.origin.replace(/:\d+$/, ':7001'));
+        // 🔧 PROD FIX: VITE_API_URL is baked at build-time (points to localhost:7001).
+        // On futurebrts.com we MUST use window.location.origin, never the inlined localhost URL.
+        let socketUrl = (import.meta as any).env?.VITE_SOCKET_URL;
+        if (!socketUrl) {
+            if (isProd) {
+                socketUrl = window.location.origin;
+            } else {
+                const viteApiUrl = (import.meta as any).env?.VITE_API_URL;
+                socketUrl = viteApiUrl
+                    ? (() => { try { return new URL(viteApiUrl).origin; } catch { return viteApiUrl; } })()
+                    : window.location.origin.replace(/:\d+$/, ':7001');
+            }
+        }
         const newSocket = io(socketUrl); // Direct connection to API Port
 
         newSocket.on('connect', () => {
@@ -1422,6 +1433,9 @@ export default function Builder() {
                                 )}
                             </div>
                         )}
+                    </div>
+                    <div className="text-[10px] text-gray-500 text-center mt-2 font-medium tracking-wide">
+                        Future BRTS and Future education os is AI and can make mistakes.
                     </div>
                 </div>
             </div>

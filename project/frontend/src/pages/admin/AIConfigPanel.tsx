@@ -63,6 +63,8 @@ export default function AIConfigPanel() {
         groq: { key: '', isActive: true, isLive: false },
         gemini: { key: '', isActive: false, isLive: false },
         nvidia: { key: '', isActive: true, isLive: true },
+        openai: { key: '', isActive: true, isLive: false },
+        anthropic: { key: '', isActive: true, isLive: false },
     });
 
     const [nvidiaModels, setNvidiaModels] = useState({
@@ -88,10 +90,14 @@ export default function AIConfigPanel() {
                     if (s.key === 'AI_GROQ_KEY') newConfigs.groq.key = s.value;
                     if (s.key === 'AI_GEMINI_KEY') newConfigs.gemini.key = s.value;
                     if (s.key === 'AI_NVIDIA_KEY') newConfigs.nvidia.key = s.value;
+                    if (s.key === 'AI_OPENAI_KEY') newConfigs.openai.key = s.value;
+                    if (s.key === 'AI_ANTHROPIC_KEY') newConfigs.anthropic.key = s.value;
                     if (s.key === 'AI_OPENROUTER_ACTIVE') newConfigs.openrouter.isActive = s.value === 'true' || s.value === true;
                     if (s.key === 'AI_GROQ_ACTIVE') newConfigs.groq.isActive = s.value === 'true' || s.value === true;
                     if (s.key === 'AI_GEMINI_ACTIVE') newConfigs.gemini.isActive = s.value === 'true' || s.value === true;
                     if (s.key === 'AI_NVIDIA_ACTIVE') newConfigs.nvidia.isActive = s.value === 'true' || s.value === true;
+                    if (s.key === 'AI_OPENAI_ACTIVE') newConfigs.openai.isActive = s.value === 'true' || s.value === true;
+                    if (s.key === 'AI_ANTHROPIC_ACTIVE') newConfigs.anthropic.isActive = s.value === 'true' || s.value === true;
                     if (s.key === 'NVIDIA_MODEL_CHAT_PRIMARY') newModels.chat.primary = s.value;
                     if (s.key === 'NVIDIA_MODEL_CHAT_SECONDARY') newModels.chat.secondary = s.value;
                     if (s.key === 'NVIDIA_MODEL_CODE_PRIMARY') newModels.code.primary = s.value;
@@ -294,6 +300,10 @@ export default function AIConfigPanel() {
                                 <span className="text-gray-600">→</span>
                                 <span className="bg-orange-500/10 text-orange-400 border border-orange-500/20 px-2 py-1 rounded-lg">Groq</span>
                                 <span className="text-gray-600">→</span>
+                                <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-1 rounded-lg">OpenAI</span>
+                                <span className="text-gray-600">→</span>
+                                <span className="bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-1 rounded-lg">Anthropic</span>
+                                <span className="text-gray-600">→</span>
                                 <span className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-1 rounded-lg">OpenRouter</span>
                                 <span className="text-gray-600">→</span>
                                 <span className="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-1 rounded-lg">Gemini</span>
@@ -306,8 +316,10 @@ export default function AIConfigPanel() {
                         <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                             <Shield size={13} /> Backup Providers (Auto-used when NVIDIA pool exhausts)
                         </h3>
-                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                             <ProviderCard provider="groq" name="Groq" icon={Zap} color="orange" />
+                            <ProviderCard provider="openai" name="OpenAI" icon={Cpu} color="emerald" />
+                            <ProviderCard provider="anthropic" name="Anthropic" icon={Bot} color="red" />
                             <ProviderCard provider="gemini" name="Gemini" icon={Cpu} color="blue" />
                             <ProviderCard provider="openrouter" name="OpenRouter" icon={Settings} color="purple" />
                         </div>

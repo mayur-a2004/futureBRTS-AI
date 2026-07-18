@@ -115,6 +115,7 @@ const TextLab: React.FC<TextLabProps> = ({ content, topic, subject, grade, board
       accounting:  'from-amber-500 to-yellow-400',
       geography:   'from-emerald-500 to-green-400',
       economics:   'from-yellow-500 to-amber-400',
+      general:     'from-slate-500 to-zinc-400',
     };
     return accentMap[subject] ?? 'from-indigo-500 to-purple-400';
   }, [subject]);

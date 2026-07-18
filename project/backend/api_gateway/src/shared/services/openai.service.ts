@@ -364,6 +364,8 @@ export const getProviderResponse = async (
     const activeGroqKey = await getAiKey('GROQ');
     const activeGeminiKey = await getAiKey('GEMINI');
     const activeNvidiaKey = await getAiKey('NVIDIA');
+    const activeOpenAiKey = await getAiKey('OPENAI');
+    const activeAnthropicKey = await getAiKey('ANTHROPIC');
 
     const activeProvider = (forcedProvider || await getActiveAiProvider() || 'groq').toLowerCase();
 
@@ -514,6 +516,98 @@ export const getProviderResponse = async (
         }
     };
 
+    const runOpenRouterLlama70B = async () => {
+        const activeOpenRouterKey = await getAiKey('OPENROUTER');
+        if (!activeOpenRouterKey) return null;
+        try {
+            console.log('⚡ [OPENROUTER-LLAMA70B] Trying meta-llama/llama-3.3-70b-instruct...');
+            const response = await axios.post(
+                'https://openrouter.ai/api/v1/chat/completions',
+                {
+                    messages,
+                    model: 'meta-llama/llama-3.3-70b-instruct',
+                    temperature: options.temperature ?? 0.7,
+                    max_tokens: options.maxTokens || 4096,
+                    response_format: options.jsonMode ? { type: 'json_object' } : undefined
+                },
+                {
+                    headers: { 'Authorization': `Bearer ${activeOpenRouterKey}`, 'Content-Type': 'application/json' },
+                    timeout: 45000
+                }
+            );
+            return response.data;
+        } catch (err: any) {
+            return null;
+        }
+    };
+
+    const runBluesMinds = async () => {
+        const activeBluesMindsKey = await getAiKey('BLUESMINDS') || process.env.BLUESMINDS_API_KEY;
+        if (!activeBluesMindsKey) return null;
+        const model = 'meta-llama/Meta-Llama-3-8B-Instruct';
+        try {
+            console.log(`🚀 [BLUESMINDS] Trying BluesMinds ${model}...`);
+            const response = await axios.post(
+                'https://api.bluesminds.com/v1/chat/completions',
+                {
+                    messages,
+                    model,
+                    temperature: options.temperature ?? 0.7,
+                    max_tokens: options.maxTokens || 4096,
+                    response_format: options.jsonMode ? { type: 'json_object' } : undefined
+                },
+                {
+                    headers: { 'Authorization': `Bearer ${activeBluesMindsKey}`, 'Content-Type': 'application/json' },
+                    timeout: 45000
+                }
+            );
+            console.log(`✅ [BLUESMINDS] Responded successfully.`);
+            return response.data;
+        } catch (err: any) {
+            console.error(`[BLUESMINDS Error] failed:`, err.response?.data || err.message);
+            try {
+                console.log(`🔄 [BLUESMINDS Fallback] Trying general 'llama3' model...`);
+                const fallbackResponse = await axios.post(
+                    'https://api.bluesminds.com/v1/chat/completions',
+                    {
+                        messages,
+                        model: 'llama3',
+                        temperature: options.temperature ?? 0.7,
+                        max_tokens: options.maxTokens || 4096,
+                        response_format: options.jsonMode ? { type: 'json_object' } : undefined
+                    },
+                    {
+                        headers: { 'Authorization': `Bearer ${activeBluesMindsKey}`, 'Content-Type': 'application/json' },
+                        timeout: 45000
+                    }
+                );
+                return fallbackResponse.data;
+            } catch (fallbackErr: any) {
+                console.error(`[BLUESMINDS Fallback Error] failed:`, fallbackErr.response?.data || fallbackErr.message);
+                return null;
+            }
+        }
+    };
+
+    // Helper: convert OpenAI-style message content to Gemini parts (supports vision)
+    const toGeminiParts = (content: any): any[] => {
+        if (typeof content === 'string') return [{ text: content || '' }];
+        if (Array.isArray(content)) {
+            return content.map((part: any) => {
+                if (part.type === 'text') return { text: part.text || '' };
+                if (part.type === 'image_url' && part.image_url?.url) {
+                    const dataUrl = part.image_url.url;
+                    const match = dataUrl.match(/^data:(image\/[a-z]+);base64,(.+)$/);
+                    if (match) {
+                        return { inlineData: { mimeType: match[1], data: match[2] } };
+                    }
+                }
+                return { text: String(part) };
+            });
+        }
+        return [{ text: String(content || '') }];
+    };
+
     const runGemini = async () => {
         if (!activeGeminiKey) return null;
         try {
@@ -523,7 +617,7 @@ export const getProviderResponse = async (
                 .filter(m => m.role !== 'system')
                 .map(m => ({
                     role: m.role === 'assistant' ? 'model' : 'user',
-                    parts: [{ text: String(m.content || '') }]
+                    parts: toGeminiParts(m.content)
                 }));
             if (contents.length === 0) contents = [{ role: 'user', parts: [{ text: 'proceed' }] }];
             const requestBody: any = {
@@ -556,17 +650,251 @@ export const getProviderResponse = async (
         }
     };
 
-    // Build adaptive queue based on preferred provider
+    const runGemini25Flash = async () => {
+        if (!activeGeminiKey) return null;
+        try {
+            console.log("🔄 [GEMINI-2.5-FLASH] Trying gemini-2.5-flash...");
+            const systemMsg = messages.find(m => m.role === 'system');
+            let contents = messages
+                .filter(m => m.role !== 'system')
+                .map(m => ({
+                    role: m.role === 'assistant' ? 'model' : 'user',
+                    parts: toGeminiParts(m.content)
+                }));
+            if (contents.length === 0) contents = [{ role: 'user', parts: [{ text: 'proceed' }] }];
+            const requestBody: any = {
+                contents,
+                generationConfig: {
+                    temperature: options.temperature ?? 0.7,
+                    maxOutputTokens: options.maxTokens || 4096,
+                    ...(options.jsonMode ? { responseMimeType: "application/json" } : {})
+                }
+            };
+            if (systemMsg?.content) {
+                requestBody.system_instruction = { parts: [{ text: systemMsg.content }] };
+            }
+            const response = await axios.post(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${activeGeminiKey}`,
+                requestBody,
+                { timeout: 60000 }
+            );
+            const geminiContent = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!geminiContent) throw new Error("Gemini returned empty response.");
+            return {
+                choices: [{
+                    message: { content: geminiContent },
+                    finish_reason: 'stop'
+                }]
+            };
+        } catch (err: any) {
+            console.error(`[GEMINI-2.5-FLASH Failed]:`, err.message);
+            return null;
+        }
+    };
+
+    const runGemini15Pro = async () => {
+        if (!activeGeminiKey) return null;
+        try {
+            console.log("🔄 [GEMINI-1.5-PRO] Trying gemini-1.5-pro...");
+            const systemMsg = messages.find(m => m.role === 'system');
+            let contents = messages
+                .filter(m => m.role !== 'system')
+                .map(m => ({
+                    role: m.role === 'assistant' ? 'model' : 'user',
+                    parts: toGeminiParts(m.content)
+                }));
+            if (contents.length === 0) contents = [{ role: 'user', parts: [{ text: 'proceed' }] }];
+            const requestBody: any = {
+                contents,
+                generationConfig: {
+                    temperature: options.temperature ?? 0.7,
+                    maxOutputTokens: options.maxTokens || 4096,
+                    ...(options.jsonMode ? { responseMimeType: "application/json" } : {})
+                }
+            };
+            if (systemMsg?.content) {
+                requestBody.system_instruction = { parts: [{ text: systemMsg.content }] };
+            }
+            const response = await axios.post(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${activeGeminiKey}`,
+                requestBody,
+                { timeout: 80000 }
+            );
+            const geminiContent = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!geminiContent) throw new Error("Gemini returned empty response.");
+            return {
+                choices: [{
+                    message: { content: geminiContent },
+                    finish_reason: 'stop'
+                }]
+            };
+        } catch (err: any) {
+            console.error(`[GEMINI-1.5-PRO Failed]:`, err.message);
+            return null;
+        }
+    };
+
+    const runGroqMixtral = async () => {
+        if (!activeGroqKey) return null;
+        const keyToUse = options.apiKey || activeGroqKey;
+        const model = 'mixtral-8x7b-32768';
+        try {
+            console.log(`🚀 [GROQ-MIXTRAL] Trying ${model}...`);
+            const response = await axios.post(
+                'https://api.groq.com/openai/v1/chat/completions',
+                {
+                    messages: messages,
+                    model: model,
+                    temperature: options.temperature || 0.7,
+                    max_tokens: options.maxTokens || 4096,
+                    response_format: options.jsonMode ? { type: "json_object" } : undefined
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${keyToUse}`,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 40000
+                }
+            );
+            console.log(`✅ [GROQ-MIXTRAL] Responded successfully.`);
+            return response.data;
+        } catch (err: any) {
+            console.error(`[GROQ-MIXTRAL Error] failed:`, err.message);
+            return null;
+        }
+    };
+
+    const runGroqGemma2 = async () => {
+        if (!activeGroqKey) return null;
+        const keyToUse = options.apiKey || activeGroqKey;
+        const model = 'gemma2-9b-it';
+        try {
+            console.log(`🚀 [GROQ-GEMMA2] Trying ${model}...`);
+            const response = await axios.post(
+                'https://api.groq.com/openai/v1/chat/completions',
+                {
+                    messages: messages,
+                    model: model,
+                    temperature: options.temperature || 0.7,
+                    max_tokens: options.maxTokens || 4096,
+                    response_format: options.jsonMode ? { type: "json_object" } : undefined
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${keyToUse}`,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 40000
+                }
+            );
+            console.log(`✅ [GROQ-GEMMA2] Responded successfully.`);
+            return response.data;
+        } catch (err: any) {
+            console.error(`[GROQ-GEMMA2 Error] failed:`, err.message);
+            return null;
+        }
+    };
+
+    const runOpenAI = async () => {
+        if (!activeOpenAiKey) return null;
+        const models = ['gpt-4o-mini', 'gpt-4o'];
+        for (const model of models) {
+            try {
+                console.log(`🚀 [OPENAI] Trying ${model}...`);
+                const response = await axios.post(
+                    'https://api.openai.com/v1/chat/completions',
+                    {
+                        messages,
+                        model,
+                        temperature: options.temperature ?? 0.7,
+                        max_tokens: options.maxTokens || 4096,
+                        response_format: options.jsonMode ? { type: 'json_object' } : undefined
+                    },
+                    {
+                        headers: { 'Authorization': `Bearer ${activeOpenAiKey}`, 'Content-Type': 'application/json' },
+                        timeout: 50000
+                    }
+                );
+                console.log(`✅ [OPENAI] ${model} responded successfully.`);
+                return response.data;
+            } catch (err: any) {
+                console.error(`[OPENAI Error] ${model} failed:`, err.message);
+            }
+        }
+        return null;
+    };
+
+    const runAnthropic = async () => {
+        if (!activeAnthropicKey) return null;
+        const models = ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022'];
+        for (const model of models) {
+            try {
+                console.log(`🚀 [ANTHROPIC] Trying ${model}...`);
+                const systemMsg = messages.find(m => m.role === 'system');
+                const response = await axios.post(
+                    'https://api.anthropic.com/v1/messages',
+                    {
+                        model,
+                        max_tokens: options.maxTokens || 4096,
+                        messages: messages.filter(m => m.role !== 'system').map(m => ({
+                            role: m.role === 'assistant' ? 'assistant' : 'user',
+                            content: String(m.content || '')
+                        })),
+                        system: systemMsg?.content || undefined,
+                        temperature: options.temperature ?? 0.7
+                    },
+                    {
+                        headers: {
+                            'x-api-key': activeAnthropicKey,
+                            'anthropic-version': '2023-06-01',
+                            'content-type': 'application/json'
+                        },
+                        timeout: 60000
+                    }
+                );
+                const content = response.data?.content?.[0]?.text;
+                if (!content) throw new Error("Anthropic returned empty content.");
+                console.log(`✅ [ANTHROPIC] ${model} responded successfully.`);
+                return {
+                    choices: [{
+                        message: { content },
+                        finish_reason: 'stop'
+                    }]
+                };
+            } catch (err: any) {
+                console.error(`[ANTHROPIC Error] ${model} failed:`, err.message);
+            }
+        }
+        return null;
+    };
+
+    // Build adaptive queue containing ALL 15+ models, sorted by preferred provider
     let queue: (() => Promise<any>)[] = [];
+    
+    const groqGroup = [runGroqPrimary, runGroqGemma2, runGroqLite, runGroq3B, runGroqMixtral];
+    const openaiGroup = [runOpenAI];
+    const anthropicGroup = [runAnthropic];
+    const nvidiaGroup = [runNvidia]; // loops over all 8 NVIDIA NIM models internally
+    const geminiGroup = [runGemini25Flash, runGemini15Pro, runGemini]; // direct APIs
+    const openrouterGroup = [runOpenRouter, runOpenRouterLlama70B];
+    const bluesmindsGroup = [runBluesMinds];
+
     if (activeProvider === 'nvidia') {
-        queue = [runNvidia, runGroqPrimary, runGroqLite, runGemini, runOpenRouter];
+        queue = [...nvidiaGroup, ...bluesmindsGroup, ...groqGroup, ...openaiGroup, ...anthropicGroup, ...geminiGroup, ...openrouterGroup];
     } else if (activeProvider === 'gemini') {
-        queue = [runGemini, runGroqPrimary, runNvidia, runGroqLite, runOpenRouter];
+        queue = [...geminiGroup, ...bluesmindsGroup, ...groqGroup, ...openaiGroup, ...anthropicGroup, ...nvidiaGroup, ...openrouterGroup];
     } else if (activeProvider === 'openrouter') {
-        queue = [runOpenRouter, runGroqPrimary, runGemini, runNvidia, runGroqLite];
+        queue = [...openrouterGroup, ...bluesmindsGroup, ...groqGroup, ...openaiGroup, ...anthropicGroup, ...geminiGroup, ...nvidiaGroup];
+    } else if (activeProvider === 'openai') {
+        queue = [...openaiGroup, ...bluesmindsGroup, ...anthropicGroup, ...groqGroup, ...geminiGroup, ...nvidiaGroup, ...openrouterGroup];
+    } else if (activeProvider === 'anthropic') {
+        queue = [...anthropicGroup, ...bluesmindsGroup, ...openaiGroup, ...groqGroup, ...geminiGroup, ...nvidiaGroup, ...openrouterGroup];
+    } else if (activeProvider === 'bluesminds') {
+        queue = [...bluesmindsGroup, ...groqGroup, ...openaiGroup, ...anthropicGroup, ...geminiGroup, ...nvidiaGroup, ...openrouterGroup];
     } else {
         // Default is groq
-        queue = [runGroqPrimary, runNvidia, runGroqLite, runGemini, runOpenRouter, runGroq3B];
+        queue = [...groqGroup, ...bluesmindsGroup, ...openaiGroup, ...anthropicGroup, ...nvidiaGroup, ...geminiGroup, ...openrouterGroup];
     }
 
     // Execute queue sequentially until one succeeds
@@ -586,11 +914,16 @@ export const getProviderResponse = async (
             choices: [{
                 message: {
                     content: JSON.stringify({
-                        intent: "general_chat",
-                        confidence: 0.9,
-                        subject: "general",
-                        topic: "general",
-                        needs_onboarding: false
+                        intent: {
+                            intent: "general_chat",
+                            confidence: 0.9,
+                            subject: "general",
+                            topic: "general",
+                            needs_onboarding: false
+                        },
+                        reply: "⚠️ **AI Service Temporarily Offline**\n\nThe server is experiencing very high traffic. Let's study using our interactive sandbox simulator below while we reconnect!",
+                        suggestions: ["Explain Gravity", "Try Ohm's Law", "Run Titration Experiment"],
+                        lab_config: null
                     })
                 },
                 finish_reason: 'stop'
@@ -892,6 +1225,86 @@ export const getProviderResponseStream = async (
 };
 
 
+const getResponseFormattingInstruction = (userMessage: string, userName?: string): string => {
+    const lowMsg = userMessage.toLowerCase().trim();
+    
+    // 1. Casual Chat / Greetings / Acknowledgment
+    const isGreeting = /^(hi|hello|hey|hyy?|how are you|hey there|good morning|good evening)/i.test(lowMsg);
+    const isTinyAck = /^(ok|okay|thanks?|thx|yes|ya|yup|hm+m?|h|han|ji|perfect|noted|done|thank you)$/i.test(lowMsg) || (lowMsg.length <= 3 && !/^\d+$/.test(lowMsg));
+    
+    if (isGreeting || isTinyAck) {
+        return `
+====================================
+🎯 CASUAL CHAT MODE (STRICT LIMITS)
+====================================
+The user has sent a greeting, procedural acknowledgment, or short social message.
+1. **STRICT LIMIT**: Respond with exactly ONE sentence or line (maximum 15-20 words).
+2. **TONE**: Warm, friendly, elder-brotherly, and helpful. ALWAYS address the user as "${userName || 'Futurist'}". Example: "Hey **${userName || 'Futurist'}**, how are you doing today? Ready to build something legendary?"
+3. **FORMAT**: Keep it simple. NEVER use H2/H3 headings, bullet lists, or bold lists here.
+4. **NO OVERHEAD**: Do NOT append any long [SUMMARY] or suggestions JSON to this response. Keep it clean and short.
+`;
+    }
+
+    // 2. Technical Academic Questions (Maths, Physics, Chemistry, Biology)
+    const academicKeywords = [
+        'math', 'solve', 'calculate', 'formula', 'equation', 'reaction', 'chemistry', 'physics', 
+        'biology', 'photosynthesis', 'pythagoras', 'gravity', 'electric', 'circuit', 'atom', 'molecule',
+        'cell', 'dna', 'rna', 'protein', 'enzyme', 'organelle', 'deriv', 'proof', 'theorem', 'sum',
+        'algebra', 'geometry', 'calculus', 'integration', 'differentiation', 'force', 'velocity', 'acid', 'base'
+    ];
+    const isAcademic = academicKeywords.some(kw => lowMsg.includes(kw));
+    
+    if (isAcademic) {
+        return `
+====================================
+🔬 DEEP TECHNICAL ACADEMIC MODE (EXHAUSTIVE & DETAILED)
+====================================
+The user is asking an academic/technical question (Math, Physics, Chemistry, Biology).
+1. **LENGTH**: Provide a VERY DETAILED, long, and comprehensive masterclass explanation.
+2. **STRUCTURE**:
+   - Use H2 (##) and H3 (###) titles to organize the sections logically.
+   - Use standard Markdown bullets (\`-\`) and numbered steps (\`1.\`) for mechanisms or steps.
+   - Highlight key terms in **bold**.
+3. **CONTENT**:
+   - Mix clear descriptions with step-by-step mathematical calculations, derivations, chemical formulas, and biological processes.
+   - Write equations in plain text/Unicode (e.g. use subscripts like H₂O, superscripts like x², arrows like →, etc.) without LaTeX dollar signs ($ or $$).
+   - Use real-world analogies where helpful.
+`;
+    }
+
+    // 3. Explicit Detail Request
+    const detailKeywords = ['detail', 'explain in-depth', 'samjhao', 'long', 'discuss', 'explain fully', 'deep dive', 'step by step', 'sikhau'];
+    const isDetailRequest = detailKeywords.some(kw => lowMsg.includes(kw));
+
+    if (isDetailRequest) {
+        return `
+====================================
+📝 HIGHLY STRUCTURED DETAILED MODE (bullet points, highlighted, organized)
+====================================
+The user has explicitly asked for a detailed explanation/discussion.
+1. **LENGTH**: Long and detailed.
+2. **FORMAT**:
+   - Use clear sections with H2 (##) and H3 (###) headings.
+   - Use bullet points (\`-\`) and numbered lists (\`1.\`) extensively.
+   - Put key insights, critical actions, and terminology in **bold**.
+   - Emphasize takeaways and examples.
+`;
+    }
+
+    // 4. Default: Normal Questions (Medium length, simple structure)
+    return `
+====================================
+ℹ️ MEDIUM DETAIL EXPLANATION MODE (NORMAL)
+====================================
+The user has asked a general question.
+1. **LENGTH**: Medium-length response (1 to 2 concise, clear paragraphs).
+2. **FORMAT**:
+   - Answer directly.
+   - Do NOT use heavy vertical lists, multiple headings (H2/H3), or overly long bullet blocks unless they are specifically requested or necessary.
+   - Keep it friendly, clear, and focused.
+`;
+};
+
 export const openaiService = {
     // ... logic to use GLOBAL_INTELLIGENCE in prompts if needed
     // For now, I will just inject it into the final prompt builder
@@ -918,16 +1331,8 @@ ${JSON.stringify(GLOBAL_INTELLIGENCE, null, 2)}
 CURRENT MODE: ${activeMode.toUpperCase()}
 `;
 
-            // 🧠 MICRO-INTERACTION DETECTION (NEURAL SOCIAL FILTER)
-            const lowMsg = userMessage.toLowerCase().trim();
-            const isGreeting = /^(hi|hello|hey|hyy?|how are you|hey there|good morning|good evening)/i.test(lowMsg);
-            const isTinyAck = /^(ok|okay|thanks?|thx|yes|ya|yup|hm+m?|h|han|ji|perfect|noted|done)$/i.test(lowMsg) || (lowMsg.length <= 2 && !/^\d+$/.test(lowMsg));
-
-            if (isGreeting) {
-                contextInjection += `\n[SOCIAL_PROTOCOL]: This is a greeting. Respond naturally as an "Elder Brother" and ALWAYS use the User's name: ${systemContext?.userContext?.name || 'Futurist'}. Example: "Hey **${systemContext?.userContext?.name || 'Futurist'}**, how are you doing today?" Keep it warm and brief.\n`;
-            } else if (isTinyAck) {
-                contextInjection += `\n[SOCIAL_PROTOCOL]: This is a tiny acknowledgment/confirmation. Do NOT give a long chatty response. Just give a 1-3 word confirmation (e.g., "**Noted.**") and then focus entirely on the [SUMMARY] section.\n`;
-            }
+            // Formatting instruction dynamically routed by query intent & subject
+            contextInjection += getResponseFormattingInstruction(userMessage, systemContext?.userContext?.name);
 
             if (attachmentAnalysis && attachmentAnalysis.length > 5) {
                 // FORCE OVERRIDE
@@ -1078,16 +1483,8 @@ ${JSON.stringify(GLOBAL_INTELLIGENCE, null, 2)}
 CURRENT MODE: ${activeMode.toUpperCase()}
 `;
 
-            // 🧠 MICRO-INTERACTION DETECTION (NEURAL SOCIAL FILTER)
-            const lowMsg = userMessage.toLowerCase().trim();
-            const isGreeting = /^(hi|hello|hey|hyy?|how are you|hey there|good morning|good evening)/i.test(lowMsg);
-            const isTinyAck = /^(ok|okay|thanks?|thx|yes|ya|yup|hm+m?|h|han|ji|perfect|noted|done)$/i.test(lowMsg) || (lowMsg.length <= 2 && !/^\d+$/.test(lowMsg));
-
-            if (isGreeting) {
-                contextInjection += `\n[SOCIAL_PROTOCOL]: This is a greeting. Respond naturally as an "Elder Brother" and ALWAYS use the User's name: ${systemContext?.userContext?.name || 'Futurist'}. Example: "Hey **${systemContext?.userContext?.name || 'Futurist'}**, how are you doing today?" Keep it warm and brief.\n`;
-            } else if (isTinyAck) {
-                contextInjection += `\n[SOCIAL_PROTOCOL]: This is a tiny acknowledgment/confirmation. Do NOT give a long chatty response. Just give a 1-3 word confirmation (e.g., "**Noted.**") and then focus entirely on the [SUMMARY] section.\n`;
-            }
+            // Formatting instruction dynamically routed by query intent & subject
+            contextInjection += getResponseFormattingInstruction(userMessage, systemContext?.userContext?.name);
 
             if (attachmentAnalysis && attachmentAnalysis.length > 5) {
                 contextInjection += `

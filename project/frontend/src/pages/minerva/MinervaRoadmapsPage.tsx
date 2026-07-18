@@ -46,7 +46,7 @@ const MinervaRoadmapsPage: React.FC = () => {
         try {
             // Send the prompt to AI Tutor which triggers roadmap auto-generation with board and language alignment
             const promptMsg = `Create a study roadmap course for topic: ${topic}. Alignment Board: ${board.toUpperCase()}. Medium of Instruction: ${language}.`;
-            const res = await minervaApi.sendChat(token, promptMsg);
+            const res = await minervaApi.sendChat(token, promptMsg, undefined, undefined, false, true);
             
             if (res.success && res.content_type === 'roadmap' && res.metadata?.session_id) {
                 // Course generated successfully! Navigate to course detail page.

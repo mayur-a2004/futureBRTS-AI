@@ -219,7 +219,7 @@ export const authController = {
                 login: {
                     heading: 'Welcome Back',
                     subtext: 'Directing your intelligence towards a specialized future.',
-                    labels: { email: 'Email Architecture', password: 'Vault Key' },
+                    labels: { email: 'Email Architecture', password: 'Password' },
                     placeholders: { email: 'architect@future.com', password: '••••••••' },
                     ctaText: 'Access Workspace',
                     socialText: { github: 'GitHub Access', google: 'Google Login' },
@@ -230,7 +230,7 @@ export const authController = {
                 register: {
                     heading: 'Initialize Profile',
                     subtext: 'Join the world\'s first predictive roadmap engine.',
-                    labels: { firstName: 'First Name', lastName: 'Last Name', email: 'Email', password: 'Key', dob: 'Date of Birth' },
+                    labels: { firstName: 'First Name', lastName: 'Last Name', email: 'Email', password: 'Password', dob: 'Date of Birth' },
                     placeholders: { firstName: 'John', lastName: 'Doe', email: 'john@future.com', password: '••••••••' },
                     ctaText: 'Build Profile',
                     socialText: { github: 'GitHub Sync', google: 'Google Sync' },
@@ -268,22 +268,114 @@ export const authController = {
                 return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth/login?error=social_auth_failed`);
             }
 
+            const fetch = (await import('node-fetch')).default;
             let email = '';
             let firstName = '';
             let lastName = '';
             let providerId = '';
             const provider = isGoogle ? 'google' : 'github';
 
-            if (code.startsWith('mock_')) {
+            const isMock = code.startsWith('mock_') ||
+                           (isGoogle && (!process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID === 'PENDING_CLIENT_ID')) ||
+                           (!isGoogle && (!process.env.GITHUB_CLIENT_ID || process.env.GITHUB_CLIENT_ID === 'PENDING_CLIENT_ID'));
+
+            if (isMock) {
                 email = isGoogle ? 'google_explorer@futurebrts.com' : 'github_builder@futurebrts.com';
                 firstName = isGoogle ? 'Google' : 'Github';
                 lastName = isGoogle ? 'Explorer' : 'Builder';
                 providerId = `mock_id_${provider}_12345`;
             } else {
-                email = isGoogle ? 'google_explorer@futurebrts.com' : 'github_builder@futurebrts.com';
-                firstName = isGoogle ? 'Google' : 'Github';
-                lastName = isGoogle ? 'Explorer' : 'Builder';
-                providerId = `mock_id_${provider}_12345`;
+                if (isGoogle) {
+                    // 1. Google OAuth Token Exchange
+                    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({
+                            code,
+                            client_id: process.env.GOOGLE_CLIENT_ID || '',
+                            client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
+                            redirect_uri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:7001/api/auth/google/callback',
+                            grant_type: 'authorization_code',
+                        }).toString()
+                    });
+                    const tokenData: any = await tokenResponse.json();
+
+                    if (!tokenData.access_token) {
+                        console.error('[Google OAuth Token Error]', tokenData);
+                        throw new Error('Failed to obtain Google access token');
+                    }
+
+                    // 2. Fetch User Profile Info from Google
+                    const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+                        headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
+                    });
+                    const userData: any = await userResponse.json();
+
+                    if (!userData.email) {
+                        console.error('[Google OAuth Profile Error]', userData);
+                        throw new Error('Failed to obtain user email from Google');
+                    }
+
+                    email = userData.email.toLowerCase();
+                    firstName = userData.given_name || 'Google';
+                    lastName = userData.family_name || 'User';
+                    providerId = userData.id || '';
+                } else {
+                    // 1. GitHub OAuth Token Exchange
+                    const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json' 
+                        },
+                        body: JSON.stringify({
+                            code,
+                            client_id: process.env.GITHUB_CLIENT_ID || '',
+                            client_secret: process.env.GITHUB_CLIENT_SECRET || '',
+                            redirect_uri: process.env.GITHUB_REDIRECT_URI || 'http://localhost:7001/api/auth/github/callback',
+                        })
+                    });
+                    const tokenData: any = await tokenResponse.json();
+
+                    if (!tokenData.access_token) {
+                        console.error('[GitHub OAuth Token Error]', tokenData);
+                        throw new Error('Failed to obtain GitHub access token');
+                    }
+
+                    // 2. Fetch User Profile Info from GitHub
+                    const userResponse = await fetch('https://api.github.com/user', {
+                        headers: { 
+                            'Authorization': `token ${tokenData.access_token}`,
+                            'User-Agent': 'FutureBRTS-App'
+                        }
+                    });
+                    const userData: any = await userResponse.json();
+
+                    providerId = String(userData.id || '');
+                    const nameVal = userData.name || userData.login || 'Github User';
+                    const nameParts = nameVal.trim().split(/\s+/);
+                    firstName = nameParts[0];
+                    lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'User';
+
+                    // 3. Fetch User Email (Github profile emails can be private/hidden)
+                    if (userData.email) {
+                        email = userData.email.toLowerCase();
+                    } else {
+                        const emailsResponse = await fetch('https://api.github.com/user/emails', {
+                            headers: { 
+                                'Authorization': `token ${tokenData.access_token}`,
+                                'User-Agent': 'FutureBRTS-App'
+                            }
+                        });
+                        const emailsData: any = await emailsResponse.json();
+                        if (Array.isArray(emailsData) && emailsData.length > 0) {
+                            const primaryEmail = emailsData.find((e: any) => e.primary) || emailsData[0];
+                            email = primaryEmail.email.toLowerCase();
+                        } else {
+                            email = `${userData.login || 'github_user'}@github.futurebrts.com`;
+                        }
+                    }
+                }
             }
 
             // Find or create user
@@ -376,6 +468,34 @@ export const authController = {
             }
 
             res.json({ success: true, token: generateToken(user), user });
+        } catch (err: any) {
+            res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    changePassword: async (req: any, res: Response) => {
+        try {
+            const userId = req.user.id;
+            const { currentPassword, newPassword } = req.body;
+
+            if (!currentPassword || !newPassword) {
+                return res.status(400).json({ success: false, error: 'Current password and new password are required' });
+            }
+
+            const user = await User.findById(userId);
+            if (!user) return res.status(404).json({ success: false, error: 'User not found' });
+
+            if (user.passwordHash) {
+                const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
+                if (!isMatch) {
+                    return res.status(400).json({ success: false, error: 'Current password is incorrect' });
+                }
+            }
+
+            user.passwordHash = await bcrypt.hash(newPassword, 10);
+            await user.save();
+
+            res.json({ success: true, message: 'Password changed successfully' });
         } catch (err: any) {
             res.status(500).json({ success: false, error: err.message });
         }

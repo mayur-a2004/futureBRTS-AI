@@ -33,8 +33,19 @@ export default function Layout() {
 
     useEffect(() => {
         const isProd = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-        const socketUrl = (import.meta as any).env?.VITE_SOCKET_URL || 
-            (isProd ? window.location.origin : window.location.origin.replace(/:\d+$/, ':7001'));
+        // 🔧 PROD FIX: VITE_API_URL is baked at build-time (points to localhost:7001).
+        // On futurebrts.com we MUST use window.location.origin, never the inlined localhost URL.
+        let socketUrl = (import.meta as any).env?.VITE_SOCKET_URL;
+        if (!socketUrl) {
+            if (isProd) {
+                socketUrl = window.location.origin;
+            } else {
+                const viteApiUrl = (import.meta as any).env?.VITE_API_URL;
+                socketUrl = viteApiUrl
+                    ? (() => { try { return new URL(viteApiUrl).origin; } catch { return viteApiUrl; } })()
+                    : window.location.origin.replace(/:\d+$/, ':7001');
+            }
+        }
         const s = io(socketUrl);
         s.on('student_tournament_invite', (data) => {
             setActiveInvite(data);
@@ -397,10 +408,9 @@ export default function Layout() {
     return (
         <div className="flex h-screen text-white overflow-hidden font-sans relative bg-black">
 
-
             {/* Mobile Header */}
             {!isMinervaMain && (
-                <div className="md:hidden fixed top-0 left-0 right-0 h-14 border-b border-white/5 bg-black/20 backdrop-blur-xl z-40 flex items-center px-4">
+                <div className="md:hidden fixed top-0 left-0 right-0 h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] border-b border-white/5 bg-black/20 backdrop-blur-xl z-40 flex items-center px-4">
                     <button onClick={toggleMobileMenu} className="p-2 text-gray-400 hover:text-white transition-colors">
                         <Menu size={24} />
                     </button>
@@ -718,7 +728,7 @@ export default function Layout() {
             </aside >
 
             <main className={`flex-1 min-w-0 ${isFullHeight ? 'h-full overflow-hidden pb-0' : 'overflow-y-auto pb-16'} relative w-full md:pb-0`}>
-                <div className={`relative ${isFullHeight ? 'h-full' : 'min-h-full'} flex flex-col ${isFullHeight ? (isMinervaMain ? 'pt-0 px-0 pb-0' : 'pt-14 md:pt-0 px-0 pb-0') : 'p-4 md:p-8 pt-20 md:pt-8 pb-20 md:pb-8'} w-full max-w-full overflow-x-hidden`}>
+                <div className={`relative ${isFullHeight ? 'h-full' : 'min-h-full'} flex flex-col ${isFullHeight ? (isMinervaMain ? 'pt-0 px-0 pb-0' : 'pt-[calc(3.5rem+env(safe-area-inset-top))] md:pt-0 px-0 pb-0') : 'p-4 md:p-8 pt-20 md:pt-8 pb-20 md:pb-8'} w-full max-w-full overflow-x-hidden`}>
                     <div className={`flex-1 flex flex-col ${isFutureEd && !isMinervaMain ? 'overflow-y-auto' : 'overflow-hidden'} min-w-0 min-h-0`}>
                         <Outlet />
                     </div>
