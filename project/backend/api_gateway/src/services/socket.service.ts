@@ -573,7 +573,12 @@ export class SocketService {
                 try {
                     const room = await ArenaRoom.findOne({ roomCode });
                     if (!room) return;
-                    if (room.hostId.toString() !== userId) return; // Only host can start
+                    
+                    const hostIdStr = room.hostId && typeof room.hostId === 'object' && '_id' in room.hostId
+                        ? (room.hostId as any)._id.toString()
+                        : room.hostId.toString();
+                        
+                    if (hostIdStr !== userId) return; // Only host can start
                     if (room.status === 'ACTIVE') return;
 
                     room.status = 'ACTIVE';
@@ -615,8 +620,11 @@ export class SocketService {
                 try {
                     const room = await ArenaRoom.findOne({ roomCode });
                     if (!room) return;
-                    // Only the host (teacher) can stop the quiz
-                    if (room.hostId.toString() !== userId) {
+                    const hostIdStr = room.hostId && typeof room.hostId === 'object' && '_id' in room.hostId
+                        ? (room.hostId as any)._id.toString()
+                        : room.hostId.toString();
+                        
+                    if (hostIdStr !== userId) {
                         socket.emit('arena_error', { message: 'Only the host teacher can stop this quiz.' });
                         return;
                     }
