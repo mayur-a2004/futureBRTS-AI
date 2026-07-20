@@ -473,7 +473,20 @@ const MinervaLearnPage: React.FC = () => {
         const res = await minervaApi.submitTask(token, taskId, answer);
         if (res.success) {
             setResults(prev => ({ ...prev, [taskId]: res }));
-            setTasks(prev => prev.map(t => t._id === taskId ? { ...t, submitted: true, ai_score: res.score, passed: res.passed } : t));
+            setTasks(prev => {
+                const updated = prev.map(t => t._id === taskId ? { ...t, submitted: true, ai_score: res.score, passed: res.passed } : t);
+                const allDone = updated.length > 0 && updated.every(t => t.submitted);
+                if (allDone) {
+                    const avg = updated.reduce((s, t) => s + t.ai_score, 0) / updated.length;
+                    setNode((prevNode: any) => ({
+                        ...prevNode,
+                        passed: avg >= 60,
+                        status: avg >= 60 ? 'DONE' : 'NEEDS_REVIEW',
+                        last_score: Math.round(avg)
+                    }));
+                }
+                return updated;
+            });
         }
         setSubmitting(null);
     };
@@ -1019,11 +1032,15 @@ const MinervaLearnPage: React.FC = () => {
                 )}
 
                 {/* Practice Tasks */}
-                {tasks.length > 0 && (
+                {tasks.length > 0 ? (
                     <div className="space-y-4">
                         <h2 className="font-bold text-xs text-gray-200 flex items-center gap-2 uppercase tracking-wider">
-                            <span>📝</span> Practice tasks
-                            {allTasksDone && <span className="ml-auto text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">All Completed</span>}
+                            <span>📝</span> Practice tasks & Topic Quiz
+                            {allTasksDone && (
+                                <span className={`ml-auto text-[9px] font-bold px-2 py-0.5 rounded-full border ${avgScore >= 60 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                                    {avgScore >= 60 ? '✓ 60%+ Passed' : '⚠️ Score < 60% (Failed)'}
+                                </span>
+                            )}
                         </h2>
                         <div className="space-y-4">
                             {tasks.map((task: any, ti: number) => (
@@ -1107,20 +1124,49 @@ const MinervaLearnPage: React.FC = () => {
                             ))}
                         </div>
 
-                        {/* Completion card */}
+                        {/* Completion card with 60% pass threshold & dynamic unlock/regen buttons */}
                         {allTasksDone && (
                             <div className={`p-6 rounded-3xl border text-center shadow-2xl backdrop-blur-md relative overflow-hidden
-                                ${avgScore >= 60 ? 'bg-emerald-950/10 border-emerald-500/20' : 'bg-orange-950/10 border-orange-500/20'}`}>
-                                <div className="text-3xl mb-2">{avgScore >= 60 ? '🎉' : '📚'}</div>
-                                <h3 className="font-black text-sm">{avgScore >= 60 ? 'Topic Mastery Achieved!' : 'Revision Recommended'}</h3>
+                                ${avgScore >= 60 ? 'bg-emerald-950/10 border-emerald-500/20' : 'bg-rose-950/10 border-rose-500/20'}`}>
+                                <div className="text-3xl mb-2">{avgScore >= 60 ? '🎉' : '⚠️'}</div>
+                                <h3 className="font-black text-sm">{avgScore >= 60 ? 'Topic Mastery Achieved!' : 'Passing Threshold Not Met (< 60%)'}</h3>
                                 <p className="text-xs text-gray-400 mt-1 mb-4 max-w-sm mx-auto">
-                                    Your average score is {Math.round(avgScore)}%. {avgScore >= 60 ? 'The next chapter has been unlocked automatically.' : 'We suggest reviewing and attempting the tasks again.'}
+                                    Your average score is <span className="font-bold text-white">{Math.round(avgScore)}%</span>. 
+                                    {avgScore >= 60 
+                                        ? ' Excellent job! The next roadmap topic has been unlocked automatically.' 
+                                        : ' You need at least 60% to unlock the next roadmap topic. Generate a fresh set of practice questions to attempt again!'}
                                 </p>
-                                <button onClick={() => navigate(-1)} className="text-xs bg-white/5 hover:bg-white/10 px-5 py-2.5 rounded-xl transition-all font-bold text-indigo-400">
-                                    ← Back to Session Map
-                                </button>
+                                <div className="flex flex-wrap items-center justify-center gap-3">
+                                    {avgScore < 60 ? (
+                                        <button 
+                                            onClick={handleRegenerate} 
+                                            disabled={regenerating} 
+                                            className="text-xs bg-gradient-to-br from-amber-500 to-rose-600 hover:opacity-90 px-5 py-2.5 rounded-xl transition-all font-bold text-white shadow-lg flex items-center gap-1.5 cursor-pointer"
+                                        >
+                                            <RefreshCw size={12} className={regenerating ? 'animate-spin' : ''} />
+                                            <span>{regenerating ? 'Generating Fresh Quiz...' : '🔄 Generate Fresh Practice Quiz Tasks'}</span>
+                                        </button>
+                                    ) : (
+                                        <button onClick={() => navigate(-1)} className="text-xs bg-gradient-to-br from-emerald-500 to-teal-600 hover:opacity-90 px-5 py-2.5 rounded-xl transition-all font-bold text-white shadow-lg flex items-center gap-1.5">
+                                            <span>🔓 Next Topic Unlocked — Back to Roadmap</span>
+                                        </button>
+                                    )}
+                                    <button onClick={() => navigate(-1)} className="text-xs bg-white/5 hover:bg-white/10 px-5 py-2.5 rounded-xl transition-all font-bold text-gray-300">
+                                        ← Back to Session Map
+                                    </button>
+                                </div>
                             </div>
                         )}
+                    </div>
+                ) : (
+                    <div className="p-6 rounded-3xl border border-indigo-500/20 bg-indigo-950/10 text-center shadow-xl backdrop-blur-md">
+                        <div className="text-3xl mb-2">⚡</div>
+                        <h3 className="font-bold text-sm text-gray-200">Practice Quiz Tasks</h3>
+                        <p className="text-xs text-gray-400 mt-1 mb-4">No active practice tasks found for this topic yet. Generate dynamic questions to test your understanding.</p>
+                        <button onClick={handleRegenerate} disabled={regenerating} className="text-xs bg-gradient-to-br from-indigo-500 to-purple-600 px-5 py-2.5 rounded-xl font-bold text-white hover:opacity-90 flex items-center gap-1.5 mx-auto">
+                            <Sparkles size={13} />
+                            <span>{regenerating ? 'Generating Questions...' : '✨ Generate Practice Quiz Tasks'}</span>
+                        </button>
                     </div>
                 )}
             </div>

@@ -994,9 +994,9 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                 const rawTasks = await MinervaTask.find(query)
                     .select('type prompt options marks difficulty submitted passed ai_score').lean();
                 
-                // Check if student completed all tasks but failed the node assessment overall, or if no tasks exist yet
+                // Check if student completed all tasks but failed the node assessment overall
                 const allSubmitted = rawTasks.length > 0 && rawTasks.every(t => t.submitted);
-                if (rawTasks.length === 0 || ((node.passed === false || node.status === 'NEEDS_REVIEW') && allSubmitted)) {
+                if ((node.passed === false || node.status === 'NEEDS_REVIEW') && allSubmitted) {
                     console.log(`♻️ [learnNode] Automatically regenerating unique mix tasks for failed node: ${id}`);
                     
                     // Exclude old prompts to guarantee uniqueness
