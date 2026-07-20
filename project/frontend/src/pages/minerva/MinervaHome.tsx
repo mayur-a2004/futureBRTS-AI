@@ -1051,7 +1051,7 @@ const MinervaHome: React.FC = () => {
                                     {msg.metadata?.file_url && msg.metadata?.file_type === 'image' && (
                                         <div className="mb-2 rounded-xl overflow-hidden border border-white/10">
                                             <img
-                                                src={`http://localhost:7001${msg.metadata.file_url}`}
+                                                src={`${(import.meta as any).env?.VITE_API_URL || 'http://localhost:7001'}${msg.metadata.file_url}`}
                                                 alt={msg.metadata.filename || 'Uploaded image'}
                                                 className="max-w-full max-h-48 object-contain w-full"
                                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
@@ -1646,7 +1646,7 @@ const MinervaHome: React.FC = () => {
                             {uploadedFile.type === 'image' && uploadedFile.url ? (
                                 <div className="w-10 h-10 rounded-lg overflow-hidden border border-white/10 bg-black/40 flex-shrink-0">
                                     <img 
-                                        src={`http://localhost:7001${uploadedFile.url}`} 
+                                        src={`${(import.meta as any).env?.VITE_API_URL || 'http://localhost:7001'}${uploadedFile.url}`} 
                                         alt="Attachment preview" 
                                         className="w-full h-full object-cover"
                                         onError={(e) => {
