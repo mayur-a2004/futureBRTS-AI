@@ -31,6 +31,8 @@ interface ArenaRoom {
     roundStates: any[];
     battleStyle?: 'SPEED_RACE' | 'ALTERNATING'; // ⚡ or ⚔️
     currentTurn?: 'A' | 'B';
+    activePlayerId?: string | null;
+    activePlayerName?: string;
     roomType?: 'OPEN_ARENA' | 'TEACHER_ROOM';
     board?: string;
     standard?: string;
@@ -2932,7 +2934,8 @@ export default function MinervaQuizBattlePage() {
                                     {teamAPlayers.map(p => {
                                         const roundState = room.roundStates[currentRound];
                                         const answered = roundState?.teamAAnswers?.[p.userId] || (roundState?.teamAAnswers as any)?.[p.userId] || (room.players.find(x => x.userId === p.userId)?.hasFinished);
-                                        const isActiveTurnPlayer = room.battleStyle === 'ALTERNATING' && activeTurn === 'A';
+                                        const isThisPlayerTurn = room.battleStyle === 'ALTERNATING' && activeTurn === 'A' &&
+                                                                 (room.activePlayerId ? room.activePlayerId.toString() === p.userId.toString() : false);
                                         return (
                                             <div key={p.userId} className="flex items-center justify-between text-[10px]">
                                                 <span className="font-bold text-indigo-300 truncate max-w-[90px]">
@@ -2940,10 +2943,10 @@ export default function MinervaQuizBattlePage() {
                                                 </span>
                                                 <span className={`text-[8px] font-black px-2 py-0.5 rounded-full ${
                                                     answered ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/20' :
-                                                    isActiveTurnPlayer && !answered ? 'bg-amber-900/40 text-amber-400 border border-amber-500/30 animate-pulse' :
+                                                    isThisPlayerTurn && !answered ? 'bg-amber-900/40 text-amber-400 border border-amber-500/30 animate-pulse' :
                                                     'bg-slate-900 text-slate-500 border border-slate-800'
                                                 }`}>
-                                                    {answered ? '✓ DONE' : isActiveTurnPlayer ? '⚔️ ATTACKING' : '🛡️ STANDBY'}
+                                                    {answered ? '✓ DONE' : isThisPlayerTurn ? '⚔️ ATTACKING' : '🛡️ STANDBY'}
                                                 </span>
                                             </div>
                                         );
@@ -2989,18 +2992,19 @@ export default function MinervaQuizBattlePage() {
                                     })() : teamBPlayers.map(p => {
                                         const roundState = room.roundStates[currentRound];
                                         const answered = roundState?.teamBAnswers?.[p.userId] || (roundState?.teamBAnswers as any)?.[p.userId] || (room.players.find(x => x.userId === p.userId)?.hasFinished);
-                                        const isActiveTurnPlayer = room.battleStyle === 'ALTERNATING' && activeTurn === 'B';
+                                        const isThisPlayerTurn = room.battleStyle === 'ALTERNATING' && activeTurn === 'B' &&
+                                                                 (room.activePlayerId ? room.activePlayerId.toString() === p.userId.toString() : false);
                                         return (
                                             <div key={p.userId} className="flex items-center justify-between text-[10px]">
                                                 <span className="font-bold text-rose-300 truncate max-w-[90px]">
                                                     {p.firstName}{p.streakCount >= 2 ? ` 🔥` : ''}
                                                 </span>
                                                 <span className={`text-[8px] font-black px-2 py-0.5 rounded-full ${
-                                                    answered ? 'bg-emerald-950/60 text-emerald-450 border border-emerald-500/20' :
-                                                    isActiveTurnPlayer && !answered ? 'bg-amber-900/40 text-amber-400 border border-amber-500/30 animate-pulse' :
+                                                    answered ? 'bg-emerald-950/60 text-emerald-455 border border-emerald-500/20' :
+                                                    isThisPlayerTurn && !answered ? 'bg-amber-900/40 text-amber-400 border border-amber-500/30 animate-pulse' :
                                                     'bg-slate-900 text-slate-500 border border-slate-800'
                                                 }`}>
-                                                    {answered ? '✓ DONE' : isActiveTurnPlayer ? '⚔️ ATTACKING' : '🛡️ STANDBY'}
+                                                    {answered ? '✓ DONE' : isThisPlayerTurn ? '⚔️ ATTACKING' : '🛡️ STANDBY'}
                                                 </span>
                                             </div>
                                         );
@@ -3049,36 +3053,53 @@ export default function MinervaQuizBattlePage() {
                             </div>
 
                             {/* ⚔️ YOUR TURN / OPPONENT'S TURN Banner */}
-                            {room.battleStyle === 'ALTERNATING' && room.mode !== 'SOLO_VS_AI' && (
-                                <AnimatePresence mode="wait">
-                                    {activeTurn === myTeam ? (
-                                        <motion.div key="your-turn"
-                                            initial={{ opacity: 0, scale: 0.9, y: -10 }}
-                                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                                            exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                                            className="mb-4 relative z-10 bg-gradient-to-r from-emerald-900/50 to-teal-900/40 border border-emerald-500/50 rounded-2xl px-4 py-3 shadow-[0_0_20px_rgba(16,185,129,0.25)] flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-lg animate-bounce">⚔️</div>
-                                            <div>
-                                                <div className="text-sm font-black text-emerald-300 tracking-wide">IT'S YOUR TURN! Answer Now!</div>
-                                                <div className="text-[10px] text-emerald-500/70 font-medium">You are the ATTACKER — strike the opponent!</div>
-                                            </div>
-                                            <div className="ml-auto w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                                        </motion.div>
-                                    ) : (
-                                        <motion.div key="opponent-turn"
-                                            initial={{ opacity: 0, scale: 0.9, y: -10 }}
-                                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                                            exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                                            className="mb-4 relative z-10 bg-slate-900/60 border border-slate-700/40 rounded-2xl px-4 py-3 flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-xl bg-slate-800 border border-slate-700/40 flex items-center justify-center text-lg">🔒</div>
-                                            <div>
-                                                <div className="text-sm font-black text-slate-400 tracking-wide">Opponent's Turn</div>
-                                                <div className="text-[10px] text-slate-600 font-medium">Wait for them to answer first...</div>
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            )}
+                            {room.battleStyle === 'ALTERNATING' && room.mode !== 'SOLO_VS_AI' && (() => {
+                                const isMyIndividualTurn = room.activePlayerId ? room.activePlayerId.toString() === user?._id?.toString() : false;
+                                return (
+                                    <AnimatePresence mode="wait">
+                                        {activeTurn === myTeam ? (
+                                            isMyIndividualTurn ? (
+                                                <motion.div key="your-turn-active"
+                                                    initial={{ opacity: 0, scale: 0.9, y: -10 }}
+                                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                    exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                                                    className="mb-4 relative z-10 bg-gradient-to-r from-emerald-900/50 to-teal-900/40 border border-emerald-500/50 rounded-2xl px-4 py-3 shadow-[0_0_20px_rgba(16,185,129,0.25)] flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-lg animate-bounce">⚔️</div>
+                                                    <div>
+                                                        <div className="text-sm font-black text-emerald-300 tracking-wide">IT'S YOUR TURN! Answer Now!</div>
+                                                        <div className="text-[10px] text-emerald-500/70 font-medium">You are the ATTACKER — strike the opponent!</div>
+                                                    </div>
+                                                    <div className="ml-auto w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                                                </motion.div>
+                                            ) : (
+                                                <motion.div key="your-turn-standby"
+                                                    initial={{ opacity: 0, scale: 0.9, y: -10 }}
+                                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                    exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                                                    className="mb-4 relative z-10 bg-gradient-to-r from-amber-900/40 to-yellow-950/30 border border-amber-500/40 rounded-2xl px-4 py-3 flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-lg">🛡️</div>
+                                                    <div>
+                                                        <div className="text-sm font-black text-amber-300 tracking-wide">TEAM'S TURN: {room.activePlayerName || 'Teammate'} is answering</div>
+                                                        <div className="text-[10px] text-amber-500/70 font-medium">Cheer for your teammate to hit the target!</div>
+                                                    </div>
+                                                </motion.div>
+                                            )
+                                        ) : (
+                                            <motion.div key="opponent-turn"
+                                                initial={{ opacity: 0, scale: 0.9, y: -10 }}
+                                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                                                className="mb-4 relative z-10 bg-slate-900/60 border border-slate-700/40 rounded-2xl px-4 py-3 flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-xl bg-slate-800 border border-slate-700/40 flex items-center justify-center text-lg">🔒</div>
+                                                <div>
+                                                    <div className="text-sm font-black text-slate-400 tracking-wide">Opponent's Turn ({room.activePlayerName || 'Opponent'})</div>
+                                                    <div className="text-[10px] text-slate-600 font-medium">Wait for them to answer first...</div>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                );
+                            })()}
 
                             {teammateWrong && !hasSubmitted && (
                                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
@@ -3098,11 +3119,12 @@ export default function MinervaQuizBattlePage() {
                                             const isSelected = selectedOption === idx;
                                             const isCorrectOpt = myQuestion.correctAnswer === idx;
                                             const isTeammateWrong = teammateWrong?.wrongOption === idx;
-                                            // ALTERNATING: lock buttons if it's not my turn
+                                            // ALTERNATING: lock buttons if it's not my turn or if I am not the designated active player
+                                            const isMyIndividualTurn = room.activePlayerId ? room.activePlayerId.toString() === user?._id?.toString() : false;
                                             const isMyTurnLocked = !hasSubmitted &&
                                                 room.battleStyle === 'ALTERNATING' &&
                                                 room.mode !== 'SOLO_VS_AI' &&
-                                                activeTurn !== myTeam;
+                                                (activeTurn !== myTeam || !isMyIndividualTurn);
 
                                             let cls = 'border-slate-800 bg-[#06080e]/40 hover:border-indigo-500/40 hover:bg-indigo-950/10 text-slate-300 cursor-pointer';
                                             if (isMyTurnLocked) {

@@ -74,6 +74,8 @@ export interface IArenaRoom extends Document {
         | 'SQUAD_VS_SQUAD' | 'CLASSROOM';
     battleStyle: 'SPEED_RACE' | 'ALTERNATING';
     currentTurn: 'A' | 'B';
+    activePlayerId?: mongoose.Types.ObjectId | null;
+    activePlayerName?: string;
     teamASizeTarget: number;
     teamBSizeTarget: number;
     subject: string;
@@ -173,6 +175,8 @@ const ArenaRoomSchema: Schema = new Schema({
     },
     battleStyle: { type: String, enum: ['SPEED_RACE', 'ALTERNATING'], default: 'SPEED_RACE' },
     currentTurn: { type: String, enum: ['A', 'B'], default: 'A' },
+    activePlayerId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    activePlayerName: { type: String, default: '' },
     teamASizeTarget: { type: Number, required: true },
     teamBSizeTarget: { type: Number, required: true },
     subject: { type: String, required: true },

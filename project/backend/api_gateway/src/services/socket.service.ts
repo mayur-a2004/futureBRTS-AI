@@ -213,12 +213,23 @@ export class SocketService {
 
             if (teamAnswers.get(userId)) return; // Already answered
 
-            // ALTERNATING MODE: Check turn locks
+            // ALTERNATING MODE: Check individual player turn locks
             if ((room as any).battleStyle === 'ALTERNATING' && room.mode !== 'SOLO_VS_AI') {
                 const currentTurn = (room as any).currentTurn as 'A' | 'B';
-                const isDefenderPhase = !!(roundState.teamAAnswers as any).size && currentTurn === 'B' && team === 'B' ||
-                                        !!(roundState.teamBAnswers as any).size && currentTurn === 'A' && team === 'A';
-                if (team !== currentTurn && !isDefenderPhase) return; // Blocked
+                if (team !== currentTurn) return; // Blocked: not this team's turn
+
+                // Sort players of this team to determine current active player
+                const teamPlayers = room.players
+                    .filter((p: any) => p.team === currentTurn)
+                    .sort((a: any, b: any) => a.userId.toString().localeCompare(b.userId.toString()));
+                
+                const activePlayer = teamPlayers[roundIndex % teamPlayers.length];
+                const activePlayerIdStr = activePlayer ? (activePlayer.userId._id || activePlayer.userId).toString() : null;
+
+                if (userId !== activePlayerIdStr) {
+                    logger.info(`[Arena] Blocking out-of-turn answer from ${player.firstName}. Active representative is: ${activePlayer?.firstName}`);
+                    return; // Blocked!
+                }
             }
 
             const playerQs = (room.playerQuestions as any).get(userId);
@@ -356,15 +367,35 @@ export class SocketService {
             }
 
             if (turnSwitched) {
+                // Determine next active player for the switched turn team
+                const newTeamPlayers = room.players
+                    .filter((p: any) => p.team === newTurn)
+                    .sort((a: any, b: any) => a.userId.toString().localeCompare(b.userId.toString()));
+                
+                const newActivePlayer = newTeamPlayers[roundIndex % newTeamPlayers.length];
+                if (newActivePlayer) {
+                    room.activePlayerId = newActivePlayer.userId;
+                    room.activePlayerName = newActivePlayer.firstName;
+                } else if (room.mode === 'SOLO_VS_AI' && newTurn === 'B') {
+                    room.activePlayerId = null;
+                    room.activePlayerName = 'AI';
+                }
+
                 room.markModified('players');
                 room.markModified('roundStates');
                 await room.save();
+
+                // Start the server-side auto-advance timer for the new team's turn! (Crucial fix to prevent freezing)
+                SocketService.startRoundTimer(roomCode, roundIndex, io);
+
                 io.to(roomCode).emit('arena_turn_switch', {
                     roomCode,
                     roundIndex,
                     activeTurn: newTurn,
+                    activePlayerId: room.activePlayerId ? room.activePlayerId.toString() : null,
+                    activePlayerName: room.activePlayerName,
                     reason: 'ATTACKER_WRONG',
-                    timerSeconds: 10
+                    timerSeconds: 22
                 });
                 io.to(roomCode).emit('arena_update', {
                     room: room.toJSON(),
@@ -458,6 +489,26 @@ export class SocketService {
             if (nextRound < room.totalRounds && !winnerTeam) {
                 room.currentRound = nextRound;
                 room.currentTurn = (room.battleStyle === 'ALTERNATING') ? (nextRound % 2 === 0 ? 'A' : 'B') : 'A';
+                
+                // Set active player for the next round
+                if (room.battleStyle === 'ALTERNATING') {
+                    const nextTurn = room.currentTurn;
+                    const nextTeamPlayers = room.players
+                        .filter((p: any) => p.team === nextTurn)
+                        .sort((a: any, b: any) => a.userId.toString().localeCompare(b.userId.toString()));
+                    const nextActivePlayer = nextTeamPlayers[nextRound % nextTeamPlayers.length];
+                    if (nextActivePlayer) {
+                        room.activePlayerId = nextActivePlayer.userId;
+                        room.activePlayerName = nextActivePlayer.firstName;
+                    } else if (room.mode === 'SOLO_VS_AI' && nextTurn === 'B') {
+                        room.activePlayerId = null;
+                        room.activePlayerName = 'AI';
+                    }
+                } else {
+                    room.activePlayerId = null;
+                    room.activePlayerName = '';
+                }
+
                 room.roundStates.push({
                     roundIndex: nextRound,
                     teamAAnswers: {} as any,
@@ -583,6 +634,23 @@ export class SocketService {
 
                     room.status = 'ACTIVE';
                     room.currentRound = 0;
+                    room.currentTurn = 'A';
+
+                    // Set initial active player (Team A starts)
+                    if (room.battleStyle === 'ALTERNATING') {
+                        const teamAPlayers = room.players
+                            .filter((p: any) => p.team === 'A')
+                            .sort((a: any, b: any) => a.userId.toString().localeCompare(b.userId.toString()));
+                        const activePlayer = teamAPlayers[0];
+                        if (activePlayer) {
+                            room.activePlayerId = activePlayer.userId;
+                            room.activePlayerName = activePlayer.firstName;
+                        }
+                    } else {
+                        room.activePlayerId = null;
+                        room.activePlayerName = '';
+                    }
+
                     // Init first round state
                     room.roundStates.push({
                         roundIndex: 0,
