@@ -1075,6 +1075,7 @@ export default function MinervaQuizBattlePage() {
         checkMyActiveRoom(s);
 
         s.on('arena_lobby_update', (d: { room: ArenaRoom }) => setRoom(d.room));
+        s.on('arena_room_updated', (d: any) => setRoom(d.room || d));
 
         // Host notification when someone joins with their choice details
         s.on('arena_player_joined', (d: { 
@@ -1630,6 +1631,36 @@ export default function MinervaQuizBattlePage() {
                 resetBattleState();
             } else {
                 showAlert('Error', d.message || 'Failed to leave lobby');
+            }
+        } catch (err: any) {
+            showAlert('Error', 'Connection failed');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSwitchTeam = async (targetTeam: 'A' | 'B') => {
+        if (!room) return;
+        setLoading(true);
+        try {
+            const res = await fetch(`/api/future-education/battle/room/${room.roomCode}/switch-team`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token()}` 
+                },
+                body: JSON.stringify({ targetTeam })
+            });
+            const d = await res.json();
+            if (d.success) {
+                setRoom(d.room);
+                socket?.emit('arena_switch_team', {
+                    roomCode: room.roomCode,
+                    userId: user?._id,
+                    targetTeam
+                });
+            } else {
+                showAlert('Error', d.message || 'Failed to switch team');
             }
         } catch (err: any) {
             showAlert('Error', 'Connection failed');
@@ -2826,6 +2857,15 @@ export default function MinervaQuizBattlePage() {
                             <div className="bg-[#0b1021] border border-indigo-900/40 rounded-3xl p-5 shadow-xl">
                                 <div className="text-xs font-black uppercase tracking-widest text-indigo-400 mb-4 flex items-center gap-2 border-b border-indigo-950/40 pb-2">
                                     <Shield className="w-4 h-4 text-indigo-400" /> Team Alpha ({teamAPlayers.length} / {room.teamASizeTarget})
+                                    {!teamAPlayers.some(p => p.userId.toString() === user?._id?.toString()) && (
+                                        <button 
+                                            onClick={() => handleSwitchTeam('A')}
+                                            disabled={loading || teamAPlayers.length >= room.teamASizeTarget}
+                                            className="ml-auto text-[10px] bg-indigo-500 hover:bg-indigo-650 disabled:opacity-50 text-white font-bold px-2.5 py-1 rounded-xl transition duration-200"
+                                        >
+                                            Switch to Alpha
+                                        </button>
+                                    )}
                                 </div>
                                 <div className="space-y-2">
                                     {teamAPlayers.map(p => (
@@ -2848,6 +2888,15 @@ export default function MinervaQuizBattlePage() {
                                 <div className="text-xs font-black uppercase tracking-widest text-rose-450 mb-4 flex items-center gap-2 border-b border-rose-950/40 pb-2">
                                     {room.mode === 'SOLO_VS_AI' ? <Bot className="w-4 h-4 text-rose-450" /> : <Flame className="w-4 h-4 text-rose-450" />}
                                     {room.mode === 'SOLO_VS_AI' ? `Future Education OS Bot` : `Team Omega (${teamBPlayers.length} / ${room.teamBSizeTarget})`}
+                                    {room.mode !== 'SOLO_VS_AI' && !teamBPlayers.some(p => p.userId.toString() === user?._id?.toString()) && (
+                                        <button 
+                                            onClick={() => handleSwitchTeam('B')}
+                                            disabled={loading || teamBPlayers.length >= room.teamBSizeTarget}
+                                            className="ml-auto text-[10px] bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold px-2.5 py-1 rounded-xl transition duration-200"
+                                        >
+                                            Switch to Omega
+                                        </button>
+                                    )}
                                 </div>
                                 <div className="space-y-2">
                                     {room.mode === 'SOLO_VS_AI' ? (

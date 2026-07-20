@@ -669,6 +669,91 @@ export const battleController = {
         }
     },
 
+    // Switch team (Team Alpha <-> Team Omega) in lobby before match starts
+    switchTeam: async (req: Request, res: Response) => {
+        try {
+            const { roomCode } = req.params;
+            const { targetTeam } = req.body; // 'A' | 'B'
+            const user = (req as any).user;
+            const userIdStr = (user._id || user.id).toString();
+
+            if (!targetTeam || !['A', 'B'].includes(targetTeam)) {
+                return res.status(400).json({ success: false, message: 'Invalid target team.' });
+            }
+
+            const room = await ArenaRoom.findOne({ roomCode });
+            if (!room) {
+                return res.status(404).json({ success: false, message: 'Room not found.' });
+            }
+
+            if (room.status !== 'WAITING' && room.status !== 'LOBBY_READY') {
+                return res.status(400).json({ success: false, message: 'Cannot switch teams after match has started.' });
+            }
+
+            const player = room.players.find((p: any) => p.userId.toString() === userIdStr);
+            if (!player) {
+                return res.status(404).json({ success: false, message: 'You are not in this room.' });
+            }
+
+            if (player.team === targetTeam) {
+                return res.status(400).json({ success: false, message: `You are already on Team ${targetTeam === 'A' ? 'Alpha' : 'Omega'}.` });
+            }
+
+            const targetTeamPlayers = room.players.filter((p: any) => p.team === targetTeam);
+            const targetSize = targetTeam === 'A' ? room.teamASizeTarget : room.teamBSizeTarget;
+
+            if (targetTeamPlayers.length >= targetSize) {
+                return res.status(400).json({ success: false, message: `Team ${targetTeam === 'A' ? 'Alpha' : 'Omega'} is full.` });
+            }
+
+            // Move player to target team
+            const oldTeam = player.team;
+            player.team = targetTeam as 'A' | 'B';
+
+            if (oldTeam === 'A') {
+                room.teamA.playerIds = room.teamA.playerIds.filter((id: any) => id.toString() !== userIdStr);
+            } else {
+                room.teamB.playerIds = room.teamB.playerIds.filter((id: any) => id.toString() !== userIdStr);
+            }
+
+            if (targetTeam === 'A') {
+                room.teamA.playerIds.push(user._id || user.id);
+            } else {
+                room.teamB.playerIds.push(user._id || user.id);
+            }
+
+            // Recalculate team HPs
+            const teamAPlayersCount = room.players.filter((p: any) => p.team === 'A').length;
+            const teamBPlayersCount = room.players.filter((p: any) => p.team === 'B').length;
+            const newTeamAHp = calculateTeamHP(teamAPlayersCount || 1, teamBPlayersCount || 1);
+            const newTeamBHp = room.mode === 'SOLO_VS_AI' ? newTeamAHp : calculateTeamHP(teamBPlayersCount || 1, teamAPlayersCount || 1);
+
+            room.teamA.hp = newTeamAHp;
+            room.teamA.maxHp = newTeamAHp;
+            room.teamB.hp = newTeamBHp;
+            room.teamB.maxHp = newTeamBHp;
+
+            await room.save();
+
+            const updatedRoom = await ArenaRoom.findOne({ roomCode })
+                .populate('players.userId', 'firstName lastName grade')
+                .populate('hostId', 'firstName lastName');
+
+            // Notify all room members via Socket Service
+            try {
+                const { SocketService } = require('../../services/socket.service');
+                SocketService.getIO()?.to(roomCode).emit('arena_room_updated', updatedRoom?.toJSON() || room.toJSON());
+            } catch (err: any) {
+                logger.error('[Arena] Socket broadcast error on switchTeam:', err.message);
+            }
+
+            return res.status(200).json({ success: true, room: updatedRoom ? updatedRoom.toJSON() : null });
+        } catch (err: any) {
+            logger.error('[Arena] switchTeam error:', err);
+            return res.status(500).json({ success: false, message: err.message });
+        }
+    },
+
     // ─── School Leaderboard (Public) ─────────────────────────────────────────
     getSchoolLeaderboard: async (req: Request, res: Response) => {
         try {

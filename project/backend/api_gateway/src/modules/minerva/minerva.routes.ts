@@ -109,6 +109,7 @@ import { battleController } from './battle.controller';
 router.post('/battle/room', authMiddleware, battleController.createRoom);
 router.post('/battle/room/join', authMiddleware, battleController.joinRoom);
 router.post('/battle/room/leave', authMiddleware, battleController.leaveRoom);
+router.post('/battle/room/:roomCode/switch-team', authMiddleware, battleController.switchTeam);
 router.get('/battle/active', authMiddleware, battleController.myActiveRoom);
 router.get('/battle/room/:roomCode', authMiddleware, battleController.getRoom);
 router.get('/battle/rooms', authMiddleware, battleController.listActiveRooms);
