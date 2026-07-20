@@ -248,24 +248,44 @@ const MinervaBuilderPage: React.FC = () => {
                             <button 
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    const blob = new Blob([item.materialText || ''], { type: 'text/markdown;charset=utf-8;' });
-                                    const url = URL.createObjectURL(blob);
-                                    const link = document.createElement('a');
-                                    link.href = url;
-                                    link.setAttribute('download', `${item.topic_title.replace(/\s+/g, '_')}_${item.type}_notes.md`);
-                                    document.body.appendChild(link);
-                                    link.click();
-                                    document.body.removeChild(link);
+                                    // Generate PDF via browser print
+                                    const printWindow = window.open('', '_blank');
+                                    if (printWindow) {
+                                        printWindow.document.write(`
+                                            <!DOCTYPE html><html><head>
+                                            <meta charset="utf-8">
+                                            <title>${item.topic_title} - Study Notes</title>
+                                            <style>
+                                                body { font-family: Arial, sans-serif; font-size: 13px; line-height: 1.7; padding: 32px; color: #111; max-width: 800px; margin: 0 auto; }
+                                                h1,h2,h3 { color: #1a1a2e; margin-top: 1.5em; }
+                                                p { margin-bottom: 0.8em; }
+                                                strong { font-weight: 700; }
+                                                pre { background: #f4f4f4; padding: 12px; border-radius: 6px; white-space: pre-wrap; font-size: 11px; }
+                                                @media print { body { padding: 16px; } }
+                                            </style>
+                                            </head><body>
+                                            <h2>${item.topic_title} — ${item.type?.toUpperCase()} Notes</h2>
+                                            <hr/>
+                                            <pre style="font-family:Arial,sans-serif;white-space:pre-wrap">${(item.materialText || '').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
+                                            </body></html>
+                                        `);
+                                        printWindow.document.close();
+                                        setTimeout(() => {
+                                            printWindow.focus();
+                                            printWindow.print();
+                                            printWindow.close();
+                                        }, 300);
+                                    }
                                 }}
                                 className="p-1.5 bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg text-gray-400 hover:text-white transition-colors"
-                                title="Download"
+                                title="Download as PDF"
                             >
                                 <Download size={12} />
                             </button>
                         </div>
                     </div>
 
-                    <div className="prose prose-invert max-w-none text-[11px] leading-relaxed text-gray-350 whitespace-pre-wrap font-mono select-text bg-[#030209]/80 p-4 rounded-xl border border-white/[0.06] shadow-inner max-h-[400px] overflow-y-auto">
+                    <div className="prose prose-invert max-w-none text-sm leading-relaxed text-gray-300 select-text bg-[#030209]/80 p-4 rounded-xl border border-white/[0.06] shadow-inner max-h-[400px] overflow-y-auto break-words whitespace-pre-wrap">
                         {item.materialText}
                     </div>
                 </div>
@@ -280,33 +300,36 @@ const MinervaBuilderPage: React.FC = () => {
     );
 
     return (
-        <div className="min-h-screen bg-[#030209] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#0f0b29]/40 via-black to-black text-white font-inter relative pb-16">
-            {/* Ambient Background Glows */}
-            <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-500/10 rounded-full blur-[140px] pointer-events-none" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-500/10 rounded-full blur-[140px] pointer-events-none" />
+        <div className="min-h-screen w-full overflow-x-hidden bg-[#030209] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#0f0b29]/40 via-black to-black text-white font-inter relative pb-16">
+            {/* Ambient Background Glows - pointer-events-none prevents interaction, overflow is clipped by parent */}
+            <div className="absolute top-0 left-0 w-[40%] h-[40%] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none" />
+            <div className="absolute bottom-0 right-0 w-[40%] h-[40%] bg-purple-500/10 rounded-full blur-[120px] pointer-events-none" />
             
             {/* Header */}
-            <header className="sticky top-14 md:top-0 z-20 bg-[#030209]/40 backdrop-blur-xl border-b border-white/[0.06] px-6 py-3.5 flex items-center justify-between shadow-lg">
-                <div className="flex items-center gap-3">
-                    <button onClick={() => navigate('/future-education')} className="p-2 bg-white/[0.03] hover:bg-white/10 border border-white/5 hover:border-indigo-500/30 rounded-xl transition-all text-gray-400 hover:text-white flex items-center justify-center active:scale-95 shrink-0">
-                        <ChevronLeft size={14} />
-                    </button>
-                    <div className="flex items-center gap-2.5">
-                        <div className="w-6.5 h-6.5 rounded-lg bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 flex items-center justify-center text-white shadow-[0_0_15px_rgba(99,102,241,0.25)] shrink-0">
-                            <Zap size={13} className="animate-pulse" />
-                        </div>
-                        <span className="font-display font-black text-xs tracking-[0.15em] uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-100 to-indigo-200 select-none">
-                            Future Education OS
-                        </span>
+            <header className="sticky top-0 z-20 bg-[#030209]/95 backdrop-blur-xl border-b border-white/[0.08] px-4 md:px-6 py-3 flex items-center gap-3 shadow-xl w-full min-w-0">
+                {/* Back Button */}
+                <button
+                    onClick={() => navigate('/future-education')}
+                    className="p-2 bg-white/[0.05] hover:bg-white/10 border border-white/10 hover:border-indigo-500/40 rounded-xl transition-all text-gray-400 hover:text-white flex items-center justify-center active:scale-95 shrink-0"
+                >
+                    <ChevronLeft size={14} />
+                </button>
+
+                {/* Icon + Title */}
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 flex items-center justify-center text-white shadow-[0_0_12px_rgba(99,102,241,0.3)] shrink-0">
+                        <Zap size={12} className="animate-pulse" />
                     </div>
-                    <div className="h-4 w-px bg-white/10 hidden sm:block" />
-                    <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.02] border border-white/5 select-none text-[9px] font-black text-gray-400 tracking-wider uppercase">
-                        <span>E-Builder Notes</span>
-                    </div>
+                    <span className="font-black text-[11px] md:text-xs tracking-[0.1em] uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-100 to-indigo-200 select-none truncate">
+                        Future Education OS
+                    </span>
+                    <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[9px] font-black text-indigo-400 tracking-wider uppercase shrink-0">
+                        E-Builder
+                    </span>
                 </div>
             </header>
 
-            <div className="max-w-4xl mx-auto px-6 py-8 relative z-10">
+            <div className="max-w-4xl mx-auto px-4 md:px-6 py-8 relative z-10 w-full">
                 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8 items-stretch">
                     {/* 📊 E-Builder Dashboard Panel */}
@@ -466,13 +489,13 @@ const MinervaBuilderPage: React.FC = () => {
                                             onClick={() => setExpandedTopic(isTopicExpanded ? null : group.topic_title)}
                                             className={`p-4 flex items-center justify-between cursor-pointer transition-all hover:bg-white/[0.02] ${isTopicExpanded ? 'bg-indigo-500/[0.03] border-b border-white/[0.04]' : ''}`}
                                         >
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all ${isTopicExpanded ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-400' : 'bg-white/5 border-white/5 text-gray-500'}`}>
+                                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center border transition-all ${isTopicExpanded ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-400' : 'bg-white/5 border-white/5 text-gray-500'}`}>
                                                     <BookOpen size={14} />
                                                 </div>
-                                                <div>
-                                                    <h3 className="text-xs font-bold text-white leading-snug">{group.topic_title}</h3>
-                                                    <p className="text-[9px] text-gray-500 mt-0.5 font-sans">Subject: {group.subject} • {group.items.length} materials assembled</p>
+                                                <div className="min-w-0 flex-1">
+                                                    <h3 className="text-xs font-bold text-white leading-snug truncate">{group.topic_title}</h3>
+                                                    <p className="text-[9px] text-gray-500 mt-0.5 font-sans truncate">Subject: {group.subject} • {group.items.length} materials assembled</p>
                                                 </div>
                                             </div>
                                             <div className="text-gray-500">
@@ -482,7 +505,7 @@ const MinervaBuilderPage: React.FC = () => {
 
                                         {/* Materials sub-list (Accordion Content) */}
                                         {isTopicExpanded && (
-                                            <div className="p-4 bg-black/10 space-y-3 pl-12 border-l-2 border-indigo-500/20 ml-8 my-2">
+                                            <div className="p-3 md:p-4 bg-black/10 space-y-3 border-l-2 border-indigo-500/20 ml-4 md:ml-8 my-2 w-auto min-w-0">
                                                 {group.items.map((item) => {
                                                     const isItemExpanded = expandedItemId === item._id;
                                                     return (

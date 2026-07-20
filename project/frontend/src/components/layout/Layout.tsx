@@ -58,9 +58,9 @@ export default function Layout() {
         };
     }, []);
 
-    const isFutureEd = location.pathname.startsWith('/future-education');
-    const isMinervaMain = location.pathname === '/future-education' || location.pathname === '/future-education/';
-    const isFullHeight = ['/builder', '/roadmap', '/today-task'].includes(location.pathname) || isFutureEd;
+    const isFutureEd = location.pathname.toLowerCase().startsWith('/future-education');
+    const isMinervaMain = location.pathname.toLowerCase() === '/future-education' || location.pathname.toLowerCase() === '/future-education/';
+    const isFullHeight = ['/builder', '/roadmap', '/today-task'].includes(location.pathname.toLowerCase()) || isFutureEd;
 
     useEffect(() => {
         const handleToggle = () => setIsMobileMenuOpen(prev => !prev);
@@ -119,6 +119,65 @@ export default function Layout() {
         return () => {
             window.removeEventListener('fb-refresh-sessions', handleRefresh);
             window.removeEventListener('future-education-refresh-sessions', handleRefresh);
+        };
+    }, [isFutureEd]);
+
+    // ⏱️ REAL-TIME STUDY TIME TRACKER
+    useEffect(() => {
+        const localToken = localStorage.getItem('fbrts_token');
+        if (!isFutureEd || !localToken) return;
+
+        let activeSeconds = 0;
+        let lastActivityTime = Date.now();
+
+        const handleActivity = () => {
+            lastActivityTime = Date.now();
+        };
+
+        window.addEventListener('mousemove', handleActivity);
+        window.addEventListener('keydown', handleActivity);
+        window.addEventListener('scroll', handleActivity);
+        window.addEventListener('click', handleActivity);
+
+        const timer = setInterval(async () => {
+            const now = Date.now();
+            const isInactive = now - lastActivityTime > 120000;
+
+            if (document.hasFocus() && !isInactive) {
+                activeSeconds += 10;
+
+                if (activeSeconds >= 60) {
+                    activeSeconds = 0;
+                    try {
+                        const currentToken = localStorage.getItem('fbrts_token');
+                        if (currentToken) {
+                            const res = await fetch('/api/future-education/study-time/add', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${currentToken}`
+                                },
+                                body: JSON.stringify({ minutes: 1 })
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                                fetchFutureEdStats();
+                                window.dispatchEvent(new Event('future-education-refresh-stats'));
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Failed to log study minutes:", e);
+                    }
+                }
+            }
+        }, 10000);
+
+        return () => {
+            clearInterval(timer);
+            window.removeEventListener('mousemove', handleActivity);
+            window.removeEventListener('keydown', handleActivity);
+            window.removeEventListener('scroll', handleActivity);
+            window.removeEventListener('click', handleActivity);
         };
     }, [isFutureEd]);
 
@@ -409,28 +468,26 @@ export default function Layout() {
         <div className="flex h-screen text-white overflow-hidden font-sans relative bg-black">
 
             {/* Mobile Header */}
-            {!isMinervaMain && (
-                <div className="md:hidden fixed top-0 left-0 right-0 h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] border-b border-white/5 bg-black/20 backdrop-blur-xl z-40 flex items-center px-4">
-                    <button onClick={toggleMobileMenu} className="p-2 text-gray-400 hover:text-white transition-colors">
-                        <Menu size={24} />
-                    </button>
-                    <div className="ml-3 flex items-center justify-between flex-1">
-                        <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-600 flex items-center justify-center font-black text-[10px] text-white">F</div>
-                            <span className="text-sm font-black tracking-widest uppercase">{isFutureEd ? "Future Ed" : "FutureBRTS"}</span>
-                        </div>
-
-                        {/* New Chat Button - Mobile/Tablet Only */}
-                        <button
-                            onClick={handleCreateSession}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 active:bg-indigo-700 text-white rounded-lg shadow-lg shadow-indigo-900/20 border border-indigo-400/20 transition-all"
-                        >
-                            <span className="text-lg leading-none mb-0.5">+</span>
-                            <span className="text-xs font-bold tracking-wide">{isFutureEd ? "New Chat" : "New Mission"}</span>
-                        </button>
+            <div className="md:hidden fixed top-0 left-0 right-0 h-14 border-b border-white/[0.08] bg-[#030209]/95 backdrop-blur-xl z-40 flex items-center px-4 shadow-md">
+                <button onClick={toggleMobileMenu} className="p-2 text-gray-400 hover:text-white transition-colors">
+                    <Menu size={24} />
+                </button>
+                <div className="ml-3 flex items-center justify-between flex-1">
+                    <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-600 flex items-center justify-center font-black text-[10px] text-white">F</div>
+                        <span className="text-sm font-black tracking-widest uppercase">{isFutureEd ? "Future Ed" : "FutureBRTS"}</span>
                     </div>
+
+                    {/* New Chat Button - Mobile/Tablet Only */}
+                    <button
+                        onClick={handleCreateSession}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 active:bg-indigo-700 text-white rounded-lg shadow-lg shadow-indigo-900/20 border border-indigo-400/20 transition-all"
+                    >
+                        <span className="text-lg leading-none mb-0.5">+</span>
+                        <span className="text-xs font-bold tracking-wide">{isFutureEd ? "New Chat" : "New Mission"}</span>
+                    </button>
                 </div>
-            )}
+            </div>
 
             {/* Overlay */}
             {isMobileMenuOpen && (
@@ -525,7 +582,9 @@ export default function Layout() {
                             <div className="px-3 pb-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Main Menu</div>
                         )}
                         {navItems.map(item => {
-                            const isActive = location.pathname.startsWith(item.path);
+                            const isActive = item.path === '/future-education'
+                                ? (location.pathname === '/future-education' || location.pathname === '/future-education/')
+                                : location.pathname.startsWith(item.path);
                             return (
                                 <Link
                                     key={item.path}
@@ -728,8 +787,14 @@ export default function Layout() {
             </aside >
 
             <main className={`flex-1 min-w-0 ${isFullHeight ? 'h-full overflow-hidden pb-0' : 'overflow-y-auto pb-16'} relative w-full md:pb-0`}>
-                <div className={`relative ${isFullHeight ? 'h-full' : 'min-h-full'} flex flex-col ${isFullHeight ? (isMinervaMain ? 'pt-0 px-0 pb-0' : 'pt-[calc(3.5rem+env(safe-area-inset-top))] md:pt-0 px-0 pb-0') : 'p-4 md:p-8 pt-20 md:pt-8 pb-20 md:pb-8'} w-full max-w-full overflow-x-hidden`}>
-                    <div className={`flex-1 flex flex-col ${isFutureEd && !isMinervaMain ? 'overflow-y-auto' : 'overflow-hidden'} min-w-0 min-h-0`}>
+                <div className={`relative ${isFullHeight ? 'h-full overflow-hidden' : 'min-h-full'} flex flex-col ${isFullHeight ? 'pt-14 md:pt-0 px-0 pb-0' : 'p-4 md:p-8 pt-20 md:pt-8 pb-20 md:pb-8'} w-full max-w-full overflow-x-hidden`}>
+                    <div className={`flex-1 flex flex-col ${
+                        isMinervaMain
+                            ? 'overflow-hidden'           // Chat UI manages own scroll
+                            : isFullHeight
+                                ? 'overflow-y-auto'       // FutureEd session/roadmap/tasks → scroll here
+                                : 'overflow-hidden'       // Regular pages → parent main scrolls
+                    } min-w-0 min-h-0`}>
                         <Outlet />
                     </div>
                 </div>
@@ -739,7 +804,9 @@ export default function Layout() {
             {!isFullHeight && (
                 <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#09090b]/95 backdrop-blur-2xl border-t border-white/10 z-[60] flex items-center justify-start overflow-x-auto scrollbar-hide px-3 pb-1 shadow-[0_-10px_40px_rgba(0,0,0,0.6)] gap-1">
                     {navItems.map(item => {
-                        const isActive = location.pathname.startsWith(item.path);
+                        const isActive = item.path === '/future-education'
+                            ? (location.pathname === '/future-education' || location.pathname === '/future-education/')
+                            : location.pathname.startsWith(item.path);
                         const getShortName = (name: string) => {
                             switch (name) {
                                 case "Future Education OS": return "Future Ed";

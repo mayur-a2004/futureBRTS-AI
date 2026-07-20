@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { HelmetProvider } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
@@ -179,28 +179,120 @@ function ScrollToTop() {
     return null;
 }
 
-function WhatsAppButton() {
+function InquiryButton() {
     const location = useLocation();
     const isLandingPage = location.pathname === '/';
+    const [isOpen, setIsOpen] = React.useState(false);
+    const [name, setName] = React.useState('');
+    const [email, setEmail] = React.useState('');
+    const [subject, setSubject] = React.useState('General Inquiry');
+    const [message, setMessage] = React.useState('');
 
     if (!isLandingPage) return null;
 
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const mailtoUrl = `mailto:support@futurebuilder.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(
+            `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`
+        )}`;
+        window.location.href = mailtoUrl;
+        setIsOpen(false);
+        setName('');
+        setEmail('');
+        setMessage('');
+    };
+
     return (
-        <a
-            href="https://wa.me/917859828561?text=Hello! I would like to make an inquiry about FutureBRTS."
-            target="_blank"
-            rel="noopener noreferrer"
-            className="fixed bottom-6 right-6 z-[9999] bg-[#25D366] hover:bg-[#20ba5a] text-white p-4 rounded-full shadow-[0_10px_30px_rgba(37,211,102,0.3)] hover:shadow-[0_15px_40px_rgba(37,211,102,0.5)] transition-all hover:scale-110 flex items-center justify-center group"
-            aria-label="Contact on WhatsApp"
-        >
-            <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
-                <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.97C16.528 2.012 14.07 1.002 11.477 1.002c-5.434 0-9.858 4.37-9.863 9.8-.001 1.762.47 3.487 1.364 5.014L1.938 20.16l4.709-1.006zM17.52 14.54c-.31-.155-1.833-.895-2.112-.996-.28-.1-.483-.15-.683.15-.2.3-.777.97-.953 1.17-.176.2-.352.223-.662.068-1.036-.52-1.782-.916-2.483-2.115-.175-.3-.175-.589-.025-.74.135-.135.31-.355.465-.53.155-.175.207-.3.31-.5.104-.2.052-.375-.026-.53-.078-.155-.683-1.62-.936-2.225-.246-.59-.497-.51-.683-.52-.176-.01-.377-.01-.579-.01-.202 0-.53.075-.807.375-.278.3-.965.945-.965 2.305 0 1.36.99 2.67 1.13 2.855.14.186 1.947 2.94 4.72 4.115 1.77.75 2.49.8 3.39.67.507-.075 1.564-.63 1.782-1.24.218-.61.218-1.13.154-1.24-.064-.11-.242-.2-.552-.35z"/>
-            </svg>
-            {/* Tooltip */}
-            <span className="absolute right-16 bg-black/90 text-white text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap shadow-xl">
-                Inquire on WhatsApp
-            </span>
-        </a>
+        <>
+            <button
+                onClick={() => setIsOpen(true)}
+                className="fixed bottom-6 right-6 z-[9999] bg-indigo-600 hover:bg-indigo-500 text-white p-4 rounded-full shadow-[0_10px_30px_rgba(99,102,241,0.3)] hover:shadow-[0_15px_40px_rgba(99,102,241,0.5)] transition-all hover:scale-110 flex items-center justify-center group border border-white/10"
+                aria-label="Send Inquiry"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                </svg>
+                <span className="absolute right-16 bg-black/90 text-white text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap shadow-xl">
+                    Send Inquiry
+                </span>
+            </button>
+
+            {isOpen && (
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
+                    <div className="bg-gradient-to-br from-[#1b123a]/90 via-[#0a0718]/95 to-black border border-indigo-500/30 rounded-3xl p-6 shadow-2xl w-full max-w-md relative overflow-hidden animate-in fade-in zoom-in-95 duration-200 text-left">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-full blur-xl pointer-events-none" />
+                        
+                        <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-4">
+                            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-white">Send Inquiry</h3>
+                            <button
+                                onClick={() => setIsOpen(false)}
+                                className="text-gray-400 hover:text-white transition-colors p-1"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSubmit} className="space-y-4 text-left">
+                            <div>
+                                <label className="block text-[8px] font-black uppercase tracking-[0.3em] text-gray-500 mb-1.5">Your Name*</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={name}
+                                    onChange={e => setName(e.target.value)}
+                                    className="w-full bg-white/[0.02] border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-indigo-500 transition-all font-mono text-xs placeholder:text-gray-700 shadow-inner"
+                                    placeholder="Enter your name"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[8px] font-black uppercase tracking-[0.3em] text-gray-500 mb-1.5">Email Address*</label>
+                                <input
+                                    type="email"
+                                    required
+                                    value={email}
+                                    onChange={e => setEmail(e.target.value)}
+                                    className="w-full bg-white/[0.02] border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-indigo-500 transition-all font-mono text-xs placeholder:text-gray-700 shadow-inner"
+                                    placeholder="Enter your email"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[8px] font-black uppercase tracking-[0.3em] text-gray-500 mb-1.5">Subject</label>
+                                <select
+                                    value={subject}
+                                    onChange={e => setSubject(e.target.value)}
+                                    className="w-full bg-zinc-900 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-indigo-500 transition-all font-mono text-xs shadow-inner"
+                                >
+                                    <option value="General Inquiry">General Inquiry</option>
+                                    <option value="Technical Support">Technical Support</option>
+                                    <option value="Partnership">Partnership</option>
+                                    <option value="Feedback">Feedback</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-[8px] font-black uppercase tracking-[0.3em] text-gray-500 mb-1.5">Message*</label>
+                                <textarea
+                                    required
+                                    rows={4}
+                                    value={message}
+                                    onChange={e => setMessage(e.target.value)}
+                                    className="w-full bg-white/[0.02] border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-indigo-500 transition-all font-mono text-xs placeholder:text-gray-700 shadow-inner resize-none"
+                                    placeholder="Type your question or request..."
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-[0.2em] text-[10px] py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-950/50 border-none active:scale-[0.98] cursor-pointer"
+                            >
+                                Open Mail Client
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </>
     );
 }
 
@@ -342,8 +434,8 @@ function App() {
                                             </Routes>
                                         </Suspense>
 
-                                        {/* --- GLOBAL WHATSAPP FLOATING BUTTON --- */}
-                                        <WhatsAppButton />
+                                        {/* --- GLOBAL INQUIRY FLOATING BUTTON --- */}
+                                        <InquiryButton />
                                     </div>
                                 </div>
                             </Router>

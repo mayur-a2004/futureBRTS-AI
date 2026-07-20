@@ -489,7 +489,12 @@ const ExamGeneratorPage: React.FC = () => {
                                     ? 'Upload a PDF or an Image photo of the old question paper. The AI will extract the questions and create a predicted model paper!' 
                                     : 'Any language is supported (Hindi, Gujarati, English). The AI will auto-detect it.'}
                             </p>
-                            <input type="file" accept="application/pdf, image/png, image/jpeg, image/jpg" onChange={handlePdfChange} className="w-full text-xs text-slate-400 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-655 file:text-white hover:file:bg-indigo-600" />
+                            <input type="file" accept="application/pdf, image/png, image/jpeg, image/jpg" onChange={handlePdfChange} className="w-full text-xs text-slate-400 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700" />
+                            {pdfFile && (
+                                <div className="mt-3.5 bg-amber-500/10 border border-amber-500/25 rounded-2xl p-3.5 text-xs text-amber-300 leading-relaxed">
+                                    ⚠️ <strong>Scanned PDF / Hand Written Warning:</strong> If your uploaded file contains hand-written notes or low-contrast scanned pages, the AI text extractor might miss some portions. Ensure text is clear and readable for accurate question generation.
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <div className="mb-6 p-4 border border-dashed border-white/10 bg-black/40 rounded-2xl text-left">
@@ -511,7 +516,7 @@ const ExamGeneratorPage: React.FC = () => {
                     <div className="mb-8 p-4 border border-dashed border-white/10 bg-black/40 rounded-2xl text-left">
                         <label className="text-[10px] text-purple-400 font-bold uppercase tracking-wider mb-1.5 block">Upload Reference Paper Format (PDF/Photo) <span className="text-slate-400 font-normal">[Optional]</span></label>
                         <p className="text-[11px] text-slate-400 mb-3">Upload a previous year paper or sample paper to mimic its structure.</p>
-                        <input type="file" accept="application/pdf, image/png, image/jpeg, image/jpg" onChange={handleReferenceChange} className="w-full text-xs text-slate-400 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-purple-655 file:text-white hover:file:bg-purple-600" />
+                        <input type="file" accept="application/pdf, image/png, image/jpeg, image/jpg" onChange={handleReferenceChange} className="w-full text-xs text-slate-400 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700" />
                     </div>
 
                     {loading && (

@@ -82,9 +82,30 @@
         border-color: rgba(255, 255, 255, 0.05);
     }
 
-    html,
+    html {
+        scroll-behavior: smooth;
+    }
+
+    /* Sleek Custom Glassmorphic Scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.01);
+        backdrop-filter: blur(10px);
+    }
+    ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 99px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(99, 102, 241, 0.4);
+        box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+    }
+
     body {
-        /* These are valid standard CSS variables or properties */
         background-color: var(--background);
         color: var(--foreground);
         font-family: 'Inter', system-ui, -apple-system, sans-serif;

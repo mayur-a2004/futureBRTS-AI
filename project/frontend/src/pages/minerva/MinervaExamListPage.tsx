@@ -932,7 +932,7 @@ const MinervaExamListPage: React.FC = () => {
                                                 {inputMode === 'old_paper' ? 'Upload Old Question Paper File (PDF/Photo)*' : 'Upload Syllabus File (PDF)*'}
                                             </label>
                                             <input type="file" accept="application/pdf, image/png, image/jpeg, image/jpg" onChange={e => setPdfFile(e.target.files?.[0] || null)}
-                                                className="text-xs text-slate-400 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-655 file:text-white hover:file:bg-indigo-600" />
+                                                className="text-xs text-slate-400 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700" />
                                         </div>
                                     ) : (
                                         <div className="p-4 border border-dashed border-white/10 bg-black/40 rounded-2xl">
@@ -951,7 +951,7 @@ const MinervaExamListPage: React.FC = () => {
                                             Upload Reference Paper Format (PDF/Photo) <span className="text-slate-500 font-normal">[Optional]</span>
                                         </label>
                                         <input type="file" accept="application/pdf, image/*" onChange={e => setReferenceFile(e.target.files?.[0] || null)}
-                                            className="text-xs text-slate-400 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-purple-655 file:text-white hover:file:bg-purple-600" />
+                                            className="text-xs text-slate-400 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700" />
                                     </div>
 
                                     {genLoading && (

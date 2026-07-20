@@ -4,12 +4,14 @@ import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/Button"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { Twitter, Linkedin, Github, Instagram, Menu, X } from "lucide-react"
+import { useAuth } from "../../context/AuthContext"
 
 export default function PublicLayout() {
     const { scrollY } = useScroll();
     const navigate = useNavigate();
     const location = useLocation();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const { isAuthenticated } = useAuth() as any;
 
     const headerBg = useTransform(scrollY, [0, 100], ["rgba(5, 5, 5, 0)", "rgba(5, 5, 5, 0.9)"]);
     const headerBlur = useTransform(scrollY, [0, 100], ["blur(0px)", "blur(12px)"]);
@@ -37,8 +39,14 @@ export default function PublicLayout() {
                         </nav>
 
                         <div className="hidden lg:flex items-center gap-4">
-                            <button onClick={() => navigate('/auth/login')} className="text-sm font-black uppercase tracking-widest text-gray-400 hover:text-white transition-colors">Login</button>
-                            <Button onClick={() => navigate('/auth/register')} className="bg-white text-black font-black uppercase tracking-widest text-[10px] px-6 py-2 rounded-full hover:bg-gray-200 transition-all">Get Started</Button>
+                            {isAuthenticated ? (
+                                <Button onClick={() => navigate('/dashboard')} className="bg-white text-black font-black uppercase tracking-widest text-[10px] px-6 py-2 rounded-full hover:bg-gray-200 transition-all">Dashboard</Button>
+                            ) : (
+                                <>
+                                    <button onClick={() => navigate('/auth/login')} className="text-sm font-black uppercase tracking-widest text-gray-400 hover:text-white transition-colors">Login</button>
+                                    <Button onClick={() => navigate('/auth/register')} className="bg-white text-black font-black uppercase tracking-widest text-[10px] px-6 py-2 rounded-full hover:bg-gray-200 transition-all">Get Started</Button>
+                                </>
+                            )}
                         </div>
 
                         {/* Mobile Hamburger toggle */}
@@ -109,18 +117,29 @@ export default function PublicLayout() {
                             </div>
 
                             <div className="flex flex-col gap-4 pt-4 border-t border-white/10">
-                                <button 
-                                    onClick={() => { setIsMobileMenuOpen(false); navigate('/auth/login'); }} 
-                                    className="w-full py-3 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl text-center text-sm font-black uppercase tracking-widest text-white transition-all"
-                                >
-                                    Login
-                                </button>
-                                <button 
-                                    onClick={() => { setIsMobileMenuOpen(false); navigate('/auth/register'); }} 
-                                    className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl text-center text-sm font-black uppercase tracking-widest text-white transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)]"
-                                >
-                                    Get Started
-                                </button>
+                                {isAuthenticated ? (
+                                    <button 
+                                        onClick={() => { setIsMobileMenuOpen(false); navigate('/dashboard'); }} 
+                                        className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl text-center text-sm font-black uppercase tracking-widest text-white transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)]"
+                                    >
+                                        Dashboard
+                                    </button>
+                                ) : (
+                                    <>
+                                        <button 
+                                            onClick={() => { setIsMobileMenuOpen(false); navigate('/auth/login'); }} 
+                                            className="w-full py-3 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl text-center text-sm font-black uppercase tracking-widest text-white transition-all"
+                                        >
+                                            Login
+                                        </button>
+                                        <button 
+                                            onClick={() => { setIsMobileMenuOpen(false); navigate('/auth/register'); }} 
+                                            className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl text-center text-sm font-black uppercase tracking-widest text-white transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)]"
+                                        >
+                                            Get Started
+                                        </button>
+                                    </>
+                                )}
                             </div>
                         </motion.div>
                     )}

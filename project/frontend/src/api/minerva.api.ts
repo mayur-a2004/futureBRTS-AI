@@ -29,8 +29,17 @@ export const minervaApi = {
     },
 
     // ── STATS ─────────────────────────────────────
-    getStats: async (token: string) => {
-        const res = await fetch(`${BASE_URL}/stats`, { headers: authHeaders(token) });
+    getStats: async (token: string, range?: string) => {
+        const url = range ? `${BASE_URL}/stats?range=${range}` : `${BASE_URL}/stats`;
+        const res = await fetch(url, { headers: authHeaders(token) });
+        return handleRes(res);
+    },
+    addStudyTime: async (token: string, minutes: number) => {
+        const res = await fetch(`${BASE_URL}/study-time/add`, {
+            method: 'POST',
+            headers: authHeaders(token),
+            body: JSON.stringify({ minutes }),
+        });
         return handleRes(res);
     },
 

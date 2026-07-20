@@ -440,23 +440,26 @@ const MinervaTasksPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[#030209] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#0f0b29]/40 via-black to-black text-white font-inter relative pb-16">
+        <div className="min-h-screen w-full overflow-x-hidden bg-[#030209] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#0f0b29]/40 via-black to-black text-white font-inter relative pb-16">
             {/* Ambient Background Glows */}
-            <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-500/10 rounded-full blur-[140px] pointer-events-none" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-500/10 rounded-full blur-[140px] pointer-events-none" />
+            <div className="absolute top-0 left-0 w-[40%] h-[40%] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none" />
+            <div className="absolute bottom-0 right-0 w-[40%] h-[40%] bg-purple-500/10 rounded-full blur-[120px] pointer-events-none" />
             
             {/* Header */}
-            <header className="sticky top-14 md:top-0 z-20 bg-black/20 backdrop-blur-xl border-b border-white/[0.06] px-6 py-3.5 flex items-center justify-between shadow-lg">
+            <header className="sticky top-0 z-20 bg-[#030209]/95 backdrop-blur-xl border-b border-white/[0.08] px-4 md:px-6 py-3 flex items-center justify-between shadow-xl w-full min-w-0">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                     <button onClick={() => navigate('/future-education')} className="p-2 bg-white/[0.03] hover:bg-white/10 border border-white/5 hover:border-indigo-500/30 rounded-xl transition-all text-gray-400 hover:text-white flex items-center justify-center active:scale-95 shrink-0">
                         <ChevronLeft size={14} />
                     </button>
-                    <div className="flex items-center gap-2.5 shrink-0">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
                         <div className="w-6.5 h-6.5 rounded-lg bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 flex items-center justify-center text-white shadow-[0_0_15px_rgba(99,102,241,0.25)] shrink-0">
                             <FileText size={13} className="animate-pulse" />
                         </div>
-                        <span className="font-display font-black text-xs tracking-[0.15em] uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-100 to-indigo-200 select-none">
+                        <span className="hidden sm:inline font-display font-black text-xs tracking-[0.15em] uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-100 to-indigo-200 select-none truncate">
                             Future Education OS
+                        </span>
+                        <span className="sm:hidden font-display font-black text-xs tracking-[0.1em] uppercase bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-300 select-none truncate">
+                            Tasks
                         </span>
                     </div>
                     <div className="h-4 w-px bg-white/10 hidden sm:block" />
@@ -467,14 +470,16 @@ const MinervaTasksPage: React.FC = () => {
                 <div className="flex items-center gap-3 shrink-0">
                     <button 
                         onClick={() => setIsCustomModalOpen(true)}
-                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition-colors shadow-lg flex items-center gap-1.5 active:scale-95"
+                        className="px-3 py-1.5 md:px-4 md:py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition-colors shadow-lg flex items-center gap-1 active:scale-95 shrink-0"
                     >
-                        <Plus size={14} /> Add Custom Homework
+                        <Plus size={13} />
+                        <span className="hidden sm:inline">Add Custom Homework</span>
+                        <span className="sm:hidden">Custom</span>
                     </button>
                 </div>
             </header>
 
-            <div className="max-w-4xl mx-auto px-6 py-8 relative z-10">
+            <div className="max-w-4xl mx-auto px-4 md:px-6 py-8 relative z-10 w-full">
                 {/* 📊 Tasks & Homework Dashboard */}
                 {(() => {
                     const db = getHomeworkDashboard(tasks);

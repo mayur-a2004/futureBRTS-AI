@@ -599,7 +599,7 @@ function CartoonAvatar3D() {
         return (
             <div className="w-full h-52 bg-slate-950/20 border border-slate-900 rounded-2xl flex flex-col items-center justify-center p-4 text-center">
                 <span className="text-3xl mb-1.5">🎓</span>
-                <span className="text-xs font-bold text-indigo-400">Minerva Scholar</span>
+                <span className="text-xs font-bold text-indigo-400">Education OS Scholar</span>
                 <span className="text-[10px] text-slate-500 mt-1">
                     WebGL error or CDN unreachable. 3D Scholar Avatar offline.
                 </span>
@@ -832,8 +832,14 @@ export default function MinervaQuizBattlePage() {
         setNormalizedTopic('');
     }, [selGrade, selSubject]);
 
-    // Room state
     const [room, setRoom] = useState<ArenaRoom | null>(null);
+    useEffect(() => {
+        if (room?.roomCode) {
+            localStorage.setItem('active_room_code', room.roomCode);
+        } else if (room === null) {
+            localStorage.removeItem('active_room_code');
+        }
+    }, [room]);
     const [activeRooms, setActiveRooms] = useState<ArenaRoom[]>([]);
     const [loading, setLoading] = useState(false);
     const [copied, setCopied] = useState(false);
@@ -1052,6 +1058,16 @@ export default function MinervaQuizBattlePage() {
             }
         }
         const s = io(socketUrl);
+
+        s.on('connect', () => {
+            console.log('[Arena] Connected/Reconnected to Socket.IO. Socket ID:', s.id);
+            const activeRoomCode = localStorage.getItem('active_room_code') || '';
+            const userId = userRef.current?._id;
+            if (activeRoomCode && userId) {
+                console.log('[Arena] Re-emitting join_arena_lobby for reconnect:', activeRoomCode);
+                s.emit('join_arena_lobby', { roomCode: activeRoomCode, userId });
+            }
+        });
 
         setSocket(s);
         checkMyActiveRoom(s);

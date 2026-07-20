@@ -56,6 +56,78 @@ const extractSmartContent = (fullText: string, examScope: string, chapter: strin
     return sampledText;
 };
 
+const healExamPaper = (paper: any, targetMarks: number): any => {
+    if (!paper || !paper.sections || !Array.isArray(paper.sections)) {
+        return paper;
+    }
+
+    let totalComputedMarks = 0;
+    const allQuestions: any[] = [];
+
+    paper.sections.forEach((section: any) => {
+        let sectionSum = 0;
+        if (section.questions && Array.isArray(section.questions)) {
+            section.questions.forEach((q: any) => {
+                q.marks = Number(q.marks) || 1;
+                sectionSum += q.marks;
+                allQuestions.push(q);
+            });
+        }
+        section.section_marks = sectionSum;
+        section.sectionMarks = sectionSum;
+        totalComputedMarks += sectionSum;
+    });
+
+    const diff = targetMarks - totalComputedMarks;
+    if (diff !== 0 && allQuestions.length > 0) {
+        console.log(`[ExamGen Self-Healing] Discrepancy found! Target: ${targetMarks}, Computed: ${totalComputedMarks}. Diff: ${diff}. Healing...`);
+        
+        if (diff > 0) {
+            let remaining = diff;
+            const candidateQuestions = allQuestions.filter(q => q.type !== 'mcq' && q.type !== 'true_false' && q.type !== 'fill_blank');
+            const targetPool = candidateQuestions.length > 0 ? candidateQuestions : allQuestions;
+            
+            let index = 0;
+            while (remaining > 0) {
+                const q = targetPool[index % targetPool.length];
+                q.marks = (q.marks || 0) + 1;
+                remaining--;
+                index++;
+            }
+        } else if (diff < 0) {
+            let remaining = Math.abs(diff);
+            const candidateQuestions = allQuestions.filter(q => q.type !== 'mcq' && q.type !== 'true_false' && q.type !== 'fill_blank' && (q.marks || 0) > 1);
+            const targetPool = candidateQuestions.length > 0 ? candidateQuestions : allQuestions;
+            
+            let index = 0;
+            let attempts = 0;
+            while (remaining > 0 && attempts < 100) {
+                const q = targetPool[index % targetPool.length];
+                if ((q.marks || 0) > 1) {
+                    q.marks = q.marks - 1;
+                    remaining--;
+                }
+                index++;
+                attempts++;
+            }
+        }
+
+        paper.sections.forEach((section: any) => {
+            let sectionSum = 0;
+            if (section.questions && Array.isArray(section.questions)) {
+                section.questions.forEach((q: any) => {
+                    sectionSum += q.marks;
+                });
+            }
+            section.section_marks = sectionSum;
+            section.sectionMarks = sectionSum;
+        });
+    }
+
+    paper.marks = String(targetMarks);
+    return paper;
+};
+
 export const examGeneratorController = {
     generateExam: async (req: Request, res: Response) => {
         try {
@@ -120,6 +192,9 @@ export const examGeneratorController = {
             }
 
             if (textContent.length < 20) {
+                if (sourceType === 'file' && pdfFile && pdfFile.mimetype === 'application/pdf') {
+                    return error(res, "The uploaded PDF appears to be scanned or contains only images. Please copy-paste the text directly or upload clear images of the chapters/syllabus instead.", "PARSE_ERROR");
+                }
                 return error(res, "Provided study material or old paper content contains too little text. Please provide more content.", "PARSE_ERROR");
             }
 
@@ -415,6 +490,9 @@ Instructions:
             let generatedPaper;
             try {
                 generatedPaper = JSON.parse(jsonStr);
+                // Self-Healing Validator to enforce blueprint exact marks
+                const targetMarksNum = Number(marks) || 50;
+                generatedPaper = healExamPaper(generatedPaper, targetMarksNum);
             } catch (e) {
                 console.error("AI JSON Parse Error. Raw string:", jsonStr);
                 if (rawAiResponse.length > 50 && !rawAiResponse.trim().startsWith('{')) {

@@ -7,7 +7,7 @@ import {
     X, Map, CheckSquare,
     FileText, GraduationCap, Award, RefreshCw, Send,
     Atom, Brain, Mic, Plus, Loader2,
-    Volume2, VolumeX, Menu,
+    Volume2, VolumeX, ChevronLeft,
     ThumbsUp, ThumbsDown, Copy, Check, RotateCw, Edit2, ExternalLink
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -105,7 +105,7 @@ const DEFAULT_LAB_CONFIG: LabConfig = {
     diagram_type: null,
     three_js_config: null,
     auto_open: false,
-    voice_script: `## Welcome to the Virtual Lab Studio\n\nI am Minerva, your personal tutor. Ask me any question about Math, Physics, Chemistry, Biology, or Computer Science to load a tailored interactive simulator, 3D model, or molecular visualizer here!`,
+    voice_script: `## Welcome to the Virtual Lab Studio\n\nI am Education OS, your personal tutor. Ask me any question about Math, Physics, Chemistry, Biology, or Computer Science to load a tailored interactive simulator, 3D model, or molecular visualizer here!`,
     youtube_query: 'science animated explanation',
     mermaid_schema: `graph TD\n  A["Student Question"] --> B("Tutor Explanation")\n  B --> C("Interactive Virtual Lab")`,
     sketchfab_hint: 'dna helix',
@@ -178,36 +178,52 @@ const MinervaHome: React.FC = () => {
         setIsMuted(nextMuteState);
         localStorage.setItem('minerva_tts_muted', String(nextMuteState));
         if (nextMuteState) {
-            if (window.speechSynthesis) {
-                window.speechSynthesis.cancel();
-            }
-            setIsSpeaking(null);
+            stopSpeech();
         }
     };
-
-
+        
     const speakText = (text: string, msgId: string, forcedLang?: string) => {
-        if (!window.speechSynthesis) return;
+        // Safe cancel of previous speech
+        if (speechUtteranceRef.current) {
+            speechUtteranceRef.current.onend = null;
+            speechUtteranceRef.current.onerror = null;
+        }
         window.speechSynthesis.cancel();
         
         if (isMutedRef.current || !text) return;
         
         setIsSpeaking(msgId);
 
+        // Robust markdown and bullet point regex sanitizer (Point 4)
         const cleanText = text
-            .replace(/[*#`_\-]/g, '')
-            .replace(/\[.*?\]\(.*?\)/g, '')
-            .replace(/\$\$[\s\S]*?\$\$/g, '')
-            .replace(/\$[\s\S]*?\$/g, '')
+            .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove MD links keeping text
+            .replace(/\$\$[\s\S]*?\$\$/g, '')       // Remove display equations
+            .replace(/\$[\s\S]*?\$/g, '')           // Remove inline equations
+            .replace(/[*#`_\-]/g, '')                // Remove bold/italic/header symbols
+            .replace(/^[ \t]*[•\+\-\*][ \t]+/gm, '') // Remove list bullet symbols
+            .replace(/^[ \t]*\d+[\.\)][ \t]+/gm, '') // Remove numbered list symbols
+            .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '') // Remove emojis
+            .replace(/\s+/g, ' ')                   // Normalize spacing
             .trim();
 
+        if (!cleanText) {
+            setIsSpeaking(null);
+            return;
+        }
+
         const utterance = new SpeechSynthesisUtterance(cleanText);
-        
         const voices = window.speechSynthesis.getVoices();
         
         let langCode = 'en';
-        let fullLangTag = 'en-US';
-        const activeLang = forcedLang || (speechLang === 'en-IN' ? 'en' : 'hi');
+        let fullLangTag = 'en-IN';
+        
+        // Auto-resolve "original" language to profile preference (Point 2)
+        let activeLang = forcedLang || 'original';
+        if (activeLang === 'original') {
+            activeLang = profile?.language_preference || 'english';
+        }
+        
+        activeLang = activeLang.toLowerCase();
         
         if (activeLang === 'hindi' || activeLang === 'hinglish' || activeLang === 'hi') {
             langCode = 'hi';
@@ -236,13 +252,14 @@ const MinervaHome: React.FC = () => {
         } else if (activeLang === 'punjabi' || activeLang === 'pa') {
             langCode = 'pa';
             fullLangTag = 'pa-IN';
-        } else if (activeLang === 'en' || activeLang === 'en-IN') {
+        } else {
             langCode = 'en';
             fullLangTag = 'en-IN';
         }
 
         utterance.lang = fullLangTag;
 
+        // Try to find native voice pack for language
         const preferredVoice = voices.find(v => v.lang.toLowerCase().includes(langCode)) || 
                                voices.find(v => v.lang.toLowerCase().includes(fullLangTag.toLowerCase())) ||
                                voices.find(v => v.lang.includes('hi') || v.lang.includes('IN')) || 
@@ -255,22 +272,44 @@ const MinervaHome: React.FC = () => {
         if (femaleVoice) {
             utterance.voice = femaleVoice;
         }
-        utterance.rate = 0.82; // slow female AI voice
+
+        // Adjust rate for lower languages to prevent stutters (Point 5)
+        utterance.rate = (langCode === 'en' || langCode === 'hi') ? 0.82 : 0.90;
         utterance.pitch = 1.1;
 
-        utterance.onend = () => setIsSpeaking(null);
-        utterance.onerror = () => setIsSpeaking(null);
+        const clearSpeakingState = () => {
+            if (speechUtteranceRef.current === utterance) {
+                setIsSpeaking(null);
+            }
+        };
+
+        utterance.onend = clearSpeakingState;
+        utterance.onerror = clearSpeakingState;
 
         speechUtteranceRef.current = utterance;
         
+        // Watchdog timer to prevent stuck loaders (Point 5)
+        const watchdogTimer = setTimeout(() => {
+            if (isSpeaking === msgId) {
+                clearSpeakingState();
+            }
+        }, 15000); // 15 seconds auto-clear
+
         setTimeout(() => {
             if (!isMutedRef.current && speechUtteranceRef.current === utterance) {
                 window.speechSynthesis.speak(utterance);
+            } else {
+                clearTimeout(watchdogTimer);
+                clearSpeakingState();
             }
         }, 100);
     };
 
     const stopSpeech = () => {
+        if (speechUtteranceRef.current) {
+            speechUtteranceRef.current.onend = null;
+            speechUtteranceRef.current.onerror = null;
+        }
         if (window.speechSynthesis) {
             window.speechSynthesis.cancel();
         }
@@ -278,6 +317,16 @@ const MinervaHome: React.FC = () => {
     };
 
     useEffect(() => {
+        return () => {
+            if (speechUtteranceRef.current) {
+                speechUtteranceRef.current.onend = null;
+                speechUtteranceRef.current.onerror = null;
+            }
+            if (window.speechSynthesis) {
+                window.speechSynthesis.cancel();
+            }
+        };
+    }, []); useEffect(() => {
         return () => {
             if (window.speechSynthesis) {
                 window.speechSynthesis.cancel();
@@ -380,6 +429,7 @@ const MinervaHome: React.FC = () => {
     const hasTranscribedRef = useRef<boolean>(false);
     const sessionTranscriptRef = useRef<string>('');
     const switchingLangRef = useRef<boolean>(false);
+    const silenceTimerRef = useRef<any>(null);
 
     useEffect(() => {
         if (isDeepStudy) {
@@ -391,6 +441,9 @@ const MinervaHome: React.FC = () => {
 
     useEffect(() => {
         return () => {
+            if (silenceTimerRef.current) {
+                clearTimeout(silenceTimerRef.current);
+            }
             if (recognitionRef.current) {
                 try {
                     recognitionRef.current.stop();
@@ -402,6 +455,10 @@ const MinervaHome: React.FC = () => {
     }, []);
 
     const stopListening = (shouldSend = true) => {
+        if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+            silenceTimerRef.current = null;
+        }
         if (recognitionRef.current) {
             try {
                 recognitionRef.current.stop();
@@ -436,7 +493,7 @@ const MinervaHome: React.FC = () => {
             }
 
             const recognition = new SpeechRecognition();
-            recognition.continuous = false;
+            recognition.continuous = true;
             recognition.interimResults = true;
             recognition.lang = langToUse;
 
@@ -478,6 +535,10 @@ const MinervaHome: React.FC = () => {
             };
 
             recognition.onresult = (event: any) => {
+                if (silenceTimerRef.current) {
+                    clearTimeout(silenceTimerRef.current);
+                }
+
                 let interimTranscript = '';
                 let finalTranscript = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
@@ -491,13 +552,24 @@ const MinervaHome: React.FC = () => {
                     }
                 }
 
-                const fullTranscript = finalTranscript + interimTranscript;
-                if (fullTranscript) {
-                    hasTranscribedRef.current = true;
-                    sessionTranscriptRef.current = fullTranscript;
-                    const currentInitial = initialTextRef.current;
-                    setInput(currentInitial + (currentInitial ? ' ' : '') + fullTranscript);
+                if (finalTranscript) {
+                    sessionTranscriptRef.current += (sessionTranscriptRef.current ? ' ' : '') + finalTranscript;
                 }
+
+                const currentInitial = initialTextRef.current;
+                const activeTranscript = sessionTranscriptRef.current + (interimTranscript ? (sessionTranscriptRef.current ? ' ' : '') + interimTranscript : '');
+                
+                if (activeTranscript) {
+                    hasTranscribedRef.current = true;
+                    setInput(currentInitial + (currentInitial ? ' ' : '') + activeTranscript);
+                }
+
+                // Auto-submit after 2.5 seconds of silence
+                silenceTimerRef.current = setTimeout(() => {
+                    if (recognitionRef.current === recognition) {
+                        stopListening(true);
+                    }
+                }, 2500);
             };
 
             recognitionRef.current = recognition;
@@ -896,8 +968,8 @@ const MinervaHome: React.FC = () => {
             showAlert(
                 "Feedback Received",
                 type === 'up' 
-                    ? "Thank you! Minerva will keep explaining this way. 🎓" 
-                    : "Feedback noted! Minerva will adjust its explanation style. 📝"
+                    ? "Thank you! Education OS will keep explaining this way. 🎓" 
+                    : "Feedback noted! Education OS will adjust its explanation style. 📝"
             );
         } catch (e: any) {
             console.error("Feedback log error:", e.message);
@@ -1030,7 +1102,7 @@ const MinervaHome: React.FC = () => {
                                 {isDeepStudy && !isError && (
                                     <div className="flex items-center gap-2 mb-3 text-cyan-300 text-[10px] uppercase tracking-widest select-none">
                                         <Atom size={11} className="animate-spin-slow text-cyan-400" />
-                                        <span>Minerva Interactive Smartboard Note</span>
+                                        <span>Education OS Interactive Smartboard Note</span>
                                     </div>
                                 )}
 
@@ -1406,58 +1478,27 @@ const MinervaHome: React.FC = () => {
                 )}
             </AnimatePresence>
             {/* Header */}
-            <header className="relative w-full z-30 flex flex-col md:flex-row md:items-center md:justify-between px-4 md:px-6 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-3 md:py-3.5 border-b border-white/[0.06] bg-[#030209]/80 backdrop-blur-2xl flex-shrink-0 shadow-lg gap-3 md:gap-0">
-                {/* Top Row on Mobile, Full Left Side on Desktop */}
-                <div className="flex items-center justify-between md:justify-start gap-3 w-full md:w-auto">
-                    <div className="flex items-center gap-3">
-                        {/* Mobile Menu Button */}
-                        <button
-                            onClick={() => window.dispatchEvent(new Event('toggle-mobile-menu'))}
-                            className="md:hidden p-2.5 bg-white/[0.03] hover:bg-white/10 border border-white/5 hover:border-indigo-500/30 rounded-xl transition-all text-gray-400 hover:text-white flex items-center justify-center active:scale-95 shrink-0"
-                            title="Toggle menu"
-                        >
-                            <Menu size={18} />
-                        </button>
-
-                        {/* Brand Title */}
-                        <div className="flex items-center gap-2.5">
-                            <div className="w-6.5 h-6.5 rounded-lg bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 flex items-center justify-center text-white shadow-[0_0_15px_rgba(99,102,241,0.25)] shrink-0">
-                                <Brain size={13} className="animate-pulse" />
-                            </div>
-                            <span className="font-display font-black text-xs tracking-[0.15em] uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-100 to-indigo-200 select-none">
-                                Future Education OS
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* New Chat & Sync Buttons on Mobile Right Side */}
-                    <div className="flex md:hidden items-center gap-1.5">
-                        <button
-                            onClick={() => navigate('/future-education')}
-                            title="Start a new chat session"
-                            className="p-2 bg-[#0D0B1C] hover:bg-[#14102c] border border-indigo-500/35 text-indigo-300 rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center"
-                        >
-                            <Plus size={14} />
-                        </button>
-                        <button
-                            onClick={loadSessionData}
-                            title="Sync Chat Data"
-                            className="p-2 bg-white/[0.03] hover:bg-white/5 border border-white/5 text-gray-400 hover:text-white rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center"
-                        >
-                            <RefreshCw size={14} />
-                        </button>
-                    </div>
-                </div>
-
+            <header className="relative w-full z-30 flex items-center px-4 md:px-6 py-2.5 md:py-3 border-b border-white/[0.06] bg-[#030209]/95 backdrop-blur-2xl flex-shrink-0 shadow-lg min-w-0">
                 {/* Badges and Actions Row (Scrollable on Mobile, Flex on Desktop) */}
-                <div className="flex items-center gap-2.5 overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 max-w-[calc(100%+2rem)] md:max-w-none pb-1.5 md:pb-0 shrink-0">
+                <div className="flex items-center gap-2.5 overflow-x-auto scrollbar-hide w-full py-0.5 shrink-0">
+                    {/* Back to Path Button - Mobile & Desktop */}
+                    {activeSessionId && (
+                        <button
+                            onClick={() => navigate(`/future-education/session/${activeSessionId}`)}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 transition-all text-[9px] font-black tracking-wider uppercase shrink-0 active:scale-95"
+                            title="Go back to curriculum path"
+                        >
+                            <ChevronLeft size={10} className="stroke-[3]" />
+                            <span>Back to Path</span>
+                        </button>
+                    )}
                     {/* Status Badge */}
                     <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.02] border border-white/5 select-none text-[9px] font-black text-gray-400 tracking-wider uppercase shrink-0">
                         <span className="relative flex h-1.5 w-1.5">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                             <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
                         </span>
-                        <span>Minerva Active</span>
+                        <span>Education OS Active</span>
                     </div>
 
                     {profile?.board && (
@@ -1664,7 +1705,7 @@ const MinervaHome: React.FC = () => {
                                     }`}
                             >
                                 <Brain size={11} className={`text-indigo-400 ${!isDeepStudy ? 'animate-pulse' : ''}`} />
-                                Minerva Tutor
+                                Education OS
                             </button>
                             <button
                                 onClick={() => setIsDeepStudy(true)}
@@ -1841,7 +1882,7 @@ const MinervaHome: React.FC = () => {
                                 <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 flex items-center justify-center text-white mx-auto shadow-[0_0_20px_rgba(99,102,241,0.4)] mb-4">
                                     <Brain size={24} className="animate-pulse" />
                                 </div>
-                                <h3 className="text-sm font-black bg-clip-text text-transparent bg-gradient-to-r from-white to-indigo-200 tracking-tight uppercase">Minerva System Initialization</h3>
+                                <h3 className="text-sm font-black bg-clip-text text-transparent bg-gradient-to-r from-white to-indigo-200 tracking-tight uppercase">Education OS System Initialization</h3>
                                 <p className="text-gray-500 text-[10px] mt-1 uppercase tracking-wider">First-time student profile synchronization</p>
                             </div>
 
@@ -1982,7 +2023,7 @@ const MinervaHome: React.FC = () => {
                                 {(standard === 'class_10' || standard === 'class_12') && (
                                     <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-2xl text-[9px] text-red-300 font-medium leading-normal animate-pulse flex items-start gap-2">
                                         <span className="flex-shrink-0">⚠️</span>
-                                        <span>BOARD PREPARATION MODE DETECTED: Minerva will deeply prioritize target board blueprints, syllabus nodes, and exam simulations.</span>
+                                        <span>BOARD PREPARATION MODE DETECTED: Education OS will deeply prioritize target board blueprints, syllabus nodes, and exam simulations.</span>
                                     </div>
                                 )}
 

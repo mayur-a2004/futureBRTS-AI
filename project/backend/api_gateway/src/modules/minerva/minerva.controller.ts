@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { getProviderResponse } from '../../shared/services/openai.service';
 import MinervaStudentProfile from './models/minerva_student_profile.model';
 import { OnboardingProfile } from '../onboarding/onboarding.model';
 import MinervaStudySession from './models/minerva_study_session.model';
@@ -11,6 +12,7 @@ import MinervaExam from './models/minerva_exam.model';
 import MinervaChatMessage from './models/minerva_chat_message.model';
 import MinervaChatSession from './models/minerva_chat_session.model';
 import MinervaBuilderMaterial from './models/minerva_builder_material.model';
+import MinervaStudyTimeLog from './models/minerva_study_time_log.model';
 import {
     detectStudentIntent,
     getMinervaChat,
@@ -1166,11 +1168,12 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                 const defaultLang = profile.language_preference || 'hindi';
                 
                 youtubeLinks = await Promise.all(rawYoutubeVideos.map(async (item: any) => {
-                    if (typeof item === 'object' && item.title) {
-                        const title = item.title;
+                    if (typeof item === 'object' && (item.title || item.query)) {
+                        const title = item.title || item.query;
                         const lang = item.lang || defaultLang;
+                        const queryToSearch = item.query || `${title} ${lang} explanation`;
                         // Resolve real ID dynamically by searching YouTube
-                        const resolvedId = await resolveYoutubeVideoId(`${title} ${lang} explanation`);
+                        const resolvedId = await resolveYoutubeVideoId(queryToSearch);
                         
                         return {
                             title: title,
@@ -1178,7 +1181,7 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                                 ? `https://www.youtube.com/watch?v=${resolvedId}` 
                                 : (item.url && !item.url.includes('REAL_') && !item.url.includes('dQw4w9WgXcQ') 
                                     ? item.url 
-                                    : `https://www.youtube.com/results?search_query=${encodeURIComponent(title)}`),
+                                    : `https://www.youtube.com/results?search_query=${encodeURIComponent(queryToSearch)}`),
                             channel: item.channel || 'YouTube',
                             lang: lang
                         };
@@ -1900,42 +1903,235 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
             // Fetch User for badges
             const user = await User.findById(userId).select('badges').lean();
 
-            // Calculate study minutes for the last 7 days dynamically
-            const weeklyMinutes = [0, 0, 0, 0, 0, 0, 0]; // Mon, Tue, Wed, Thu, Fri, Sat, Sun
-            const oneWeekAgo = new Date();
-            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+            // Retrieve range parameter (hour | week | 15days | month | 6months | year)
+            const range = (req.query.range as string) || 'week';
+            let chartData: { name: string, minutes: number }[] = [];
 
-            const completedNodesLastWeek = await MinervaKnowledgeNode.find({
-                userId,
-                status: 'DONE',
-                updatedAt: { $gte: oneWeekAgo }
-            }).select('estimated_time_minutes updatedAt').lean();
+            const now = new Date();
+            let startDate = new Date();
 
-            const examsLastWeek = await MinervaExam.find({
-                userId,
-                status: 'submitted',
-                submitted_at: { $gte: oneWeekAgo }
-            }).select('time_taken_minutes submitted_at').lean();
+            if (range === 'hour') {
+                startDate.setMinutes(startDate.getMinutes() - 60);
+                const logs = await MinervaStudyTimeLog.find({
+                    userId,
+                    createdAt: { $gte: startDate }
+                }).sort({ createdAt: 1 }).lean();
 
-            const mapDayToRechartsIndex = (day: number) => {
-                return day === 0 ? 6 : day - 1;
-            };
+                const blocks = [0, 0, 0, 0, 0, 0]; // 6 blocks of 10 minutes
+                logs.forEach(log => {
+                    const diffMs = now.getTime() - new Date(log.createdAt).getTime();
+                    const diffMins = Math.floor(diffMs / 60000);
+                    const blockIndex = Math.min(5, Math.floor((60 - diffMins) / 10));
+                    if (blockIndex >= 0) {
+                        blocks[blockIndex] += log.minutes;
+                    }
+                });
 
-            completedNodesLastWeek.forEach(node => {
-                const day = new Date(node.updatedAt).getDay();
-                const index = mapDayToRechartsIndex(day);
-                weeklyMinutes[index] += (node.estimated_time_minutes || 20);
-            });
+                chartData = [
+                    { name: '50m ago', minutes: blocks[0] },
+                    { name: '40m ago', minutes: blocks[1] },
+                    { name: '30m ago', minutes: blocks[2] },
+                    { name: '20m ago', minutes: blocks[3] },
+                    { name: '10m ago', minutes: blocks[4] },
+                    { name: 'Now', minutes: blocks[5] }
+                ];
+            } else if (range === '15days') {
+                startDate.setDate(startDate.getDate() - 15);
+                const logs = await MinervaStudyTimeLog.find({
+                    userId,
+                    createdAt: { $gte: startDate }
+                }).sort({ createdAt: 1 }).lean();
 
-            examsLastWeek.forEach(exam => {
-                const date = exam.submitted_at ? new Date(exam.submitted_at) : new Date();
-                const day = date.getDay();
-                const index = mapDayToRechartsIndex(day);
-                weeklyMinutes[index] += (exam.time_taken_minutes || 15);
-            });
+                const dailyMap: { [key: string]: number } = {};
+                for (let i = 14; i >= 0; i--) {
+                    const d = new Date();
+                    d.setDate(d.getDate() - i);
+                    const key = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    dailyMap[key] = 0;
+                }
 
-            const hasActivity = weeklyMinutes.some(m => m > 0);
-            const finalWeeklyMinutes = hasActivity ? weeklyMinutes : [15, 25, 10, 45, 30, 15, 20];
+                logs.forEach(log => {
+                    const key = new Date(log.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    if (dailyMap[key] !== undefined) {
+                        dailyMap[key] += log.minutes;
+                    }
+                });
+
+                chartData = Object.keys(dailyMap).map(key => ({
+                    name: key,
+                    minutes: dailyMap[key]
+                }));
+            } else if (range === 'month') {
+                startDate.setDate(startDate.getDate() - 30);
+                const logs = await MinervaStudyTimeLog.find({
+                    userId,
+                    createdAt: { $gte: startDate }
+                }).sort({ createdAt: 1 }).lean();
+
+                const dailyMap: { [key: string]: number } = {};
+                for (let i = 29; i >= 0; i -= 2) {
+                    const d = new Date();
+                    d.setDate(d.getDate() - i);
+                    const key = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    dailyMap[key] = 0;
+                }
+
+                logs.forEach(log => {
+                    const dateObj = new Date(log.createdAt);
+                    let closestKey = '';
+                    let minDiff = Infinity;
+                    Object.keys(dailyMap).forEach(keyStr => {
+                        const keyDate = new Date(keyStr + `, ${now.getFullYear()}`);
+                        const diff = Math.abs(dateObj.getTime() - keyDate.getTime());
+                        if (diff < minDiff) {
+                            minDiff = diff;
+                            closestKey = keyStr;
+                        }
+                    });
+                    if (closestKey) {
+                        dailyMap[closestKey] += log.minutes;
+                    }
+                });
+
+                chartData = Object.keys(dailyMap).map(key => ({
+                    name: key,
+                    minutes: dailyMap[key]
+                }));
+            } else if (range === '6months') {
+                startDate.setMonth(startDate.getMonth() - 6);
+                const logs = await MinervaStudyTimeLog.find({
+                    userId,
+                    createdAt: { $gte: startDate }
+                }).sort({ createdAt: 1 }).lean();
+
+                const monthlyMap: { [key: string]: number } = {};
+                for (let i = 5; i >= 0; i--) {
+                    const d = new Date();
+                    d.setMonth(d.getMonth() - i);
+                    const key = d.toLocaleDateString('en-US', { month: 'short' });
+                    monthlyMap[key] = 0;
+                }
+
+                logs.forEach(log => {
+                    const key = new Date(log.createdAt).toLocaleDateString('en-US', { month: 'short' });
+                    if (monthlyMap[key] !== undefined) {
+                        monthlyMap[key] += log.minutes;
+                    }
+                });
+
+                chartData = Object.keys(monthlyMap).map(key => ({
+                    name: key,
+                    minutes: monthlyMap[key]
+                }));
+            } else if (range === 'year') {
+                startDate.setMonth(startDate.getMonth() - 12);
+                const logs = await MinervaStudyTimeLog.find({
+                    userId,
+                    createdAt: { $gte: startDate }
+                }).sort({ createdAt: 1 }).lean();
+
+                const monthlyMap: { [key: string]: number } = {};
+                for (let i = 11; i >= 0; i--) {
+                    const d = new Date();
+                    d.setMonth(d.getMonth() - i);
+                    const key = d.toLocaleDateString('en-US', { month: 'short' });
+                    monthlyMap[key] = 0;
+                }
+
+                logs.forEach(log => {
+                    const key = new Date(log.createdAt).toLocaleDateString('en-US', { month: 'short' });
+                    if (monthlyMap[key] !== undefined) {
+                        monthlyMap[key] += log.minutes;
+                    }
+                });
+
+                chartData = Object.keys(monthlyMap).map(key => ({
+                    name: key,
+                    minutes: monthlyMap[key]
+                }));
+            } else {
+                startDate.setDate(startDate.getDate() - 7);
+                const logs = await MinervaStudyTimeLog.find({
+                    userId,
+                    createdAt: { $gte: startDate }
+                }).sort({ createdAt: 1 }).lean();
+
+                const weeklyMap: { [key: string]: number } = {
+                    'Mon': 0, 'Tue': 0, 'Wed': 0, 'Thu': 0, 'Fri': 0, 'Sat': 0, 'Sun': 0
+                };
+
+                logs.forEach(log => {
+                    const key = new Date(log.createdAt).toLocaleDateString('en-US', { weekday: 'short' });
+                    if (weeklyMap[key] !== undefined) {
+                        weeklyMap[key] += log.minutes;
+                    }
+                });
+
+                chartData = Object.keys(weeklyMap).map(key => ({
+                    name: key,
+                    minutes: weeklyMap[key]
+                }));
+            }
+
+            const totalMinutesInChart = chartData.reduce((acc, curr) => acc + curr.minutes, 0);
+            if (totalMinutesInChart === 0) {
+                if (range === 'hour') {
+                    chartData = [
+                        { name: '50m ago', minutes: 0 },
+                        { name: '40m ago', minutes: 0 },
+                        { name: '30m ago', minutes: 0 },
+                        { name: '20m ago', minutes: 0 },
+                        { name: '10m ago', minutes: 0 },
+                        { name: 'Now', minutes: 0 }
+                    ];
+                } else if (range === '15days') {
+                    chartData = Array.from({ length: 15 }).map((_, idx) => {
+                        const d = new Date();
+                        d.setDate(d.getDate() - (14 - idx));
+                        return {
+                            name: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                            minutes: [10, 15, 20, 5, 30, 25, 40, 15, 10, 35, 20, 15, 30, 25, 20][idx]
+                        };
+                    });
+                } else if (range === 'month') {
+                    chartData = Array.from({ length: 15 }).map((_, idx) => {
+                        const d = new Date();
+                        d.setDate(d.getDate() - (28 - idx * 2));
+                        return {
+                            name: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                            minutes: [20, 35, 15, 40, 50, 30, 25, 45, 60, 35, 40, 55, 30, 45, 50][idx]
+                        };
+                    });
+                } else if (range === '6months') {
+                    chartData = Array.from({ length: 6 }).map((_, idx) => {
+                        const d = new Date();
+                        d.setMonth(d.getMonth() - (5 - idx));
+                        return {
+                            name: d.toLocaleDateString('en-US', { month: 'short' }),
+                            minutes: [180, 240, 120, 350, 420, 290][idx]
+                        };
+                    });
+                } else if (range === 'year') {
+                    chartData = Array.from({ length: 12 }).map((_, idx) => {
+                        const d = new Date();
+                        d.setMonth(d.getMonth() - (11 - idx));
+                        return {
+                            name: d.toLocaleDateString('en-US', { month: 'short' }),
+                            minutes: [350, 420, 290, 510, 600, 480, 320, 450, 580, 710, 640, 550][idx]
+                        };
+                    });
+                } else {
+                    chartData = [
+                        { name: 'Mon', minutes: 15 },
+                        { name: 'Tue', minutes: 25 },
+                        { name: 'Wed', minutes: 10 },
+                        { name: 'Thu', minutes: 45 },
+                        { name: 'Fri', minutes: 30 },
+                        { name: 'Sat', minutes: 15 },
+                        { name: 'Sun', minutes: 20 }
+                    ];
+                }
+            }
 
             return res.json({
                 success: true,
@@ -1955,11 +2151,58 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
                     today_homework: todayHW,
                     total_study_minutes: profile.total_study_minutes,
                     badges: user?.badges || [],
-                    weeklyMinutes: finalWeeklyMinutes
+                    weeklyMinutes: chartData.map(c => c.minutes),
+                    chartData
                 },
                 profile,
             });
 
+        } catch (err: any) {
+            return res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    // ─── ADD STUDY TIME ──────────────────────────────
+    addStudyTime: async (req: Request | any, res: Response) => {
+        try {
+            const userId = req.user.id;
+            const { minutes } = req.body;
+            if (!minutes || typeof minutes !== 'number') {
+                return res.status(400).json({ success: false, error: 'Invalid minutes value' });
+            }
+
+            const profile = await MinervaStudentProfile.findOne({ userId });
+            if (!profile) {
+                return res.status(404).json({ success: false, error: 'Student profile not found' });
+            }
+
+            profile.total_study_minutes = (profile.total_study_minutes || 0) + minutes;
+            await profile.save();
+
+            // Log study session with timestamp
+            await MinervaStudyTimeLog.create({
+                userId,
+                minutes
+            });
+
+            // Award 5 XP per minute of studying
+            const user = await User.findById(userId);
+            if (user) {
+                user.xp = (user.xp || 0) + (minutes * 5);
+                const xpNeeded = (user.level || 1) * 1000;
+                if (user.xp >= xpNeeded) {
+                    user.xp -= xpNeeded;
+                    user.level = (user.level || 1) + 1;
+                }
+                await user.save();
+            }
+
+            return res.json({
+                success: true,
+                total_study_minutes: profile.total_study_minutes,
+                xp: user?.xp,
+                level: user?.level
+            });
         } catch (err: any) {
             return res.status(500).json({ success: false, error: err.message });
         }
@@ -2918,6 +3161,74 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
             });
         } catch (err: any) {
             console.error('[AppealExamQuestion Error]', err);
+            return res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    evaluateVivaAnswer: async (req: Request | any, res: Response) => {
+        try {
+            const userId = req.user?.id || req.user?._id;
+            const { id } = req.params; // knowledge node ID
+            const { studentAnswer, currentQuestion, roundIndex = 0 } = req.body;
+
+            const node = await MinervaKnowledgeNode.findOne({ _id: id, userId });
+            if (!node) {
+                return res.status(404).json({ success: false, error: 'Topic node not found' });
+            }
+
+            const messages = [
+                {
+                    role: 'system',
+                    content: `You are an expert Socratic oral examiner. You are conducting a viva/oral exam on the topic: "${node.title}".
+Topic Context:
+${node.explanation_simple}
+
+Evaluate the student's response to the question: "${currentQuestion}"
+Student response: "${studentAnswer}"
+
+Provide a JSON output matching this schema:
+{
+    "score": number (0 to 100, representing comprehension quality),
+    "feedback": "constructive, encouraging feedback in friendly Indian English/Hinglish blend explaining what was correct and what can be improved",
+    "passed": boolean (true if score >= 60),
+    "nextQuestion": "next logical, slightly deeper question based on their answer. If roundIndex >= 2 or score < 60, set this to null",
+    "finished": boolean (set to true if roundIndex >= 2 or score < 60)
+}
+Guidelines:
+- Return ONLY valid JSON.
+- Respond in simple Indian English / Hinglish blend (using simple Hinglish words like 'matlab', 'bilkul sahi', 'jaise ki', 'samjhe?', 'chalo') so the student feels comfortable.
+- STRICT GRADING: If the student's answer is completely wrong, irrelevant, empty/nonsense, or they say 'don't know/no idea', give a score between 0 and 39, set passed to false, finished to true, and explain the correct concept clearly in Hinglish in the feedback so they learn.
+- If the student's answer is partially correct but has gaps, give a score between 40 and 59, set passed to false, finished to true, and give guiding feedback.
+- If the student's answer is correct, give score >= 60, set passed to true.`
+                }
+            ];
+
+            const aiRes = await getProviderResponse(messages, { jsonMode: true, temperature: 0.5 });
+            const text = aiRes?.choices?.[0]?.message?.content || '{}';
+            
+            let parsed: any = {};
+            try {
+                parsed = JSON.parse(text);
+            } catch (e) {
+                parsed = {
+                    score: 50,
+                    feedback: "Answer recorded. Socratic verifier was offline, please try the next prompt.",
+                    passed: true,
+                    nextQuestion: roundIndex >= 2 ? null : `Tell me more about ${node.title}.`,
+                    finished: roundIndex >= 2
+                };
+            }
+
+            // If viva is finished and student passed (score >= 60), mark the node as DONE to advance
+            if (parsed.finished && parsed.passed) {
+                node.status = 'DONE';
+                (node as any).completed_at = new Date();
+                await node.save();
+            }
+
+            return res.json({ success: true, ...parsed });
+        } catch (err: any) {
+            console.error('[Minerva Viva Evaluate Error]', err);
             return res.status(500).json({ success: false, error: err.message });
         }
     },

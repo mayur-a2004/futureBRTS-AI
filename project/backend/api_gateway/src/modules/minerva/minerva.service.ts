@@ -845,7 +845,7 @@ You master all fields, especially:
 ====================================
 🗣️ LANGUAGE & COMMUNICATION PROTOCOL
 ====================================
-1. **DEFAULT LANGUAGE — ENGLISH**: Always respond in clear, friendly English by default for the first message or whenever the student writes in English.
+1. **DEFAULT LANGUAGE — HINGLISH / INDIAN ENGLISH BLEND**: Always respond in simple, friendly Indian English mixed with natural Hinglish terms (e.g., using casual Hindi/Hinglish terms like 'matlab', 'bilkul sahi', 'jaise ki', 'samjhe?', 'chalo', 'dost') so that Indian students can easily understand. Avoid formal US/UK English tone. Be friendly, like a close Indian elder brother/friend.
 2. **DYNAMIC LANGUAGE MATCHING (CRITICAL RULE)**: If the student switches to another language or Romanized script (e.g., Hinglish, Hindi, Gujarati, Marathi, Tamil, Bengali, or any other Indian language), you MUST immediately and naturally adapt — matching the student's exact language, script, and conversational style in your response. Continue in that language for all subsequent turns unless the student switches again. The goal is to make the student feel 100% comfortable and at home.
 3. **MULTILINGUAL TOLERANCE**: Support Hinglish, Gujarati, Marathi, Hindi, Tamil, etc., or Romanized scripts.
 4. **KEY JARGON RULE**: Keep key technical words in English script/Roman format (e.g., "Recursion", "Binary Search", "Overfitting", "Gradient Descent") so the student learns industry terms, but explain the logic/analogies in their preferred local language.
@@ -944,7 +944,7 @@ For every concept, break it down to its absolute atoms:
 - WHERE is it used? (Real-world application)
 
 **RULE 4 — LANGUAGE & JARGON RULES**
-- **DEFAULT TO ENGLISH**: Start in clear, friendly English unless the student's profile or first message indicates a different language.
+- **DEFAULT TO HINGLISH / INDIAN ENGLISH BLEND**: Always respond in simple, friendly Indian English mixed with natural Hinglish terms (e.g., using casual Hindi/Hinglish terms like 'matlab', 'bilkul sahi', 'jaise ki', 'samjhe?', 'chalo', 'dost') so that Indian students can easily understand. Avoid formal US/UK English tone. Be friendly, like a close Indian elder brother/friend.
 - **DYNAMIC LANGUAGE MATCHING (CRITICAL)**: If the student types in Hinglish, Hindi, Gujarati, Marathi, Tamil, Bengali, or any other language/script, IMMEDIATELY and NATURALLY match that language/style in your response. Keep matching it for all subsequent turns unless they switch again.
 - Keep key technical words in English script/Roman format (e.g., "Recursion", "Binary Search", "Overfitting") so the student learns industry terms, but explain the logic/analogies in their preferred local language.
 
@@ -1211,9 +1211,9 @@ Return ONLY valid JSON:
     "memory_trick": "A clever mnemonic or trick to remember this topic",
     "board_specific_note": "What to specifically focus on for ${board} exam format",
     "youtube_videos": [
-        {"title": "Best English explanation video title", "url": "https://www.youtube.com/watch?v=REAL_11CHAR_ID", "channel": "Channel Name", "lang": "english"},
-        {"title": "Hindi mein best explanation video title", "url": "https://www.youtube.com/watch?v=REAL_11CHAR_ID", "channel": "Channel Name", "lang": "hindi"},
-        {"title": "Video in ${lang} for this exact topic", "url": "https://www.youtube.com/watch?v=REAL_11CHAR_ID", "channel": "Channel Name", "lang": "${lang}"}
+        {"title": "Specific Topic English Explanation Video Title", "query": "Specific targeted Search Query on YouTube (e.g. 'Mitochondria animation Khan Academy')", "channel": "Channel Name", "lang": "english"},
+        {"title": "Specific Topic Hindi Explanation Video Title", "query": "Specific targeted Search Query on YouTube (e.g. 'Mitochondria full concept Physics Wallah')", "channel": "Channel Name", "lang": "hindi"},
+        {"title": "Specific Topic in ${lang} Video Title", "query": "Specific targeted Search Query on YouTube in ${lang} (e.g. 'Mitochondria function detail in ${lang}')", "channel": "Channel Name", "lang": "${lang}"}
     ],
     "micro_tasks": [
         {
@@ -1240,13 +1240,19 @@ Return ONLY valid JSON:
 
 RULES:
 - explanation_simple (Concept Metaphor/Analogy): MUST be a simple, concept-focused educational metaphor or real-life analogy (100-150 words) that makes the concept intuitively clear. Explain the core concept using a completely relatable real-world comparison (e.g., explaining traffic congestion for resistance, or water pipe flow for electric current). It must remain strictly educational, focusing directly on illustrating the concept, and MUST NOT go off-topic into fantasy stories, fictional characters, or irrelevant side plots.
-- explanation_detailed (Theory/Concept): MUST be an extremely detailed, technical, and comprehensive academic breakdown (500-800 words) in ${lang}. This must take the student from basic definitions all the way to advanced masterclass details, showing step-by-step mechanisms, equations/derivations (if applicable), practical applications, and syllabus alignments. DO NOT output simple or generic definitions.
+- explanation_detailed (Theory/Concept): MUST be an extremely detailed, technical, and comprehensive academic breakdown (500-800 words) in ${lang}. This must take the student from basic definitions all the way to advanced masterclass details, showing step-by-step mechanisms, equations/derivations (if applicable), practical applications, and syllabus alignments. You MUST strictly divide the explanation into these exact subheadings:
+  ### 1. Pehle Samjho / Why (Motivation & Context of the topic)
+  ### 2. Kya Hai Yeh / What (Formal definitions, concept, formulas)
+  ### 3. Kaise Kaam Karta Hai / How (Mechanism, working, process, step-by-step explanation)
+  ### 4. Kahan Use Hota Hai / Where (Real-world applications, industry usage)
+  ### 5. Summary / Brief (Key takeaways)
+  DO NOT output simple or generic definitions.
 - PYQ SPECIAL RULE: If the node relevance (board_relevance) or title indicates this is a 'Direct PYQ Question', or if key_points contains an item starting with "QUESTION: ", treat this entire node as a past year exam question.
   - explanation_simple (Hint): Must be a direct, helpful hint or strategic tip on how to think or approach solving this exact question. Keep it simple and encouraging.
-  - explanation_detailed (Step-by-Step Solution): Must be the complete, step-by-step resolved answer/solution to that exact question (instead of generic theory). Show calculations, equations, derivations, or structural points clearly.
+  - explanation_detailed (Step-by-Step Solution): Must be the complete, step-by-step resolved answer/solution to that exact question (instead of generic theory), strictly divided into the 5 academic subheadings above. Show calculations, equations, derivations, or structural points clearly.
   - micro_tasks: Generate 3-4 progressive practice tasks (easy, medium, hard) that are direct clones/variations of the uploaded question (e.g. testing the same concept with different numbers or structures) to ensure the student can apply the learning.
   - homework_tasks: Generate 2-3 similar homework practice tasks, slightly harder than the micro_tasks, testing the same core concepts with their correct expected answers.
-- youtube_videos: CRITICAL — Provide 3 YouTube videos with REAL, ACTUAL 11-character video IDs that exist on YouTube. Include: 1 English video, 1 Hindi video, and 1 video in ${lang} (mother tongue if different). Use well-known channels: Khan Academy, Physics Wallah (PW), Vedantu, Unacademy, Doubtnut, NCERT official, etc. The video MUST be specifically about "${node.title}" topic. DO NOT make up video IDs — only use IDs from videos you know exist.
+- youtube_videos: CRITICAL — Provide 3 specific search queries with the "query" field to search YouTube. DO NOT include fake URLs with placeholder IDs. The query must target reliable channels like Khan Academy, Physics Wallah (PW), Vedantu, Unacademy, Doubtnut, NCERT official, etc., for the topic "${node.title}".
 - Key formulas: include in proper format (e.g., "F = ma (Force = mass × acceleration)")`
         },
         {
@@ -1535,12 +1541,10 @@ export const extractProfileFromChat = async (message: string): Promise<any> => {
 // ─────────────────────────────────────────────
 export const getBoardLabel = (board: string): string => {
     const labels: Record<string, string> = {
-        // Central Boards
         cbse: 'CBSE (NCERT) — Central Board of Secondary Education',
         icse: 'ICSE / ISC — Indian Certificate of Secondary Education',
         nios: 'NIOS — National Institute of Open Schooling',
         cbse_vocational: 'CBSE Vocational (Skill Education)',
-        // State Boards
         msbshse: 'Maharashtra Board (SSC/HSC) — Maharashtra State Board',
         upmsp: 'UP Board (UPMSP) — Uttar Pradesh Madhyamik Shiksha Parishad',
         bseb: 'Bihar Board (BSEB) — Bihar School Examination Board',
@@ -1570,13 +1574,11 @@ export const getBoardLabel = (board: string): string => {
         chse_odisha: 'Odisha +2 (CHSE) — Council of Higher Secondary Education Odisha',
         cgbse: 'Chhattisgarh Board (CGBSE)',
         jac: 'Jharkhand Board (JAC) — Jharkhand Academic Council',
-        // Competitive / Custom
         jee: 'JEE (Mains & Advanced) — Joint Entrance Examination',
         neet: 'NEET (Medical Entrance) — National Eligibility cum Entrance Test',
         upsc: 'UPSC Civil Services — Union Public Service Commission',
         developer: 'Developer / Software Engineering Profile',
         general: 'General / Custom Curriculum',
-        // Legacy keys (keep for backward compat)
         maharashtra_ssc: 'Maharashtra SSC/HSC Board',
         up_board: 'UP Board (UPMSP)',
         tnbse_legacy: 'Tamil Nadu Board (Samacheer)',
@@ -1587,7 +1589,7 @@ export const getBoardLabel = (board: string): string => {
         gate: 'GATE',
         cat: 'CAT/MBA Entrance',
         ca: 'CA (ICAI)',
-        cs: 'CS (ICSI)',
+        cs: 'CS (ICSI)'
     };
     return labels[board] || board.toUpperCase();
 };
@@ -1603,24 +1605,49 @@ export const getGradeLabel = (grade: string): string => {
         upsc: 'UPSC Aspirant', ssc: 'SSC Aspirant', banking: 'Banking Aspirant',
         railway: 'Railway Aspirant', gate: 'GATE Aspirant', cat: 'CAT Aspirant',
         ca: 'CA Student', cs: 'CS Student', iti: 'ITI Student',
-        polytechnic: 'Polytechnic Student',
+        polytechnic: 'Polytechnic Student'
     };
     return labels[grade] || grade;
 };
 
-// ─────────────────────────────────────────────
-// 8. GENERATE STUDENT STUDY MATERIAL (E-Builder)
-// ─────────────────────────────────────────────
+const translateFlashcardsBulk = async (cards: any[], targetLanguage: string): Promise<any[]> => {
+    if (!Array.isArray(cards) || cards.length === 0) return [];
+    
+    const messages = [
+        {
+            role: 'system',
+            content: `You are an expert multi-lingual academic translator.
+Translate this JSON array of flashcards containing "term" and "definition" into ${targetLanguage}.
+Keep key technical terms in English (or in phonetic script) if commonly used, but translate definitions/prose accurately.
+Return ONLY a valid JSON array of translated flashcards matching the original structure. Do not wrap in markdown or add explanations.`
+        },
+        {
+            role: 'user',
+            content: JSON.stringify(cards)
+        }
+    ];
+
+    try {
+        const res = await getProviderResponse(messages, { jsonMode: true, maxTokens: 3000, temperature: 0.3 });
+        const text = res?.choices?.[0]?.message?.content || '[]';
+        const parsed = safeJsonParse(text);
+        if (Array.isArray(parsed)) return parsed;
+    } catch (err) {
+        console.error("Bulk Flashcard translation failed:", err);
+    }
+    return cards;
+};
+
 export const generateStudentStudyMaterial = async (
     subject: string,
     title: string,
-    type: string, // 'summary' | 'flashcards' | 'cheatsheet' | 'essay'
+    type: string,
     language: string,
     grade_level: string,
     board: string
 ): Promise<any> => {
-    // Generate in English first to ensure high-quality structure, standard terminology, and prevent loops/duplications
-    const generationLanguage = 'english'; 
+    const targetLanguage = language.trim().toLowerCase();
+    const generationLanguage = type === 'flashcards' ? 'english' : (language || 'english');
     
     let systemInstruction = "";
     if (type === 'flashcards') {
@@ -1640,7 +1667,7 @@ CRITICAL: Do NOT repeat the same formulas or sections. Ensure each point adds ne
 Format: Markdown with clean heading structure (H1, H2, H3).
 Language: ${generationLanguage} | Grade: ${grade_level} | Board: ${board}
 CRITICAL: Do NOT duplicate or repeat paragraphs or sections under different heading levels. Each heading (e.g. H3 vs H4) MUST contain completely unique, distinct content. Do NOT pad length by cloning sentences.`;
-    } else { // summary / revision notes
+    } else {
         systemInstruction = `You are an expert tutor. Create comprehensive yet clear revision notes for the topic.
 Format: Markdown with bullet points, brief examples, and analogies.
 Language: ${generationLanguage} | Grade: ${grade_level} | Board: ${board}
@@ -1655,36 +1682,22 @@ CRITICAL: Do NOT repeat paragraphs or sentences. Keep it clean and concise. Each
     const res = await getProviderResponse(messages, {
         jsonMode: type === 'flashcards',
         maxTokens: 3000,
-        temperature: 0.3 // Lower temperature for more deterministic, non-repetitive text
+        temperature: 0.3
     });
 
     let content = res?.choices?.[0]?.message?.content || '';
 
-    // If target language is not English, translate the clean English content to the target language
-    const targetLanguage = language.trim().toLowerCase();
     if (targetLanguage !== 'english' && content) {
-        console.log(`🌐 [E-Builder Translator] Translating generated ${type} from English to ${language}`);
         if (type === 'flashcards') {
-            // Translate flashcards array
+            console.log(`🌐 [E-Builder Bulk Translator] Translating flashcards in one single call to ${language}`);
             let parsed = safeJsonParse(content);
             if (parsed && !Array.isArray(parsed) && Array.isArray(parsed.flashcards)) {
                 parsed = parsed.flashcards;
             }
             if (Array.isArray(parsed)) {
-                const translatedCards = await Promise.all(parsed.map(async (item: any) => {
-                    const term = String(item.term || item.front || item.concept || item.word || item.question || '').trim();
-                    const definition = String(item.definition || item.back || item.explanation || item.desc || item.description || item.answer || '').trim();
-                    
-                    const tTerm = await translateContent(term, language);
-                    const tDefinition = await translateContent(definition, language);
-                    return { term: tTerm, definition: tDefinition };
-                }));
-                return translatedCards.filter(item => item.term.length > 0 && item.definition.length > 0);
+                return await translateFlashcardsBulk(parsed, language);
             }
             return [];
-        } else {
-            // Translate markdown text
-            content = await translateContent(content, language);
         }
     }
 

@@ -36,6 +36,7 @@ router.put('/profile', authMiddleware, minervaController.updateProfile);
 
 // ─── DASHBOARD / STATS ─────────────────────────
 router.get('/stats', authMiddleware, minervaController.getStats);
+router.post('/study-time/add', authMiddleware, minervaController.addStudyTime);
 
 // ─── CHAT (Main entry point) ───────────────────
 router.post('/chat', authMiddleware, minervaController.chat);
@@ -58,6 +59,7 @@ router.get('/session/:id/certificate', authMiddleware, minervaController.generat
 router.post('/node/:id/learn', authMiddleware, minervaController.learnNode);
 router.post('/node/:id/regenerate', authMiddleware, minervaController.regenerateNodeContent);
 router.put('/node/:id/priority', authMiddleware, minervaController.updateNodePriority);
+router.post('/node/:id/viva/evaluate', authMiddleware, minervaController.evaluateVivaAnswer);
 
 // ─── TASKS / HOMEWORK ──────────────────────────
 router.post('/task/:id/submit', authMiddleware, minervaController.submitTask);

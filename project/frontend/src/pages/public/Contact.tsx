@@ -153,10 +153,10 @@ export default function Contact() {
                                             onChange={e => setFormData({ ...formData, objective: e.target.value })}
                                             className="w-full bg-white/[0.01] border border-white/5 rounded-xl p-4 text-white focus:outline-none focus:border-purple-600 transition-all font-mono text-xs shadow-inner italic appearance-none cursor-pointer"
                                         >
-                                            <option value="CORE_TECHNICAL_SUPPORT" className="bg-zinc-955 text-white">CORE_TECHNICAL_SUPPORT</option>
-                                            <option value="PARTNER_INTEGRATION" className="bg-zinc-955 text-white">PARTNER_INTEGRATION</option>
-                                            <option value="BRAIN_FEEDBACK" className="bg-zinc-955 text-white">BRAIN_FEEDBACK</option>
-                                            <option value="OTHER_TRANSMISSION" className="bg-zinc-955 text-white">OTHER_TRANSMISSION</option>
+                                            <option value="CORE_TECHNICAL_SUPPORT" className="bg-zinc-900 text-white">CORE_TECHNICAL_SUPPORT</option>
+                                            <option value="PARTNER_INTEGRATION" className="bg-zinc-900 text-white">PARTNER_INTEGRATION</option>
+                                            <option value="BRAIN_FEEDBACK" className="bg-zinc-900 text-white">BRAIN_FEEDBACK</option>
+                                            <option value="OTHER_TRANSMISSION" className="bg-zinc-900 text-white">OTHER_TRANSMISSION</option>
                                         </select>
                                     </div>
 

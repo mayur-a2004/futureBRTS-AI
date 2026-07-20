@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { minervaApi } from '../../api/minerva.api';
 import { ChevronLeft, BookOpen, Sparkles, Youtube, Lightbulb, Play, Check, MessageSquare, Zap, Mic, Volume2, VolumeX, RefreshCw } from 'lucide-react';
@@ -54,18 +54,137 @@ const MinervaLearnPage: React.FC = () => {
     const [results, setResults] = useState<Record<string, any>>({});
     const [submitting, setSubmitting] = useState<string | null>(null);
     const [regenerating, setRegenerating] = useState(false);
-    const [view, setView] = useState<'simple' | 'detailed' | 'viva'>('simple');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const view = (searchParams.get('tab') as 'simple' | 'detailed' | 'viva') || 'simple';
+    const setView = (newView: 'simple' | 'detailed' | 'viva') => {
+        setSearchParams(prev => {
+            prev.set('tab', newView);
+            return prev;
+        });
+    };
     const [memoryTrick, setMemoryTrick] = useState('');
     const [boardNote, setBoardNote] = useState('');
     
     // AI Oral Viva States
-    const [vivaState, setVivaState] = useState<'idle' | 'listening' | 'feedback'>('idle');
+    const [vivaState, setVivaState] = useState<'idle' | 'listening' | 'feedback' | 'evaluating'>('idle');
     const [vivaQuestion, setVivaQuestion] = useState('Welcome to the AI Oral Viva Room! Let me test your concept: Please explain what this topic is about?');
     const [useTextMode, setUseTextMode] = useState(false);
     const [vivaAnswerText, setVivaAnswerText] = useState('');
+    const [vivaFeedback, setVivaFeedback] = useState('');
+    const [vivaScore, setVivaScore] = useState<number | null>(null);
+    const [vivaFinished, setVivaFinished] = useState(false);
+    const vivaRecognitionRef = React.useRef<any>(null);
+
+    const startVivaListening = () => {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert("Speech recognition is not supported in this browser.");
+            return;
+        }
+
+        try {
+            if (vivaRecognitionRef.current) {
+                vivaRecognitionRef.current.stop();
+            }
+
+            const rec = new SpeechRecognition();
+            rec.continuous = true;
+            rec.interimResults = true;
+            rec.lang = selectedLanguage === 'original' ? 'en-IN' : (selectedLanguage === 'hindi' ? 'hi-IN' : 'en-IN');
+
+            setVivaAnswerText('');
+            setVivaState('listening');
+
+            rec.onresult = (event: any) => {
+                let interimTranscript = '';
+                let finalTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i] && event.results[i][0]) {
+                        const text = event.results[i][0].transcript;
+                        if (event.results[i].isFinal) {
+                            finalTranscript += text;
+                        } else {
+                            interimTranscript += text;
+                        }
+                    }
+                }
+                const activeTranscript = finalTranscript + interimTranscript;
+                if (activeTranscript) {
+                    setVivaAnswerText(activeTranscript);
+                }
+            };
+
+            rec.onerror = (e: any) => {
+                console.error("Viva Speech error:", e);
+                setVivaState('idle');
+            };
+
+            vivaRecognitionRef.current = rec;
+            rec.start();
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    const stopVivaListeningAndSubmit = async () => {
+        if (vivaRecognitionRef.current) {
+            try {
+                vivaRecognitionRef.current.stop();
+            } catch (e) {}
+            vivaRecognitionRef.current = null;
+        }
+        await submitVivaAnswer(vivaAnswerText);
+    };
+
+    const submitVivaAnswer = async (answer: string) => {
+        if (!answer.trim()) {
+            alert("Pehle answer bolein ya type karein!");
+            setVivaState('idle');
+            return;
+        }
+
+        setVivaState('evaluating');
+        try {
+            const res = await fetch(`/api/minerva/node/${id}/viva/evaluate`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ answer })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setVivaFeedback(data.feedback);
+                setVivaScore(data.score);
+                if (data.finished) {
+                    setVivaFinished(true);
+                    setVivaQuestion("Excellent! We have completed the Viva Room evaluation.");
+                    setVivaState('feedback');
+                    await loadNode();
+                } else {
+                    setVivaQuestion(data.nextQuestion);
+                    setVivaState('feedback');
+                }
+            } else {
+                alert(data.error || "Viva evaluation failed.");
+                setVivaState('idle');
+            }
+        } catch (err) {
+            console.error("Viva evaluation error:", err);
+            alert("Connection error during Viva evaluation.");
+            setVivaState('idle');
+        }
+    };
 
     // Translation States
-    const [selectedLanguage, setSelectedLanguage] = useState<string>('original');
+    const selectedLanguage = searchParams.get('lang') || 'original';
+    const setSelectedLanguage = (newLang: string) => {
+        setSearchParams(prev => {
+            prev.set('lang', newLang);
+            return prev;
+        });
+    };
     const [translating, setTranslating] = useState<boolean>(false);
     const [translationsCache, setTranslationsCache] = useState<Record<string, Record<string, string>>>({});
 
@@ -121,50 +240,79 @@ const MinervaLearnPage: React.FC = () => {
     // Speech Synthesis (TTS) States
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [isMuted, setIsMuted] = useState<boolean>(() => {
-        return localStorage.getItem('minerva_tts_muted') === 'true';
+        const stored = localStorage.getItem('minerva_tts_muted');
+        return stored === null ? true : stored === 'true';
     });
     const speechUtteranceRef = React.useRef<SpeechSynthesisUtterance | null>(null);
 
     const speakText = (text: string) => {
         if (!window.speechSynthesis) return;
-        window.speechSynthesis.cancel(); // Stop any active speech
+        
+        // Safe cancel of previous speech
+        if (speechUtteranceRef.current) {
+            speechUtteranceRef.current.onend = null;
+            speechUtteranceRef.current.onerror = null;
+        }
+        window.speechSynthesis.cancel(); 
 
         if (isMuted || !text) return;
 
-        // Clean markdown symbols
-        const cleanText = text.replace(/[*#_`~]/g, '').trim();
+        // Robust markdown and bullet point regex sanitizer (Point 4)
+        const cleanText = text
+            .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove MD links keeping text
+            .replace(/\$\$[\s\S]*?\$\$/g, '')       // Remove display equations
+            .replace(/\$[\s\S]*?\$/g, '')           // Remove inline equations
+            .replace(/[*#`_\-]/g, '')                // Remove bold/italic/header symbols
+            .replace(/^[ \t]*[•\+\-\*][ \t]+/gm, '') // Remove list bullet symbols
+            .replace(/^[ \t]*\d+[\.\)][ \t]+/gm, '') // Remove numbered list symbols
+            .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '') // Remove emojis
+            .replace(/\s+/g, ' ')                   // Normalize spacing
+            .trim();
+
+        if (!cleanText) {
+            setIsSpeaking(false);
+            return;
+        }
 
         const utterance = new SpeechSynthesisUtterance(cleanText);
-        
-        // Find a natural voice matching selectedLanguage
         const voices = window.speechSynthesis.getVoices();
+        
         let langCode = 'en';
         let fullLangTag = 'en-US';
-        if (selectedLanguage === 'hindi' || selectedLanguage === 'hinglish') {
+        
+        // Auto-resolve "original" language to node language/preference
+        let activeLang = selectedLanguage || 'original';
+        if (activeLang === 'original') {
+            activeLang = node?.detected_language || 'english';
+        }
+        
+        activeLang = activeLang.toLowerCase();
+
+        if (activeLang === 'hindi' || activeLang === 'hinglish') {
             langCode = 'hi';
             fullLangTag = 'hi-IN';
-        } else if (selectedLanguage === 'marathi') {
+        } else if (activeLang === 'marathi') {
             langCode = 'mr';
             fullLangTag = 'mr-IN';
-        } else if (selectedLanguage === 'gujarati') {
+        } else if (activeLang === 'gujarati') {
             langCode = 'gu';
             fullLangTag = 'gu-IN';
-        } else if (selectedLanguage === 'spanish') {
+        } else if (activeLang === 'spanish') {
             langCode = 'es';
             fullLangTag = 'es-ES';
-        } else if (selectedLanguage === 'bengali') {
+        } else if (activeLang === 'bengali') {
             langCode = 'bn';
             fullLangTag = 'bn-IN';
-        } else if (selectedLanguage === 'tamil') {
+        } else if (activeLang === 'tamil') {
             langCode = 'ta';
             fullLangTag = 'ta-IN';
-        } else if (selectedLanguage === 'telugu') {
+        } else if (activeLang === 'telugu') {
             langCode = 'te';
             fullLangTag = 'te-IN';
-        } else if (selectedLanguage === 'kannada') {
+        } else if (activeLang === 'kannada') {
             langCode = 'kn';
             fullLangTag = 'kn-IN';
-        } else if (selectedLanguage === 'punjabi') {
+        } else if (activeLang === 'punjabi') {
             langCode = 'pa';
             fullLangTag = 'pa-IN';
         }
@@ -184,18 +332,42 @@ const MinervaLearnPage: React.FC = () => {
             utterance.voice = femaleVoice;
         }
 
-        utterance.rate = 0.82; // Slightly slower pace for proper student understanding as requested
-        utterance.pitch = 1.1; // Higher pitch for a clear, calm female tutor voice
+        utterance.rate = (langCode === 'en' || langCode === 'hi') ? 0.82 : 0.90;
+        utterance.pitch = 1.1;
+
+        const clearSpeakingState = () => {
+            if (speechUtteranceRef.current === utterance) {
+                setIsSpeaking(false);
+            }
+        };
 
         utterance.onstart = () => setIsSpeaking(true);
-        utterance.onend = () => setIsSpeaking(false);
-        utterance.onerror = () => setIsSpeaking(false);
+        utterance.onend = clearSpeakingState;
+        utterance.onerror = clearSpeakingState;
 
         speechUtteranceRef.current = utterance;
-        window.speechSynthesis.speak(utterance);
+
+        const watchdogTimer = setTimeout(() => {
+            if (isSpeaking) {
+                clearSpeakingState();
+            }
+        }, 15000); // 15 seconds auto-clear
+
+        setTimeout(() => {
+            if (!isMuted && speechUtteranceRef.current === utterance) {
+                window.speechSynthesis.speak(utterance);
+            } else {
+                clearTimeout(watchdogTimer);
+                clearSpeakingState();
+            }
+        }, 100);
     };
 
     const stopSpeech = () => {
+        if (speechUtteranceRef.current) {
+            speechUtteranceRef.current.onend = null;
+            speechUtteranceRef.current.onerror = null;
+        }
         if (window.speechSynthesis) {
             window.speechSynthesis.cancel();
         }
@@ -331,51 +503,54 @@ const MinervaLearnPage: React.FC = () => {
         <div className="min-h-screen bg-[#030209] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#0f0b29]/40 via-black to-black text-white font-inter relative pb-16">
             
             {/* Header */}
-            <div className="sticky top-14 md:top-0 z-20 bg-black/40 backdrop-blur-xl border-b border-white/5 px-6 py-4">
-                <div className="max-w-3xl mx-auto flex items-center gap-4">
-                    <button onClick={() => navigate(-1)} className="p-2 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 rounded-xl transition-all text-gray-400 hover:text-white">
-                        <ChevronLeft size={16} />
-                    </button>
-                    <div className="flex-1 min-w-0">
-                        <h1 className="font-bold text-sm truncate bg-clip-text text-transparent bg-gradient-to-r from-white to-indigo-200">{node.title}</h1>
-                        <div className="flex items-center gap-2 mt-1 text-[10px] text-gray-500 font-bold uppercase tracking-wider">
-                            {node.chapter && <span>{node.chapter}</span>}
-                            <span className="text-gray-600">•</span>
-                            <span className={`px-2 py-0.5 rounded border 
-                                ${node.priority === 'HIGH' ? 'bg-red-500/10 text-red-400 border-red-500/20' : node.priority === 'MEDIUM' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
-                                {node.priority} Priority
-                            </span>
-                            <span className="text-gray-600">•</span>
-                            <span>{node.estimated_time_minutes} Mins study</span>
+            <div className="sticky top-0 z-20 bg-[#030209]/95 backdrop-blur-xl border-b border-white/[0.08] px-4 md:px-6 py-3.5 shadow-xl w-full min-w-0">
+                <div className="max-w-3xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <button onClick={() => navigate(-1)} className="p-2 bg-white/[0.05] hover:bg-white/10 border border-white/10 hover:border-white/15 rounded-xl transition-all text-gray-400 hover:text-white flex items-center justify-center active:scale-95 shrink-0">
+                            <ChevronLeft size={16} />
+                        </button>
+                        <div className="min-w-0 flex-1">
+                            <h1 className="font-bold text-xs md:text-sm truncate bg-clip-text text-transparent bg-gradient-to-r from-white to-indigo-200">{node.title}</h1>
+                            <div className="flex flex-wrap items-center gap-1.5 mt-0.5 text-[9px] md:text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                                {node.chapter && <span className="truncate max-w-[80px] sm:max-w-none">{node.chapter}</span>}
+                                <span className="text-gray-600">•</span>
+                                <span className={`px-1.5 py-0.5 rounded border text-[8px] md:text-[9px]
+                                    ${node.priority === 'HIGH' ? 'bg-red-500/10 text-red-400 border-red-500/20' : node.priority === 'MEDIUM' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
+                                    {node.priority} Priority
+                                </span>
+                                <span className="text-gray-600">•</span>
+                                <span>{node.estimated_time_minutes} Mins</span>
+                            </div>
                         </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5 justify-end">
                         <button
                             onClick={handleRegenerate}
                             disabled={regenerating}
-                            className="text-xs bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 px-3 py-1.5 rounded-xl transition-all font-semibold flex items-center gap-1.5 text-yellow-400 disabled:opacity-40 cursor-pointer"
+                            className="text-[10px] md:text-xs bg-white/[0.05] hover:bg-white/10 border border-white/5 px-2.5 py-1.5 rounded-xl transition-all font-semibold flex items-center gap-1 text-yellow-400 disabled:opacity-40 cursor-pointer active:scale-95 shrink-0"
+                            title="Regenerate"
                         >
-                            <RefreshCw size={13} className={regenerating ? 'animate-spin' : ''} />
-                            <span>{regenerating ? 'Regenerating...' : 'Regenerate'}</span>
+                            <RefreshCw size={12} className={regenerating ? 'animate-spin' : ''} />
+                            <span>{regenerating ? 'Regen...' : 'Regenerate'}</span>
                         </button>
                         <button
                             onClick={() => navigate(`/future-education?askDoubt=${encodeURIComponent(`Mujhe topic '${node.title}' mein doubt hai, iska explanation aur reference topics clear karo.`)}`)}
-                            className="text-xs bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 px-3 py-1.5 rounded-xl transition-all font-semibold flex items-center gap-1.5 text-indigo-400"
+                            className="text-[10px] md:text-xs bg-white/[0.05] hover:bg-white/10 border border-white/5 px-2.5 py-1.5 rounded-xl transition-all font-semibold flex items-center gap-1 text-indigo-400 active:scale-95 shrink-0"
                         >
-                            <MessageSquare size={13} />
+                            <MessageSquare size={12} />
                             <span>Ask Doubt</span>
                         </button>
                         <button
                             onClick={() => navigate(`/future-education/builder?sessionId=${node.session_id}`)}
-                            className="text-xs bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 border border-indigo-500/20 px-3 py-1.5 rounded-xl transition-all font-semibold flex items-center gap-1.5 text-white"
+                            className="text-[10px] md:text-xs bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 border border-indigo-500/20 px-2.5 py-1.5 rounded-xl transition-all font-semibold flex items-center gap-1 text-white active:scale-95 shrink-0"
                         >
-                            <Zap size={13} />
+                            <Zap size={12} />
                             <span>E-Builder</span>
                         </button>
+                        {node.status === 'DONE' && (
+                            <span className="text-[9px] md:text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-1 rounded-full font-bold shrink-0">Complete</span>
+                        )}
                     </div>
-                    {node.status === 'DONE' && (
-                        <span className="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1.5 rounded-full font-bold">✅ Complete</span>
-                    )}
                 </div>
             </div>
 
@@ -468,14 +643,24 @@ const MinervaLearnPage: React.FC = () => {
 
                         {/* Interactive Waveform / Dialog space */}
                         <div className="flex-1 flex flex-col items-center justify-center py-6 text-center w-full">
-                            {vivaState === 'listening' && !useTextMode ? (
+                            {vivaState === 'evaluating' ? (
                                 <div className="flex flex-col items-center gap-4 py-4">
+                                    <Loader2 className="w-8 h-8 text-cyan-400 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                                    <div className="text-xs text-cyan-300 font-bold tracking-wide animate-pulse">AI Teacher is evaluating your answer...</div>
+                                </div>
+                            ) : vivaState === 'listening' ? (
+                                <div className="flex flex-col items-center gap-4 py-4 w-full max-w-lg">
                                     <div className="flex gap-1.5 items-center h-12 justify-center">
                                         {[1, 2, 3, 4, 5, 4, 3, 2, 1].map((h, i) => (
                                             <div key={i} className="w-1.5 bg-gradient-to-t from-cyan-500 to-indigo-500 rounded-full animate-bounce" style={{ height: `${h * 6}px`, animationDelay: `${i * 0.1}s` }} />
                                         ))}
                                     </div>
-                                    <div className="text-xs text-cyan-300 font-bold tracking-wide animate-pulse">Minerva is listening to your answer...</div>
+                                    <div className="text-xs text-cyan-300 font-bold tracking-wide animate-pulse">Speaking... Speak clearly into your mic.</div>
+                                    {vivaAnswerText && (
+                                        <div className="w-full bg-white/[0.02] border border-cyan-500/10 rounded-2xl p-4 text-xs text-gray-200 leading-relaxed font-semibold italic min-h-[60px]">
+                                            "{vivaAnswerText}"
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="w-full max-w-lg space-y-4">
@@ -489,7 +674,22 @@ const MinervaLearnPage: React.FC = () => {
                                             `"${getDisplayText()}"`
                                         )}
                                     </div>
-                                    {useTextMode && (
+                                    
+                                    {vivaFeedback && (
+                                        <div className="bg-white/[0.02] border border-cyan-500/20 rounded-2xl p-4 text-xs text-left space-y-2">
+                                            <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                                                <span className="text-cyan-400 font-black uppercase tracking-wider text-[10px]">AI Feedback:</span>
+                                                {vivaScore !== null && (
+                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${vivaScore >= 7 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
+                                                        Score: {vivaScore}/10
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-gray-300 leading-relaxed">{vivaFeedback}</p>
+                                        </div>
+                                    )}
+
+                                    {useTextMode && !vivaFinished && (
                                         <textarea
                                             value={vivaAnswerText}
                                             onChange={e => setVivaAnswerText(e.target.value)}
@@ -504,24 +704,30 @@ const MinervaLearnPage: React.FC = () => {
 
                         {/* Speech Input Trigger Controls */}
                         <div className="border-t border-white/5 pt-4 flex flex-col gap-3">
-                            {useTextMode ? (
+                            {vivaFinished ? (
+                                <div className="text-center py-2">
+                                    <span className="text-xs bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 px-4 py-2 rounded-2xl font-black uppercase tracking-wider">
+                                        🎉 Viva Exam Mastered!
+                                    </span>
+                                </div>
+                            ) : useTextMode ? (
                                 <div className="flex gap-2">
                                     <button
-                                        onClick={() => {
-                                            if (!vivaAnswerText.trim()) return;
+                                        onClick={async () => {
+                                            const ans = vivaAnswerText;
                                             setVivaAnswerText('');
-                                            setVivaQuestion(`Aapka typed answer analyze ho chuka hai. Agla conceptual question: Explain the relation between resistance and temperature?`);
+                                            await submitVivaAnswer(ans);
                                         }}
-                                        disabled={!vivaAnswerText.trim()}
-                                        className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 disabled:opacity-50 text-white font-bold py-3 rounded-2xl text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                                        disabled={!vivaAnswerText.trim() || vivaState === 'evaluating'}
+                                        className="flex-1 bg-gradient-to-r from-cyan-500 to-indigo-600 disabled:opacity-50 text-white font-bold py-3 rounded-2xl text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
                                     >
-                                        <span>Submit Typed Answer</span>
+                                        <span>Submit Answer</span>
                                     </button>
                                 </div>
-                            ) : vivaState === 'idle' ? (
+                            ) : vivaState === 'idle' || vivaState === 'feedback' ? (
                                 <button
-                                    onClick={() => setVivaState('listening')}
-                                    className="w-full bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-95 text-white font-bold py-3 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-cyan-950/20 active:scale-95 transition-all"
+                                    onClick={startVivaListening}
+                                    className="w-full bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-95 text-white font-bold py-3 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-cyan-950/20 active:scale-95 transition-all cursor-pointer"
                                 >
                                     <Mic size={14} />
                                     <span>Press to Speak / Answer</span>
@@ -529,35 +735,41 @@ const MinervaLearnPage: React.FC = () => {
                             ) : vivaState === 'listening' ? (
                                 <div className="flex gap-2">
                                     <button
-                                        onClick={() => {
-                                            setVivaState('idle');
-                                            setVivaQuestion(`Bahut badhiya! Aapka response accurate tha. Agla sawal: Is topic ka daily application kya ho sakta hai, standard rules ke according?`);
-                                        }}
-                                        className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold py-3 rounded-2xl text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                                        onClick={stopVivaListeningAndSubmit}
+                                        className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold py-3 rounded-2xl text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
                                     >
                                         <span>Stop & Submit Answer</span>
                                     </button>
                                     <button
-                                        onClick={() => setVivaState('idle')}
-                                        className="px-5 py-3 border border-white/10 hover:bg-white/5 rounded-2xl text-xs font-bold text-gray-300"
+                                        onClick={() => {
+                                            if (vivaRecognitionRef.current) {
+                                                try { vivaRecognitionRef.current.stop(); } catch (e) {}
+                                                vivaRecognitionRef.current = null;
+                                            }
+                                            setVivaState('idle');
+                                        }}
+                                        className="px-5 py-3 border border-white/10 hover:bg-white/5 rounded-2xl text-xs font-bold text-gray-300 cursor-pointer"
                                     >
                                         Cancel
                                     </button>
                                 </div>
                             ) : null}
                             
-                            <div className="flex justify-center text-[10px] text-gray-500 mt-1">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setUseTextMode(!useTextMode);
-                                        setVivaState('idle');
-                                    }}
-                                    className="hover:text-cyan-400 font-bold transition-colors flex items-center gap-1"
-                                >
-                                    {useTextMode ? "🎙️ Switch to Voice Mode" : "⌨️ Type your Answer instead"}
-                                </button>
-                            </div>
+                            {!vivaFinished && (
+                                <div className="flex justify-center text-[10px] text-gray-500 mt-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setUseTextMode(!useTextMode);
+                                            setVivaAnswerText('');
+                                            setVivaState('idle');
+                                        }}
+                                        className="hover:text-cyan-400 font-bold transition-colors flex items-center gap-1 cursor-pointer"
+                                    >
+                                        {useTextMode ? "🎙️ Switch to Voice Mode" : "⌨️ Type your Answer instead"}
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 ) : (
@@ -616,7 +828,7 @@ const MinervaLearnPage: React.FC = () => {
                             {translating ? (
                                 <div className="flex flex-col items-center justify-center py-12 text-center">
                                     <Loader2 className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4 text-indigo-400" />
-                                    <div className="text-indigo-300 text-xs font-bold tracking-wide animate-pulse">Minerva is translating this section...</div>
+                                    <div className="text-indigo-300 text-xs font-bold tracking-wide animate-pulse">Education OS is translating this section...</div>
                                     <div className="text-gray-500 text-[10px] mt-1 font-semibold">Keeping definitions and formatting intact ⚡</div>
                                 </div>
                             ) : (

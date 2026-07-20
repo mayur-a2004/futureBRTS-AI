@@ -75,13 +75,13 @@ const MinervaRoadmapsPage: React.FC = () => {
     );
 
     return (
-        <div className="min-h-screen bg-[#030209] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#0f0b29]/40 via-black to-black text-white font-inter relative pb-16">
+        <div className="min-h-screen w-full overflow-x-hidden bg-[#030209] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#0f0b29]/40 via-black to-black text-white font-inter relative pb-16">
             {/* Ambient Background Glows */}
-            <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-500/10 rounded-full blur-[140px] pointer-events-none" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-500/10 rounded-full blur-[140px] pointer-events-none" />
+            <div className="absolute top-0 left-0 w-[40%] h-[40%] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none" />
+            <div className="absolute bottom-0 right-0 w-[40%] h-[40%] bg-purple-500/10 rounded-full blur-[120px] pointer-events-none" />
             
             {/* Header */}
-            <header className="sticky top-14 md:top-0 z-20 bg-black/20 backdrop-blur-xl border-b border-white/[0.06] px-6 py-3.5 flex items-center justify-between shadow-lg">
+            <header className="sticky top-0 z-20 bg-[#030209]/95 backdrop-blur-xl border-b border-white/[0.08] px-4 md:px-6 py-3 flex items-center justify-between shadow-xl w-full min-w-0">
                 <div className="flex items-center gap-3">
                     <button onClick={() => navigate('/future-education')} className="p-2 bg-white/[0.03] hover:bg-white/10 border border-white/5 hover:border-indigo-500/30 rounded-xl transition-all text-gray-400 hover:text-white flex items-center justify-center active:scale-95">
                         <ChevronLeft size={14} />
