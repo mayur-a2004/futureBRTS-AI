@@ -38,7 +38,7 @@ import { analyticsService } from '../analytics/analytics.service';
 // ─────────────────────────────────────────────────────────────────
 // HELPER: Resolve real YouTube video ID from search query
 // ─────────────────────────────────────────────────────────────────
-const resolveYoutubeVideoId = async (searchQuery: string): Promise<string | null> => {
+const resolveYoutubeVideoId = async (searchQuery: string, excludeIds: Set<string> = new Set()): Promise<string | null> => {
     try {
         const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`;
         const fetch = (await import('node-fetch')).default;
@@ -64,8 +64,8 @@ const resolveYoutubeVideoId = async (searchQuery: string): Promise<string | null
                         const video = contentItem.videoRenderer;
                         if (video && video.videoId) {
                             const videoId = video.videoId;
-                            // Exclude Rickroll
-                            if (videoId !== 'dQw4w9WgXcQ') {
+                            // Exclude Rickroll and previously picked videos
+                            if (videoId !== 'dQw4w9WgXcQ' && !excludeIds.has(videoId)) {
                                 return videoId;
                             }
                         }
@@ -79,7 +79,7 @@ const resolveYoutubeVideoId = async (searchQuery: string): Promise<string | null
         let m;
         while ((m = videoIdRegex.exec(html)) !== null) {
             const id = m[1];
-            if (id !== 'dQw4w9WgXcQ') {
+            if (id !== 'dQw4w9WgXcQ' && !excludeIds.has(id)) {
                 return id;
             }
         }
@@ -994,14 +994,23 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                 const rawTasks = await MinervaTask.find(query)
                     .select('type prompt options marks difficulty submitted passed ai_score').lean();
                 
-                // Check if student completed all tasks but failed the node assessment overall
-                const allSubmitted = rawTasks.length > 0 && rawTasks.every(t => t.submitted);
-                if ((node.passed === false || node.status === 'NEEDS_REVIEW') && allSubmitted) {
+                // Trigger fresh question generation if node was failed (<60% score/NEEDS_REVIEW) OR if no tasks currently exist
+                const isFailed = node.passed === false || node.status === 'NEEDS_REVIEW' || (node.last_score !== undefined && node.last_score < 60);
+                
+                if (isFailed || rawTasks.length === 0) {
                     console.log(`♻️ [learnNode] Automatically regenerating unique mix tasks for failed node: ${id}`);
                     
                     // Exclude old prompts to guarantee uniqueness
                     const excludePrompts = rawTasks.map(t => t.prompt);
-                    await MinervaTask.deleteMany(query);
+                    
+                    // Complete deletion of ALL previous micro-tasks associated with this node
+                    await MinervaTask.deleteMany({
+                        $or: [
+                            { node_id: id },
+                            { _id: { $in: node.micro_tasks || [] } }
+                        ],
+                        task_type: 'micro_task'
+                    });
 
                     const profile = await getOrCreateProfile(userId);
                     const session = await MinervaStudySession.findById(node.session_id);
@@ -1163,19 +1172,21 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                 // Update node with task IDs
                 await MinervaKnowledgeNode.findByIdAndUpdate(id, { micro_tasks: taskIds });
 
-                // Build YouTube video links from AI-generated video objects with real resolved IDs
+                // Build YouTube video links from AI-generated video objects with real resolved IDs (guaranteeing unique channels/videos)
                 const rawYoutubeVideos = content.youtube_videos || content.youtube_queries || [];
                 const defaultLang = profile.language_preference || 'hindi';
-                
-                youtubeLinks = await Promise.all(rawYoutubeVideos.map(async (item: any) => {
+                const usedVideoIds = new Set<string>();
+                youtubeLinks = [];
+
+                for (const item of rawYoutubeVideos) {
                     if (typeof item === 'object' && (item.title || item.query)) {
                         const title = item.title || item.query;
                         const lang = item.lang || defaultLang;
                         const queryToSearch = item.query || `${title} ${lang} explanation`;
-                        // Resolve real ID dynamically by searching YouTube
-                        const resolvedId = await resolveYoutubeVideoId(queryToSearch);
-                        
-                        return {
+                        const resolvedId = await resolveYoutubeVideoId(queryToSearch, usedVideoIds);
+                        if (resolvedId) usedVideoIds.add(resolvedId);
+
+                        youtubeLinks.push({
                             title: title,
                             url: resolvedId 
                                 ? `https://www.youtube.com/watch?v=${resolvedId}` 
@@ -1184,20 +1195,22 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                                     : `https://www.youtube.com/results?search_query=${encodeURIComponent(queryToSearch)}`),
                             channel: item.channel || 'YouTube',
                             lang: lang
-                        };
+                        });
+                    } else {
+                        const q = String(item);
+                        const resolvedId = await resolveYoutubeVideoId(`${q} explanation`, usedVideoIds);
+                        if (resolvedId) usedVideoIds.add(resolvedId);
+
+                        youtubeLinks.push({
+                            title: q,
+                            url: resolvedId 
+                                ? `https://www.youtube.com/watch?v=${resolvedId}` 
+                                : `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
+                            channel: 'YouTube',
+                            lang: defaultLang
+                        });
                     }
-                    // String fallback
-                    const q = String(item);
-                    const resolvedId = await resolveYoutubeVideoId(`${q} explanation`);
-                    return {
-                        title: q,
-                        url: resolvedId 
-                            ? `https://www.youtube.com/watch?v=${resolvedId}` 
-                            : `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
-                        channel: 'YouTube',
-                        lang: defaultLang
-                    };
-                }));
+                }
 
                 await MinervaKnowledgeNode.findByIdAndUpdate(id, { youtube_links: youtubeLinks });
 
@@ -1276,21 +1289,7 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
 
             const node = await MinervaKnowledgeNode.findById(task.node_id);
 
-            // Check if student failed this specific task (immediate SRS spacing adjustment)
-            if (node && (!gradingResult.passed || gradingResult.score < 60)) {
-                const ease = node.sr_ease_factor || 2.5;
-                const newEase = Math.max(1.3, ease - 0.2);
-                await MinervaKnowledgeNode.findByIdAndUpdate(task.node_id, {
-                    passed: false,
-                    status: 'NEEDS_REVIEW',
-                    sr_repetitions: 0,
-                    sr_ease_factor: newEase,
-                    sr_interval_days: 1,
-                    sr_due_date: new Date(Date.now() + 24 * 60 * 60 * 1000), // Reschedule for tomorrow
-                });
-            }
-
-            // Check if all micro tasks for this node are done
+            // Immediately update node score and failed status on any task submission
             if (node && !task.is_homework) {
                 const query = node.micro_tasks && node.micro_tasks.length > 0
                     ? { _id: { $in: node.micro_tasks } }
@@ -1302,16 +1301,15 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                 for (const t of rawAllTasks) {
                     if (!uniqueTasksMap.has(t.prompt)) {
                         uniqueTasksMap.set(t.prompt, t);
-                    } else {
-                        MinervaTask.deleteOne({ _id: t._id }).catch(err => console.error("Error deleting duplicate task:", err));
                     }
                 }
                 const allTasks = Array.from(uniqueTasksMap.values());
-                
                 const submittedTasks = allTasks.filter(t => t.submitted);
-                if (submittedTasks.length === allTasks.length) {
+                
+                if (submittedTasks.length > 0) {
                     const avgScore = submittedTasks.reduce((sum, t) => sum + t.ai_score, 0) / submittedTasks.length;
-                    const passed = avgScore >= 60;
+                    const isAllDone = submittedTasks.length === allTasks.length;
+                    const passed = isAllDone && avgScore >= 60;
 
                     let reps = node.sr_repetitions || 0;
                     let ease = node.sr_ease_factor || 2.5;
@@ -1329,7 +1327,7 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                         if (avgScore >= 80) {
                             ease = Math.min(3.0, ease + 0.1);
                         }
-                    } else {
+                    } else if (avgScore < 60) {
                         reps = 0;
                         interval = 1;
                         ease = Math.max(1.3, ease - 0.2);
@@ -1340,8 +1338,8 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                     await MinervaKnowledgeNode.findByIdAndUpdate(task.node_id, {
                         last_score: Math.round(avgScore),
                         attempts: (node.attempts || 0) + 1,
-                        passed,
-                        status: passed ? 'DONE' : 'NEEDS_REVIEW',
+                        passed: passed ? true : (avgScore < 60 ? false : node.passed),
+                        status: passed ? 'DONE' : (avgScore < 60 ? 'NEEDS_REVIEW' : node.status),
                         sr_repetitions: reps,
                         sr_ease_factor: ease,
                         sr_interval_days: interval,
@@ -2866,11 +2864,14 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
             const node = await MinervaKnowledgeNode.findOne({ _id: id, userId });
             if (!node) return res.status(404).json({ success: false, error: 'Topic not found' });
 
-            // Clear old tasks for this node
-            const query = node.micro_tasks && node.micro_tasks.length > 0
-                ? { _id: { $in: node.micro_tasks } }
-                : { node_id: id };
-            await MinervaTask.deleteMany(query);
+            // Clear old micro-tasks for this node cleanly
+            await MinervaTask.deleteMany({
+                $or: [
+                    { node_id: id },
+                    { _id: { $in: node.micro_tasks || [] } }
+                ],
+                task_type: 'micro_task'
+            });
 
             // Re-trigger content generation
             const profile = await getOrCreateProfile(userId);
@@ -2939,7 +2940,9 @@ ${ans.correction ? `- *Ideal Correction:* ${ans.correction}` : ''}`;
                 key_points: content.key_points || node.key_points,
                 key_formulas: content.key_formulas || node.key_formulas,
                 micro_tasks: taskIds,
+                passed: false,
                 status: 'IN_PROGRESS',
+                last_score: 0
             }, { new: true });
 
             return res.json({
@@ -3292,6 +3295,58 @@ Guidelines:
             });
         } catch (err: any) {
             console.error('[reportProctoringViolation Error]', err);
+            return res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    // ─── DELETION CONTROLLERS ──────────────────────────────────────
+    deleteSession: async (req: any, res: Response) => {
+        try {
+            const userId = req.user!.userId;
+            const { id } = req.params;
+            const session = await MinervaStudySession.findOneAndDelete({ _id: id, userId });
+            if (!session) return res.status(404).json({ success: false, error: 'Session not found' });
+            
+            await MinervaKnowledgeNode.deleteMany({ session_id: id });
+            await MinervaTask.deleteMany({ session_id: id });
+            return res.json({ success: true, message: 'Roadmap course deleted successfully' });
+        } catch (err: any) {
+            return res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    deleteTask: async (req: any, res: Response) => {
+        try {
+            const userId = req.user!.userId;
+            const { id } = req.params;
+            const task = await MinervaTask.findOneAndDelete({ _id: id, userId });
+            if (!task) return res.status(404).json({ success: false, error: 'Task not found' });
+            return res.json({ success: true, message: 'Task deleted successfully' });
+        } catch (err: any) {
+            return res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    deleteBuilderMaterial: async (req: any, res: Response) => {
+        try {
+            const userId = req.user!.userId;
+            const { id } = req.params;
+            const mat = await MinervaBuilderMaterial.findOneAndDelete({ _id: id, userId });
+            if (!mat) return res.status(404).json({ success: false, error: 'Material not found' });
+            return res.json({ success: true, message: 'Material deleted successfully' });
+        } catch (err: any) {
+            return res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    deleteExam: async (req: any, res: Response) => {
+        try {
+            const userId = req.user!.userId;
+            const { id } = req.params;
+            const exam = await MinervaExam.findOneAndDelete({ _id: id, userId });
+            if (!exam) return res.status(404).json({ success: false, error: 'Exam not found' });
+            return res.json({ success: true, message: 'Exam deleted successfully' });
+        } catch (err: any) {
             return res.status(500).json({ success: false, error: err.message });
         }
     },

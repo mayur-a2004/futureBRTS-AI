@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { minervaApi } from '../../api/minerva.api';
-import { ChevronLeft, Zap, FileText, Check, Copy, Download, Sparkles, Layers, Map, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronLeft, Zap, FileText, Check, Copy, Download, Sparkles, Layers, Map, BookOpen, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 
 const MinervaBuilderPage: React.FC = () => {
     const { token } = useAuth() as any;
@@ -35,6 +35,22 @@ const MinervaBuilderPage: React.FC = () => {
             loadHistory(true);
         }
     }, [token, querySessionId]);
+
+    const handleDeleteMaterial = async (e: React.MouseEvent, materialId: string) => {
+        e.stopPropagation();
+        if (!window.confirm('Kya aap is generated study material ko delete karna chahte hain?')) return;
+        try {
+            const res = await minervaApi.deleteMaterial(token, materialId);
+            if (res.success) {
+                setHistory(prev => prev.filter(m => m._id !== materialId));
+            } else {
+                alert(res.error || 'Failed to delete material.');
+            }
+        } catch (err) {
+            console.error('Delete material error:', err);
+            alert('Error deleting material.');
+        }
+    };
 
     const loadHistory = async (autoSelectLatest = false) => {
         try {
@@ -233,6 +249,13 @@ const MinervaBuilderPage: React.FC = () => {
                             <FileText size={10} /> Generated Study Notes
                         </span>
                         <div className="flex gap-1.5">
+                            <button 
+                                onClick={(e) => handleDeleteMaterial(e, item._id)}
+                                className="p-1.5 bg-red-500/10 hover:bg-red-500/25 border border-red-500/20 rounded-lg text-red-400 transition-colors"
+                                title="Delete study material"
+                            >
+                                <Trash2 size={12} />
+                            </button>
                             <button 
                                 onClick={(e) => {
                                     e.stopPropagation();

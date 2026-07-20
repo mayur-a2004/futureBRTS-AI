@@ -112,7 +112,14 @@ const buildQuizPrompt = (
 - Avoid repeating the same words/sentences for all options.` : 
         `
 - Medium / Language: English.
-- STRICT: All 4 options in every MCQ MUST be completely different and unique. Do NOT repeat the same option text.`;
+- STRICT: All 4 options in every MCQ MUST be completely different and unique choices. Do NOT repeat option text.`;
+
+    const coreMatchingRule = `
+CRITICAL QUALITY RULES:
+1. TOPIC RELEVANCE: Every question MUST be 100% strictly relevant to the topic "${topic}" within "${subject}". Do NOT include general knowledge or questions from other topics.
+2. OPTION ACCURACY: Every option MUST directly answer or belong to the specific question asked. Never attach options from unrelated topics or questions.
+3. DYNAMICS & SEED: Random Seed is ${salt}. Use this seed to generate 100% brand-new, unique questions that have NEVER been generated before.
+4. FORMAT: Return raw JSON array of objects. Each object MUST contain "question", "options" (array of 4 unique strings), "correctAnswer" (0-based index of correct option), and "explanation".`;
 
     if (isCompetitiveExam) {
         return `You are an expert quiz master for Indian competitive exams.
@@ -122,10 +129,9 @@ Topic: ${topic}
 Difficulty: ${difficulty}
 Random Variation Seed: ${salt}
 ${langInstruction}
+${coreMatchingRule}
 
 Generate exactly ${totalRounds} exam-level MCQs strictly within the topic "${topic}".
-Match the exact difficulty and pattern of ${subject} level exams.
-Each question: exactly 4 options, 1 correct answer (0-indexed number representing the correct option position), include explanation.
 Respond ONLY with raw JSON array. No markdown, no backticks.
 Format: [{"question":"Question Text Here?","options":["Option A","Option B","Option C","Option D"],"correctAnswer":2,"explanation":"This is the explanation.","difficulty":"${difficulty}"}]`;
     }
@@ -140,10 +146,9 @@ Topic / Specialisation: ${topic}
 Difficulty: ${difficulty}
 Random Variation Seed: ${salt}
 ${langInstruction}
+${coreMatchingRule}
 
 Generate exactly ${totalRounds} university-level MCQs strictly within the topic "${topic}".
-Questions should be appropriate for ${semLabel} of ${subject}. Not school level.
-Each question: exactly 4 options, 1 correct answer (0-indexed number representing the correct option position), include explanation.
 Respond ONLY with raw JSON array. No markdown, no backticks.
 Format: [{"question":"Question Text Here?","options":["Option A","Option B","Option C","Option D"],"correctAnswer":2,"explanation":"This is the explanation.","difficulty":"${difficulty}"}]`;
     }
@@ -162,15 +167,35 @@ Chapter / Topic: ${topic}
 Difficulty: ${difficulty}
 Random Variation Seed: ${salt}
 ${langInstruction}
+${boardInstruction}
+${coreMatchingRule}
 
 Generate exactly ${totalRounds} unique MCQs strictly within the chapter/topic "${topic}".
-${boardInstruction}
-Do NOT include questions from other chapters or topics.
-Do NOT repeat question patterns. The Random Variation Seed is ${salt}; use it to generate completely fresh, non-repetitive questions.
-Ensure high diversity in question styles: generate a mix of conceptual queries, application-based scenario questions, case studies, and image-based/diagram-based descriptive MCQs where relevant.
-Each question: exactly 4 options, 1 correct answer (0-indexed number representing the correct option position), include 1-sentence explanation.
 Respond ONLY with raw JSON array. No markdown, no backticks.
 Format: [{"question":"Question Text Here?","options":["Option A","Option B","Option C","Option D"],"correctAnswer":2,"explanation":"This is the explanation.","difficulty":"${difficulty}"}]`;
+};
+
+// Helper to randomly shuffle options and adjust correctAnswer index for dynamic variation
+const shuffleQuestionOptions = (questionObj: any) => {
+    if (!questionObj.options || !Array.isArray(questionObj.options) || questionObj.options.length === 0) {
+        return questionObj;
+    }
+    const originalOptions = questionObj.options.map((opt: any) => String(opt || '').trim()).filter(Boolean);
+    if (originalOptions.length < 2) return questionObj;
+
+    const correctText = originalOptions[questionObj.correctAnswer] || originalOptions[0];
+    
+    const shuffled = [...originalOptions];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    const newCorrectIndex = shuffled.indexOf(correctText);
+    return {
+        ...questionObj,
+        options: shuffled,
+        correctAnswer: newCorrectIndex >= 0 ? newCorrectIndex : 0
+    };
 };
 
 // ─── Dynamic Question Generator (Board + Topic + Semester Aware) ───────────
@@ -185,7 +210,7 @@ const generateDynamicQuestions = async (
     semester?: string,
     medium?: string
 ): Promise<IArenaQuestion[]> => {
-    const useSalt = salt ?? (Date.now() + Math.floor(Math.random() * 1000000));
+    const useSalt = salt || (Date.now() + Math.floor(Math.random() * 10000000));
     // Always sanitize topic before building the prompt (strips JSON artifacts)
     const safeTopic = cleanTopic(topic) || topic;
     const prompt = buildQuizPrompt(subject, standard, safeTopic, board, difficulty, totalRounds, useSalt, semester, medium);
@@ -207,61 +232,56 @@ const generateDynamicQuestions = async (
             for (let i = 0; i < totalRounds; i++) {
                 paddedQuestions.push(questions[i % questions.length]);
             }
-            return paddedQuestions.map((q: any) => ({
-                ...q,
-                grade: standard,
-                subject,
-                board,
-                topicRef: topic
-            }));
+            return paddedQuestions.map((q: any) => {
+                const shuffledQ = shuffleQuestionOptions(q);
+                return {
+                    ...shuffledQ,
+                    grade: standard,
+                    subject,
+                    board,
+                    topicRef: topic
+                };
+            });
         }
         throw new Error(`AI returned ${Array.isArray(questions) ? 'empty' : 'invalid'} response`);
     } catch (err: any) {
         const cleanTopicStr = cleanTopic(topic) || topic;
-        logger.warn(`[Arena] Question generation failed for ${board}/${standard}/${subject}/${cleanTopicStr}, using curricular fallback: ${err.message}`);
+        logger.warn(`[Arena] Question generation failed for ${board}/${standard}/${subject}/${cleanTopicStr}, using dynamic topic fallback: ${err.message}`);
         
         // Curricular fallback questions mapping
         const fallbackCatalog: Record<string, any[]> = {
             'Accountancy': [
-                { question: "Which of the following is an asset?", options: ["Accounts Payable", "Cash", "Capital", "Salary Expense"], correctAnswer: 1, difficulty: "Easy", explanation: "Cash is a resource owned by the business that has economic value." },
-                { question: "What is the basic accounting equation?", options: ["Assets = Liabilities - Capital", "Assets = Liabilities + Capital", "Liabilities = Assets + Capital", "Capital = Assets + Liabilities"], correctAnswer: 1, difficulty: "Easy", explanation: "The fundamental accounting equation is Assets = Liabilities + Owner's Equity (Capital)." },
-                { question: "Which account increases with a debit entry?", options: ["Accounts Payable", "Cash", "Service Revenue", "Owner's Capital"], correctAnswer: 1, difficulty: "Medium", explanation: "Asset accounts (like Cash) and Expense accounts increase with a debit." },
-                { question: "What is double-entry bookkeeping?", options: ["Recording transactions twice", "Having two accountants check the books", "Every transaction affects at least two accounts with equal debits and credits", "Maintaining two separate sets of books"], correctAnswer: 2, difficulty: "Medium", explanation: "Double-entry bookkeeping requires that every financial transaction has equal and opposite debit and credit entries." },
-                { question: "The process of transferring journal entries to ledger accounts is called:", options: ["Journalizing", "Posting", "Balancing", "Analyzing"], correctAnswer: 1, difficulty: "Easy", explanation: "Posting refers to transferring entries from the journal to the ledger." },
-                { question: "Which financial statement shows a company's financial position at a specific point in time?", options: ["Income Statement", "Statement of Cash Flows", "Balance Sheet", "Retained Earnings Statement"], correctAnswer: 2, difficulty: "Medium", explanation: "The Balance Sheet reports assets, liabilities, and equity as of a specific date." },
-                { question: "Revenue is recognized when it is earned, not when cash is received. This is known as:", options: ["Cash Basis Accounting", "Accrual Basis Accounting", "Matching Principle", "Going Concern Assumption"], correctAnswer: 1, difficulty: "Hard", explanation: "Accrual basis accounting records revenue when earned and expenses when incurred, regardless of cash flow." },
-                { question: "Which of the following is a liability?", options: ["Accounts Receivable", "Prepaid Insurance", "Unearned Revenue", "Equipment"], correctAnswer: 2, difficulty: "Hard", explanation: "Unearned revenue represents an obligation to perform services in the future, making it a liability." },
-                { question: "Goodwill is classified as which type of asset?", options: ["Current Asset", "Tangible Asset", "Intangible Asset", "Contra-Asset"], correctAnswer: 2, difficulty: "Medium", explanation: "Goodwill is an intangible asset that arises when a buyer acquires an existing business." },
-                { question: "What is the primary purpose of a Trial Balance?", options: ["To calculate net profit", "To verify that total debits equal total credits", "To prepare tax returns", "To list all cash transactions"], correctAnswer: 1, difficulty: "Easy", explanation: "A trial balance checks the mathematical accuracy of the double-entry system." }
+                { question: `In ${cleanTopicStr}, which of the following is classified as an asset?`, options: ["Accounts Payable", "Cash", "Capital", "Salary Expense"], correctAnswer: 1, difficulty: "Easy", explanation: "Cash is a resource owned by the business that has economic value." },
+                { question: `Under ${cleanTopicStr}, what is the fundamental accounting equation?`, options: ["Assets = Liabilities - Capital", "Assets = Liabilities + Capital", "Liabilities = Assets + Capital", "Capital = Assets + Liabilities"], correctAnswer: 1, difficulty: "Easy", explanation: "The fundamental accounting equation is Assets = Liabilities + Owner's Equity (Capital)." },
+                { question: `Which account increases with a debit entry in ${cleanTopicStr}?`, options: ["Accounts Payable", "Cash", "Service Revenue", "Owner's Capital"], correctAnswer: 1, difficulty: "Medium", explanation: "Asset accounts (like Cash) and Expense accounts increase with a debit." },
+                { question: `How is double-entry bookkeeping applied in ${cleanTopicStr}?`, options: ["Recording transactions twice", "Having two accountants check the books", "Every transaction affects at least two accounts with equal debits and credits", "Maintaining two separate sets of books"], correctAnswer: 2, difficulty: "Medium", explanation: "Double-entry bookkeeping requires that every financial transaction has equal and opposite debit and credit entries." },
+                { question: `The process of transferring journal entries to ledger accounts in ${cleanTopicStr} is:`, options: ["Journalizing", "Posting", "Balancing", "Analyzing"], correctAnswer: 1, difficulty: "Easy", explanation: "Posting refers to transferring entries from the journal to the ledger." },
+                { question: `Which statement shows financial position for ${cleanTopicStr}?`, options: ["Income Statement", "Statement of Cash Flows", "Balance Sheet", "Retained Earnings Statement"], correctAnswer: 2, difficulty: "Medium", explanation: "The Balance Sheet reports assets, liabilities, and equity as of a specific date." }
             ],
             'Economics': [
-                { question: "What is the fundamental problem of economics?", options: ["Inflation", "Scarcity", "Unemployment", "Poverty"], correctAnswer: 1, difficulty: "Easy", explanation: "Scarcity of resources relative to unlimited human wants is the core economic problem." },
-                { question: "According to the Law of Demand, what happens when price increases?", options: ["Demand increases", "Quantity demanded decreases", "Quantity demanded increases", "Demand decreases"], correctAnswer: 1, difficulty: "Easy", explanation: "There is an inverse relationship between price and quantity demanded." },
-                { question: "What is opportunity cost?", options: ["The monetary cost of a choice", "The value of the next best alternative forgone", "The cost of starting a business", "Sunk costs"], correctAnswer: 1, difficulty: "Medium", explanation: "Opportunity cost is the value of what you give up when making a decision." },
-                { question: "GDP stands for:", options: ["Gross Domestic Product", "General Demand Product", "Government Debt Percentage", "Growth Development Plan"], correctAnswer: 0, difficulty: "Easy", explanation: "Gross Domestic Product measures the total value of goods and services produced within a country." },
-                { question: "A market structure with a single seller is called a:", options: ["Monopolistic Competition", "Oligopoly", "Monopoly", "Perfect Competition"], correctAnswer: 2, difficulty: "Easy", explanation: "A monopoly exists when there is only one provider of a good or service." },
-                { question: "Inflation refers to a general increase in:", options: ["Unemployment", "Interest rates", "Prices", "Taxation"], correctAnswer: 2, difficulty: "Easy", explanation: "Inflation is the rate at which the general level of prices for goods and services is rising." },
-                { question: "Which of the following is a tool of monetary policy?", options: ["Government spending", "Open market operations", "Income tax rates", "Corporate subsidies"], correctAnswer: 1, difficulty: "Hard", explanation: "Monetary policy is controlled by the central bank using tools like open market operations and interest rates." },
-                { question: "When the price elasticity of demand is greater than 1, demand is:", options: ["Inelastic", "Elastic", "Unit elastic", "Perfectly inelastic"], correctAnswer: 1, difficulty: "Medium", explanation: "An elasticity greater than 1 means quantity demanded is highly responsive to price changes." }
-            ],
-            'Science': [
-                { question: "What gas do plants primarily absorb during photosynthesis?", options: ["Oxygen", "Carbon Dioxide", "Nitrogen", "Hydrogen"], correctAnswer: 1, difficulty: "Easy", explanation: "Plants absorb carbon dioxide to produce glucose and release oxygen." },
-                { question: "What is the chemical symbol for gold?", options: ["Ag", "Fe", "Au", "Pb"], correctAnswer: 2, difficulty: "Easy", explanation: "Au is derived from the Latin word 'aurum'." },
-                { question: "Which organelle is known as the powerhouse of the cell?", options: ["Nucleus", "Ribosome", "Mitochondria", "Lysosome"], correctAnswer: 2, difficulty: "Easy", explanation: "Mitochondria generate most of the cell's supply of adenosine triphosphate (ATP)." },
-                { question: "What is the acceleration due to gravity on Earth's surface?", options: ["9.8 m/s²", "8.5 m/s²", "10.5 m/s²", "7.2 m/s²"], correctAnswer: 0, difficulty: "Easy", explanation: "Standard gravity on Earth is approximately 9.80665 m/s²." }
-            ],
-            'Business Studies': [
-                { question: "Who is known as the father of Scientific Management?", options: ["Henry Fayol", "F.W. Taylor", "Max Weber", "Peter Drucker"], correctAnswer: 1, difficulty: "Easy", explanation: "F.W. Taylor developed the principles of scientific management." },
-                { question: "Which function of management involves grouping activities to achieve goals?", options: ["Planning", "Organizing", "Staffing", "Directing"], correctAnswer: 1, difficulty: "Easy", explanation: "Organizing is the process of defining and grouping activities." }
+                { question: `What is the core economic principle of ${cleanTopicStr}?`, options: ["Inflation control", "Scarcity of resources", "Unemployment reduction", "Poverty alleviation"], correctAnswer: 1, difficulty: "Easy", explanation: "Scarcity of resources relative to unlimited human wants is the core economic problem." },
+                { question: `According to the Law of Demand applied to ${cleanTopicStr}, what happens when price rises?`, options: ["Demand increases", "Quantity demanded decreases", "Quantity demanded increases", "Demand decreases"], correctAnswer: 1, difficulty: "Easy", explanation: "There is an inverse relationship between price and quantity demanded." },
+                { question: `What represents opportunity cost in ${cleanTopicStr}?`, options: ["The monetary cost of a choice", "The value of the next best alternative forgone", "The cost of starting a business", "Sunk costs"], correctAnswer: 1, difficulty: "Medium", explanation: "Opportunity cost is the value of what you give up when making a decision." },
+                { question: `When analyzing ${cleanTopicStr}, Gross Domestic Product (GDP) represents:`, options: ["Gross Domestic Product", "General Demand Product", "Government Debt Percentage", "Growth Development Plan"], correctAnswer: 0, difficulty: "Easy", explanation: "Gross Domestic Product measures the total value of goods and services produced within a country." }
             ]
         };
 
         const subjectKey = Object.keys(fallbackCatalog).find(k => k.toLowerCase() === subject.toLowerCase()) || 'Science';
-        const rawList = fallbackCatalog[subjectKey] || fallbackCatalog['Science'];
+        const rawList = fallbackCatalog[subjectKey] || [
+            { question: `What is the fundamental concept underlying ${cleanTopicStr}?`, options: ["Core Principle & Definition", "Secondary Derivative", "Historical Myth", "Irrelevant Assumption"], correctAnswer: 0, difficulty: "Easy", explanation: `Understanding the core definition of ${cleanTopicStr} is fundamental to mastering ${subject}.` },
+            { question: `Which of the following is a primary application of ${cleanTopicStr}?`, options: ["Practical Real-World Problem Solving", "Outdated Method", "Purely Theoretical Illusion", "None of the above"], correctAnswer: 0, difficulty: "Medium", explanation: `${cleanTopicStr} is widely used for practical analytical and real-world applications.` },
+            { question: `In the study of ${cleanTopicStr}, which key parameter is continuously evaluated?`, options: ["Key Variable / Indicator", "Fixed Constant Zero", "Random Guess", "Unrelated Metric"], correctAnswer: 0, difficulty: "Medium", explanation: "Evaluations focus on the primary variables governing the system." },
+            { question: `Why is ${cleanTopicStr} essential in ${subject}?`, options: ["It provides essential foundational framework", "It has no practical use", "It replaces all other subjects", "It is optional"], correctAnswer: 0, difficulty: "Easy", explanation: `${cleanTopicStr} provides the core structural framework for ${subject}.` }
+        ];
+
+        // Shuffle fallback list using random seed
+        const shuffledList = [...rawList].sort(() => Math.random() - 0.5);
         
         const paddedQuestions = [];
         for (let i = 0; i < totalRounds; i++) {
-            paddedQuestions.push(rawList[i % rawList.length]);
+            const rawQ = shuffledList[i % shuffledList.length];
+            const randomizedQ = shuffleQuestionOptions(rawQ);
+            paddedQuestions.push(randomizedQ);
         }
 
         return paddedQuestions.map((q: any) => ({

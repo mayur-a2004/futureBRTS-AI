@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { minervaApi } from '../../api/minerva.api';
-import { ChevronLeft, CheckCircle2, Send, Sparkles, MessageSquare, FileText, Loader2, Plus, X } from 'lucide-react';
+import { ChevronLeft, CheckCircle2, Send, Sparkles, MessageSquare, FileText, Loader2, Plus, X, Trash2 } from 'lucide-react';
 import { LevelUpModal } from '../../components/ui/LevelUpModal';
 
 const MinervaTasksPage: React.FC = () => {
@@ -55,6 +55,21 @@ const MinervaTasksPage: React.FC = () => {
             console.error('Error loading tasks or exams:', err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleDeleteTask = async (taskId: string) => {
+        if (!window.confirm('Kya aap is task ko delete karna chahte hain?')) return;
+        try {
+            const res = await minervaApi.deleteTask(token, taskId);
+            if (res.success) {
+                setTasks(prev => prev.filter(t => t._id !== taskId));
+            } else {
+                alert(res.error || 'Failed to delete task.');
+            }
+        } catch (err) {
+            console.error('Delete task error:', err);
+            alert('Error deleting task.');
         }
     };
 
@@ -176,8 +191,17 @@ const MinervaTasksPage: React.FC = () => {
                         </span>
                         <span className="text-[10px] text-gray-400 font-medium">Subject: {task.subject || 'General'}</span>
                     </div>
-                    <div className="text-[10px] text-indigo-300 font-bold">
-                        Topic: {task.topic_title}
+                    <div className="flex items-center gap-2">
+                        <div className="text-[10px] text-indigo-300 font-bold">
+                            Topic: {task.topic_title}
+                        </div>
+                        <button
+                            onClick={() => handleDeleteTask(task._id)}
+                            title="Delete Task"
+                            className="p-1 bg-red-500/10 hover:bg-red-500/25 text-red-400 border border-red-500/20 rounded-lg transition-all ml-1"
+                        >
+                            <Trash2 size={12} />
+                        </button>
                     </div>
                 </div>
 

@@ -448,12 +448,16 @@ const MinervaLearnPage: React.FC = () => {
     };
     
     const handleRegenerate = async () => {
-        if (!window.confirm("Kya aap sach me AI content ko dobara generate karna chahte hain? Isse aapke purane tasks reset ho jayenge.")) return;
+        const isFailedNode = node?.passed === false || node?.status === 'NEEDS_REVIEW' || (node?.last_score !== undefined && node?.last_score < 60);
+        if (!isFailedNode) {
+            if (!window.confirm("Kya aap sach me AI content ko dobara generate karna chahte hain? Isse aapke purane tasks reset ho jayenge.")) return;
+        }
         setRegenerating(true);
         try {
             const res = await minervaApi.regenerateNodeContent(token, id!);
             if (res.success) {
-                alert("Content regenerated successfully!");
+                setAnswers({});
+                setResults({});
                 await loadNode();
             } else {
                 alert(res.error || "Regeneration failed.");
@@ -931,9 +935,9 @@ const MinervaLearnPage: React.FC = () => {
                     </div>
                 )}
 
-                {/* Youtube Videos — Smart Cards with Language Labels */}
+                {/* Youtube Videos — Smart Cards with Language Labels (Placed ABOVE Practice Tasks) */}
                 {ytLinks.length > 0 && (
-                    <div className="space-y-4">
+                    <div className="space-y-4 mb-8">
                         <h2 className="font-bold text-xs text-gray-200 flex items-center gap-2 uppercase tracking-wider">
                             <Youtube size={16} className="text-red-500 animate-pulse" />
                             Curated YouTube Lessons
@@ -1031,7 +1035,7 @@ const MinervaLearnPage: React.FC = () => {
                     </div>
                 )}
 
-                {/* Practice Tasks */}
+                {/* Practice Tasks (Placed BELOW YouTube Lessons) */}
                 {tasks.length > 0 ? (
                     <div className="space-y-4">
                         <h2 className="font-bold text-xs text-gray-200 flex items-center gap-2 uppercase tracking-wider">

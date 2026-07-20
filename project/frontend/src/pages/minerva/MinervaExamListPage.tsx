@@ -5,7 +5,7 @@ import { minervaApi } from '../../api/minerva.api';
 import { BOARDS, STANDARDS, STANDARD_SUBJECTS_MAP, SUBJECTS, isSchoolStandard } from './MinervaQuizBattlePage';
 import { 
     ChevronLeft, Award, Clock, FileText, CheckCircle, 
-    Loader2, BookOpen, AlertCircle, Sparkles
+    Loader2, BookOpen, AlertCircle, Sparkles, Trash2
 } from 'lucide-react';
 
 const gradeColor: Record<string, string> = {
@@ -48,6 +48,22 @@ const MinervaExamListPage: React.FC = () => {
     const [customTopic, setCustomTopic] = useState('');
     const [customMarks, setCustomMarks] = useState('50');
     const [customDifficulty, setCustomDifficulty] = useState('Medium');
+
+    const handleDeleteExam = async (e: React.MouseEvent, examId: string) => {
+        e.stopPropagation();
+        if (!window.confirm('Kya aap is Practice Paper / Exam ko delete karna chahte hain?')) return;
+        try {
+            const res = await minervaApi.deleteExam(token, examId);
+            if (res.success) {
+                setExams(prev => prev.filter(ex => ex._id !== examId));
+            } else {
+                alert(res.error || 'Failed to delete exam.');
+            }
+        } catch (err) {
+            console.error('Delete exam error:', err);
+            alert('Error deleting exam.');
+        }
+    };
     const [customLanguage, setCustomLanguage] = useState('Auto-Detect');
     const [customCustomizeBlueprint, setCustomCustomizeBlueprint] = useState(false);
     const [customBlueprint, setCustomBlueprint] = useState({
@@ -1081,7 +1097,16 @@ const MinervaExamListPage: React.FC = () => {
                                                             )}
                                                         </div>
                                                     </div>
-                                                    <div className="text-gray-500 group-hover:text-indigo-400 transition-colors text-xs">→</div>
+                                                     <div className="flex items-center gap-2">
+                                                         <button 
+                                                             onClick={(e) => handleDeleteExam(e, exam._id)}
+                                                             title="Delete Exam / Practice Paper"
+                                                             className="p-1.5 bg-red-500/10 hover:bg-red-500/25 text-red-400 border border-red-500/20 rounded-xl transition-all"
+                                                         >
+                                                             <Trash2 size={12} />
+                                                         </button>
+                                                         <div className="text-gray-500 group-hover:text-indigo-400 transition-colors text-xs">→</div>
+                                                     </div>
                                                 </div>
                                             );
                                         })}

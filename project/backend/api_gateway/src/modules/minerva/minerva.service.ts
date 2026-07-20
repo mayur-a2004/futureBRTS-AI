@@ -1178,9 +1178,87 @@ ${source_content ? `Content to extract from:\n${source_content.substring(0, 2000
         }
     ];
 
-    const res = await getProviderResponse(messages, { jsonMode: true, maxTokens: 4096, temperature: 0.3 });
-    const text = res?.choices?.[0]?.message?.content || '{}';
-    return safeJsonParse(text);
+    try {
+        const res = await getProviderResponse(messages, { jsonMode: true, maxTokens: 4096, temperature: 0.3 });
+        const text = res?.choices?.[0]?.message?.content || '{}';
+        const parsed = safeJsonParse(text);
+        if (parsed && Array.isArray(parsed.nodes) && parsed.nodes.length > 0) {
+            return parsed;
+        }
+    } catch (err) {
+        console.error('[generateRoadmap AI error]', err);
+    }
+
+    // Guaranteed Fallback Roadmap Generator for any topic/subject
+    const cleanTopic = topic || subject || 'General Study';
+    return {
+        title: `${cleanTopic} Master Course`,
+        subject: cleanTopic,
+        estimated_hours: 12,
+        board_pattern: `Comprehensive learning curriculum for ${cleanTopic}`,
+        nodes: [
+            {
+                order_index: 1,
+                title: `Introduction & Fundamentals of ${cleanTopic}`,
+                chapter: 'Module 1: Foundations',
+                topic: cleanTopic,
+                subtopic: 'Basic Concepts & Terminology',
+                priority: 'HIGH',
+                priority_reason: `Core foundation necessary to understand all advanced concepts in ${cleanTopic}.`,
+                board_relevance: 'High frequency in introductory assessment sections.',
+                exam_weightage_percent: 25,
+                difficulty: 'basic',
+                estimated_time_minutes: 30,
+                key_points: ['Core Definitions & Overview', 'Key Terminology', 'Fundamental Mechanics'],
+                key_formulas: ['Basic Rules & Operations']
+            },
+            {
+                order_index: 2,
+                title: `Core Principles & Key Mechanisms of ${cleanTopic}`,
+                chapter: 'Module 2: Core Principles',
+                topic: cleanTopic,
+                subtopic: 'Mechanisms & Workflow',
+                priority: 'HIGH',
+                priority_reason: `Essential operational principles required for practical application.`,
+                board_relevance: 'Formulates the main short and long descriptive questions.',
+                exam_weightage_percent: 30,
+                difficulty: 'intermediate',
+                estimated_time_minutes: 40,
+                key_points: ['Step-by-step Execution', 'Operational Principles', 'Standard Formats'],
+                key_formulas: ['Core Formulas & Standard Expressions']
+            },
+            {
+                order_index: 3,
+                title: `Real World Applications & Practice Problems`,
+                chapter: 'Module 3: Practical Application',
+                topic: cleanTopic,
+                subtopic: 'Problem Solving & Case Studies',
+                priority: 'HIGH',
+                priority_reason: `Applies fundamental theory to real-world scenarios and numerical problems.`,
+                board_relevance: 'Highest weightage section in practical and written evaluations.',
+                exam_weightage_percent: 25,
+                difficulty: 'intermediate',
+                estimated_time_minutes: 45,
+                key_points: ['Case Studies', 'Common Pitfalls', 'Optimization Techniques'],
+                key_formulas: ['Advanced Evaluation Metrics']
+            },
+            {
+                order_index: 4,
+                title: `Advanced Topics & Master Revision of ${cleanTopic}`,
+                chapter: 'Module 4: Advanced Mastery',
+                topic: cleanTopic,
+                subtopic: 'Advanced Insights & Exam Prep',
+                priority: 'MEDIUM',
+                priority_reason: `Prepares student for top marks and advanced problem types.`,
+                board_relevance: 'Distinguishes high scoring students in exam papers.',
+                exam_weightage_percent: 20,
+                difficulty: 'advanced',
+                estimated_time_minutes: 45,
+                key_points: ['Advanced Scenarios', 'Comprehensive Revision', 'Exam Strategies'],
+                key_formulas: ['Summary Formula Sheet']
+            }
+        ]
+    };
 };
 
 // ─────────────────────────────────────────────
@@ -1269,9 +1347,59 @@ Board Relevance: ${node.board_relevance}`
         }
     ];
 
-    const res = await getProviderResponse(messages, { jsonMode: true, maxTokens: 4000, temperature: 0.5 });
-    const text = res?.choices?.[0]?.message?.content || '{}';
-    return safeJsonParse(text);
+    try {
+        const res = await getProviderResponse(messages, { jsonMode: true, maxTokens: 4000, temperature: 0.5 });
+        const text = res?.choices?.[0]?.message?.content || '{}';
+        const parsed = safeJsonParse(text);
+        if (parsed && (parsed.explanation_simple || parsed.explanation_detailed)) {
+            return parsed;
+        }
+    } catch (err) {
+        console.error('[generateTopicContent AI error]', err);
+    }
+
+    // Guaranteed Fallback Topic Content Generator
+    const title = node?.title || 'Topic Content';
+    return {
+        explanation_simple: `${title} is a core educational concept designed to help build fundamental understanding and practical skills. Imagine it like a foundational building block for advanced topics.`,
+        explanation_detailed: `### 1. Pehle Samjho / Why
+Understanding ${title} is crucial because it forms the backbone of core syllabus topics and board examination questions.
+
+### 2. Kya Hai Yeh / What
+${title} defines the rules, concepts, and structure required to analyze and solve problems in this subject.
+
+### 3. Kaise Kaam Karta Hai / How
+1. Identify the given variables or requirements.
+2. Apply the core formulas and rules of ${title}.
+3. Execute step-by-step logic to achieve the correct result.
+
+### 4. Kahan Use Hota Hai / Where
+Widely utilized across academic problem solving, practical labs, and real-world industrial scenarios.
+
+### 5. Summary / Brief
+Mastering ${title} enables confidence in tackling both basic MCQs and high-weightage numerical/descriptive questions.`,
+        real_world_example: `${title} is used in daily technology, engineering systems, and logical decision making.`,
+        key_points: [`Core principles of ${title}`, `Key applications & formulas`, `Exam problem solving methods`],
+        key_formulas: [`Standard Rule: ${title}`],
+        micro_tasks: [
+            {
+                type: 'mcq',
+                prompt: `What is the primary function of ${title}?`,
+                options: [`To define core principles of ${title}`, `To store data`, `None of the above`],
+                correct_answer: `To define core principles of ${title}`,
+                marks: 1,
+                difficulty: 'easy'
+            },
+            {
+                type: 'text_answer',
+                prompt: `Explain the key concepts of ${title} and why it is important.`,
+                options: [],
+                correct_answer: `Key concepts and importance of ${title}`,
+                marks: 3,
+                difficulty: 'medium'
+            }
+        ]
+    };
 };
 
 // ─────────────────────────────────────────────
@@ -1326,10 +1454,50 @@ Return ONLY a valid JSON array of objects (do not wrap in markdown \`\`\`json):
         }
     ];
 
-    const res = await getProviderResponse(messages, { jsonMode: true, maxTokens: 2000, temperature: 0.75 });
-    const text = res?.choices?.[0]?.message?.content || '[]';
-    const parsed = safeJsonParse(text);
-    return Array.isArray(parsed) ? parsed : [];
+    try {
+        const res = await getProviderResponse(messages, { jsonMode: true, maxTokens: 2000, temperature: 0.75 });
+        const text = res?.choices?.[0]?.message?.content || '[]';
+        const parsed = safeJsonParse(text);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+        }
+    } catch (err) {
+        console.error('[generateUniqueMixTasks AI error]', err);
+    }
+
+    // Guaranteed Fallback Question Generator (Guarantees tasks array is NEVER empty!)
+    const title = node?.title || 'Topic Concept';
+    return [
+        {
+            type: 'mcq',
+            prompt: `What is the primary function or core concept of "${title}"?`,
+            options: [
+                `To define and structure key elements of ${title}`,
+                `To style visual layout components only`,
+                `To store backend database records`,
+                `None of the above`
+            ],
+            correct_answer: `To define and structure key elements of ${title}`,
+            marks: 1,
+            difficulty: 'easy'
+        },
+        {
+            type: 'fill_blank',
+            prompt: `Complete the statement: In ${title}, the fundamental rule or syntax requires _______ for proper execution.`,
+            options: [],
+            correct_answer: `correct tags or proper syntax structure`,
+            marks: 2,
+            difficulty: 'medium'
+        },
+        {
+            type: 'text_answer',
+            prompt: `Explain in your own words: Why is "${title}" important in real-world application, and what is its main use case?`,
+            options: [],
+            correct_answer: `Key concepts, real-world application, and importance of ${title}`,
+            marks: 3,
+            difficulty: 'medium'
+        }
+    ];
 };
 
 // ─────────────────────────────────────────────

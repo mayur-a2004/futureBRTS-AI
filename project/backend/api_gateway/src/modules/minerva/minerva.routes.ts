@@ -53,6 +53,7 @@ router.post('/upload', authMiddleware, upload.single('file'), minervaController.
 // ─── SESSIONS ──────────────────────────────────
 router.get('/sessions', authMiddleware, minervaController.getSessions);
 router.get('/session/:id', authMiddleware, minervaController.getSession);
+router.delete('/session/:id', authMiddleware, minervaController.deleteSession);
 router.get('/session/:id/certificate', authMiddleware, minervaController.generateCertificate);
 
 // ─── LEARNING (Node/Topic) ──────────────────────
@@ -63,6 +64,7 @@ router.post('/node/:id/viva/evaluate', authMiddleware, minervaController.evaluat
 
 // ─── TASKS / HOMEWORK ──────────────────────────
 router.post('/task/:id/submit', authMiddleware, minervaController.submitTask);
+router.delete('/task/:id', authMiddleware, minervaController.deleteTask);
 router.post('/task/custom', authMiddleware, upload.single('attachment'), minervaController.createCustomTask);
 router.get('/homework/today', authMiddleware, minervaController.getTodayHomework);
 router.get('/tasks/list', authMiddleware, minervaController.getTasks);
@@ -71,6 +73,7 @@ router.get('/review/due', authMiddleware, minervaController.getDueReviews);
 // ─── E-BUILDER ─────────────────────────────────
 router.post('/builder/generate', authMiddleware, minervaController.generateMaterial);
 router.get('/builder/history', authMiddleware, minervaController.getMaterialHistory);
+router.delete('/builder/material/:id', authMiddleware, minervaController.deleteBuilderMaterial);
 
 // ─── TRANSLATOR ──────────────────────────────
 router.post('/translate', authMiddleware, minervaController.translateText);
@@ -79,6 +82,7 @@ router.post('/translate', authMiddleware, minervaController.translateText);
 router.get('/exams', authMiddleware, minervaController.getExams);
 router.post('/exam/generate', authMiddleware, minervaController.generateExam);
 router.get('/exam/:id', authMiddleware, minervaController.getExam);
+router.delete('/exam/:id', authMiddleware, minervaController.deleteExam);
 router.post('/exam/:id/submit', authMiddleware, minervaController.submitExam);
 router.post('/exam/:id/appeal', authMiddleware, minervaController.appealExamQuestion);
 router.post('/exam/:id/proctoring', authMiddleware, minervaController.reportProctoringViolation);

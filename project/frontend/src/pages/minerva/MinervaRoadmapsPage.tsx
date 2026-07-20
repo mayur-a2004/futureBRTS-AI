@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { minervaApi } from '../../api/minerva.api';
-import { ChevronLeft, BookOpen, Plus, Sparkles, Compass, X } from 'lucide-react';
+import { ChevronLeft, BookOpen, Plus, Sparkles, Compass, X, Trash2 } from 'lucide-react';
 
 const MinervaRoadmapsPage: React.FC = () => {
     const { token } = useAuth() as any;
@@ -35,6 +35,26 @@ const MinervaRoadmapsPage: React.FC = () => {
             console.error('Error loading courses:', err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleDeleteCourse = async (e: React.MouseEvent, courseId: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.nativeEvent) {
+            e.nativeEvent.stopImmediatePropagation();
+        }
+        if (!window.confirm('Kya aap sach me is Roadmap course ko delete karna chahte hain? Iske saare topics aur progress delete ho jayengi.')) return;
+        try {
+            const res = await minervaApi.deleteSession(token, courseId);
+            if (res.success) {
+                setCourses(prev => prev.filter(c => c._id !== courseId));
+            } else {
+                alert(res.error || 'Failed to delete roadmap course.');
+            }
+        } catch (err) {
+            console.error('Delete course error:', err);
+            alert('Error deleting course.');
         }
     };
 
@@ -153,9 +173,22 @@ const MinervaRoadmapsPage: React.FC = () => {
                                         <div className="p-2.5 bg-indigo-500/10 rounded-2xl text-indigo-400 group-hover:scale-105 group-hover:bg-indigo-500/25 transition-all">
                                             <BookOpen size={18} />
                                         </div>
-                                        <span className="text-[9px] font-black text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 rounded-full uppercase tracking-wider">
-                                            {course.board ? course.board.toUpperCase() : 'GENERAL'}
-                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[9px] font-black text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                                                {course.board ? course.board.toUpperCase() : 'GENERAL'}
+                                            </span>
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    handleDeleteCourse(e, course._id);
+                                                }} 
+                                                title="Delete Roadmap Course" 
+                                                className="p-1.5 bg-red-500/10 hover:bg-red-500/25 text-red-400 border border-red-500/20 rounded-xl transition-all relative z-20 cursor-pointer"
+                                            >
+                                                <Trash2 size={12} />
+                                            </button>
+                                        </div>
                                     </div>
                                     <h3 className="font-bold text-xs text-gray-200 mt-4 group-hover:text-white transition-colors truncate">{course.title}</h3>
                                     <p className="text-[10px] text-gray-500 mt-1 truncate">Subject: {course.subject}</p>

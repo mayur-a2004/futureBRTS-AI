@@ -219,6 +219,36 @@ export const minervaApi = {
         });
         return handleRes(res);
     },
+
+    // ─── DELETION APIS ─────────────────────────────
+    deleteSession: async (token: string, sessionId: string) => {
+        const res = await fetch(`${BASE_URL}/session/${sessionId}`, {
+            method: 'DELETE',
+            headers: authHeaders(token)
+        });
+        return handleRes(res);
+    },
+    deleteTask: async (token: string, taskId: string) => {
+        const res = await fetch(`${BASE_URL}/task/${taskId}`, {
+            method: 'DELETE',
+            headers: authHeaders(token)
+        });
+        return handleRes(res);
+    },
+    deleteExam: async (token: string, examId: string) => {
+        const res = await fetch(`${BASE_URL}/exam/${examId}`, {
+            method: 'DELETE',
+            headers: authHeaders(token)
+        });
+        return handleRes(res);
+    },
+    deleteMaterial: async (token: string, materialId: string) => {
+        const res = await fetch(`${BASE_URL}/builder/material/${materialId}`, {
+            method: 'DELETE',
+            headers: authHeaders(token)
+        });
+        return handleRes(res);
+    },
     getLeaderboard: async (token: string) => {
         const res = await fetch(`${BASE_URL}/leaderboard`, { headers: authHeaders(token) });
         return handleRes(res);
