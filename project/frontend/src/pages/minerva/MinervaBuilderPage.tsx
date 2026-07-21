@@ -38,7 +38,7 @@ const MinervaBuilderPage: React.FC = () => {
 
     const handleDeleteMaterial = async (e: React.MouseEvent, materialId: string) => {
         e.stopPropagation();
-        if (!window.confirm('Kya aap is generated study material ko delete karna chahte hain?')) return;
+        if (!window.confirm('Are you sure you want to delete this generated study material?')) return;
         try {
             const res = await minervaApi.deleteMaterial(token, materialId);
             if (res.success) {

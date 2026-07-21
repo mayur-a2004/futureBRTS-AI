@@ -175,8 +175,38 @@ function LandingPageContent() {
     return (
         <div ref={containerRef} className="text-white font-sans pb-20 selection:bg-indigo-500/30 overflow-x-hidden">
             <SEO
-                title="Future BRTS | Robotic Intelligence Command"
-                description="The ultimate robotic career architecture platform. Architect your future with precision AI."
+                title="AI Career Architect & Roadmap Generator | Future BRTS"
+                description="Build personalized career roadmaps with AI. Future BRTS generates step-by-step learning paths & modular codebases. Plan your tech career with AI today."
+                keywords="AI career roadmap, career planning tool, learning path generator, coding roadmap, career architect"
+                canonicalUrl="https://futurebrts.com/"
+                structuredData={{
+                    "@context": "https://schema.org",
+                    "@graph": [
+                        {
+                            "@type": "Organization",
+                            "name": "Future BRTS",
+                            "url": "https://futurebrts.com",
+                            "logo": "https://futurebrts.com/logo.png",
+                            "description": "AI-powered career roadmap generator and learning path builder"
+                        },
+                        {
+                            "@type": "SoftwareApplication",
+                            "name": "Future BRTS",
+                            "applicationCategory": "EducationalApplication,CareerDevelopment",
+                            "offers": {
+                                "@type": "Offer",
+                                "price": "0",
+                                "priceCurrency": "USD"
+                            },
+                            "aggregateRating": {
+                                "@type": "AggregateRating",
+                                "ratingValue": "4.8",
+                                "ratingCount": "250"
+                            },
+                            "operatingSystem": "Web"
+                        }
+                    ]
+                }}
             />
 
             {/* --- CYBER SCANLINE OVERLAY --- */}

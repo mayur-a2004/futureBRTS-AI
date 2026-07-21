@@ -426,6 +426,17 @@ export const battleController = {
                 [`A-${hostGrade}`]: hostQuestions
             };
 
+            const initialTeams = new Map();
+            const labels: ('A'|'B'|'C'|'D'|'E'|'F')[] = ['A', 'B', 'C', 'D', 'E', 'F'];
+            for (const label of labels) {
+                initialTeams.set(label, {
+                    label,
+                    hp: label === 'A' ? 1000 : 0,
+                    maxHp: label === 'A' ? 1000 : 0,
+                    playerIds: label === 'A' ? [hostUser._id] : []
+                });
+            }
+
             const room = await ArenaRoom.create({
                 roomCode: code,
                 hostId: hostUser._id,
@@ -433,8 +444,8 @@ export const battleController = {
                 mode,
                 battleStyle: battleStyle || 'SPEED_RACE',
                 currentTurn: 'A',
-                teamASizeTarget: teamASize,
-                teamBSizeTarget: teamBSize === 0 ? 1 : teamBSize,
+                teamASizeTarget: mode === 'CUSTOM_BATTLE' ? 4 : teamASize,
+                teamBSizeTarget: mode === 'CUSTOM_BATTLE' ? 4 : (teamBSize === 0 ? 1 : teamBSize),
                 subject,
                 standard: String(hostGrade),
                 board: board,
@@ -463,6 +474,7 @@ export const battleController = {
                 }],
                 teamA: { label: 'A', hp: teamAHp, maxHp: teamAHp, playerIds: [hostUser._id] },
                 teamB: { label: 'B', hp: teamBHp, maxHp: teamBHp, playerIds: [] },
+                teams: initialTeams,
                 roundStates: [],
                 currentRound: 0,
                 totalRounds: rounds,
@@ -550,7 +562,7 @@ export const battleController = {
 
             const targetTeam = team || 'B';
             const teamPlayers = room.players.filter((p: any) => p.team === targetTeam);
-            const targetSize = targetTeam === 'A' ? room.teamASizeTarget : room.teamBSizeTarget;
+            const targetSize = room.mode === 'CUSTOM_BATTLE' ? 4 : (targetTeam === 'A' ? room.teamASizeTarget : room.teamBSizeTarget);
 
             if (teamPlayers.length >= targetSize) {
                 return res.status(400).json({ success: false, message: `Team ${targetTeam} is already full.` });
@@ -644,10 +656,17 @@ export const battleController = {
                 isConnected: true
             } as any);
 
-            if (targetTeam === 'A') {
-                room.teamA.playerIds.push(joiningUser._id);
+            if (room.mode === 'CUSTOM_BATTLE') {
+                const tState = room.teams.get(targetTeam);
+                if (tState) {
+                    tState.playerIds.push(joiningUser._id);
+                }
             } else {
-                room.teamB.playerIds.push(joiningUser._id);
+                if (targetTeam === 'A') {
+                    room.teamA.playerIds.push(joiningUser._id);
+                } else {
+                    room.teamB.playerIds.push(joiningUser._id);
+                }
             }
 
             // Check if room is LOBBY_READY (all slots filled)
@@ -677,13 +696,16 @@ export const battleController = {
             const user = (req as any).user;
             const userIdStr = (user._id || user.id).toString();
 
-            if (!targetTeam || !['A', 'B'].includes(targetTeam)) {
-                return res.status(400).json({ success: false, message: 'Invalid target team.' });
-            }
-
             const room = await ArenaRoom.findOne({ roomCode });
             if (!room) {
                 return res.status(404).json({ success: false, message: 'Room not found.' });
+            }
+
+            const isCustom = room.mode === 'CUSTOM_BATTLE';
+            const allowedTeams = isCustom ? ['A', 'B', 'C', 'D', 'E', 'F'] : ['A', 'B'];
+
+            if (!targetTeam || !allowedTeams.includes(targetTeam)) {
+                return res.status(400).json({ success: false, message: 'Invalid target team.' });
             }
 
             if (room.status !== 'WAITING' && room.status !== 'LOBBY_READY') {
@@ -696,42 +718,65 @@ export const battleController = {
             }
 
             if (player.team === targetTeam) {
-                return res.status(400).json({ success: false, message: `You are already on Team ${targetTeam === 'A' ? 'Alpha' : 'Omega'}.` });
+                return res.status(400).json({ success: false, message: `You are already on Team ${targetTeam}.` });
             }
 
             const targetTeamPlayers = room.players.filter((p: any) => p.team === targetTeam);
-            const targetSize = targetTeam === 'A' ? room.teamASizeTarget : room.teamBSizeTarget;
+            const targetSize = isCustom ? 4 : (targetTeam === 'A' ? room.teamASizeTarget : room.teamBSizeTarget);
 
             if (targetTeamPlayers.length >= targetSize) {
-                return res.status(400).json({ success: false, message: `Team ${targetTeam === 'A' ? 'Alpha' : 'Omega'} is full.` });
+                return res.status(400).json({ success: false, message: `Team ${targetTeam} is full.` });
             }
 
             // Move player to target team
             const oldTeam = player.team;
-            player.team = targetTeam as 'A' | 'B';
+            player.team = targetTeam as any;
 
-            if (oldTeam === 'A') {
-                room.teamA.playerIds = room.teamA.playerIds.filter((id: any) => id.toString() !== userIdStr);
+            if (isCustom) {
+                const oldTeamState = room.teams.get(oldTeam);
+                if (oldTeamState) {
+                    oldTeamState.playerIds = oldTeamState.playerIds.filter((id: any) => id.toString() !== userIdStr);
+                }
+                const newTeamState = room.teams.get(targetTeam);
+                if (newTeamState) {
+                    newTeamState.playerIds.push(user._id || user.id);
+                }
             } else {
-                room.teamB.playerIds = room.teamB.playerIds.filter((id: any) => id.toString() !== userIdStr);
+                if (oldTeam === 'A') {
+                    room.teamA.playerIds = room.teamA.playerIds.filter((id: any) => id.toString() !== userIdStr);
+                } else {
+                    room.teamB.playerIds = room.teamB.playerIds.filter((id: any) => id.toString() !== userIdStr);
+                }
+
+                if (targetTeam === 'A') {
+                    room.teamA.playerIds.push(user._id || user.id);
+                } else {
+                    room.teamB.playerIds.push(user._id || user.id);
+                }
             }
 
-            if (targetTeam === 'A') {
-                room.teamA.playerIds.push(user._id || user.id);
+            // Recalculate HPs
+            if (isCustom) {
+                const labels: ('A'|'B'|'C'|'D'|'E'|'F')[] = ['A', 'B', 'C', 'D', 'E', 'F'];
+                for (const label of labels) {
+                    const tState = room.teams.get(label);
+                    if (tState) {
+                        const count = room.players.filter((p: any) => p.team === label).length;
+                        tState.hp = count * BASE_HP_PER_PLAYER;
+                        tState.maxHp = count * BASE_HP_PER_PLAYER;
+                    }
+                }
             } else {
-                room.teamB.playerIds.push(user._id || user.id);
+                const teamAPlayersCount = room.players.filter((p: any) => p.team === 'A').length;
+                const teamBPlayersCount = room.players.filter((p: any) => p.team === 'B').length;
+                const newTeamAHp = calculateTeamHP(teamAPlayersCount || 1, teamBPlayersCount || 1);
+                const newTeamBHp = room.mode === 'SOLO_VS_AI' ? newTeamAHp : calculateTeamHP(teamBPlayersCount || 1, teamAPlayersCount || 1);
+
+                room.teamA.hp = newTeamAHp;
+                room.teamA.maxHp = newTeamAHp;
+                room.teamB.hp = newTeamBHp;
+                room.teamB.maxHp = newTeamBHp;
             }
-
-            // Recalculate team HPs
-            const teamAPlayersCount = room.players.filter((p: any) => p.team === 'A').length;
-            const teamBPlayersCount = room.players.filter((p: any) => p.team === 'B').length;
-            const newTeamAHp = calculateTeamHP(teamAPlayersCount || 1, teamBPlayersCount || 1);
-            const newTeamBHp = room.mode === 'SOLO_VS_AI' ? newTeamAHp : calculateTeamHP(teamBPlayersCount || 1, teamAPlayersCount || 1);
-
-            room.teamA.hp = newTeamAHp;
-            room.teamA.maxHp = newTeamAHp;
-            room.teamB.hp = newTeamBHp;
-            room.teamB.maxHp = newTeamBHp;
 
             await room.save();
 
@@ -1042,27 +1087,43 @@ export const battleController = {
                 }
 
                 // Check if all players from one team disconnected/forfeited
-                const teamAConnected = room.players.filter((p: any) => p.team === 'A' && (p as any).isConnected).length;
-                const teamBConnected = room.players.filter((p: any) => p.team === 'B' && (p as any).isConnected).length;
+                if (room.mode === 'CUSTOM_BATTLE') {
+                    const activeTeamsConnected = Array.from(new Set(
+                        room.players
+                            .filter((p: any) => (p as any).isConnected)
+                            .map((p: any) => p.team)
+                    ));
 
-                if (room.mode === 'SOLO_VS_AI') {
-                    room.status = 'FINISHED';
-                    room.winnerTeam = 'B' as any; // AI wins
-                } else if (teamAConnected === 0 && teamBConnected > 0) {
-                    room.status = 'FINISHED';
-                    room.winnerTeam = 'B' as any;
-                    if (SocketService) {
-                        await SocketService._awardXP(room);
+                    if (activeTeamsConnected.length <= 1) {
+                        room.status = 'FINISHED';
+                        room.winnerTeam = (activeTeamsConnected[0] || 'DRAW') as any;
+                        if (SocketService) {
+                            await SocketService._awardXP(room);
+                        }
                     }
-                } else if (teamBConnected === 0 && teamAConnected > 0) {
-                    room.status = 'FINISHED';
-                    room.winnerTeam = 'A' as any;
-                    if (SocketService) {
-                        await SocketService._awardXP(room);
+                } else {
+                    const teamAConnected = room.players.filter((p: any) => p.team === 'A' && (p as any).isConnected).length;
+                    const teamBConnected = room.players.filter((p: any) => p.team === 'B' && (p as any).isConnected).length;
+
+                    if (room.mode === 'SOLO_VS_AI') {
+                        room.status = 'FINISHED';
+                        room.winnerTeam = 'B' as any; // AI wins
+                    } else if (teamAConnected === 0 && teamBConnected > 0) {
+                        room.status = 'FINISHED';
+                        room.winnerTeam = 'B' as any;
+                        if (SocketService) {
+                            await SocketService._awardXP(room);
+                        }
+                    } else if (teamBConnected === 0 && teamAConnected > 0) {
+                        room.status = 'FINISHED';
+                        room.winnerTeam = 'A' as any;
+                        if (SocketService) {
+                            await SocketService._awardXP(room);
+                        }
+                    } else if (teamAConnected === 0 && teamBConnected === 0) {
+                        room.status = 'FINISHED';
+                        room.winnerTeam = 'DRAW' as any;
                     }
-                } else if (teamAConnected === 0 && teamBConnected === 0) {
-                    room.status = 'FINISHED';
-                    room.winnerTeam = 'DRAW' as any;
                 }
 
                 await room.save();
@@ -1090,8 +1151,18 @@ export const battleController = {
                 }
             } else {
                 room.players = room.players.filter((p: any) => p.userId.toString() !== userId.toString()) as any;
-                room.teamA.playerIds = room.teamA.playerIds.filter((id: any) => id.toString() !== userId.toString());
-                room.teamB.playerIds = room.teamB.playerIds.filter((id: any) => id.toString() !== userId.toString());
+                if (room.mode === 'CUSTOM_BATTLE') {
+                    const labels: ('A'|'B'|'C'|'D'|'E'|'F')[] = ['A', 'B', 'C', 'D', 'E', 'F'];
+                    for (const label of labels) {
+                        const tState = room.teams.get(label);
+                        if (tState) {
+                            tState.playerIds = tState.playerIds.filter((id: any) => id.toString() !== userId.toString());
+                        }
+                    }
+                } else {
+                    room.teamA.playerIds = room.teamA.playerIds.filter((id: any) => id.toString() !== userId.toString());
+                    room.teamB.playerIds = room.teamB.playerIds.filter((id: any) => id.toString() !== userId.toString());
+                }
 
                 if (room.status === 'LOBBY_READY') {
                     room.status = 'WAITING';

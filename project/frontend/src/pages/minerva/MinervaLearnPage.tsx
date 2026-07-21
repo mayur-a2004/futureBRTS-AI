@@ -450,7 +450,7 @@ const MinervaLearnPage: React.FC = () => {
     const handleRegenerate = async () => {
         const isFailedNode = node?.passed === false || node?.status === 'NEEDS_REVIEW' || (node?.last_score !== undefined && node?.last_score < 60);
         if (!isFailedNode) {
-            if (!window.confirm("Kya aap sach me AI content ko dobara generate karna chahte hain? Isse aapke purane tasks reset ho jayenge.")) return;
+            if (!window.confirm("Are you sure you want to regenerate the AI content? This will reset all your existing tasks.")) return;
         }
         setRegenerating(true);
         try {
@@ -551,7 +551,7 @@ const MinervaLearnPage: React.FC = () => {
                             <span>{regenerating ? 'Regen...' : 'Regenerate'}</span>
                         </button>
                         <button
-                            onClick={() => navigate(`/future-education?askDoubt=${encodeURIComponent(`Mujhe topic '${node.title}' mein doubt hai, iska explanation aur reference topics clear karo.`)}`)}
+                            onClick={() => navigate(`/future-education?askDoubt=${encodeURIComponent(`Mujhe topic '${node.title}' mein doubt hai, iska explanation aur reference topics clear karo.`)}&studySessionId=${node.session_id}`)}
                             className="text-[10px] md:text-xs bg-white/[0.05] hover:bg-white/10 border border-white/5 px-2.5 py-1.5 rounded-xl transition-all font-semibold flex items-center gap-1 text-indigo-400 active:scale-95 shrink-0"
                         >
                             <MessageSquare size={12} />

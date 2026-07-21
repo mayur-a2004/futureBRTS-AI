@@ -144,6 +144,7 @@ const MinervaHome: React.FC = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const activeSessionId = searchParams.get('sessionId') || '';
+    const [activeStudySessionId, setActiveStudySessionId] = useState<string>('');
     
     const chatEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -789,7 +790,7 @@ const MinervaHome: React.FC = () => {
         setLoading(true);
 
         try {
-            const res = await minervaApi.sendChat(token, msgText, undefined, activeSessionId || undefined, isDeepStudy, undefined, fileUrl, fileType, responseMode);
+            const res = await minervaApi.sendChat(token, msgText, activeStudySessionId || undefined, activeSessionId || undefined, isDeepStudy, undefined, fileUrl, fileType, responseMode);
             if (res.success) {
                 // Extract & load Virtual Lab Config
                 if (res.metadata?.lab_config) {
@@ -875,7 +876,11 @@ const MinervaHome: React.FC = () => {
     // ── PARSE URL PARAMETERS (DOUBT SHORTCUTS) ────
     useEffect(() => {
         const askDoubt = searchParams.get('askDoubt');
+        const studySessionId = searchParams.get('studySessionId');
         if (askDoubt && token) {
+            if (studySessionId) {
+                setActiveStudySessionId(studySessionId);
+            }
             sendMessage(askDoubt);
             // Clear parameter so it doesn't resend on reload/navigation
             window.history.replaceState({}, document.title, window.location.pathname);

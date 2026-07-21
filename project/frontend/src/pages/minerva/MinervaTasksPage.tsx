@@ -59,7 +59,7 @@ const MinervaTasksPage: React.FC = () => {
     };
 
     const handleDeleteTask = async (taskId: string) => {
-        if (!window.confirm('Kya aap is task ko delete karna chahte hain?')) return;
+        if (!window.confirm('Are you sure you want to delete this task?')) return;
         try {
             const res = await minervaApi.deleteTask(token, taskId);
             if (res.success) {

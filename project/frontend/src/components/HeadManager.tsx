@@ -9,6 +9,7 @@ const HeadManager: React.FC = () => {
     const { value: adsenseClientId } = useSystemSettings('GOOGLE_ADSENSE_CLIENT_ID');
     const { value: pixelId } = useSystemSettings('FACEBOOK_PIXEL_ID');
     const { value: googleAdsId } = useSystemSettings('GOOGLE_ADS_ID');
+    const { value: gscId } = useSystemSettings('GOOGLE_SEARCH_CONSOLE_ID');
 
     useEffect(() => {
         if (analyticsId) {
@@ -82,7 +83,18 @@ const HeadManager: React.FC = () => {
             `;
             document.head.appendChild(inlineScript);
         }
-    }, [analyticsId, gtmId, adsenseClientId, pixelId, googleAdsId]);
+
+        if (gscId) {
+            // Google Search Console Site Verification
+            let meta = document.querySelector('meta[name="google-site-verification"]');
+            if (!meta) {
+                meta = document.createElement('meta');
+                meta.setAttribute('name', 'google-site-verification');
+                document.head.appendChild(meta);
+            }
+            meta.setAttribute('content', gscId);
+        }
+    }, [analyticsId, gtmId, adsenseClientId, pixelId, googleAdsId, gscId]);
 
     return null; // Logic Component only
 };

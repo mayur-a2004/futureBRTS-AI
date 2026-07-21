@@ -24,9 +24,6 @@ export default function SEO({
     structuredData
 }: SEOProps) {
     useEffect(() => {
-        // Update Title
-        document.title = title;
-
         // Update Meta Tags
         const updateMeta = (name: string, content: string, isProperty = false) => {
             let element = document.querySelector(`meta[${isProperty ? 'property' : 'name'}="${name}"]`);
@@ -37,6 +34,9 @@ export default function SEO({
             }
             element.setAttribute('content', content);
         };
+
+        // Update Title
+        document.title = title;
 
         updateMeta('description', description);
         if (keywords) updateMeta('keywords', keywords);
@@ -66,6 +66,44 @@ export default function SEO({
             }
             script.textContent = JSON.stringify(structuredData);
         }
+
+        // Fetch dynamic SEO configuration from backend config store
+        const fetchDynamicSEO = async () => {
+            try {
+                const response = await fetch('/api/landing/config/SEO_PAGES_CONFIG');
+                const data = await response.json();
+                if (data.success && data.value) {
+                    let pagesConfig = data.value;
+                    if (typeof pagesConfig === 'string') {
+                        pagesConfig = JSON.parse(pagesConfig);
+                    }
+                    const currentPath = window.location.pathname;
+                    if (pagesConfig && pagesConfig[currentPath]) {
+                        const custom = pagesConfig[currentPath];
+                        if (custom.title) {
+                            document.title = custom.title;
+                            updateMeta('og:title', custom.title, true);
+                            updateMeta('twitter:title', custom.title);
+                        }
+                        if (custom.description) {
+                            updateMeta('description', custom.description);
+                            updateMeta('og:description', custom.description, true);
+                            updateMeta('twitter:description', custom.description);
+                        }
+                        if (custom.keywords) {
+                            updateMeta('keywords', custom.keywords);
+                        }
+                        if (custom.ogImage) {
+                            updateMeta('og:image', custom.ogImage, true);
+                            updateMeta('twitter:image', custom.ogImage);
+                        }
+                    }
+                }
+            } catch (err) {
+                // Fallback to static
+            }
+        };
+        fetchDynamicSEO();
     }, [title, description, keywords, ogTitle, ogDescription, ogImage, twitterCard, canonicalUrl, structuredData]);
 
     return null;

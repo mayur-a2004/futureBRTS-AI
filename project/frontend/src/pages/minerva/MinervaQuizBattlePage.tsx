@@ -95,6 +95,7 @@ const MODES = [
     { id: 'TRIO_VS_TRIO',  label: 'Trio vs Trio',  icon: '🏰', desc: '3v3 Guild Battle' },
     { id: 'TRIO_VS_SQUAD', label: 'Trio vs Squad', icon: '👑', desc: '3 vs 4' },
     { id: 'SQUAD_VS_SQUAD',label: 'Squad Wars',    icon: '👾', desc: '4v4 Full War' },
+    { id: 'CUSTOM_BATTLE', label: 'Custom Match', icon: '🏆', desc: '6-Team Battle Royale (1-4/team)' },
 ];
 export const BOARDS = [
     // National / Common Boards
@@ -815,7 +816,7 @@ export default function MinervaQuizBattlePage() {
     const [topicNormalizing, setTopicNormalizing] = useState(false);
     const [topicError, setTopicError] = useState('');
     const [selSemester, setSelSemester] = useState('');
-    const [selRoomType, setSelRoomType] = useState<'OPEN_ARENA' | 'TEACHER_ROOM'>('OPEN_ARENA');
+    const [selRoomType, setSelRoomType] = useState<'OPEN_ARENA' | 'TEACHER_ROOM' | 'CUSTOM_ROOM'>('OPEN_ARENA');
     const [selectedStudents, setSelectedStudents] = useState<any[]>([]); 
     const [studentsList, setStudentsList] = useState<any[]>([]); 
     const [searchStudentTerm, setSearchStudentTerm] = useState('');
@@ -846,7 +847,7 @@ export default function MinervaQuizBattlePage() {
     const [loading, setLoading] = useState(false);
     const [copied, setCopied] = useState(false);
     const [joinCode, setJoinCode] = useState('');
-    const [joinTeam, setJoinTeam] = useState<'A' | 'B'>('B');
+    const [joinTeam, setJoinTeam] = useState<'A' | 'B' | 'C' | 'D' | 'E' | 'F'>('B');
     const [joinGrade, setJoinGrade] = useState<string>(String(user?.grade || '10'));
     const [joinMode, setJoinMode] = useState<'SAME' | 'CUSTOM'>('SAME');
     const [joinSubject, setJoinSubject] = useState<string>('');
@@ -936,7 +937,7 @@ export default function MinervaQuizBattlePage() {
     const [hiddenOptions, setHiddenOptions] = useState<number[]>([]);
     const [timerFrozen, setTimerFrozen] = useState(false);
     const [timeLeft, setTimeLeft] = useState(15);
-    const [activeTurn, setActiveTurn] = useState<'A' | 'B'>('A'); // for ALTERNATING mode
+    const [activeTurn, setActiveTurn] = useState<'A' | 'B' | 'C' | 'D' | 'E' | 'F'>('A'); // for ALTERNATING mode
     const [damageEventsA, setDamageEventsA] = useState<{ id: number; amount: number }[]>([]);
     const [damageEventsB, setDamageEventsB] = useState<{ id: number; amount: number }[]>([]);
     const [shakeA, setShakeA] = useState(false);
@@ -1760,7 +1761,11 @@ export default function MinervaQuizBattlePage() {
     const teamAPlayers = room?.players.filter(p => p.team === 'A') ?? [];
     const teamBPlayers = room?.players.filter(p => p.team === 'B') ?? [];
     const isHost = room && (String(room.hostId) === String(user?._id) || String(room.hostId?._id) === String(user?._id));
-    const isReady = room && (room.mode === 'SOLO_VS_AI' || room.players.length >= (room.teamASizeTarget + room.teamBSizeTarget));
+    const isReady = room && (
+        room.mode === 'CUSTOM_BATTLE' 
+            ? room.players.length >= 1 
+            : (room.mode === 'SOLO_VS_AI' || room.players.length >= (room.teamASizeTarget + room.teamBSizeTarget))
+    );
 
     // Training steps array
     const tutorialSteps = [
@@ -2332,11 +2337,16 @@ export default function MinervaQuizBattlePage() {
                         {/* Room Type Selector */}
                         <div className="mb-6">
                             <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Room Type</div>
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <button type="button" onClick={() => setSelRoomType('OPEN_ARENA')}
                                     className={`p-3.5 rounded-2xl border text-left transition-all relative ${selRoomType === 'OPEN_ARENA' ? 'border-indigo-500 bg-indigo-500/10 shadow-[0_0_15px_rgba(99,102,241,0.15)]' : 'border-slate-850 bg-[#090b14]/50 hover:border-slate-800'}`}>
                                     <div className="font-black text-xs text-white">⚔️ Open Arena</div>
                                     <div className="text-[9px] text-slate-500 mt-1">Anyone can join. Each student gets their own board-specific questions.</div>
+                                </button>
+                                <button type="button" onClick={() => { setSelRoomType('CUSTOM_ROOM'); setSelMode('CUSTOM_BATTLE'); }}
+                                    className={`p-3.5 rounded-2xl border text-left transition-all relative ${selRoomType === 'CUSTOM_ROOM' ? 'border-amber-500 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.15)]' : 'border-slate-850 bg-[#090b14]/50 hover:border-slate-800'}`}>
+                                    <div className="font-black text-xs text-white">🏆 Custom Match (PUBG Style)</div>
+                                    <div className="text-[9px] text-slate-500 mt-1">Up to 6 squads, 1-4 players/squad. Completely flexible team setups.</div>
                                 </button>
                                 <button type="button" onClick={() => { setSelRoomType('TEACHER_ROOM'); setSelMode('CLASSROOM'); }}
                                     className={`p-3.5 rounded-2xl border text-left transition-all relative ${selRoomType === 'TEACHER_ROOM' ? 'border-violet-500 bg-violet-500/10 shadow-[0_0_15px_rgba(139,92,246,0.15)]' : 'border-slate-850 bg-[#090b14]/50 hover:border-slate-800'}`}>
@@ -2852,86 +2862,139 @@ export default function MinervaQuizBattlePage() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                            {/* Team A */}
-                            <div className="bg-[#0b1021] border border-indigo-900/40 rounded-3xl p-5 shadow-xl">
-                                <div className="text-xs font-black uppercase tracking-widest text-indigo-400 mb-4 flex items-center gap-2 border-b border-indigo-950/40 pb-2">
-                                    <Shield className="w-4 h-4 text-indigo-400" /> Team Alpha ({teamAPlayers.length} / {room.teamASizeTarget})
-                                    {!teamAPlayers.some(p => p.userId.toString() === user?._id?.toString()) && (
-                                        <button 
-                                            onClick={() => handleSwitchTeam('A')}
-                                            disabled={loading || teamAPlayers.length >= room.teamASizeTarget}
-                                            className="ml-auto text-[10px] bg-indigo-500 hover:bg-indigo-650 disabled:opacity-50 text-white font-bold px-2.5 py-1 rounded-xl transition duration-200"
-                                        >
-                                            Switch to Alpha
-                                        </button>
-                                    )}
+                        {room.mode === 'CUSTOM_BATTLE' ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                                {['A', 'B', 'C', 'D', 'E', 'F'].map((teamLabel, idx) => {
+                                    const teamPlayers = room.players.filter((p: any) => p.team === teamLabel);
+                                    const isMyTeam = teamPlayers.some((p: any) => p.userId.toString() === user?._id?.toString());
+                                    const teamColors = [
+                                        { border: 'border-indigo-900/40 bg-[#0b1021]', text: 'text-indigo-455', label: 'Team 1 (Alpha)' },
+                                        { border: 'border-rose-900/30 bg-[#210b10]', text: 'text-rose-455', label: 'Team 2 (Omega)' },
+                                        { border: 'border-emerald-900/40 bg-[#0b2110]', text: 'text-emerald-455', label: 'Team 3 (Delta)' },
+                                        { border: 'border-amber-900/40 bg-[#211b0b]', text: 'text-amber-455', label: 'Team 4 (Sigma)' },
+                                        { border: 'border-violet-900/40 bg-[#160b21]', text: 'text-violet-455', label: 'Team 5 (Gamma)' },
+                                        { border: 'border-cyan-900/40 bg-[#0b2121]', text: 'text-cyan-455', label: 'Team 6 (Zeta)' }
+                                    ][idx];
+
+                                    return (
+                                        <div key={teamLabel} className={`border rounded-3xl p-5 shadow-xl ${teamColors.border}`}>
+                                            <div className={`text-xs font-black uppercase tracking-widest ${teamColors.text} mb-4 flex items-center gap-2 border-b border-slate-900/40 pb-2`}>
+                                                🏆 {teamColors.label} ({teamPlayers.length} / 4)
+                                                {!isMyTeam && (
+                                                    <button 
+                                                        onClick={() => handleSwitchTeam(teamLabel as any)}
+                                                        disabled={loading || teamPlayers.length >= 4}
+                                                        className={`ml-auto text-[10px] bg-slate-805 hover:bg-slate-700 disabled:opacity-50 text-white font-bold px-2.5 py-1 rounded-xl transition duration-200`}
+                                                    >
+                                                        Join
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <div className="space-y-2">
+                                                {teamPlayers.map((p: any) => (
+                                                    <div key={p.userId} className="flex items-center gap-3 bg-[#060a18]/60 border border-slate-850 px-3.5 py-2.5 rounded-2xl">
+                                                        <div className={`w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center text-[11px] font-black`}>{p.firstName[0]}</div>
+                                                        <span className="font-bold text-sm truncate">{p.firstName}</span>
+                                                        <span className="ml-auto text-[10px] bg-slate-900/40 text-slate-400 px-2 py-0.5 rounded-full font-black">Class {p.grade}</span>
+                                                    </div>
+                                                ))}
+                                                {Array.from({ length: Math.max(0, 4 - teamPlayers.length) }).map((_, i) => (
+                                                    <div key={i} className="flex items-center gap-3 text-xs text-slate-700 px-3.5 py-2.5 border border-dashed border-slate-850 rounded-2xl">
+                                                        <div className="w-7 h-7 rounded-full border border-dashed border-slate-800 flex items-center justify-center font-bold">?</div>
+                                                        <span className="text-slate-600">Empty Slot</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                {/* Team A */}
+                                <div className="bg-[#0b1021] border border-indigo-900/40 rounded-3xl p-5 shadow-xl">
+                                    <div className="text-xs font-black uppercase tracking-widest text-indigo-400 mb-4 flex items-center gap-2 border-b border-indigo-950/40 pb-2">
+                                        <Shield className="w-4 h-4 text-indigo-400" /> Team Alpha ({teamAPlayers.length} / {room.teamASizeTarget})
+                                        {!teamAPlayers.some(p => p.userId.toString() === user?._id?.toString()) && (
+                                            <button 
+                                                onClick={() => handleSwitchTeam('A')}
+                                                disabled={loading || teamAPlayers.length >= room.teamASizeTarget}
+                                                className="ml-auto text-[10px] bg-indigo-500 hover:bg-indigo-655 disabled:opacity-50 text-white font-bold px-2.5 py-1 rounded-xl transition duration-200"
+                                            >
+                                                Switch to Alpha
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="space-y-2">
+                                        {teamAPlayers.map(p => (
+                                            <div key={p.userId} className="flex items-center gap-3 bg-[#060a18]/60 border border-slate-850 px-3.5 py-2.5 rounded-2xl">
+                                                <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-[11px] font-black">{p.firstName[0]}</div>
+                                                <span className="font-bold text-sm truncate">{p.firstName}</span>
+                                                <span className="ml-auto text-[10px] bg-indigo-900/40 text-indigo-300 px-2 py-0.5 rounded-full font-black">Class {p.grade}</span>
+                                            </div>
+                                        ))}
+                                        {Array.from({ length: Math.max(0, room.teamASizeTarget - teamAPlayers.length) }).map((_, i) => (
+                                            <div key={i} className="flex items-center gap-3 text-xs text-slate-600 px-3.5 py-2.5 border border-dashed border-slate-850 rounded-2xl">
+                                                <div className="w-7 h-7 rounded-full border border-dashed border-slate-800 flex items-center justify-center font-bold">?</div>
+                                                <span>Waiting for player...</span>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                                <div className="space-y-2">
-                                    {teamAPlayers.map(p => (
-                                        <div key={p.userId} className="flex items-center gap-3 bg-[#060a18]/60 border border-slate-850 px-3.5 py-2.5 rounded-2xl">
-                                            <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-[11px] font-black">{p.firstName[0]}</div>
-                                            <span className="font-bold text-sm truncate">{p.firstName}</span>
-                                            <span className="ml-auto text-[10px] bg-indigo-900/40 text-indigo-300 px-2 py-0.5 rounded-full font-black">Class {p.grade}</span>
-                                        </div>
-                                    ))}
-                                    {Array.from({ length: Math.max(0, room.teamASizeTarget - teamAPlayers.length) }).map((_, i) => (
-                                        <div key={i} className="flex items-center gap-3 text-xs text-slate-600 px-3.5 py-2.5 border border-dashed border-slate-850 rounded-2xl">
-                                            <div className="w-7 h-7 rounded-full border border-dashed border-slate-800 flex items-center justify-center font-bold">?</div>
-                                            <span>Waiting for player...</span>
-                                        </div>
-                                    ))}
+                                {/* Team B */}
+                                <div className="bg-[#210b10] border border-rose-900/30 rounded-3xl p-5 shadow-xl">
+                                    <div className="text-xs font-black uppercase tracking-widest text-rose-455 mb-4 flex items-center gap-2 border-b border-rose-950/40 pb-2">
+                                        {room.mode === 'SOLO_VS_AI' ? <Bot className="w-4 h-4 text-rose-455" /> : <Flame className="w-4 h-4 text-rose-455" />}
+                                        {room.mode === 'SOLO_VS_AI' ? `Future Education OS Bot` : `Team Omega (${teamBPlayers.length} / ${room.teamBSizeTarget})`}
+                                        {room.mode !== 'SOLO_VS_AI' && !teamBPlayers.some(p => p.userId.toString() === user?._id?.toString()) && (
+                                            <button 
+                                                onClick={() => handleSwitchTeam('B')}
+                                                disabled={loading || teamBPlayers.length >= room.teamBSizeTarget}
+                                                className="ml-auto text-[10px] bg-rose-605 hover:bg-rose-700 disabled:opacity-50 text-white font-bold px-2.5 py-1 rounded-xl transition duration-200"
+                                            >
+                                                Switch to Omega
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="space-y-2">
+                                        {room.mode === 'SOLO_VS_AI' ? (
+                                            <div className="flex items-center gap-3 bg-[#1d080c]/60 border border-rose-950/30 px-3.5 py-2.5 rounded-2xl">
+                                                <div className="w-7 h-7 rounded-full bg-rose-600 flex items-center justify-center"><Bot className="w-4 h-4 text-white" /></div>
+                                                <span className="font-bold text-sm">Future Education OS Bot</span>
+                                                <span className="ml-auto text-[10px] bg-rose-900/40 text-rose-300 px-2.5 py-0.5 rounded-full font-black">{room.aiDifficulty}</span>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                {teamBPlayers.map(p => (
+                                                    <div key={p.userId} className="flex items-center gap-3 bg-[#18060a]/60 border border-slate-850 px-3.5 py-2.5 rounded-2xl">
+                                                        <div className="w-7 h-7 rounded-full bg-rose-650 flex items-center justify-center text-[11px] font-black">{p.firstName[0]}</div>
+                                                        <span className="font-bold text-sm truncate">{p.firstName}</span>
+                                                        <span className="ml-auto text-[10px] bg-rose-900/40 text-rose-300 px-2 py-0.5 rounded-full font-black">Class {p.grade}</span>
+                                                    </div>
+                                                ))}
+                                                {Array.from({ length: Math.max(0, room.teamBSizeTarget - teamBPlayers.length) }).map((_, i) => (
+                                                    <div key={i} className="flex items-center gap-3 text-xs text-slate-655 px-3.5 py-2.5 border border-dashed border-slate-850 rounded-2xl">
+                                                        <div className="w-7 h-7 rounded-full border border-dashed border-slate-800 flex items-center justify-center font-bold">?</div>
+                                                        <span>Waiting for player...</span>
+                                                    </div>
+                                                ))}
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                            {/* Team B */}
-                            <div className="bg-[#210b10] border border-rose-900/30 rounded-3xl p-5 shadow-xl">
-                                <div className="text-xs font-black uppercase tracking-widest text-rose-450 mb-4 flex items-center gap-2 border-b border-rose-950/40 pb-2">
-                                    {room.mode === 'SOLO_VS_AI' ? <Bot className="w-4 h-4 text-rose-450" /> : <Flame className="w-4 h-4 text-rose-450" />}
-                                    {room.mode === 'SOLO_VS_AI' ? `Future Education OS Bot` : `Team Omega (${teamBPlayers.length} / ${room.teamBSizeTarget})`}
-                                    {room.mode !== 'SOLO_VS_AI' && !teamBPlayers.some(p => p.userId.toString() === user?._id?.toString()) && (
-                                        <button 
-                                            onClick={() => handleSwitchTeam('B')}
-                                            disabled={loading || teamBPlayers.length >= room.teamBSizeTarget}
-                                            className="ml-auto text-[10px] bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold px-2.5 py-1 rounded-xl transition duration-200"
-                                        >
-                                            Switch to Omega
-                                        </button>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    {room.mode === 'SOLO_VS_AI' ? (
-                                        <div className="flex items-center gap-3 bg-[#1d080c]/60 border border-rose-950/30 px-3.5 py-2.5 rounded-2xl">
-                                            <div className="w-7 h-7 rounded-full bg-rose-600 flex items-center justify-center"><Bot className="w-4 h-4 text-white" /></div>
-                                            <span className="font-bold text-sm">Future Education OS Bot</span>
-                                            <span className="ml-auto text-[10px] bg-rose-900/40 text-rose-305 px-2.5 py-0.5 rounded-full font-black">{room.aiDifficulty}</span>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            {teamBPlayers.map(p => (
-                                                <div key={p.userId} className="flex items-center gap-3 bg-[#18060a]/60 border border-slate-850 px-3.5 py-2.5 rounded-2xl">
-                                                    <div className="w-7 h-7 rounded-full bg-rose-650 flex items-center justify-center text-[11px] font-black">{p.firstName[0]}</div>
-                                                    <span className="font-bold text-sm truncate">{p.firstName}</span>
-                                                    <span className="ml-auto text-[10px] bg-rose-900/40 text-rose-300 px-2 py-0.5 rounded-full font-black">Class {p.grade}</span>
-                                                </div>
-                                            ))}
-                                            {Array.from({ length: Math.max(0, room.teamBSizeTarget - teamBPlayers.length) }).map((_, i) => (
-                                                <div key={i} className="flex items-center gap-3 text-xs text-slate-650 px-3.5 py-2.5 border border-dashed border-slate-850 rounded-2xl">
-                                                    <div className="w-7 h-7 rounded-full border border-dashed border-slate-800 flex items-center justify-center font-bold">?</div>
-                                                    <span>Waiting for player...</span>
-                                                </div>
-                                            ))}
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
+                        )}
 
                         {isHost ? (
                             <motion.button whileTap={{ scale: 0.97 }} onClick={startMatch}
                                 disabled={!isReady}
                                 className="w-full py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:from-slate-900 disabled:to-slate-950 disabled:text-slate-700 disabled:border-slate-900 disabled:border rounded-2xl font-black text-base shadow-lg transition-all flex items-center justify-center gap-2">
                                 <Play className="w-4 h-4" />
-                                {isReady ? 'Launch Arena Battle!' : `Waiting for players to connect (${room.players.length} / ${room.teamASizeTarget + (room.mode === 'SOLO_VS_AI' ? 0 : room.teamBSizeTarget)})`}
+                                {isReady ? 'Launch Arena Battle!' : (
+                                    room.mode === 'CUSTOM_BATTLE' 
+                                        ? `Waiting for players to connect (${room.players.length} joined)`
+                                        : `Waiting for players to connect (${room.players.length} / ${room.teamASizeTarget + (room.mode === 'SOLO_VS_AI' ? 0 : room.teamBSizeTarget)})`
+                                )}
                             </motion.button>
                         ) : (
                             <div className="text-center py-4 text-slate-500 text-sm flex items-center justify-center gap-2 border border-slate-850 bg-slate-950/20 rounded-2xl font-semibold">
@@ -2964,104 +3027,165 @@ export default function MinervaQuizBattlePage() {
                     <div className="flex flex-col gap-4 min-h-screen py-1">
 
                         {/* Interactive RPG Character Avatars & HP Board */}
-                        <div className="grid grid-cols-2 gap-4">
-                            {/* Team Alpha Hero Card */}
-                            <motion.div
-                                animate={shakeA ? { x: [0, -10, 10, -7, 7, -4, 4, 0], scale: [1, 0.96, 1.04, 1] } : {}}
-                                transition={{ duration: 0.4 }}
-                                className="bg-[#0b1021]/80 border border-indigo-500/30 rounded-2xl p-3.5 relative overflow-hidden shadow-[0_4px_30px_rgba(99,102,241,0.15)] flex flex-col justify-between">
-                                <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none" />
-                                <div className="flex items-center gap-2.5 mb-2.5">
-                                    <div className="w-10 h-10 rounded-xl bg-indigo-950 border border-indigo-500/40 flex items-center justify-center text-xl shrink-0">🛡️</div>
-                                    <div className="text-left min-w-0">
-                                        <div className="text-xs font-black text-indigo-400 tracking-widest uppercase">Team Alpha</div>
-                                        <div className="text-[9px] text-slate-500 truncate">Knight Scholar</div>
-                                    </div>
-                                </div>
-                                <HpBar current={room.teamA.hp} max={room.teamA.maxHp} />
-                                <div className="flex flex-col gap-1.5 mt-2.5 border-t border-indigo-950/40 pt-2 text-left w-full">
-                                    {teamAPlayers.map(p => {
-                                        const roundState = room.roundStates[currentRound];
-                                        const answered = roundState?.teamAAnswers?.[p.userId] || (roundState?.teamAAnswers as any)?.[p.userId] || (room.players.find(x => x.userId === p.userId)?.hasFinished);
-                                        const isThisPlayerTurn = room.battleStyle === 'ALTERNATING' && activeTurn === 'A' &&
-                                                                 (room.activePlayerId ? room.activePlayerId.toString() === p.userId.toString() : false);
-                                        return (
-                                            <div key={p.userId} className="flex items-center justify-between text-[10px]">
-                                                <span className="font-bold text-indigo-300 truncate max-w-[90px]">
-                                                    {p.firstName}{p.streakCount >= 2 ? ` 🔥` : ''}
-                                                </span>
-                                                <span className={`text-[8px] font-black px-2 py-0.5 rounded-full ${
-                                                    answered ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/20' :
-                                                    isThisPlayerTurn && !answered ? 'bg-amber-900/40 text-amber-400 border border-amber-500/30 animate-pulse' :
-                                                    'bg-slate-900 text-slate-500 border border-slate-800'
-                                                }`}>
-                                                    {answered ? '✓ DONE' : isThisPlayerTurn ? '⚔️ ATTACKING' : '🛡️ STANDBY'}
-                                                </span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                {damageEventsA.map(d => <DamageFloat key={d.id} amount={d.amount} isHeal={false} />)}
-                            </motion.div>
+                        {room.mode === 'CUSTOM_BATTLE' ? (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
+                                {['A', 'B', 'C', 'D', 'E', 'F'].map((teamLabel, idx) => {
+                                    const teamPlayers = room.players.filter((p: any) => p.team === teamLabel);
+                                    if (teamPlayers.length === 0) return null;
 
-                            {/* Team Omega / Bot Hero Card */}
-                            <motion.div
-                                animate={shakeB ? { x: [0, 10, -10, 7, -7, 4, -4, 0], scale: [1, 0.96, 1.04, 1] } : {}}
-                                transition={{ duration: 0.4 }}
-                                className="bg-[#210b10]/80 border border-rose-500/25 rounded-2xl p-3.5 relative overflow-hidden shadow-[0_4px_30px_rgba(244,63,94,0.15)] flex flex-col justify-between">
-                                <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/5 rounded-full blur-2xl pointer-events-none" />
-                                <div className="flex items-center gap-2.5 mb-2.5">
-                                    <div className="w-10 h-10 rounded-xl bg-rose-950 border border-rose-550/45 flex items-center justify-center text-xl shrink-0">
-                                        {room.mode === 'SOLO_VS_AI' ? '🤖' : '🔮'}
-                                    </div>
-                                    <div className="text-left min-w-0">
-                                        <div className="text-xs font-black text-rose-450 tracking-widest uppercase">
-                                            {room.mode === 'SOLO_VS_AI' ? 'Future Education OS AI' : 'Team Omega'}
-                                        </div>
-                                        <div className="text-[9px] text-slate-500 truncate">
-                                            {room.mode === 'SOLO_VS_AI' ? `${room.aiDifficulty} Cyborg` : 'Challengers'}
-                                        </div>
-                                    </div>
-                                </div>
-                                <HpBar current={room.teamB.hp} max={room.teamB.maxHp} />
-                                <div className="flex flex-col gap-1.5 mt-2.5 border-t border-rose-950/40 pt-2 text-left w-full">
-                                    {room.mode === 'SOLO_VS_AI' ? (() => {
-                                        const roundState = room.roundStates[currentRound];
-                                        const answered = roundState?.teamBAnswers?.['AI'] || (roundState?.teamBAnswers as any)?.get?.('AI');
-                                        return (
-                                            <div className="flex items-center justify-between text-[10px]">
-                                                <span className="font-bold text-rose-300">
-                                                    🤖 Future Education OS Bot
-                                                </span>
-                                                <span className={`text-[8px] font-black px-2 py-0.5 rounded-full ${answered ? 'bg-emerald-950/60 text-emerald-450 border border-emerald-500/20' : 'bg-slate-900 text-slate-500 border border-slate-800'}`}>
-                                                    {answered ? '✓ DONE' : '⏳ THINKING'}
-                                                </span>
+                                    const tState = (room as any).teams?.[teamLabel] || (room as any).teams?.get?.(teamLabel);
+                                    const currentHp = tState ? tState.hp : 0;
+                                    const maxHp = tState ? tState.maxHp : 1000;
+                                    const isEliminated = currentHp <= 0;
+
+                                    const teamColors = [
+                                        { border: 'border-indigo-500/30 bg-[#0b1021]/85', text: 'text-indigo-400', label: 'Team 1' },
+                                        { border: 'border-rose-500/25 bg-[#210b10]/85', text: 'text-rose-455', label: 'Team 2' },
+                                        { border: 'border-emerald-500/30 bg-[#0b2110]/85', text: 'text-emerald-455', label: 'Team 3' },
+                                        { border: 'border-amber-500/30 bg-[#211b0b]/85', text: 'text-amber-455', label: 'Team 4' },
+                                        { border: 'border-violet-500/30 bg-[#160b21]/85', text: 'text-violet-455', label: 'Team 5' },
+                                        { border: 'border-cyan-500/30 bg-[#0b2121]/85', text: 'text-cyan-455', label: 'Team 6' }
+                                    ][idx];
+
+                                    return (
+                                        <div key={teamLabel} className={`border rounded-2xl p-3 relative overflow-hidden flex flex-col justify-between transition-all ${isEliminated ? 'opacity-40 border-slate-900 bg-slate-950/80 shadow-none' : teamColors.border + ' shadow-[0_4px_25px_rgba(99,102,241,0.06)]'}`}>
+                                            <div className="flex items-center gap-1.5 mb-2 pb-1.5 border-b border-slate-900/40">
+                                                <div className="text-[10px] font-black tracking-widest uppercase truncate">{teamColors.label}</div>
                                             </div>
-                                        );
-                                    })() : teamBPlayers.map(p => {
-                                        const roundState = room.roundStates[currentRound];
-                                        const answered = roundState?.teamBAnswers?.[p.userId] || (roundState?.teamBAnswers as any)?.[p.userId] || (room.players.find(x => x.userId === p.userId)?.hasFinished);
-                                        const isThisPlayerTurn = room.battleStyle === 'ALTERNATING' && activeTurn === 'B' &&
-                                                                 (room.activePlayerId ? room.activePlayerId.toString() === p.userId.toString() : false);
-                                        return (
-                                            <div key={p.userId} className="flex items-center justify-between text-[10px]">
-                                                <span className="font-bold text-rose-300 truncate max-w-[90px]">
-                                                    {p.firstName}{p.streakCount >= 2 ? ` 🔥` : ''}
-                                                </span>
-                                                <span className={`text-[8px] font-black px-2 py-0.5 rounded-full ${
-                                                    answered ? 'bg-emerald-950/60 text-emerald-455 border border-emerald-500/20' :
-                                                    isThisPlayerTurn && !answered ? 'bg-amber-900/40 text-amber-400 border border-amber-500/30 animate-pulse' :
-                                                    'bg-slate-900 text-slate-500 border border-slate-800'
-                                                }`}>
-                                                    {answered ? '✓ DONE' : isThisPlayerTurn ? '⚔️ ATTACKING' : '🛡️ STANDBY'}
-                                                </span>
+                                            <HpBar current={currentHp} max={maxHp} />
+                                            <div className="flex flex-col gap-1.5 mt-2.5 pt-1.5 text-left w-full">
+                                                {teamPlayers.map((p: any) => {
+                                                    const roundState = room.roundStates[currentRound];
+                                                    
+                                                    let answered = false;
+                                                    if (teamLabel === 'A') {
+                                                        answered = !!roundState?.teamAAnswers?.[p.userId] || !!(roundState?.teamAAnswers as any)?.[p.userId];
+                                                    } else if (teamLabel === 'B') {
+                                                        answered = !!roundState?.teamBAnswers?.[p.userId] || !!(roundState?.teamBAnswers as any)?.[p.userId];
+                                                    } else {
+                                                        const ansMap = roundState?.teamAnswers?.[teamLabel] || (roundState?.teamAnswers as any)?.get?.(teamLabel);
+                                                        answered = !!ansMap?.[p.userId] || !!ansMap?.get?.(p.userId);
+                                                    }
+                                                    
+                                                    return (
+                                                        <div key={p.userId} className="flex items-center justify-between text-[9px] font-semibold text-slate-400">
+                                                            <span className="truncate max-w-[50px]">{p.firstName}</span>
+                                                            <span className={answered ? 'text-emerald-400 font-bold' : 'text-slate-600'}>
+                                                                {answered ? '✓' : '⏳'}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
-                                        );
-                                    })}
-                                </div>
-                                {damageEventsB.map(d => <DamageFloat key={d.id} amount={d.amount} isHeal={false} />)}
-                            </motion.div>
-                        </div>
+                                            {isEliminated && (
+                                                <div className="absolute inset-0 bg-black/75 flex items-center justify-center font-black text-[9px] text-rose-500 tracking-widest">
+                                                    ☠️ ELIMINATED
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-4">
+                                {/* Team Alpha Hero Card */}
+                                <motion.div
+                                    animate={shakeA ? { x: [0, -10, 10, -7, 7, -4, 4, 0], scale: [1, 0.96, 1.04, 1] } : {}}
+                                    transition={{ duration: 0.4 }}
+                                    className="bg-[#0b1021]/80 border border-indigo-500/30 rounded-2xl p-3.5 relative overflow-hidden shadow-[0_4px_30px_rgba(99,102,241,0.15)] flex flex-col justify-between">
+                                    <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none" />
+                                    <div className="flex items-center gap-2.5 mb-2.5">
+                                        <div className="w-10 h-10 rounded-xl bg-indigo-950 border border-indigo-500/40 flex items-center justify-center text-xl shrink-0">🛡️</div>
+                                        <div className="text-left min-w-0">
+                                            <div className="text-xs font-black text-indigo-400 tracking-widest uppercase">Team Alpha</div>
+                                            <div className="text-[9px] text-slate-500 truncate">Knight Scholar</div>
+                                        </div>
+                                    </div>
+                                    <HpBar current={room.teamA.hp} max={room.teamA.maxHp} />
+                                    <div className="flex flex-col gap-1.5 mt-2.5 border-t border-indigo-950/40 pt-2 text-left w-full">
+                                        {teamAPlayers.map(p => {
+                                            const roundState = room.roundStates[currentRound];
+                                            const answered = roundState?.teamAAnswers?.[p.userId] || (roundState?.teamAAnswers as any)?.[p.userId] || (room.players.find(x => x.userId === p.userId)?.hasFinished);
+                                            const isThisPlayerTurn = room.battleStyle === 'ALTERNATING' && activeTurn === 'A' &&
+                                                                     (room.activePlayerId ? room.activePlayerId.toString() === p.userId.toString() : false);
+                                            return (
+                                                <div key={p.userId} className="flex items-center justify-between text-[10px]">
+                                                    <span className="font-bold text-indigo-300 truncate max-w-[90px]">
+                                                        {p.firstName}{p.streakCount >= 2 ? ` 🔥` : ''}
+                                                    </span>
+                                                    <span className={`text-[8px] font-black px-2 py-0.5 rounded-full ${
+                                                        answered ? 'bg-emerald-950/60 text-emerald-450 border border-emerald-500/20' :
+                                                        isThisPlayerTurn && !answered ? 'bg-amber-900/40 text-amber-400 border border-amber-500/30 animate-pulse' :
+                                                        'bg-slate-900 text-slate-500 border border-slate-800'
+                                                    }`}>
+                                                        {answered ? '✓ DONE' : isThisPlayerTurn ? '⚔️ ATTACKING' : '🛡️ STANDBY'}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    {damageEventsA.map(d => <DamageFloat key={d.id} amount={d.amount} isHeal={false} />)}
+                                </motion.div>
+
+                                {/* Team Omega / Bot Hero Card */}
+                                <motion.div
+                                    animate={shakeB ? { x: [0, 10, -10, 7, -7, 4, -4, 0], scale: [1, 0.96, 1.04, 1] } : {}}
+                                    transition={{ duration: 0.4 }}
+                                    className="bg-[#210b10]/80 border border-rose-500/25 rounded-2xl p-3.5 relative overflow-hidden shadow-[0_4px_30px_rgba(244,63,94,0.15)] flex flex-col justify-between">
+                                    <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/5 rounded-full blur-2xl pointer-events-none" />
+                                    <div className="flex items-center gap-2.5 mb-2.5">
+                                        <div className="w-10 h-10 rounded-xl bg-rose-950 border border-rose-550/45 flex items-center justify-center text-xl shrink-0">
+                                            {room.mode === 'SOLO_VS_AI' ? '🤖' : '🔮'}
+                                        </div>
+                                        <div className="text-left min-w-0">
+                                            <div className="text-xs font-black text-rose-450 tracking-widest uppercase">
+                                                {room.mode === 'SOLO_VS_AI' ? 'Future Education OS AI' : 'Team Omega'}
+                                            </div>
+                                            <div className="text-[9px] text-slate-500 truncate">
+                                                {room.mode === 'SOLO_VS_AI' ? `${room.aiDifficulty} Cyborg` : 'Challengers'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <HpBar current={room.teamB.hp} max={room.teamB.maxHp} />
+                                    <div className="flex flex-col gap-1.5 mt-2.5 border-t border-rose-950/40 pt-2 text-left w-full">
+                                        {room.mode === 'SOLO_VS_AI' ? (() => {
+                                            const roundState = room.roundStates[currentRound];
+                                            const answered = roundState?.teamBAnswers?.['AI'] || (roundState?.teamBAnswers as any)?.get?.('AI');
+                                            return (
+                                                <div className="flex items-center justify-between text-[10px]">
+                                                    <span className="font-bold text-rose-300">
+                                                        🤖 Future Education OS Bot
+                                                    </span>
+                                                    <span className={`text-[8px] font-black px-2 py-0.5 rounded-full ${answered ? 'bg-emerald-950/60 text-emerald-450 border border-emerald-500/20' : 'bg-slate-900 text-slate-500 border border-slate-800'}`}>
+                                                        {answered ? '✓ DONE' : '⏳ THINKING'}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })() : teamBPlayers.map(p => {
+                                            const roundState = room.roundStates[currentRound];
+                                            const answered = roundState?.teamBAnswers?.[p.userId] || (roundState?.teamBAnswers as any)?.[p.userId] || (room.players.find(x => x.userId === p.userId)?.hasFinished);
+                                            const isThisPlayerTurn = room.battleStyle === 'ALTERNATING' && activeTurn === 'B' &&
+                                                                     (room.activePlayerId ? room.activePlayerId.toString() === p.userId.toString() : false);
+                                            return (
+                                                <div key={p.userId} className="flex items-center justify-between text-[10px]">
+                                                    <span className="font-bold text-rose-300 truncate max-w-[90px]">
+                                                        {p.firstName}{p.streakCount >= 2 ? ` 🔥` : ''}
+                                                    </span>
+                                                    <span className={`text-[8px] font-black px-2 py-0.5 rounded-full ${
+                                                        answered ? 'bg-emerald-950/60 text-emerald-450 border border-emerald-500/20' :
+                                                        isThisPlayerTurn && !answered ? 'bg-amber-900/40 text-amber-400 border border-amber-500/30 animate-pulse' :
+                                                        'bg-slate-900 text-slate-500 border border-slate-800'
+                                                    }`}>
+                                                        {answered ? '✓ DONE' : isThisPlayerTurn ? '⚔️ ATTACKING' : '🛡️ STANDBY'}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    {damageEventsB.map(d => <DamageFloat key={d.id} amount={d.amount} isHeal={false} />)}
+                                </motion.div>
+                            </div>
+                        )}
 
                         {/* Question Card */}
                         <div className="flex-1 bg-[#090b14]/90 border border-slate-800 rounded-3xl p-6 flex flex-col shadow-2xl relative">
@@ -3226,7 +3350,11 @@ export default function MinervaQuizBattlePage() {
                                     {hasSubmitted && (
                                         <div className="mt-4 text-[11px] text-slate-500 flex items-center gap-1.5 font-medium">
                                             <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-400" />
-                                            {roundComplete ? 'Loading next round stage...' : 'Waiting for opponent side to answer...'}
+                                            {roundComplete
+                                                ? 'Loading next round...'
+                                                : room.mode === 'CUSTOM_BATTLE'
+                                                    ? 'Waiting for other squads to answer... (round ends when a team strikes correctly!)'
+                                                    : 'Waiting for opponent side to answer...'}
                                         </div>
                                     )}
                                     {hasSubmitted && myQuestion.explanation && (
@@ -3298,7 +3426,11 @@ export default function MinervaQuizBattlePage() {
                                 <>
                                     <motion.div animate={{ rotate: [0, -10, 10, -6, 6, 0] }} transition={{ duration: 0.6 }} className="text-5xl mb-3">🏆</motion.div>
                                     <h1 className="text-3xl font-black bg-gradient-to-r from-yellow-300 via-amber-400 to-orange-500 bg-clip-text text-transparent">
-                                        TEAM {room.winnerTeam === 'A' ? 'ALPHA' : 'OMEGA'} WINS!
+                                        {room.mode === 'CUSTOM_BATTLE' ? (
+                                            `TEAM ${room.winnerTeam === 'A' ? '1' : room.winnerTeam === 'B' ? '2' : room.winnerTeam === 'C' ? '3' : room.winnerTeam === 'D' ? '4' : room.winnerTeam === 'E' ? '5' : '6'} WINS!`
+                                        ) : (
+                                            `TEAM ${room.winnerTeam === 'A' ? 'ALPHA' : 'OMEGA'} WINS!`
+                                        )}
                                     </h1>
                                     {myTeam === room.winnerTeam
                                         ? <p className="text-emerald-450 text-sm mt-1.5 font-black">VICTORY! Profile XP awarded (+300 XP)</p>
@@ -3312,39 +3444,81 @@ export default function MinervaQuizBattlePage() {
 
                         {/* Scorecards */}
                         <div className="space-y-4 mb-6">
-                            {[{ players: teamAPlayers, teamKey: 'A', label: 'Team Alpha', icon: <Shield className="w-3.5 h-3.5" />, color: 'indigo' },
-                              { players: room.mode === 'SOLO_VS_AI' ? [] : teamBPlayers, teamKey: 'B', label: room.mode === 'SOLO_VS_AI' ? 'Future Education OS AI' : 'Team Omega', icon: room.mode === 'SOLO_VS_AI' ? <Bot className="w-3.5 h-3.5" /> : <Flame className="w-3.5 h-3.5" />, color: 'rose' }
-                            ].map(({ players, teamKey, label, icon, color }) => (
-                                <div key={teamKey} className={`bg-${color}-950/15 border border-${color}-900/35 rounded-3xl p-4.5 shadow-xl`}>
-                                    <div className={`text-[10px] font-black uppercase tracking-widest text-${color}-400 mb-3 flex items-center gap-1.5 border-b border-${color}-950/30 pb-2`}>
-                                        {icon} {label}
-                                        {room.winnerTeam === teamKey && <Crown className="w-3.5 h-3.5 text-yellow-450 ml-auto" />}
-                                    </div>
-                                    {room.mode === 'SOLO_VS_AI' && teamKey === 'B' ? (
-                                        <div className="flex items-center gap-3 bg-slate-900/40 rounded-2xl px-4 py-3">
-                                            <Bot className="w-5 h-5 text-rose-450" />
-                                            <span className="font-bold text-sm">Future Education OS Bot</span>
-                                            <span className="ml-auto text-xs text-slate-500 font-bold">Grade Adaptive AI ({room.aiDifficulty})</span>
-                                        </div>
-                                    ) : players.map(p => {
-                                        const correct = p.answersRecord?.filter(a => a.isCorrect).length ?? 0;
-                                        const isMvp = room.mvpPlayerId === p.userId;
-                                        return (
-                                            <div key={p.userId} className="flex items-center gap-3 bg-slate-900/30 border border-slate-850 rounded-2xl px-4 py-3 mb-2">
-                                                <div className={`w-7 h-7 rounded-full bg-${color}-650 flex items-center justify-center text-[11px] font-black flex-shrink-0`}>{p.firstName[0]}</div>
-                                                <div className="text-left flex-1 min-w-0">
-                                                    <div className="font-bold flex items-center gap-1.5 text-sm">{p.firstName} {isMvp && <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />}</div>
-                                                    <div className="text-[9px] text-slate-500 font-bold">Class {p.grade} Scholar</div>
-                                                </div>
-                                                <div className="text-right shrink-0">
-                                                    <div className="font-black text-white text-sm">{p.score} pts</div>
-                                                    <div className="text-[10px] text-slate-500 font-bold">{correct} / {p.answersRecord?.length ?? 0} Correct</div>
-                                                </div>
+                            {room.mode === 'CUSTOM_BATTLE' ? (
+                                ['A', 'B', 'C', 'D', 'E', 'F'].map((teamKey, idx) => {
+                                    const teamPlayers = room.players.filter((p: any) => p.team === teamKey);
+                                    if (teamPlayers.length === 0) return null;
+
+                                    const teamColors = [
+                                        { label: 'Team 1 (Alpha)', color: 'indigo', icon: <Shield className="w-3.5 h-3.5" /> },
+                                        { label: 'Team 2 (Omega)', color: 'rose', icon: <Flame className="w-3.5 h-3.5" /> },
+                                        { label: 'Team 3 (Delta)', color: 'emerald', icon: <Shield className="w-3.5 h-3.5" /> },
+                                        { label: 'Team 4 (Sigma)', color: 'amber', icon: <Shield className="w-3.5 h-3.5" /> },
+                                        { label: 'Team 5 (Gamma)', color: 'violet', icon: <Shield className="w-3.5 h-3.5" /> },
+                                        { label: 'Team 6 (Zeta)', color: 'cyan', icon: <Shield className="w-3.5 h-3.5" /> }
+                                    ][idx];
+
+                                    return (
+                                        <div key={teamKey} className={`bg-${teamColors.color}-950/15 border border-${teamColors.color}-900/35 rounded-3xl p-4.5 shadow-xl`}>
+                                            <div className={`text-[10px] font-black uppercase tracking-widest text-${teamColors.color}-400 mb-3 flex items-center gap-1.5 border-b border-${teamColors.color}-950/30 pb-2`}>
+                                                {teamColors.icon} {teamColors.label}
+                                                {room.winnerTeam === teamKey && <Crown className="w-3.5 h-3.5 text-yellow-450 ml-auto" />}
                                             </div>
-                                        );
-                                    })}
-                                </div>
-                            ))}
+                                            {teamPlayers.map((p: any) => {
+                                                const correct = p.answersRecord?.filter((a: any) => a.isCorrect).length ?? 0;
+                                                const isMvp = room.mvpPlayerId === p.userId;
+                                                return (
+                                                    <div key={p.userId} className="flex items-center gap-3 bg-slate-900/30 border border-slate-850 rounded-2xl px-4 py-3 mb-2">
+                                                        <div className={`w-7 h-7 rounded-full bg-${teamColors.color}-650 flex items-center justify-center text-[11px] font-black flex-shrink-0`}>{p.firstName[0]}</div>
+                                                        <div className="text-left flex-1 min-w-0">
+                                                            <div className="font-bold flex items-center gap-1.5 text-sm">{p.firstName} {isMvp && <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />}</div>
+                                                            <div className="text-[9px] text-slate-500 font-bold">Class {p.grade} Scholar</div>
+                                                        </div>
+                                                        <div className="text-right shrink-0">
+                                                            <div className="font-black text-white text-sm">{p.score} pts</div>
+                                                            <div className="text-[10px] text-slate-500 font-bold">{correct} / {p.answersRecord?.length ?? 0} Correct</div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })
+                            ) : (
+                                [{ players: teamAPlayers, teamKey: 'A', label: 'Team Alpha', icon: <Shield className="w-3.5 h-3.5" />, color: 'indigo' },
+                                 { players: room.mode === 'SOLO_VS_AI' ? [] : teamBPlayers, teamKey: 'B', label: room.mode === 'SOLO_VS_AI' ? 'Future Education OS AI' : 'Team Omega', icon: room.mode === 'SOLO_VS_AI' ? <Bot className="w-3.5 h-3.5" /> : <Flame className="w-3.5 h-3.5" />, color: 'rose' }
+                                ].map(({ players, teamKey, label, icon, color }) => (
+                                    <div key={teamKey} className={`bg-${color}-950/15 border border-${color}-900/35 rounded-3xl p-4.5 shadow-xl`}>
+                                        <div className={`text-[10px] font-black uppercase tracking-widest text-${color}-450 mb-3 flex items-center gap-1.5 border-b border-${color}-950/30 pb-2`}>
+                                            {icon} {label}
+                                            {room.winnerTeam === teamKey && <Crown className="w-3.5 h-3.5 text-yellow-450 ml-auto" />}
+                                        </div>
+                                        {room.mode === 'SOLO_VS_AI' && teamKey === 'B' ? (
+                                            <div className="flex items-center gap-3 bg-slate-900/40 rounded-2xl px-4 py-3">
+                                                <Bot className="w-5 h-5 text-rose-455" />
+                                                <span className="font-bold text-sm">Future Education OS Bot</span>
+                                                <span className="ml-auto text-xs text-slate-500 font-bold">Grade Adaptive AI ({room.aiDifficulty})</span>
+                                            </div>
+                                        ) : players.map(p => {
+                                            const correct = p.answersRecord?.filter(a => a.isCorrect).length ?? 0;
+                                            const isMvp = room.mvpPlayerId === p.userId;
+                                            return (
+                                                <div key={p.userId} className="flex items-center gap-3 bg-slate-900/30 border border-slate-850 rounded-2xl px-4 py-3 mb-2">
+                                                    <div className={`w-7 h-7 rounded-full bg-${color}-650 flex items-center justify-center text-[11px] font-black flex-shrink-0`}>{p.firstName[0]}</div>
+                                                    <div className="text-left flex-1 min-w-0">
+                                                        <div className="font-bold flex items-center gap-1.5 text-sm">{p.firstName} {isMvp && <Star className="w-3.5 h-3.5 text-yellow-450 fill-yellow-450" />}</div>
+                                                        <div className="text-[9px] text-slate-500 font-bold">Class {p.grade} Scholar</div>
+                                                    </div>
+                                                    <div className="text-right shrink-0">
+                                                        <div className="font-black text-white text-sm">{p.score} pts</div>
+                                                        <div className="text-[10px] text-slate-500 font-bold">{correct} / {p.answersRecord?.length ?? 0} Correct</div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ))
+                            )}
                         </div>
 
                         <div className="flex gap-3">

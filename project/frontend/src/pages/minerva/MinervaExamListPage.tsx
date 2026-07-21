@@ -51,7 +51,7 @@ const MinervaExamListPage: React.FC = () => {
 
     const handleDeleteExam = async (e: React.MouseEvent, examId: string) => {
         e.stopPropagation();
-        if (!window.confirm('Kya aap is Practice Paper / Exam ko delete karna chahte hain?')) return;
+        if (!window.confirm('Are you sure you want to delete this Practice Paper / Exam?')) return;
         try {
             const res = await minervaApi.deleteExam(token, examId);
             if (res.success) {

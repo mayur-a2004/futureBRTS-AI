@@ -44,7 +44,7 @@ const MinervaRoadmapsPage: React.FC = () => {
         if (e.nativeEvent) {
             e.nativeEvent.stopImmediatePropagation();
         }
-        if (!window.confirm('Kya aap sach me is Roadmap course ko delete karna chahte hain? Iske saare topics aur progress delete ho jayengi.')) return;
+        if (!window.confirm('Are you sure you want to delete this Roadmap course? All its topics and progress will be deleted.')) return;
         try {
             const res = await minervaApi.deleteSession(token, courseId);
             if (res.success) {

@@ -3302,7 +3302,7 @@ Guidelines:
     // ─── DELETION CONTROLLERS ──────────────────────────────────────
     deleteSession: async (req: any, res: Response) => {
         try {
-            const userId = req.user!.userId;
+            const userId = req.user?.id || req.user?._id;
             const { id } = req.params;
             const session = await MinervaStudySession.findOneAndDelete({ _id: id, userId });
             if (!session) return res.status(404).json({ success: false, error: 'Session not found' });
@@ -3317,7 +3317,7 @@ Guidelines:
 
     deleteTask: async (req: any, res: Response) => {
         try {
-            const userId = req.user!.userId;
+            const userId = req.user?.id || req.user?._id;
             const { id } = req.params;
             const task = await MinervaTask.findOneAndDelete({ _id: id, userId });
             if (!task) return res.status(404).json({ success: false, error: 'Task not found' });
@@ -3329,7 +3329,7 @@ Guidelines:
 
     deleteBuilderMaterial: async (req: any, res: Response) => {
         try {
-            const userId = req.user!.userId;
+            const userId = req.user?.id || req.user?._id;
             const { id } = req.params;
             const mat = await MinervaBuilderMaterial.findOneAndDelete({ _id: id, userId });
             if (!mat) return res.status(404).json({ success: false, error: 'Material not found' });
@@ -3341,7 +3341,7 @@ Guidelines:
 
     deleteExam: async (req: any, res: Response) => {
         try {
-            const userId = req.user!.userId;
+            const userId = req.user?.id || req.user?._id;
             const { id } = req.params;
             const exam = await MinervaExam.findOneAndDelete({ _id: id, userId });
             if (!exam) return res.status(404).json({ success: false, error: 'Exam not found' });

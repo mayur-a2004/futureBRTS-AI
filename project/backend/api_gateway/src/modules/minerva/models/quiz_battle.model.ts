@@ -20,7 +20,7 @@ export interface IArenaPlayer {
     firstName: string;
     grade: string | number;
     board: string;             // ← NEW: player's own board (GSEB, CBSE, MSBSHSE etc.)
-    team: 'A' | 'B';
+    team: 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
     hp: number;
     score: number;
     answersRecord: {
@@ -45,7 +45,7 @@ export interface IArenaPlayer {
 
 // ─── Team State ──────────────────────────────────────────────────────────────
 export interface IArenaTeam {
-    label: 'A' | 'B';
+    label: 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
     hp: number;
     maxHp: number;
     playerIds: mongoose.Types.ObjectId[];
@@ -56,6 +56,7 @@ export interface IRoundState {
     roundIndex: number;
     teamAAnswers: Record<string, { option: number; isCorrect: boolean; timeMs: number }>;
     teamBAnswers: Record<string, { option: number; isCorrect: boolean; timeMs: number }>;
+    teamAnswers?: Record<string, any>;
     teamACorrectlyClaimed: boolean;
     teamBCorrectlyClaimed: boolean;
     startedAt: Date;
@@ -67,13 +68,13 @@ export interface IArenaRoom extends Document {
     roomCode: string;
     hostId: mongoose.Types.ObjectId;
     status: 'WAITING' | 'LOBBY_READY' | 'ACTIVE' | 'FINISHED' | 'CANCELLED';
-    roomType: 'OPEN_ARENA' | 'TEACHER_ROOM';   // ← NEW
+    roomType: 'OPEN_ARENA' | 'TEACHER_ROOM' | 'CUSTOM_ROOM';   // ← NEW
     mode: 'SOLO_VS_AI' | 'SOLO_VS_SOLO' | 'SOLO_VS_DUO' | 'SOLO_VS_TRIO' | 'SOLO_VS_SQUAD'
         | 'DUO_VS_DUO' | 'DUO_VS_TRIO' | 'DUO_VS_SQUAD'
         | 'TRIO_VS_TRIO' | 'TRIO_VS_SQUAD'
-        | 'SQUAD_VS_SQUAD' | 'CLASSROOM';
+        | 'SQUAD_VS_SQUAD' | 'CLASSROOM' | 'CUSTOM_BATTLE';
     battleStyle: 'SPEED_RACE' | 'ALTERNATING';
-    currentTurn: 'A' | 'B';
+    currentTurn: 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
     activePlayerId?: mongoose.Types.ObjectId | null;
     activePlayerName?: string;
     teamASizeTarget: number;
@@ -92,11 +93,12 @@ export interface IArenaRoom extends Document {
     players: IArenaPlayer[];
     teamA: IArenaTeam;
     teamB: IArenaTeam;
+    teams?: Map<string, IArenaTeam>;
     roundStates: IRoundState[];
     currentRound: number;
     totalRounds: number;
     aiDifficulty?: 'ROOKIE' | 'SCHOLAR' | 'GRANDMASTER';
-    aiTeam?: 'A' | 'B';
+    aiTeam?: 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
     winnerId?: mongoose.Types.ObjectId | null;
     winnerTeam?: 'A' | 'B' | 'DRAW' | null;
     mvpPlayerId?: mongoose.Types.ObjectId;
@@ -111,7 +113,7 @@ const ArenaPlayerSchema = new Schema({
     firstName: { type: String, required: true },
     grade: { type: Schema.Types.Mixed, required: true },
     board: { type: String, default: 'NCERT' },  // ← NEW: per-player board
-    team: { type: String, enum: ['A', 'B'], required: true },
+    team: { type: String, enum: ['A', 'B', 'C', 'D', 'E', 'F'], required: true },
     hp: { type: Number, default: 1000 },
     score: { type: Number, default: 0 },
     answersRecord: [{
@@ -134,7 +136,7 @@ const ArenaPlayerSchema = new Schema({
 }, { _id: false });
 
 const ArenaTeamSchema = new Schema({
-    label: { type: String, enum: ['A', 'B'], required: true },
+    label: { type: String, enum: ['A', 'B', 'C', 'D', 'E', 'F'], required: true },
     hp: { type: Number, required: true },
     maxHp: { type: Number, required: true },
     playerIds: [{ type: Schema.Types.ObjectId, ref: 'User' }]
@@ -144,6 +146,7 @@ const RoundStateSchema = new Schema({
     roundIndex: { type: Number, required: true },
     teamAAnswers: { type: Map, of: Schema.Types.Mixed, default: {} },
     teamBAnswers: { type: Map, of: Schema.Types.Mixed, default: {} },
+    teamAnswers: { type: Map, of: Schema.Types.Mixed, default: {} },
     teamACorrectlyClaimed: { type: Boolean, default: false },
     teamBCorrectlyClaimed: { type: Boolean, default: false },
     startedAt: { type: Date, default: Date.now },
@@ -170,11 +173,11 @@ const ArenaRoomSchema: Schema = new Schema({
         type: String,
         enum: ['SOLO_VS_AI','SOLO_VS_SOLO','SOLO_VS_DUO','SOLO_VS_TRIO','SOLO_VS_SQUAD',
                'DUO_VS_DUO','DUO_VS_TRIO','DUO_VS_SQUAD','TRIO_VS_TRIO','TRIO_VS_SQUAD',
-               'SQUAD_VS_SQUAD','CLASSROOM'],
+               'SQUAD_VS_SQUAD','CLASSROOM','CUSTOM_BATTLE'],
         required: true
     },
     battleStyle: { type: String, enum: ['SPEED_RACE', 'ALTERNATING'], default: 'SPEED_RACE' },
-    currentTurn: { type: String, enum: ['A', 'B'], default: 'A' },
+    currentTurn: { type: String, enum: ['A', 'B', 'C', 'D', 'E', 'F'], default: 'A' },
     activePlayerId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     activePlayerName: { type: String, default: '' },
     teamASizeTarget: { type: Number, required: true },
@@ -188,17 +191,18 @@ const ArenaRoomSchema: Schema = new Schema({
     topicRaw: { type: String },                          // ← NEW: raw user input
     semester: { type: String },                          // ← NEW: for higher-ed
     invitedStudentIds: [{ type: Schema.Types.ObjectId, ref: 'User' }], // ← NEW: teacher room
-    roomType: { type: String, enum: ['OPEN_ARENA', 'TEACHER_ROOM'], default: 'OPEN_ARENA' }, // ← NEW
+    roomType: { type: String, enum: ['OPEN_ARENA', 'TEACHER_ROOM', 'CUSTOM_ROOM'], default: 'OPEN_ARENA' }, // ← NEW
     playerQuestions: { type: Map, of: [ArenaQuestionSchema], default: {} },
     sharedQuestionSets: { type: Map, of: [ArenaQuestionSchema], default: {} },
     players: [ArenaPlayerSchema],
     teamA: ArenaTeamSchema,
     teamB: ArenaTeamSchema,
+    teams: { type: Map, of: ArenaTeamSchema, default: {} },
     roundStates: [RoundStateSchema],
     currentRound: { type: Number, default: 0 },
     totalRounds: { type: Number, default: 10 },
     aiDifficulty: { type: String, enum: ['ROOKIE', 'SCHOLAR', 'GRANDMASTER'] },
-    aiTeam: { type: String, enum: ['A', 'B'] },
+    aiTeam: { type: String, enum: ['A', 'B', 'C', 'D', 'E', 'F'] },
     winnerId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     winnerTeam: { type: String, default: null },
     mvpPlayerId: { type: Schema.Types.ObjectId, ref: 'User' }
@@ -218,6 +222,7 @@ export const ARENA_MODE_SIZES: Record<string, [number, number]> = {
     'TRIO_VS_SQUAD': [3, 4],
     'SQUAD_VS_SQUAD':[4, 4],
     'CLASSROOM':     [15, 15],
+    'CUSTOM_BATTLE': [24, 0],
 };
 
 export const BASE_HP_PER_PLAYER = 1000;

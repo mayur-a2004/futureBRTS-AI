@@ -1,7 +1,7 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import { logger } from '../shared/utils/logger';
-import ArenaRoom, { calculateTeamHP } from '../modules/minerva/models/quiz_battle.model';
+import ArenaRoom, { calculateTeamHP, BASE_HP_PER_PLAYER } from '../modules/minerva/models/quiz_battle.model';
 
 // â”€â”€â”€ Damage calculation based on answer speed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function calculateDamage(timeMs: number, isDoubleStrike: boolean): number {
@@ -20,8 +20,8 @@ async function simulateAIAnswer(
     difficulty: 'ROOKIE' | 'SCHOLAR' | 'GRANDMASTER',
     io: Server
 ) {
-    // Delay before AI answers (simulate thinking)
-    const delays = { ROOKIE: [8000, 12000], SCHOLAR: [5000, 8000], GRANDMASTER: [2000, 4000] };
+    // Delay before AI answers (simulate thinking) — kept short so player doesn't wait too long
+    const delays = { ROOKIE: [3000, 6000], SCHOLAR: [2000, 4000], GRANDMASTER: [800, 2000] };
     const accuracy = { ROOKIE: 0.40, SCHOLAR: 0.72, GRANDMASTER: 0.94 };
     const [minD, maxD] = delays[difficulty];
     const delay = minD + Math.random() * (maxD - minD);
@@ -147,8 +147,16 @@ export class SocketService {
                     }
                 } else {
                     const inactivePlayers = room.players.filter((p: any) => {
-                        const teamAnswers = p.team === 'A' ? roundState.teamAAnswers : roundState.teamBAnswers;
-                        return !((teamAnswers as any).get((p.userId._id || p.userId).toString()));
+                        let answersMap = null;
+                        if (p.team === 'A') {
+                            answersMap = roundState.teamAAnswers;
+                        } else if (p.team === 'B') {
+                            answersMap = roundState.teamBAnswers;
+                        } else {
+                            answersMap = (roundState.teamAnswers as any)?.get?.(p.team) || (roundState.teamAnswers as any)?.[p.team] || new Map();
+                        }
+                        const pIdStr = (p.userId._id || p.userId).toString();
+                        return !((answersMap as any).get?.(pIdStr) || (answersMap as any)[pIdStr]);
                     });
 
                     if (inactivePlayers.length > 0) {
@@ -157,11 +165,31 @@ export class SocketService {
                             await SocketService.processAnswer(roomCode, pIdStr, roundIndex, -1, 15000, io);
                         }
                     }
+
+                    if (room.mode === 'SOLO_VS_AI') {
+                        const aiAnswer = (roundState.teamBAnswers as any).get('AI');
+                        if (!aiAnswer) {
+                            logger.info(`[Arena] Auto-submitting AI timeout for round ${roundIndex} (SPEED_RACE)`);
+                            (roundState.teamBAnswers as any).set('AI', { option: -1, isCorrect: false, timeMs: 15000 });
+                            const roundComplete = await SocketService._evaluateRoundComplete(room, roundIndex, roomCode, io);
+                            io.to(roomCode).emit('arena_update', {
+                                room: room.toJSON(),
+                                event: 'AI_ANSWER',
+                                answeredBy: 'AI',
+                                team: 'B',
+                                roundIndex,
+                                isCorrect: false,
+                                damage: 150,
+                                timeMs: 15000,
+                                roundComplete
+                            });
+                        }
+                    }
                 }
             } catch (err: any) {
                 logger.error('[Arena] Round auto-advance timeout error:', err.message);
             }
-        }, 22000 + extraMs);
+        }, 16000 + extraMs); // 15s round + 1s server grace period (matches frontend 15s timer)
 
         SocketService.roundTimers.set(existingKey, timer);
     }
@@ -228,15 +256,40 @@ export class SocketService {
             const player = room.players.find((p: any) => (p.userId._id || p.userId).toString() === userId);
             if (!player) return;
 
-            const team = (player as any).team as 'A' | 'B';
+            const team = (player as any).team;
             const roundState = room.roundStates.find((r: any) => r.roundIndex === roundIndex);
             if (!roundState) return;
 
-            const teamAnswers = team === 'A'
-                ? (roundState.teamAAnswers as any)
-                : (roundState.teamBAnswers as any);
+            let teamAnswers = null;
+            if (team === 'A') {
+                teamAnswers = roundState.teamAAnswers as any;
+            } else if (team === 'B') {
+                teamAnswers = roundState.teamBAnswers as any;
+            } else {
+                if (!roundState.teamAnswers) {
+                    roundState.teamAnswers = new Map();
+                }
+                if (!(roundState as any).teamAnswers.get) {
+                    if (!roundState.teamAnswers[team]) {
+                        roundState.teamAnswers[team] = {};
+                    }
+                    teamAnswers = {
+                        get: (k: string) => roundState.teamAnswers[team][k],
+                        set: (k: string, v: any) => {
+                            roundState.teamAnswers[team][k] = v;
+                            room.markModified('roundStates');
+                        }
+                    };
+                } else {
+                    if (!roundState.teamAnswers.get(team)) {
+                        roundState.teamAnswers.set(team, new Map());
+                    }
+                    teamAnswers = roundState.teamAnswers.get(team);
+                }
+            }
 
-            if (teamAnswers.get(userId)) return;
+            const alreadyAnswered = teamAnswers.get ? teamAnswers.get(userId) : teamAnswers[userId];
+            if (alreadyAnswered) return;
 
             if ((room as any).battleStyle === 'ALTERNATING') {
                 const activePlayer = SocketService.calculateActivePlayerForRound(room, roundIndex);
@@ -256,7 +309,7 @@ export class SocketService {
 
             const teamAlreadyClaimed = team === 'A'
                 ? roundState.teamACorrectlyClaimed
-                : roundState.teamBCorrectlyClaimed;
+                : (team === 'B' ? roundState.teamBCorrectlyClaimed : false);
 
             if (teamAlreadyClaimed && isCorrect) {
                 teamAnswers.set(userId, { option: selectedOption, isCorrect, timeMs, alreadyClaimed: true });
@@ -278,31 +331,48 @@ export class SocketService {
                 damage = calculateDamage(timeMs, isDoubleStrikeActive);
 
                 (player as any).streakCount += 1;
-                if ((player as any).streakCount >= 3) {
-                    damage += 250;
-                    (player as any).streakCount = 0;
-                    io.to(roomCode).emit('arena_combo', { userId, team, message: '🔥 COMBO STRIKE! +250 bonus damage!' });
-                }
+                (player as any).score += damage;
 
-                if (team === 'A') {
-                    room.teamB.hp = Math.max(0, room.teamB.hp - damage);
-                    (roundState.teamACorrectlyClaimed as any) = true;
+                if (room.mode === 'CUSTOM_BATTLE') {
+                    const labels: ('A'|'B'|'C'|'D'|'E'|'F')[] = ['A', 'B', 'C', 'D', 'E', 'F'];
+                    for (const label of labels) {
+                        if (label === team) continue;
+                        const tState = room.teams.get(label);
+                        if (tState && tState.hp > 0) {
+                            tState.hp = Math.max(0, tState.hp - damage);
+                        }
+                    }
+                    room.markModified('teams');
                 } else {
-                    room.teamA.hp = Math.max(0, room.teamA.hp - damage);
-                    (roundState.teamBCorrectlyClaimed as any) = true;
+                    if (team === 'A') {
+                        roundState.teamACorrectlyClaimed = true;
+                        room.teamB.hp = Math.max(0, room.teamB.hp - damage);
+                    } else {
+                        roundState.teamBCorrectlyClaimed = true;
+                        room.teamA.hp = Math.max(0, room.teamA.hp - damage);
+                    }
                 }
             } else {
                 (player as any).streakCount = 0;
-                if ((player as any).powerups.shield && !(player as any).powerupsUsed.includes('shield')) {
+                const isShieldActive = (player as any).powerupsUsed.includes('shield');
+
+                if (isShieldActive) {
                     shieldUsed = true;
-                    (player as any).powerups.shield = false;
-                    (player as any).powerupsUsed.push('shield');
+                    (player as any).powerupsUsed = (player as any).powerupsUsed.filter((p: string) => p !== 'shield');
                 } else {
                     selfDamage = 150;
-                    if (team === 'A') {
-                        room.teamA.hp = Math.max(0, room.teamA.hp - selfDamage);
+                    if (room.mode === 'CUSTOM_BATTLE') {
+                        const tState = room.teams.get(team);
+                        if (tState && tState.hp > 0) {
+                            tState.hp = Math.max(0, tState.hp - selfDamage);
+                        }
+                        room.markModified('teams');
                     } else {
-                        room.teamB.hp = Math.max(0, room.teamB.hp - selfDamage);
+                        if (team === 'A') {
+                            room.teamA.hp = Math.max(0, room.teamA.hp - selfDamage);
+                        } else {
+                            room.teamB.hp = Math.max(0, room.teamB.hp - selfDamage);
+                        }
                     }
                 }
 
@@ -333,17 +403,61 @@ export class SocketService {
             let forceRoundEnd = false;
             if ((room as any).battleStyle === 'SPEED_RACE' || room.mode === 'SOLO_VS_AI') {
                 if (isCorrect) {
-                    const oppAnswers = team === 'A' ? (roundState.teamBAnswers as any) : (roundState.teamAAnswers as any);
-                    const oppPlayers = room.players.filter((p: any) => p.team !== team);
-                    if (room.mode !== 'SOLO_VS_AI') {
-                        oppPlayers.forEach((p: any) => {
-                            const pIdStr = (p.userId._id || p.userId).toString();
-                            if (!oppAnswers.get(pIdStr)) {
-                                oppAnswers.set(pIdStr, { option: -1, isCorrect: false, timeMs: 0, skippedBySpeedRace: true });
+                    if (room.mode === 'CUSTOM_BATTLE') {
+                        // In CUSTOM_BATTLE Speed-Race: first correct answer from ANY team ends the round
+                        // Mark all other players in all other teams as skipped
+                        const allLabels: ('A'|'B'|'C'|'D'|'E'|'F')[] = ['A', 'B', 'C', 'D', 'E', 'F'];
+                        for (const label of allLabels) {
+                            if (label === team) continue;
+                            const otherPlayers = room.players.filter((p: any) => p.team === label);
+                            if (otherPlayers.length === 0) continue;
+
+                            let otherAnswers: any;
+                            if (label === 'A') {
+                                otherAnswers = roundState.teamAAnswers as any;
+                            } else if (label === 'B') {
+                                otherAnswers = roundState.teamBAnswers as any;
+                            } else {
+                                if (!roundState.teamAnswers) (roundState as any).teamAnswers = new Map();
+                                const ta = roundState.teamAnswers as any;
+                                if (ta.get) {
+                                    if (!ta.get(label)) ta.set(label, new Map());
+                                    otherAnswers = ta.get(label);
+                                } else {
+                                    if (!ta[label]) ta[label] = {};
+                                    otherAnswers = ta[label];
+                                }
                             }
-                        });
+
+                            if (otherAnswers) {
+                                otherPlayers.forEach((p: any) => {
+                                    const pIdStr = (p.userId._id || p.userId).toString();
+                                    const alreadyAns = otherAnswers.get ? otherAnswers.get(pIdStr) : otherAnswers[pIdStr];
+                                    if (!alreadyAns) {
+                                        if (otherAnswers.set) {
+                                            otherAnswers.set(pIdStr, { option: -1, isCorrect: false, timeMs: 0, skippedBySpeedRace: true });
+                                        } else {
+                                            otherAnswers[pIdStr] = { option: -1, isCorrect: false, timeMs: 0, skippedBySpeedRace: true };
+                                        }
+                                    }
+                                });
+                            }
+                        }
+                        forceRoundEnd = true;
+                    } else {
+                        // Normal 1v1 or Classroom: skip the opponent team only
+                        const oppAnswers = team === 'A' ? (roundState.teamBAnswers as any) : (roundState.teamAAnswers as any);
+                        const oppPlayers = room.players.filter((p: any) => p.team !== team);
+                        if (room.mode !== 'SOLO_VS_AI') {
+                            oppPlayers.forEach((p: any) => {
+                                const pIdStr = (p.userId._id || p.userId).toString();
+                                if (!oppAnswers.get(pIdStr)) {
+                                    oppAnswers.set(pIdStr, { option: -1, isCorrect: false, timeMs: 0, skippedBySpeedRace: true });
+                                }
+                            });
+                        }
+                        forceRoundEnd = true;
                     }
-                    forceRoundEnd = true;
                 }
             }
 
@@ -404,10 +518,37 @@ export class SocketService {
     private static async _evaluateRoundComplete(room: any, roundIndex: number, roomCode: string, io: Server, forceComplete: boolean = false) {
         const roundState = room.roundStates.find((r: any) => r.roundIndex === roundIndex);
         if (!roundState) return false;
+        if ((roundState as any).finishedAt) return true;
 
         let roundComplete = false;
         if (forceComplete) {
             roundComplete = true;
+        } else if (room.mode === 'CUSTOM_BATTLE') {
+            const activeTeams = Array.from(new Set(room.players.map((p: any) => p.team))) as string[];
+            let allTeamsDone = true;
+            for (const teamLabel of activeTeams) {
+                const teamPlayers = room.players.filter((p: any) => p.team === teamLabel);
+                
+                let answersMap = null;
+                if (teamLabel === 'A') {
+                    answersMap = roundState.teamAAnswers;
+                } else if (teamLabel === 'B') {
+                    answersMap = roundState.teamBAnswers;
+                } else {
+                    answersMap = (roundState.teamAnswers as any)?.get?.(teamLabel) || (roundState.teamAnswers as any)?.[teamLabel] || new Map();
+                }
+
+                const allDone = teamPlayers.every((p: any) => {
+                    const pIdStr = (p.userId._id || p.userId).toString();
+                    return !!(answersMap as any).get?.(pIdStr) || !!(answersMap as any)[pIdStr];
+                });
+
+                if (!allDone) {
+                    allTeamsDone = false;
+                    break;
+                }
+            }
+            roundComplete = allTeamsDone;
         } else if (room.battleStyle === 'ALTERNATING') {
             roundComplete = true;
         } else {
@@ -426,8 +567,22 @@ export class SocketService {
         }
 
         let winnerTeam: string | null = null;
-        if (room.teamA.hp <= 0) winnerTeam = 'B';
-        else if (room.teamB.hp <= 0) winnerTeam = 'A';
+        if (room.mode === 'CUSTOM_BATTLE') {
+            const activeTeams = Array.from(new Set(room.players.map((p: any) => p.team))) as string[];
+            const aliveTeams = activeTeams.filter((teamLabel: string) => {
+                const tState = room.teams.get(teamLabel);
+                return tState && tState.hp > 0;
+            });
+
+            if (aliveTeams.length === 1) {
+                winnerTeam = aliveTeams[0];
+            } else if (aliveTeams.length === 0) {
+                winnerTeam = 'DRAW';
+            }
+        } else {
+            if (room.teamA.hp <= 0) winnerTeam = 'B';
+            else if (room.teamB.hp <= 0) winnerTeam = 'A';
+        }
 
         if (roundComplete) {
             (roundState as any).finishedAt = new Date();
@@ -463,14 +618,34 @@ export class SocketService {
 
                 const nextActivePlayer = SocketService.calculateActivePlayerForRound(room, nextRound);
                 const isAITurn = nextActivePlayer && nextActivePlayer.firstName === 'AI';
-                if (room.mode === 'SOLO_VS_AI' && room.aiDifficulty && isAITurn) {
+                const isAISpeedRaceTurn = room.battleStyle !== 'ALTERNATING' || isAITurn;
+                if (room.mode === 'SOLO_VS_AI' && room.aiDifficulty && isAISpeedRaceTurn) {
                     simulateAIAnswer(roomCode, nextRound, room.aiDifficulty as any, io);
                 }
 
                 SocketService.startRoundTimer(roomCode, nextRound, io);
 
             } else if (!winnerTeam) {
-                winnerTeam = room.teamA.hp > room.teamB.hp ? 'A' : room.teamB.hp > room.teamA.hp ? 'B' : 'DRAW';
+                if (room.mode === 'CUSTOM_BATTLE') {
+                    const activeTeams = Array.from(new Set(room.players.map((p: any) => p.team))) as string[];
+                    let highestHp = -1;
+                    let bestTeam = 'DRAW';
+                    let isTie = false;
+                    for (const teamLabel of activeTeams) {
+                        const tState = room.teams.get(teamLabel);
+                        const hp = tState ? tState.hp : 0;
+                        if (hp > highestHp) {
+                            highestHp = hp;
+                            bestTeam = teamLabel;
+                            isTie = false;
+                        } else if (hp === highestHp) {
+                            isTie = true;
+                        }
+                    }
+                    winnerTeam = isTie ? 'DRAW' : bestTeam;
+                } else {
+                    winnerTeam = room.teamA.hp > room.teamB.hp ? 'A' : room.teamB.hp > room.teamA.hp ? 'B' : 'DRAW';
+                }
             }
         }
 
@@ -633,6 +808,21 @@ export class SocketService {
                     room.currentRound = 0;
                     room.currentTurn = 'A';
 
+                    if (room.mode === 'CUSTOM_BATTLE') {
+                        const labels: ('A'|'B'|'C'|'D'|'E'|'F')[] = ['A', 'B', 'C', 'D', 'E', 'F'];
+                        for (const label of labels) {
+                            const tState = room.teams.get(label);
+                            if (tState) {
+                                const playersInTeam = room.players.filter((p: any) => p.team === label);
+                                const count = playersInTeam.length;
+                                tState.hp = count * BASE_HP_PER_PLAYER;
+                                tState.maxHp = count * BASE_HP_PER_PLAYER;
+                                tState.playerIds = playersInTeam.map((p: any) => p.userId);
+                            }
+                        }
+                        room.markModified('teams');
+                    }
+
                     // Set initial active player (Team A starts)
                     if (room.battleStyle === 'ALTERNATING') {
                         const activePlayer = SocketService.calculateActivePlayerForRound(room, 0);
@@ -671,7 +861,8 @@ export class SocketService {
                     // If AI mode, start AI simulation for round 0 only if it is the AI's turn!
                     const activePlayerRound0 = SocketService.calculateActivePlayerForRound(room, 0);
                     const isAITurnRound0 = activePlayerRound0 && activePlayerRound0.firstName === 'AI';
-                    if (room.mode === 'SOLO_VS_AI' && room.aiDifficulty && isAITurnRound0) {
+                    const isAISpeedRaceTurnRound0 = room.battleStyle !== 'ALTERNATING' || isAITurnRound0;
+                    if (room.mode === 'SOLO_VS_AI' && room.aiDifficulty && isAISpeedRaceTurnRound0) {
                         simulateAIAnswer(roomCode, 0, room.aiDifficulty as any, this.io);
                     }
                 } catch (err: any) {

@@ -49,7 +49,26 @@ export const landingController = {
     getConfig: async (req: Request, res: Response) => {
         try {
             const key = req.params.key;
-            const SAFE_KEYS = ['GOOGLE_ADSENSE_ID', 'GOOGLE_ANALYTICS_ID', 'GOOGLE_TAG_MANAGER_ID', 'SITE_MAINTENANCE_MODE'];
+            const SAFE_KEYS = [
+                'GOOGLE_ADSENSE_ID',
+                'GOOGLE_ADSENSE_CLIENT_ID',
+                'GOOGLE_ANALYTICS_ID',
+                'GOOGLE_TAG_MANAGER_ID',
+                'SITE_MAINTENANCE_MODE',
+                'FACEBOOK_PIXEL_ID',
+                'GOOGLE_ADS_ID',
+                'GOOGLE_SEARCH_CONSOLE_ID',
+                'SEO_PAGES_CONFIG',
+                'SEO_BACKLINKS_CONFIG',
+                'SEO_TARGET_KEYWORDS_CONFIG',
+                'SEO_SITE_TITLE',
+                'SEO_META_DESCRIPTION',
+                'SEO_META_KEYWORDS',
+                'SEO_OG_TITLE',
+                'SEO_OG_IMAGE_URL',
+                'SEO_GOOGLE_SITE_VERIFICATION',
+                'SEO_BING_SITE_VERIFICATION'
+            ];
 
             if (!SAFE_KEYS.includes(key)) {
                 return res.status(403).json({ success: false, error: 'Access Denied' });
