@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { minervaApi } from '../../api/minerva.api';
 import { BOARDS, STANDARDS, STANDARD_SUBJECTS_MAP, SUBJECTS, isSchoolStandard } from './MinervaQuizBattlePage';
+import { io, Socket } from 'socket.io-client';
 import { 
     ChevronLeft, Award, Clock, FileText, CheckCircle, 
-    Loader2, BookOpen, AlertCircle, Sparkles, Trash2
+    Loader2, BookOpen, AlertCircle, Sparkles, Trash2,
+    Users, Play, Copy, Check, Trophy, Send
 } from 'lucide-react';
 
 const gradeColor: Record<string, string> = {
@@ -14,7 +16,7 @@ const gradeColor: Record<string, string> = {
 };
 
 const MinervaExamListPage: React.FC = () => {
-    const { token } = useAuth() as any;
+    const { token, user } = useAuth() as any;
     const navigate = useNavigate();
     
     // Core Layout States
@@ -23,8 +25,28 @@ const MinervaExamListPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [genLoading, setGenLoading] = useState(false);
     
-    // Tab State: 'course' | 'custom'
-    const [generatorTab, setGeneratorTab] = useState<'course' | 'custom'>('course');
+    // Tab State: 'course' | 'custom' | 'live_group'
+    const [generatorTab, setGeneratorTab] = useState<'course' | 'custom' | 'live_group'>('course');
+
+    // ─── Live Group Exam Arena States ───
+    const [liveMode, setLiveMode] = useState<'PEER_GROUP' | 'TEACHER_CLASS' | 'SOLO_AI'>('PEER_GROUP');
+    const [liveStandard, setLiveStandard] = useState('10');
+    const [liveBoard, setLiveBoard] = useState('CBSE');
+    const [liveSubject, setLiveSubject] = useState('Science');
+    const [liveTopic, setLiveTopic] = useState('Electricity & Magnetism');
+    const [liveQuestions, setLiveQuestions] = useState(10);
+    const [liveDuration, setLiveDuration] = useState(15);
+
+    const [liveRoom, setLiveRoom] = useState<any | null>(null);
+    const [liveView, setLiveView] = useState<'SETUP' | 'LOBBY' | 'EXAM' | 'LEADERBOARD'>('SETUP');
+    const [joinCodeInput, setJoinCodeInput] = useState('');
+    const [liveAnswers, setLiveAnswers] = useState<Record<number, number>>({});
+    const [liveCurrentQ, setLiveCurrentQ] = useState(0);
+    const [liveTimeLeft, setLiveTimeLeft] = useState(900); // seconds
+    const [liveSubmitting, setLiveSubmitting] = useState(false);
+    const [_liveResult, setLiveResult] = useState<any | null>(null);
+    const [copiedCode, setCopiedCode] = useState(false);
+    const [socketInst, setSocketInst] = useState<Socket | null>(null);
 
     // ─── course (Study Session) generator states ───
     const [selectedSession, setSelectedSession] = useState('');
@@ -124,6 +146,151 @@ const MinervaExamListPage: React.FC = () => {
     useEffect(() => { 
         if (token) loadData(); 
     }, [token]);
+
+    // ─── Live Group Exam Socket & Timer Effects ───
+    useEffect(() => {
+        const s = io('/', { transports: ['websocket', 'polling'] });
+        setSocketInst(s);
+
+        s.on('live_exam_update', (d: { room: any }) => {
+            if (d.room) setLiveRoom(d.room);
+        });
+
+        s.on('live_exam_started', (d: { room: any }) => {
+            if (d.room) {
+                setLiveRoom(d.room);
+                setLiveView('EXAM');
+                setLiveTimeLeft((d.room.durationMinutes || 15) * 60);
+            }
+        });
+
+        return () => { s.disconnect(); };
+    }, []);
+
+    useEffect(() => {
+        if (liveView !== 'EXAM') return;
+        const timer = setInterval(() => {
+            setLiveTimeLeft(prev => {
+                if (prev <= 1) {
+                    clearInterval(timer);
+                    handleAutoSubmitLiveExam();
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+        return () => clearInterval(timer);
+    }, [liveView]);
+
+    const handleCreateLiveRoom = async () => {
+        setGenLoading(true);
+        try {
+            const res = await fetch('/api/future-education/live-exam/room', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                body: JSON.stringify({
+                    mode: liveMode,
+                    standard: liveStandard,
+                    board: liveBoard,
+                    subject: liveSubject,
+                    topic: liveTopic,
+                    totalQuestions: liveQuestions,
+                    durationMinutes: liveDuration,
+                    title: `${liveSubject}: ${liveTopic} Live Assessment`
+                })
+            });
+            const d = await res.json();
+            if (d.success && d.room) {
+                setLiveRoom(d.room);
+                setLiveView('LOBBY');
+                if (socketInst) {
+                    socketInst.emit('join_live_exam_lobby', { roomCode: d.room.roomCode, userId: user?._id });
+                }
+            } else {
+                alert(d.message || 'Failed to create live exam room.');
+            }
+        } catch (err) {
+            alert('Failed to create room due to network error.');
+        } finally {
+            setGenLoading(false);
+        }
+    };
+
+    const handleJoinLiveRoom = async () => {
+        if (!joinCodeInput.trim()) return;
+        setGenLoading(true);
+        try {
+            const res = await fetch(`/api/future-education/live-exam/room/${joinCodeInput.trim()}/join`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+            });
+            const d = await res.json();
+            if (d.success && d.room) {
+                setLiveRoom(d.room);
+                setLiveView(d.room.status === 'ACTIVE' ? 'EXAM' : 'LOBBY');
+                if (socketInst) {
+                    socketInst.emit('join_live_exam_lobby', { roomCode: d.room.roomCode, userId: user?._id });
+                }
+            } else {
+                alert(d.message || 'Room not found or cannot join.');
+            }
+        } catch (err) {
+            alert('Failed to join room due to network error.');
+        } finally {
+            setGenLoading(false);
+        }
+    };
+
+    const handleStartLiveExam = async () => {
+        if (!liveRoom) return;
+        try {
+            const res = await fetch(`/api/future-education/live-exam/room/${liveRoom.roomCode}/start`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+            });
+            const d = await res.json();
+            if (d.success && d.room) {
+                setLiveRoom(d.room);
+                setLiveView('EXAM');
+                setLiveTimeLeft((d.room.durationMinutes || 15) * 60);
+                if (socketInst) {
+                    socketInst.emit('start_live_exam', { roomCode: d.room.roomCode });
+                }
+            }
+        } catch (err) {
+            alert('Failed to start exam.');
+        }
+    };
+
+    const handleSubmitLiveExam = async () => {
+        if (!liveRoom || liveSubmitting) return;
+        setLiveSubmitting(true);
+        try {
+            const elapsedSeconds = Math.max(1, ((liveRoom.durationMinutes || 15) * 60) - liveTimeLeft);
+            const res = await fetch(`/api/future-education/live-exam/room/${liveRoom.roomCode}/submit`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                body: JSON.stringify({ answers: liveAnswers, timeTakenSeconds: elapsedSeconds })
+            });
+            const d = await res.json();
+            if (d.success && d.room) {
+                setLiveRoom(d.room);
+                setLiveResult(d.result);
+                setLiveView('LEADERBOARD');
+                if (socketInst) {
+                    socketInst.emit('submit_live_exam', { roomCode: d.room.roomCode, userId: user?._id });
+                }
+            }
+        } catch (err) {
+            alert('Error submitting exam.');
+        } finally {
+            setLiveSubmitting(false);
+        }
+    };
+
+    const handleAutoSubmitLiveExam = () => {
+        handleSubmitLiveExam();
+    };
 
     const loadData = async () => {
         setLoading(true);
@@ -636,15 +803,21 @@ const MinervaExamListPage: React.FC = () => {
                         <div className="bg-white/[0.02] border border-white/5 p-1 rounded-2xl flex gap-1">
                             <button 
                                 onClick={() => setGeneratorTab('course')}
-                                className={`flex-1 py-3 px-4 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${generatorTab === 'course' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+                                className={`flex-1 py-3 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${generatorTab === 'course' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
                             >
                                 <BookOpen size={14} /> Course Study Exams
                             </button>
                             <button 
                                 onClick={() => setGeneratorTab('custom')}
-                                className={`flex-1 py-3 px-4 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${generatorTab === 'custom' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+                                className={`flex-1 py-3 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${generatorTab === 'custom' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
                             >
                                 <Sparkles size={14} /> Smart AI Paper Generator
+                            </button>
+                            <button 
+                                onClick={() => setGeneratorTab('live_group')}
+                                className={`flex-1 py-3 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${generatorTab === 'live_group' ? 'bg-cyan-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+                            >
+                                <Users size={14} /> Live Group Exam Arena
                             </button>
                         </div>
 
@@ -780,7 +953,11 @@ const MinervaExamListPage: React.FC = () => {
                                             <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1.5 block">Subject*</label>
                                             <select value={customSubject} onChange={e => setCustomSubject(e.target.value)}
                                                 className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none">
-                                                {(STANDARD_SUBJECTS_MAP[customStandard] || SUBJECTS).map(s => <option key={s} value={s}>{s}</option>)}
+                                                {(STANDARD_SUBJECTS_MAP[customStandard] || SUBJECTS).map((s: any) => {
+                                                    const sVal = typeof s === 'string' ? s : (s.id || s.name);
+                                                    const sLabel = typeof s === 'string' ? s : (s.name || s.id);
+                                                    return <option key={sVal} value={sVal}>{sLabel}</option>;
+                                                })}
                                             </select>
                                         </div>
                                     </div>
@@ -994,6 +1171,312 @@ const MinervaExamListPage: React.FC = () => {
                                         <span>Generate Smart Exam Paper</span>
                                     </button>
                                 </div>
+                            </div>
+                        )}
+
+                        {/* TAB C: LIVE GROUP EXAM ARENA */}
+                        {generatorTab === 'live_group' && (
+                            <div className="bg-gradient-to-br from-[#121c38]/70 via-[#0a0f24]/50 to-transparent border border-cyan-500/25 rounded-3xl p-6 shadow-2xl backdrop-blur-md relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-36 h-36 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                                {/* Sub-view Switcher Header */}
+                                <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-6">
+                                    <div>
+                                        <h2 className="font-black text-base text-cyan-300 flex items-center gap-2 uppercase tracking-wider">
+                                            <Users className="w-5 h-5 text-cyan-400" /> Live Group Exam Arena
+                                        </h2>
+                                        <p className="text-[11px] text-slate-400 mt-0.5">Real-time synchronized multi-student exam hall & live rank analytics</p>
+                                    </div>
+                                    {liveView !== 'SETUP' && (
+                                        <button onClick={() => { setLiveView('SETUP'); setLiveRoom(null); setLiveResult(null); }}
+                                            className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold text-slate-300 transition-all">
+                                            ⚙️ Exit Arena
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* ─── SUB-VIEW 1: SETUP ───────────────────────────────── */}
+                                {liveView === 'SETUP' && (
+                                    <div className="space-y-6">
+                                        {/* Mode Selector */}
+                                        <div>
+                                            <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2 block">Select Exam Arena Mode</label>
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                {[
+                                                    { key: 'PEER_GROUP', title: '👥 Peer Group Test', desc: 'Challenge friends & classmates live' },
+                                                    { key: 'TEACHER_CLASS', title: '🏫 Teacher Class Assessment', desc: 'Official classroom live exam with dashboard' },
+                                                    { key: 'SOLO_AI', title: '🤖 Solo vs AI Bot', desc: 'Instant live practice against AI benchmark' }
+                                                ].map(m => (
+                                                    <div key={m.key} onClick={() => setLiveMode(m.key as any)}
+                                                        className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${liveMode === m.key ? 'border-cyan-400 bg-cyan-950/40 text-cyan-200 shadow-lg shadow-cyan-500/10' : 'border-white/5 bg-black/30 hover:border-white/15 text-slate-400'}`}>
+                                                        <div className="font-bold text-xs text-white mb-1">{m.title}</div>
+                                                        <div className="text-[10px] text-slate-400 leading-relaxed">{m.desc}</div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Configuration Inputs */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                            <div>
+                                                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">Class / Standard</label>
+                                                <select value={liveStandard} onChange={e => setLiveStandard(e.target.value)}
+                                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-cyan-500/40">
+                                                    {STANDARDS.map((s: any) => <option key={typeof s === 'string' ? s : s.id} value={typeof s === 'string' ? s : s.id}>{typeof s === 'string' ? `Class ${s}` : s.name}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">Board</label>
+                                                <select value={liveBoard} onChange={e => setLiveBoard(e.target.value)}
+                                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-cyan-500/40">
+                                                    {BOARDS.map((b: any) => <option key={typeof b === 'string' ? b : b.id} value={typeof b === 'string' ? b : b.id}>{typeof b === 'string' ? b : b.name}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">Subject</label>
+                                                <select value={liveSubject} onChange={e => setLiveSubject(e.target.value)}
+                                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-cyan-500/40">
+                                                    {SUBJECTS.map((sb: any) => <option key={typeof sb === 'string' ? sb : sb.id} value={typeof sb === 'string' ? sb : sb.id}>{typeof sb === 'string' ? sb : sb.name}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">Chapter / Topic</label>
+                                                <input type="text" value={liveTopic} onChange={e => setLiveTopic(e.target.value)}
+                                                    placeholder="e.g. Electricity, Light, Trigonometry"
+                                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-cyan-500/40" />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">Total Questions</label>
+                                                <select value={liveQuestions} onChange={e => setLiveQuestions(Number(e.target.value))}
+                                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-cyan-500/40">
+                                                    {[5, 10, 15, 20, 30, 50].map(q => <option key={q} value={q}>{q} Questions</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">Time Duration</label>
+                                                <select value={liveDuration} onChange={e => setLiveDuration(Number(e.target.value))}
+                                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-cyan-500/40">
+                                                    {[5, 10, 15, 20, 30, 45, 60].map(d => <option key={d} value={d}>{d} Minutes</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {/* Actions: Create or Join */}
+                                        <div className="pt-2 border-t border-white/10 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <button onClick={handleCreateLiveRoom} disabled={genLoading}
+                                                className="py-3.5 px-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 text-white rounded-2xl font-black text-xs transition-all shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2">
+                                                {genLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                                                🚀 Create Live Exam Room & Generate AI Paper
+                                            </button>
+
+                                            <div className="flex items-center gap-2">
+                                                <input type="text" value={joinCodeInput} onChange={e => setJoinCodeInput(e.target.value.toUpperCase())}
+                                                    placeholder="Enter Room Code (e.g. LIVE-9842)"
+                                                    className="flex-1 bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white font-mono uppercase tracking-wider outline-none focus:border-cyan-500/40" />
+                                                <button onClick={handleJoinLiveRoom} disabled={!joinCodeInput.trim() || genLoading}
+                                                    className="py-3 px-5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-2xl font-bold text-xs transition-all flex items-center gap-1.5 shrink-0">
+                                                    <Users className="w-4 h-4" /> Join Room
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* ─── SUB-VIEW 2: LOBBY (WAITING ROOM) ────────────────── */}
+                                {liveView === 'LOBBY' && liveRoom && (
+                                    <div className="space-y-6">
+                                        {/* Room Header Banner */}
+                                        <div className="bg-black/40 border border-cyan-500/30 rounded-2xl p-5 text-center relative overflow-hidden">
+                                            <div className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest mb-1">Live Group Exam Lobby</div>
+                                            <h3 className="text-xl font-black text-white mb-2">{liveRoom.title}</h3>
+                                            
+                                            <div className="inline-flex items-center gap-3 bg-cyan-950/60 border border-cyan-500/40 px-4 py-2 rounded-xl">
+                                                <span className="text-2xl font-black font-mono tracking-widest text-cyan-300">{liveRoom.roomCode}</span>
+                                                <button onClick={() => { navigator.clipboard.writeText(liveRoom.roomCode); setCopiedCode(true); setTimeout(() => setCopiedCode(false), 2000); }}
+                                                    className="p-1.5 bg-cyan-900/40 hover:bg-cyan-900/60 border border-cyan-500/40 text-cyan-300 rounded-lg text-xs flex items-center gap-1">
+                                                    {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                                    {copiedCode ? 'Copied!' : 'Copy Code'}
+                                                </button>
+                                            </div>
+
+                                            <div className="flex justify-center items-center gap-4 text-[11px] text-slate-400 mt-3 font-medium">
+                                                <span>📋 {liveRoom.totalQuestions} Questions</span>
+                                                <span>⏱️ {liveRoom.durationMinutes} Mins</span>
+                                                <span>🏫 Class {liveRoom.standard} ({liveRoom.board})</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Joined Participants */}
+                                        <div>
+                                            <div className="flex items-center justify-between mb-3">
+                                                <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                                                    <Users className="w-4 h-4 text-cyan-400" /> Connected Candidates ({liveRoom.participants?.length || 1})
+                                                </span>
+                                                <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/40 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
+                                                    ● LIVE SYNC ACTIVE
+                                                </span>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                                {liveRoom.participants?.map((p: any) => {
+                                                    const isHostPlayer = p.userId === liveRoom.hostId || (p.userId as any)?._id === liveRoom.hostId;
+                                                    return (
+                                                        <div key={p.userId} className="p-3 bg-black/40 border border-white/10 rounded-2xl flex items-center gap-2.5">
+                                                            <div className="w-8 h-8 rounded-xl bg-cyan-950 border border-cyan-500/30 flex items-center justify-center font-black text-cyan-300 text-xs shrink-0">
+                                                                {p.firstName?.[0] || 'S'}
+                                                            </div>
+                                                            <div className="min-w-0 flex-1">
+                                                                <div className="text-xs font-bold text-white truncate">{p.firstName}</div>
+                                                                <div className="text-[9px] text-slate-500 font-medium">{isHostPlayer ? '👑 Host' : `Class ${p.grade}`}</div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        {/* Launch Button */}
+                                        <div className="pt-2">
+                                            {liveRoom.hostId === (user as any)?._id || (liveRoom.hostId as any)?._id === (user as any)?._id ? (
+                                                <button onClick={handleStartLiveExam}
+                                                    className="w-full py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-sm rounded-2xl shadow-xl shadow-emerald-500/20 transition-all flex items-center justify-center gap-2">
+                                                    <Play className="w-4 h-4" /> Launch Synchronized Exam For All Joined Students!
+                                                </button>
+                                            ) : (
+                                                <div className="text-center py-4 bg-black/30 border border-white/10 rounded-2xl text-slate-400 text-xs font-semibold flex items-center justify-center gap-2">
+                                                    <Loader2 className="w-4 h-4 animate-spin text-cyan-400" /> Waiting for Host to launch the synchronized exam...
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* ─── SUB-VIEW 3: LIVE EXAM EXECUTION ─────────────────── */}
+                                {liveView === 'EXAM' && liveRoom && (
+                                    <div className="space-y-5">
+                                        {/* Live Timer & Question Counter Header */}
+                                        <div className="bg-black/50 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
+                                            <div>
+                                                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Question {liveCurrentQ + 1} of {liveRoom.questions?.length || 10}</div>
+                                                <div className="text-xs font-black text-cyan-300 mt-0.5">{liveRoom.title}</div>
+                                            </div>
+                                            <div className="flex items-center gap-2 bg-cyan-950/60 border border-cyan-500/40 px-3 py-1.5 rounded-xl text-cyan-300 font-mono font-black text-sm">
+                                                <Clock className="w-4 h-4 text-cyan-400 animate-pulse" />
+                                                {Math.floor(liveTimeLeft / 60)}:{String(liveTimeLeft % 60).padStart(2, '0')}
+                                            </div>
+                                        </div>
+
+                                        {/* Question Card */}
+                                        {liveRoom.questions?.[liveCurrentQ] && (
+                                            <div className="bg-black/40 border border-white/10 rounded-3xl p-6 relative">
+                                                <div className="text-xs font-bold text-slate-400 mb-2">Q{liveCurrentQ + 1}.</div>
+                                                <h3 className="text-base font-bold text-white mb-6 leading-relaxed">
+                                                    {liveRoom.questions[liveCurrentQ].question}
+                                                </h3>
+
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                                                    {liveRoom.questions[liveCurrentQ].options?.map((opt: string, idx: number) => {
+                                                        const isSelected = liveAnswers[liveCurrentQ] === idx;
+                                                        return (
+                                                            <div key={idx} onClick={() => setLiveAnswers(prev => ({ ...prev, [liveCurrentQ]: idx }))}
+                                                                className={`p-4 rounded-2xl border text-xs font-semibold cursor-pointer transition-all flex items-center gap-3 ${isSelected ? 'border-cyan-400 bg-cyan-950/60 text-cyan-200 shadow-lg shadow-cyan-500/10' : 'border-white/10 bg-black/30 hover:border-white/20 text-slate-300'}`}>
+                                                                <span className="w-5 h-5 rounded-full border border-current flex items-center justify-center text-[10px] font-black shrink-0">{String.fromCharCode(65 + idx)}</span>
+                                                                <span className="flex-1">{opt}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                {/* Question Palette Navigator */}
+                                                <div className="border-t border-white/10 pt-4 flex items-center justify-between">
+                                                    <button onClick={() => setLiveCurrentQ(prev => Math.max(0, prev - 1))} disabled={liveCurrentQ === 0}
+                                                        className="px-4 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-30 rounded-xl text-xs font-bold text-slate-300">
+                                                        ← Previous
+                                                    </button>
+
+                                                    <div className="flex gap-1.5 flex-wrap max-w-[200px] justify-center">
+                                                        {liveRoom.questions?.map((_: any, qIdx: number) => {
+                                                            const isAns = liveAnswers[qIdx] !== undefined;
+                                                            return (
+                                                                <button key={qIdx} onClick={() => setLiveCurrentQ(qIdx)}
+                                                                    className={`w-6 h-6 rounded-lg text-[10px] font-black ${liveCurrentQ === qIdx ? 'border-2 border-cyan-400 text-cyan-300' : isAns ? 'bg-emerald-600 text-white' : 'bg-white/5 text-slate-500'}`}>
+                                                                    {qIdx + 1}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+
+                                                    {liveCurrentQ < (liveRoom.questions?.length || 10) - 1 ? (
+                                                        <button onClick={() => setLiveCurrentQ(prev => prev + 1)}
+                                                            className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-xs font-bold text-white">
+                                                            Next →
+                                                        </button>
+                                                    ) : (
+                                                        <button onClick={handleSubmitLiveExam} disabled={liveSubmitting}
+                                                            className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-500/20 flex items-center gap-1.5">
+                                                            {liveSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                                                            Submit Exam
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* ─── SUB-VIEW 4: INSTANT LIVE LEADERBOARD ────────────── */}
+                                {liveView === 'LEADERBOARD' && liveRoom && (
+                                    <div className="space-y-6">
+                                        <div className="text-center bg-gradient-to-r from-amber-500/10 via-cyan-500/10 to-indigo-500/10 border border-white/10 p-6 rounded-3xl">
+                                            <Trophy className="w-12 h-12 text-amber-400 mx-auto mb-2 animate-bounce" />
+                                            <h3 className="text-xl font-black text-white">Live Exam Leaderboard & Analytics</h3>
+                                            <p className="text-xs text-slate-400 mt-1">{liveRoom.title} • Instant AI Results Evaluation</p>
+                                        </div>
+
+                                        {/* Leaderboard Table */}
+                                        <div className="bg-black/40 border border-white/10 rounded-2xl p-4 overflow-x-auto">
+                                            <table className="w-full text-left text-xs">
+                                                <thead>
+                                                    <tr className="border-b border-white/10 text-slate-500 font-bold uppercase text-[9px] tracking-wider">
+                                                        <th className="pb-3 px-3">Rank</th>
+                                                        <th className="pb-3 px-3">Candidate</th>
+                                                        <th className="pb-3 px-3">Score</th>
+                                                        <th className="pb-3 px-3">Accuracy</th>
+                                                        <th className="pb-3 px-3">Time Taken</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-white/5">
+                                                    {liveRoom.participants
+                                                        ?.sort((a: any, b: any) => b.score - a.score || a.timeTakenSeconds - b.timeTakenSeconds)
+                                                        ?.map((p: any, idx: number) => {
+                                                            const isMe = p.userId === (user as any)?._id || (p.userId as any)?._id === (user as any)?._id;
+                                                            return (
+                                                                <tr key={p.userId} className={isMe ? 'bg-cyan-950/30 text-cyan-200 font-bold' : 'text-slate-300'}>
+                                                                    <td className="py-3 px-3 font-black">
+                                                                        {idx === 0 ? '🥇 #1' : idx === 1 ? '🥈 #2' : idx === 2 ? '🥉 #3' : `#${idx + 1}`}
+                                                                    </td>
+                                                                    <td className="py-3 px-3 flex items-center gap-2">
+                                                                        <div className="w-6 h-6 rounded-full bg-cyan-950 border border-cyan-500/30 flex items-center justify-center text-[10px] font-bold text-cyan-300">
+                                                                            {p.firstName?.[0] || 'S'}
+                                                                        </div>
+                                                                        <span>{p.firstName} {isMe && '(You)'}</span>
+                                                                    </td>
+                                                                    <td className="py-3 px-3 font-mono font-bold text-cyan-300">{p.score} / {liveRoom.totalMarks}</td>
+                                                                    <td className="py-3 px-3 font-mono text-emerald-400">{p.percentage}%</td>
+                                                                    <td className="py-3 px-3 text-slate-400">{Math.floor((p.timeTakenSeconds || 0) / 60)}m {(p.timeTakenSeconds || 0) % 60}s</td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        <button onClick={() => { setLiveView('SETUP'); setLiveRoom(null); setLiveResult(null); }}
+                                            className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold text-xs rounded-2xl transition-all">
+                                            ← Back to Live Exam Arena Setup
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         )}
 

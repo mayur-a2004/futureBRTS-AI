@@ -128,5 +128,13 @@ router.get('/school/cities', battleController.getCities);
 router.get('/school/by-city', battleController.getSchoolsByCity);
 router.get('/battle/my-stats', authMiddleware, battleController.getMyBattleStats);
 
+// ─── LIVE GROUP EXAM ARENA ───────────────────────────────────
+import { liveExamController } from './live_exam.controller';
+router.post('/live-exam/room', authMiddleware, liveExamController.createRoom);
+router.post('/live-exam/room/:roomCode/join', authMiddleware, liveExamController.joinRoom);
+router.get('/live-exam/room/:roomCode', authMiddleware, liveExamController.getRoom);
+router.post('/live-exam/room/:roomCode/start', authMiddleware, liveExamController.startExam);
+router.post('/live-exam/room/:roomCode/submit', authMiddleware, liveExamController.submitExam);
+
 export default router;
 // Touched for rebuild

@@ -1017,6 +1017,50 @@ export class SocketService {
                 }
             });
 
+            // ─── LIVE GROUP EXAM SOCKET HANDLERS ───────────────────────────
+            socket.on('join_live_exam_lobby', async (data: { roomCode: string; userId: string }) => {
+                const { roomCode } = data;
+                if (!roomCode) return;
+                socket.join(roomCode.toUpperCase());
+                try {
+                    const LiveExamRoom = (await import('../modules/minerva/models/live_exam.model')).default;
+                    const room = await LiveExamRoom.findOne({ roomCode: roomCode.toUpperCase() });
+                    if (room) {
+                        this.io.to(room.roomCode).emit('live_exam_update', { room });
+                    }
+                } catch (e: any) {
+                    logger.error('[SocketService] join_live_exam_lobby error:', e.message);
+                }
+            });
+
+            socket.on('start_live_exam', async (data: { roomCode: string }) => {
+                const { roomCode } = data;
+                if (!roomCode) return;
+                try {
+                    const LiveExamRoom = (await import('../modules/minerva/models/live_exam.model')).default;
+                    const room = await LiveExamRoom.findOne({ roomCode: roomCode.toUpperCase() });
+                    if (room) {
+                        this.io.to(room.roomCode).emit('live_exam_started', { room });
+                    }
+                } catch (e: any) {
+                    logger.error('[SocketService] start_live_exam error:', e.message);
+                }
+            });
+
+            socket.on('submit_live_exam', async (data: { roomCode: string; userId: string }) => {
+                const { roomCode } = data;
+                if (!roomCode) return;
+                try {
+                    const LiveExamRoom = (await import('../modules/minerva/models/live_exam.model')).default;
+                    const room = await LiveExamRoom.findOne({ roomCode: roomCode.toUpperCase() });
+                    if (room) {
+                        this.io.to(room.roomCode).emit('live_exam_update', { room });
+                    }
+                } catch (e: any) {
+                    logger.error('[SocketService] submit_live_exam error:', e.message);
+                }
+            });
+
             // ─── DISCONNECT / FORFEIT ───────────────────────────────────────────
             socket.on('disconnect', async () => {
                 logger.info(`Socket Disconnected: ${socket.id}`);
