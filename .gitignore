@@ -70,3 +70,7 @@ project/worker/disassembled_metadata_store.txt
 project/worker/disassembled_metadata_store_utf8.txt
 project/worker/inspect_pyc.py
 
+scratch/
+**/uploads/
+*.traineddata
+

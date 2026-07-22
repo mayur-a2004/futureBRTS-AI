@@ -8,7 +8,8 @@ const generateLiveExamQuestions = async (
     standard: string,
     topic: string,
     board: string,
-    totalQuestions: number
+    totalQuestions: number,
+    language: string = 'English'
 ): Promise<ILiveExamQuestion[]> => {
     const prompt = `You are an expert exam paper setter for Indian school & competitive education.
 Board: ${board}
@@ -16,6 +17,9 @@ Class/Standard: ${standard}
 Subject: ${subject}
 Chapter/Topic: ${topic}
 Total Questions: ${totalQuestions}
+EXAM MEDIUM / LANGUAGE: ${language}
+
+CRITICAL INSTRUCTION: You MUST write the ENTIRE question text, ALL 4 options (A, B, C, D), and the explanation strictly in the "${language}" language (for example, if ${language} is Gujarati write in Gujarati script, if Hindi write in Devanagari Hindi script, if English write in English).
 
 Generate exactly ${totalQuestions} high-quality Multiple Choice Questions (MCQs) for this topic.
 Respond ONLY with a raw JSON array. Do NOT use markdown code blocks or backticks.
@@ -23,12 +27,12 @@ Format:
 [
   {
     "question_number": 1,
-    "question": "Question text here?",
-    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "question": "Question text in ${language} here?",
+    "options": ["Option A in ${language}", "Option B in ${language}", "Option C in ${language}", "Option D in ${language}"],
     "correctAnswer": 0,
     "marks": 1,
     "topic": "${topic}",
-    "explanation": "Detailed explanation here."
+    "explanation": "Detailed solution explanation in ${language} here."
   }
 ]`;
 
@@ -89,11 +93,12 @@ export const liveExamController = {
                 topic = 'General',
                 totalQuestions = 10,
                 durationMinutes = 15,
+                language = 'English',
                 title
             } = req.body;
 
             const roomCode = 'LIVE-' + Math.floor(1000 + Math.random() * 9000);
-            const questions = await generateLiveExamQuestions(subject, standard, topic, board, Number(totalQuestions) || 10);
+            const questions = await generateLiveExamQuestions(subject, standard, topic, board, Number(totalQuestions) || 10, language);
 
             const room = new LiveExamRoom({
                 roomCode,
@@ -101,11 +106,12 @@ export const liveExamController = {
                 hostName: user.firstName || 'Teacher/Host',
                 mode,
                 status: 'WAITING',
-                title: title || `${subject}: ${topic} Live Assessment`,
+                title: title || `${subject}: ${topic} Live Assessment (${language})`,
                 standard,
                 board,
                 subject,
                 topic,
+                language,
                 totalQuestions: questions.length,
                 totalMarks: questions.length,
                 durationMinutes: Number(durationMinutes) || 15,
@@ -256,6 +262,28 @@ export const liveExamController = {
             return res.json({ success: true, room, result: updatedParticipant });
         } catch (err: any) {
             logger.error('[LiveExamController] submitExam error:', err);
+            return res.status(500).json({ success: false, message: err.message });
+        }
+    },
+
+    // ─── Get User Live Exam History (Candidate or Host) ───────────────────
+    getUserHistory: async (req: Request, res: Response) => {
+        try {
+            const user = (req as any).user;
+            if (!user) {
+                return res.status(401).json({ success: false, message: 'Unauthorized' });
+            }
+
+            const rooms = await LiveExamRoom.find({
+                $or: [
+                    { hostId: user._id },
+                    { 'participants.userId': user._id }
+                ]
+            }).sort({ createdAt: -1 }).limit(50);
+
+            return res.json({ success: true, rooms });
+        } catch (err: any) {
+            logger.error('[LiveExamController] getUserHistory error:', err);
             return res.status(500).json({ success: false, message: err.message });
         }
     }

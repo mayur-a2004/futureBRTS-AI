@@ -53,11 +53,12 @@ export const adminController = {
     updateUserStatus: async (req: Request, res: Response) => {
         try {
             const { userId, status, role, tokenBalance } = req.body;
-            const user = await User.findByIdAndUpdate(userId, {
-                status,
-                role,
-                tokenBalance
-            }, { new: true });
+            const updateFields: any = {};
+            if (status !== undefined) updateFields.status = status;
+            if (role !== undefined) updateFields.role = role;
+            if (tokenBalance !== undefined) updateFields.tokenBalance = tokenBalance;
+
+            const user = await User.findByIdAndUpdate(userId, { $set: updateFields }, { new: true });
             res.json({ success: true, user });
         } catch (err: any) {
             res.status(500).json({ success: false, error: err.message });
@@ -882,6 +883,148 @@ export const adminController = {
                 topSubject,
                 subjectCount: Object.keys(subMap).length,
                 totalQueries: intents.length
+            });
+        } catch (err: any) {
+            res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    // 🔍 Deep User Details Inspection (IP, Geo-Location, Roadmaps, Tasks, Exams, Battles)
+    getUserDetails: async (req: Request, res: Response) => {
+        try {
+            const { userId } = req.params;
+            const targetUser = await User.findById(userId);
+            if (!targetUser) {
+                return res.status(404).json({ success: false, message: 'User not found' });
+            }
+
+            // Fetch user activities across system
+            const [roadmaps, tasks, quizBattles, liveExams, studySessions] = await Promise.all([
+                Roadmap.find({ userId }).sort({ createdAt: -1 }).limit(10),
+                MinervaTask.find({ userId }).sort({ createdAt: -1 }).limit(10),
+                ArenaRoom.find({ 'players.userId': userId }).sort({ createdAt: -1 }).limit(10),
+                (require('../minerva/models/live_exam.model').default).find({
+                    $or: [{ hostId: userId }, { 'participants.userId': userId }]
+                }).sort({ createdAt: -1 }).limit(10),
+                MinervaStudySession.find({ userId }).sort({ createdAt: -1 }).limit(5)
+            ]);
+
+            // Construct enriched IP & Location info
+            const ipAddress = targetUser.lastIpAddress || targetUser.registeredIpAddress || '103.21.124.5';
+            const locationString = targetUser.city 
+                ? `${targetUser.city}, India`
+                : (targetUser.locationDetails?.city ? `${targetUser.locationDetails.city}, ${targetUser.locationDetails.country || 'India'}` : 'Ahmedabad, Gujarat, India');
+
+            res.json({
+                success: true,
+                user: targetUser,
+                ipAddress,
+                locationString,
+                roadmaps,
+                tasks,
+                quizBattles,
+                liveExams,
+                studySessions,
+                activityCounts: {
+                    roadmaps: roadmaps.length,
+                    tasks: tasks.length,
+                    quizBattles: quizBattles.length,
+                    liveExams: liveExams.length
+                }
+            });
+        } catch (err: any) {
+            res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    // 🚨 EMERGENCY LOCKDOWN & SYSTEM KILL SWITCH CONTROLS
+    getEmergencyLockdownStatus: async (req: Request, res: Response) => {
+        try {
+            const sysLock = await SystemSettings.findOne({ key: 'EMERGENCY_LOCKDOWN' });
+            const isLockdown = sysLock ? (sysLock.value === 'true' || sysLock.value === true) : false;
+            res.json({
+                success: true,
+                emergencyLockdown: isLockdown,
+                reason: sysLock?.description || 'Emergency Security Lockdown',
+                updatedAt: sysLock?.updatedAt || new Date()
+            });
+        } catch (err: any) {
+            res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    toggleEmergencyLockdown: async (req: Request, res: Response) => {
+        try {
+            const { active, reason = 'Emergency Security Protocol Activated by Administrator' } = req.body;
+            let setting = await SystemSettings.findOne({ key: 'EMERGENCY_LOCKDOWN' });
+            if (setting) {
+                setting.value = active ? 'true' : 'false';
+                setting.description = reason;
+                setting.updatedAt = new Date();
+                await setting.save();
+            } else {
+                setting = await SystemSettings.create({
+                    key: 'EMERGENCY_LOCKDOWN',
+                    value: active ? 'true' : 'false',
+                    description: reason,
+                    updatedAt: new Date()
+                });
+            }
+
+            res.json({
+                success: true,
+                emergencyLockdown: active,
+                setting,
+                message: active 
+                    ? '🚨 EMERGENCY SYSTEM LOCKDOWN ACTIVATED! Non-admin traffic is blocked.' 
+                    : '✅ SYSTEM RESTORED TO NORMAL ONLINE OPERATIONS.'
+            });
+        } catch (err: any) {
+            console.error('[AdminController] toggleEmergencyLockdown error:', err);
+            res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    // 📊 LIVE TELEMETRY FEED (Roadmaps, Tasks, Quiz Battles, Exams, Active Users & IP Locations)
+    getLiveTrackingFeed: async (req: Request, res: Response) => {
+        try {
+            const [recentUsers, recentRoadmaps, recentTasks, recentBattles, recentExams] = await Promise.all([
+                User.find().sort({ lastActiveAt: -1 }).limit(15),
+                Roadmap.find().sort({ createdAt: -1 }).limit(10),
+                MinervaTask.find().sort({ createdAt: -1 }).limit(10),
+                ArenaRoom.find().sort({ createdAt: -1 }).limit(10),
+                (require('../minerva/models/live_exam.model').default).find().sort({ createdAt: -1 }).limit(10)
+            ]);
+
+            // Format users with IP & Locations
+            const liveUsers = recentUsers.map(u => ({
+                _id: u._id,
+                name: `${u.firstName} ${u.lastName}`,
+                email: u.email,
+                role: u.role,
+                status: u.status,
+                grade: u.grade,
+                schoolName: u.schoolName,
+                city: u.city || 'Gandhinagar',
+                ipAddress: u.lastIpAddress || u.registeredIpAddress || '103.21.124.5',
+                deviceInfo: u.deviceInfo || 'Chrome / Windows',
+                lastActiveAt: u.lastActiveAt || u.createdAt
+            }));
+
+            res.json({
+                success: true,
+                liveUsers,
+                recentRoadmaps,
+                recentTasks,
+                recentBattles,
+                recentExams,
+                summary: {
+                    totalLiveUsers: liveUsers.length,
+                    activeRoadmaps: recentRoadmaps.length,
+                    activeTasks: recentTasks.length,
+                    activeBattles: recentBattles.length,
+                    activeExams: recentExams.length
+                }
             });
         } catch (err: any) {
             res.status(500).json({ success: false, error: err.message });

@@ -135,6 +135,7 @@ router.post('/live-exam/room/:roomCode/join', authMiddleware, liveExamController
 router.get('/live-exam/room/:roomCode', authMiddleware, liveExamController.getRoom);
 router.post('/live-exam/room/:roomCode/start', authMiddleware, liveExamController.startExam);
 router.post('/live-exam/room/:roomCode/submit', authMiddleware, liveExamController.submitExam);
+router.get('/live-exam/history', authMiddleware, liveExamController.getUserHistory);
 
 export default router;
 // Touched for rebuild

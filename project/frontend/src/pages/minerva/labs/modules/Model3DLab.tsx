@@ -279,7 +279,16 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
         },
         autostart: 1,
         ui_theme: 'dark',
-        preload: 1
+        preload: 1,
+        ui_watermark: 0,
+        ui_infos: 0,
+        ui_logo: 0,
+        ui_hint: 0,
+        ui_help: 0,
+        ui_settings: 0,
+        ui_inspector: 0,
+        ui_vr: 0,
+        ui_ar: 0
       });
     };
 
@@ -2163,7 +2172,7 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
               {sketchfabLoading && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950 z-10">
                   <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                  <p className="mt-4 text-zinc-400 text-xs">Loading 3D Model from Sketchfab...</p>
+                  <p className="mt-4 text-zinc-400 text-xs">Loading Interactive 3D Model...</p>
                 </div>
               )}
               <iframe
@@ -2174,6 +2183,8 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
                 className="w-full h-full border-none"
                 allow="autoplay; fullscreen; xr-spatial-tracking"
               />
+              {/* Cover bottom-left third-party watermark/logo */}
+              <div className="absolute bottom-1 left-1 z-20 w-14 h-14 bg-zinc-950/95 rounded-xl pointer-events-none" />
             </>
           ) : hasVisualCanvas ? (
             <canvas ref={canvasRef} className="w-full h-full block cursor-pointer" />

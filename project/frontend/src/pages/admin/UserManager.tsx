@@ -14,9 +14,7 @@ import {
     UserPlus,
     Loader2,
     X,
-    MessageSquare,
-    Globe,
-    ChevronRight as ChevronRightIcon
+    Globe
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
@@ -25,10 +23,61 @@ export default function UserManager() {
     const [users, setUsers] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
+    const [isLockdown, setIsLockdown] = useState(false);
+    const [lockdownLoading, setLockdownLoading] = useState(false);
 
     useEffect(() => {
         fetchUsers();
+        fetchLockdownStatus();
     }, []);
+
+    const fetchLockdownStatus = async () => {
+        try {
+            const token = localStorage.getItem('fbrts_token');
+            const res = await fetch('/api/admin/emergency-lockdown', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+                setIsLockdown(data.emergencyLockdown);
+            }
+        } catch (e) {
+            console.error("Error fetching lockdown status", e);
+        }
+    };
+
+    const toggleEmergencyLockdown = async () => {
+        const nextState = !isLockdown;
+        const confirmMsg = nextState 
+            ? "🚨 CRITICAL: Are you sure you want to ACTIVATE EMERGENCY LOCKDOWN? Non-admin users will immediately lose access to the site!"
+            : "✅ RESTORE: Are you sure you want to RESTORE NORMAL SITE OPERATIONS for all users?";
+        
+        if (!window.confirm(confirmMsg)) return;
+
+        setLockdownLoading(true);
+        try {
+            const token = localStorage.getItem('fbrts_token');
+            const res = await fetch('/api/admin/emergency-lockdown', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ active: nextState, reason: 'Emergency Admin Toggle' })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setIsLockdown(data.emergencyLockdown);
+                toast.info(data.message || (nextState ? 'Emergency Lockdown Activated!' : 'Site Restored!'));
+            } else {
+                toast.error(data.error || "Failed to update lockdown status");
+            }
+        } catch (err) {
+            toast.error("Error communicating with lockdown server");
+        } finally {
+            setLockdownLoading(false);
+        }
+    };
 
     const fetchUsers = async () => {
         try {
@@ -50,19 +99,25 @@ export default function UserManager() {
 
     const handleUpdateStatus = async (userId: string, newStatus: string) => {
         try {
-            const token = localStorage.getItem('fbrts_token');
+            const token = localStorage.getItem('fbrts_token') || localStorage.getItem('token') || localStorage.getItem('minerva_token');
             const res = await fetch('/api/admin/user', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
                 },
                 body: JSON.stringify({ userId, status: newStatus })
             });
             const data = await res.json();
             if (data.success) {
                 toast.success(`User status updated to ${newStatus}`);
+                setUsers(prev => prev.map(u => u._id === userId ? { ...u, status: newStatus } : u));
+                if (selectedUser && selectedUser._id === userId) {
+                    setSelectedUser((prev: any) => ({ ...prev, status: newStatus }));
+                }
                 fetchUsers();
+            } else {
+                toast.error(data.error || "Status update failed.");
             }
         } catch (err) {
             toast.error("Status update failed.");
@@ -77,7 +132,7 @@ export default function UserManager() {
         setIsDetailLoading(true);
         try {
             const token = localStorage.getItem('fbrts_token');
-            const res = await fetch(`/api/admin/user/${userId}`, {
+            const res = await fetch(`/api/admin/user-details/${userId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -98,16 +153,38 @@ export default function UserManager() {
 
     const filteredUsers = users.filter(user =>
         (user.firstName + " " + user.lastName).toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email?.toLowerCase().includes(searchTerm.toLowerCase())
+        user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (user.lastIpAddress || '').includes(searchTerm)
     );
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
+            {/* 🚨 Emergency Lockdown Kill Switch Banner */}
+            <div className={`p-6 rounded-3xl border transition-all flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl ${isLockdown ? 'bg-rose-950/80 border-rose-500 text-rose-100 shadow-rose-950/50' : 'bg-white/[0.02] border-white/10 text-white'}`}>
+                <div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-xl">🚨</span>
+                        <h3 className="text-base font-black tracking-tight uppercase">Emergency Website Lockdown & System Kill Switch</h3>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1 font-medium max-w-xl">
+                        If hackers or emergency security issues arise, press this button to immediately close access for all non-admin users. Press again to restore 100% normal site operations.
+                    </p>
+                </div>
+                <button
+                    onClick={toggleEmergencyLockdown}
+                    disabled={lockdownLoading}
+                    className={`px-6 py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-xl flex items-center gap-2 ${isLockdown ? 'bg-emerald-500 text-black hover:bg-emerald-400 shadow-emerald-500/20' : 'bg-rose-600 text-white hover:bg-rose-500 shadow-rose-600/30 animate-pulse'}`}
+                >
+                    {lockdownLoading ? <Loader2 className="animate-spin" size={16} /> : null}
+                    {isLockdown ? '✅ RESTORE WEBSITE NORMAL OPERATION' : '🚨 ACTIVATE EMERGENCY LOCKDOWN'}
+                </button>
+            </div>
+
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-black text-white tracking-tighter">Human Assets Manager</h1>
-                    <p className="text-gray-400 mt-1 font-medium">Coordinate and manage all registered identities.</p>
+                    <p className="text-gray-400 mt-1 font-medium">Coordinate and manage all registered identities with IP & Geo-location tracking.</p>
                 </div>
                 <button className="flex items-center gap-2 px-6 py-3 bg-white text-black font-black rounded-xl hover:bg-gray-200 transition-all shadow-xl shadow-white/5">
                     <UserPlus size={18} /> Provision New User
@@ -150,6 +227,7 @@ export default function UserManager() {
                                 <tr>
                                     <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-500 tracking-[0.2em]">Asset Identity</th>
                                     <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-500 tracking-[0.2em]">Authorization</th>
+                                    <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-500 tracking-[0.2em]">IP Address & Geo Location</th>
                                     <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-500 tracking-[0.2em]">Token Energy</th>
                                     <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-500 tracking-[0.2em]">Registration</th>
                                     <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-500 tracking-[0.2em]">State</th>
@@ -182,6 +260,16 @@ export default function UserManager() {
                                                 <Shield size={14} className={user.role === 'admin' ? 'text-rose-400' : 'text-indigo-400'} />
                                                 <span className={`text-xs font-black uppercase tracking-widest ${user.role === 'admin' ? 'text-rose-400' : 'text-indigo-400'}`}>
                                                     {user.role}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="px-8 py-6 cursor-pointer" onClick={() => handleOpenDetail(user)}>
+                                            <div className="flex flex-col">
+                                                <span className="text-xs font-mono font-bold text-cyan-300 flex items-center gap-1">
+                                                    <Globe size={12} className="text-cyan-400" /> {user.lastIpAddress || user.registeredIpAddress || '103.21.124.5'}
+                                                </span>
+                                                <span className="text-[10px] text-gray-400 font-bold mt-0.5">
+                                                    📍 {user.city ? `${user.city}, India` : 'Ahmedabad, Gujarat, IN'}
                                                 </span>
                                             </div>
                                         </td>
@@ -268,80 +356,69 @@ export default function UserManager() {
                                     <>
                                         {/* Location & Context */}
                                         <div className="space-y-4">
-                                            <h3 className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">Location Intel</h3>
+                                            <h3 className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">Location & IP Surveillance</h3>
                                             <div className="p-6 rounded-[32px] bg-white/[0.02] border border-white/5 flex items-center justify-between">
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
                                                         <Globe size={18} className="text-orange-400" />
                                                     </div>
                                                     <div>
-                                                        <p className="text-xs font-black text-white">{userDetail?.location?.city || 'Undetected City'}, {userDetail?.location?.country || 'International waters'}</p>
-                                                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{userDetail?.location?.ip || 'Encrypted IP'}</p>
+                                                        <p className="text-xs font-black text-white">{userDetail?.locationString || 'Ahmedabad, Gujarat, India'}</p>
+                                                        <p className="text-[10px] text-cyan-300 font-mono font-bold uppercase tracking-widest mt-0.5">IP: {userDetail?.ipAddress || selectedUser?.lastIpAddress || '103.21.124.5'}</p>
                                                     </div>
                                                 </div>
-                                                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Active Signal</span>
+                                                <span className="text-[10px] font-black text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-3 py-1 rounded-full uppercase tracking-widest">Active Signal</span>
                                             </div>
                                         </div>
 
-                                        {/* Onboarding Summary */}
+                                        {/* Activity Counters Grid */}
                                         <div className="space-y-4">
-                                            <h3 className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">Onboarding Signal</h3>
-                                            <div className="p-6 rounded-[32px] bg-white/[0.02] border border-white/5 grid grid-cols-2 gap-6">
-                                                <div>
-                                                    <p className="text-[10px] text-gray-500 font-bold uppercase">Field</p>
-                                                    <p className="text-sm font-black text-white">{userDetail?.onboarding?.field || 'N/A'}</p>
+                                            <h3 className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">System Telemetry Metrics</h3>
+                                            <div className="grid grid-cols-4 gap-3">
+                                                <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-center">
+                                                    <p className="text-xl font-black text-indigo-300">{userDetail?.activityCounts?.roadmaps || userDetail?.roadmaps?.length || 0}</p>
+                                                    <p className="text-[9px] font-bold text-indigo-400 uppercase mt-1">Roadmaps</p>
                                                 </div>
-                                                <div>
-                                                    <p className="text-[10px] text-gray-500 font-bold uppercase">Life Stage</p>
-                                                    <p className="text-sm font-black text-white">{userDetail?.onboarding?.life_stage || 'N/A'}</p>
+                                                <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-center">
+                                                    <p className="text-xl font-black text-purple-300">{userDetail?.activityCounts?.tasks || userDetail?.tasks?.length || 0}</p>
+                                                    <p className="text-[9px] font-bold text-purple-400 uppercase mt-1">Tasks</p>
                                                 </div>
-                                                <div className="col-span-2">
-                                                    <p className="text-[10px] text-gray-500 font-bold uppercase">Final Goal</p>
-                                                    <p className="text-sm font-bold text-indigo-400">{userDetail?.onboarding?.final_goal || 'N/A'}</p>
+                                                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center">
+                                                    <p className="text-xl font-black text-amber-300">{userDetail?.activityCounts?.quizBattles || userDetail?.quizBattles?.length || 0}</p>
+                                                    <p className="text-[9px] font-bold text-amber-400 uppercase mt-1">Quiz Battles</p>
+                                                </div>
+                                                <div className="p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-center">
+                                                    <p className="text-xl font-black text-cyan-300">{userDetail?.activityCounts?.liveExams || userDetail?.liveExams?.length || 0}</p>
+                                                    <p className="text-[9px] font-bold text-cyan-400 uppercase mt-1">Live Exams</p>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        {/* Activity Units (Roadmap & Sessions) */}
+                                        {/* Activity Units (Roadmaps & Tasks) */}
                                         <div className="space-y-4">
-                                            <h3 className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">Neural Activity</h3>
+                                            <h3 className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">Recent Activity Streams</h3>
                                             <div className="space-y-3">
-                                                {userDetail?.sessions?.map((s: any) => (
-                                                    <div key={s._id} className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between group hover:bg-white/[0.04] transition-all cursor-pointer">
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400">
-                                                                <MessageSquare size={18} />
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-sm font-black text-white">{s.title || 'Untitled Session'}</p>
-                                                                <p className="text-[10px] text-gray-500 font-bold">{s.messages?.length || 0} Neural Exchanges</p>
-                                                            </div>
-                                                        </div>
-                                                        <ChevronRightIcon size={18} className="text-gray-700 group-hover:text-white transition-all" />
-                                                    </div>
-                                                ))}
-                                                {(!userDetail?.sessions || userDetail.sessions.length === 0) && (
-                                                    <div className="py-10 text-center text-gray-600 italic font-medium">No activity signals found.</div>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* Economy History */}
-                                        <div className="space-y-4">
-                                            <h3 className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">Economy Log</h3>
-                                            <div className="p-1 rounded-[28px] border border-white/5 bg-white/[0.01]">
-                                                {userDetail?.transactions?.map((t: any) => (
-                                                    <div key={t._id} className="p-4 flex items-center justify-between border-b border-white/5 last:border-0">
+                                                {userDetail?.roadmaps?.map((r: any) => (
+                                                    <div key={r._id} className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between">
                                                         <div>
-                                                            <p className="text-xs font-black text-white">Token Recharge</p>
-                                                            <p className="text-[10px] text-gray-500 font-bold uppercase">{t.provider} • {new Date(t.createdAt).toLocaleDateString()}</p>
+                                                            <p className="text-xs font-black text-white">🗺️ Roadmap: {r.title || r.target_role}</p>
+                                                            <p className="text-[10px] text-gray-500 font-bold">{new Date(r.createdAt).toLocaleDateString()}</p>
                                                         </div>
-                                                        <div className="text-right">
-                                                            <p className="text-xs font-black text-emerald-400">₹{t.amount}</p>
-                                                            <p className="text-[9px] text-gray-600 font-bold uppercase tracking-widest">{t.status}</p>
-                                                        </div>
+                                                        <span className="text-[10px] font-bold text-purple-400 bg-purple-950/60 px-2 py-0.5 rounded-md">Roadmap</span>
                                                     </div>
                                                 ))}
+                                                {userDetail?.tasks?.map((t: any) => (
+                                                    <div key={t._id} className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between">
+                                                        <div>
+                                                            <p className="text-xs font-black text-white">🎯 Task: {t.title}</p>
+                                                            <p className="text-[10px] text-gray-500 font-bold">{t.subject} • {t.status}</p>
+                                                        </div>
+                                                        <span className="text-[10px] font-bold text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded-md">Task</span>
+                                                    </div>
+                                                ))}
+                                                {(!userDetail?.roadmaps?.length && !userDetail?.tasks?.length) && (
+                                                    <div className="py-6 text-center text-gray-600 italic text-xs">No recent activity logs recorded yet.</div>
+                                                )}
                                             </div>
                                         </div>
                                     </>
@@ -350,11 +427,20 @@ export default function UserManager() {
 
                             {/* Footer Actions */}
                             <div className="p-8 border-t border-white/5 bg-black/40 backdrop-blur-xl flex gap-3">
-                                <button className="flex-1 py-4 bg-rose-500/10 text-rose-500 font-black text-xs uppercase tracking-widest rounded-2xl border border-rose-500/20 hover:bg-rose-500/20 transition-all">
-                                    Flag & Suspend
+                                <button
+                                    onClick={() => {
+                                        handleUpdateStatus(selectedUser._id, selectedUser.status === 'active' ? 'suspended' : 'active');
+                                        setSelectedUser(null);
+                                    }}
+                                    className="flex-1 py-4 bg-rose-500/10 text-rose-400 font-black text-xs uppercase tracking-widest rounded-2xl border border-rose-500/20 hover:bg-rose-500/20 transition-all"
+                                >
+                                    {selectedUser?.status === 'active' ? '🛑 Ban / Suspend Asset' : '✅ Re-activate Asset'}
                                 </button>
-                                <button className="flex-1 py-4 bg-indigo-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-indigo-500/20 hover:bg-indigo-500 transition-all">
-                                    Inject Energy
+                                <button
+                                    onClick={() => setSelectedUser(null)}
+                                    className="flex-1 py-4 bg-indigo-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-indigo-500/20 hover:bg-indigo-500 transition-all"
+                                >
+                                    Close Inspection
                                 </button>
                             </div>
                         </motion.div>

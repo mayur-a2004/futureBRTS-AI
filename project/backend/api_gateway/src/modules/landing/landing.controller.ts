@@ -85,5 +85,20 @@ export const landingController = {
     trackVisit: async (req: Request, res: Response) => {
         // 👉 Logic Disabled for Stability
         res.json({ success: true, status: 'disabled_for_now' });
+    },
+
+    getLockdownStatus: async (req: Request, res: Response) => {
+        try {
+            const sysLock = await SystemSettings.findOne({ key: 'EMERGENCY_LOCKDOWN' });
+            const isLockdown = sysLock ? (sysLock.value === 'true' || sysLock.value === true) : false;
+            res.json({
+                success: true,
+                emergencyLockdown: isLockdown,
+                reason: sysLock?.description || 'Emergency Security Lockdown',
+                updatedAt: sysLock?.updatedAt || new Date()
+            });
+        } catch (err: any) {
+            res.json({ success: false, emergencyLockdown: false });
+        }
     }
 };

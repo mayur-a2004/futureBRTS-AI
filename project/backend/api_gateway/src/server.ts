@@ -30,6 +30,7 @@ import { tokenGuard } from './shared/middleware/token.middleware';
 import minervaRoutes from './modules/minerva/minerva.routes';
 
 import { globalLimiter, securityShield, hardenedHelmet } from './shared/middleware/security.shield';
+import { layer7WafSentinel } from './shared/middleware/layer7_firewall.middleware';
 
 dotenv.config();
 console.log(`[Config] JWT_SECRET: ${process.env.JWT_SECRET ? 'SET (' + process.env.JWT_SECRET.substring(0, 3) + '...)' : 'MISSING'}`);
@@ -38,10 +39,11 @@ console.log(`[Config] AI_MODE: ${process.env.AI_MODE}`);
 
 const app = express();
 
-// 👉 7-LAYER SECURITY SHIELD (L1 & L2)
+// 👉 7-LAYER WEB APPLICATION FIREWALL SENTINEL (WAF)
 app.use(hardenedHelmet); // L1: Headers & CSP
 app.use(globalLimiter);   // L1: DDOS Protection / Rate Limiting
 app.use(securityShield); // L2: Injection & Bot Protection
+app.use(layer7WafSentinel); // L1-L7: Full WAF & Emergency Alert Sentinel (7859822561)
 
 app.use(express.json({ limit: '500mb' }));
 app.use(express.urlencoded({ limit: '500mb', extended: true }));

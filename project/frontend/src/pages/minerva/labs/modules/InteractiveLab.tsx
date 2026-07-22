@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   RotateCcw, Sliders, Activity, Beaker, HelpCircle, Flame, 
-  Maximize2, Minimize2, Globe, Brain, BookOpen, 
+  Maximize2, Minimize2, Globe, Brain, 
   Compass, Eye, Award
 } from 'lucide-react';
 import { SubjectType } from '../types/LabConfig';
@@ -685,7 +685,7 @@ export const InteractiveLab: React.FC<InteractiveLabProps> = ({ subject, topic, 
                 }`}
               >
                 <Compass size={11} />
-                <span>MolView 3D Builder</span>
+                <span>3D Molecular Lab</span>
               </button>
 
               <button
@@ -697,7 +697,7 @@ export const InteractiveLab: React.FC<InteractiveLabProps> = ({ subject, topic, 
                 }`}
               >
                 <Eye size={11} />
-                <span>3Dmol.js Structure</span>
+                <span>3D Structure View</span>
               </button>
 
               <button
@@ -721,7 +721,7 @@ export const InteractiveLab: React.FC<InteractiveLabProps> = ({ subject, topic, 
                 }`}
               >
                 <Globe size={11} />
-                <span>PhET Chem Lab</span>
+                <span>Chemistry Simulation Lab</span>
               </button>
             </>
           )}
@@ -737,7 +737,7 @@ export const InteractiveLab: React.FC<InteractiveLabProps> = ({ subject, topic, 
                 }`}
               >
                 <Globe size={11} />
-                <span>PhET Physics Simulator</span>
+                <span>Physics Interactive Simulator</span>
               </button>
               
               <button
@@ -765,7 +765,7 @@ export const InteractiveLab: React.FC<InteractiveLabProps> = ({ subject, topic, 
                 }`}
               >
                 <Globe size={11} />
-                <span>Desmos 2D</span>
+                <span>2D Function Grapher</span>
               </button>
 
               <button
@@ -777,7 +777,7 @@ export const InteractiveLab: React.FC<InteractiveLabProps> = ({ subject, topic, 
                 }`}
               >
                 <Globe size={11} />
-                <span>Desmos 3D</span>
+                <span>3D Space Grapher</span>
               </button>
 
               <button
@@ -789,7 +789,7 @@ export const InteractiveLab: React.FC<InteractiveLabProps> = ({ subject, topic, 
                 }`}
               >
                 <Activity size={11} />
-                <span>JSXGraph Board</span>
+                <span>Interactive Math Board</span>
               </button>
 
               <button
@@ -801,7 +801,7 @@ export const InteractiveLab: React.FC<InteractiveLabProps> = ({ subject, topic, 
                 }`}
               >
                 <Brain size={11} />
-                <span>MathLive Editor</span>
+                <span>Interactive Formula Editor</span>
               </button>
             </>
           )}
@@ -817,7 +817,7 @@ export const InteractiveLab: React.FC<InteractiveLabProps> = ({ subject, topic, 
                 }`}
               >
                 <Eye size={11} />
-                <span>3Dmol.js DNA/Proteins</span>
+                <span>3D DNA & Bio Structures</span>
               </button>
 
               <button
@@ -829,18 +829,8 @@ export const InteractiveLab: React.FC<InteractiveLabProps> = ({ subject, topic, 
                 }`}
               >
                 <Globe size={11} />
-                <span>PhET Biology Lab</span>
+                <span>Interactive Biology Lab</span>
               </button>
-
-              <a
-                href="https://www.visiblebody.com/learn"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-white/5 text-gray-400 hover:text-white border border-transparent transition-all"
-              >
-                <BookOpen size={11} />
-                <span>Anatomy Learn Site ↗</span>
-              </a>
             </>
           )}
         </div>
@@ -877,11 +867,11 @@ export const InteractiveLab: React.FC<InteractiveLabProps> = ({ subject, topic, 
           <div className="flex flex-col h-full min-h-[420px] rounded-2xl overflow-hidden border border-cyan-500/20 bg-black">
             <iframe
               src={`https://embed.molview.org/v1/?mode=balls&q=${encodeURIComponent(getCleanChemistryQuery())}`}
-              title="MolView Interactive Molecule 3D Viewer"
+              title="Interactive Molecule 3D Viewer"
               className="w-full flex-1 border-none min-h-[380px] bg-black"
             />
             <div className="bg-black/80 px-4 py-2 text-center text-[10px] text-slate-500 font-bold uppercase tracking-wider border-t border-white/5">
-              Powered by MolView™ 3D Web Molecular Sketcher
+              Future BRTS 3D Molecular Virtual Lab
             </div>
           </div>
         )}
@@ -895,12 +885,12 @@ export const InteractiveLab: React.FC<InteractiveLabProps> = ({ subject, topic, 
                   ? `https://3dmol.org/viewer.html?pdb=${getPdbId()}&style=cartoon`
                   : `https://3dmol.org/viewer.html?cid=${getChemistryCid()}&style=stick`
               }
-              title="3Dmol.js Interactive Biomolecule structure viewer"
+              title="Interactive Biomolecule structure viewer"
               className="w-full flex-1 border-none min-h-[380px] bg-black"
               loading="lazy"
             />
             <div className="bg-black/80 px-4 py-2 text-center text-[10px] text-slate-500 font-bold uppercase tracking-wider border-t border-white/5">
-              Powered by 3Dmol.js™ WebGL Molecular Structure Renderer
+              Future BRTS WebGL Structural Renderer
             </div>
           </div>
         )}
@@ -912,11 +902,11 @@ export const InteractiveLab: React.FC<InteractiveLabProps> = ({ subject, topic, 
             <iframe
               src={getPhetUrl() ?? undefined}
               allowFullScreen
-              title="PhET HTML5 Simulation"
+              title="Interactive Science Simulation"
               className="w-full flex-1 border-none min-h-[380px] bg-[#000]"
             />
             <div className="bg-black/80 px-4 py-2 text-center text-[10px] text-slate-500 font-bold uppercase tracking-wider border-t border-white/5">
-              Powered by PhET™ Interactive Simulations (University of Colorado Boulder)
+              Future BRTS Virtual Science Simulation
             </div>
           </div>
         )}
@@ -927,11 +917,11 @@ export const InteractiveLab: React.FC<InteractiveLabProps> = ({ subject, topic, 
             <iframe
               src={`https://www.desmos.com/calculator?embed=true`}
               allowFullScreen
-              title="Desmos 2D Graphing Calculator"
+              title="2D Graphing Calculator"
               className="w-full flex-1 border-none min-h-[380px] bg-zinc-950"
             />
             <div className="bg-black/80 px-4 py-2 text-center text-[10px] text-slate-500 font-bold uppercase tracking-wider border-t border-white/5 z-10">
-              Powered by Desmos™ 2D Graphing Engine
+              Future BRTS 2D Function Graphing Engine
             </div>
           </div>
         )}
@@ -942,11 +932,11 @@ export const InteractiveLab: React.FC<InteractiveLabProps> = ({ subject, topic, 
             <iframe
               src={`https://www.desmos.com/3d?embed=true`}
               allowFullScreen
-              title="Desmos 3D Graphing Calculator"
+              title="3D Graphing Calculator"
               className="w-full flex-1 border-none min-h-[380px] bg-zinc-950"
             />
             <div className="bg-black/80 px-4 py-2 text-center text-[10px] text-slate-500 font-bold uppercase tracking-wider border-t border-white/5">
-              Powered by Desmos™ 3D Graphics Calculations Engine
+              Future BRTS 3D Spatial Calculation Engine
             </div>
           </div>
         )}

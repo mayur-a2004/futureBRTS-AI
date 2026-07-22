@@ -37,34 +37,102 @@ const StatCard = ({ title, value, change, trend, icon: Icon, color }: any) => (
 export default function AdminDashboard() {
     const [stats, setStats] = useState<any>(null);
     const [recentActivities, setRecentActivities] = useState<any[]>([]);
+    const [telemetry, setTelemetry] = useState<any>(null);
+    const [isLockdown, setIsLockdown] = useState(false);
+    const [lockdownLoading, setLockdownLoading] = useState(false);
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const token = localStorage.getItem('fbrts_token');
-                const [statsRes, trackingRes] = await Promise.all([
-                    fetch('/api/admin/stats', { headers: { 'Authorization': `Bearer ${token}` } }),
-                    fetch('/api/admin/tracking', { headers: { 'Authorization': `Bearer ${token}` } })
-                ]);
-                
-                const statsData = await statsRes.json();
-                const trackingData = await trackingRes.json();
-                
-                if (statsData.success) {
-                    setStats(statsData.stats);
-                }
-                if (trackingData.success) {
-                    setRecentActivities(trackingData.logs || []);
-                }
-            } catch (err) {
-                console.error(err);
-            }
-        };
         fetchData();
+        fetchLockdownStatus();
     }, []);
+
+    const fetchLockdownStatus = async () => {
+        try {
+            const token = localStorage.getItem('fbrts_token') || localStorage.getItem('token') || localStorage.getItem('minerva_token');
+            const res = await fetch('/api/admin/emergency-lockdown', {
+                headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
+            });
+            const data = await res.json();
+            if (data.success) {
+                setIsLockdown(data.emergencyLockdown);
+            }
+        } catch (e) {
+            console.error("Lockdown error", e);
+        }
+    };
+
+    const toggleEmergencyLockdown = async () => {
+        const nextState = !isLockdown;
+        if (!window.confirm(nextState 
+            ? "🚨 CRITICAL: Are you sure you want to ACTIVATE EMERGENCY LOCKDOWN? Non-admin users will immediately lose access!" 
+            : "✅ RESTORE: Are you sure you want to RESTORE NORMAL SITE OPERATIONS?")) return;
+
+        setLockdownLoading(true);
+        try {
+            const token = localStorage.getItem('fbrts_token') || localStorage.getItem('token') || localStorage.getItem('minerva_token');
+            const res = await fetch('/api/admin/emergency-lockdown', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+                body: JSON.stringify({ active: nextState })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setIsLockdown(data.emergencyLockdown);
+                alert(data.message);
+            } else {
+                alert(data.error || data.message || "Lockdown toggle failed");
+            }
+        } catch (e: any) {
+            alert(`Lockdown toggle failed: ${e.message || 'Server error'}`);
+        } finally {
+            setLockdownLoading(false);
+        }
+    };
+
+    const fetchData = async () => {
+        try {
+            const token = localStorage.getItem('fbrts_token') || localStorage.getItem('token') || localStorage.getItem('minerva_token');
+            const headers = { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) };
+            const [statsRes, trackingRes, telemetryRes] = await Promise.all([
+                fetch('/api/admin/stats', { headers }),
+                fetch('/api/admin/tracking', { headers }),
+                fetch('/api/admin/live-telemetry', { headers })
+            ]);
+            
+            const statsData = await statsRes.json();
+            const trackingData = await trackingRes.json();
+            const telemetryData = await telemetryRes.json();
+            
+            if (statsData.success) setStats(statsData.stats);
+            if (trackingData.success) setRecentActivities(trackingData.logs || []);
+            if (telemetryData.success) setTelemetry(telemetryData);
+        } catch (err) {
+            console.error(err);
+        }
+    };
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* 🚨 Emergency System Lockdown Banner */}
+            <div className={`p-6 rounded-3xl border transition-all flex flex-col md:flex-row items-center justify-between gap-4 shadow-2xl ${isLockdown ? 'bg-rose-950/80 border-rose-500 text-rose-100 shadow-rose-950/50' : 'bg-white/[0.02] border-white/10 text-white'}`}>
+                <div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-xl">🚨</span>
+                        <h3 className="text-base font-black tracking-tight uppercase">Emergency Website Lockdown & System Kill Switch</h3>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1 font-medium max-w-xl">
+                        If hackers, DDoS, or security emergencies occur, press this button to immediately take down site access for non-admins. Press again to restore normal operations instantly.
+                    </p>
+                </div>
+                <button
+                    onClick={toggleEmergencyLockdown}
+                    disabled={lockdownLoading}
+                    className={`px-6 py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-xl flex items-center gap-2 ${isLockdown ? 'bg-emerald-500 text-black hover:bg-emerald-400 shadow-emerald-500/20' : 'bg-rose-600 text-white hover:bg-rose-500 shadow-rose-600/30 animate-pulse'}`}
+                >
+                    {isLockdown ? '✅ RESTORE WEBSITE NORMAL OPERATION' : '🚨 ACTIVATE EMERGENCY LOCKDOWN'}
+                </button>
+            </div>
+
             {/* Header Section */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                 <div>
@@ -234,6 +302,40 @@ export default function AdminDashboard() {
                     </div>
                 </div>
             </div>
+
+            {/* 📡 Live Telemetry & IP Location Stream */}
+            {telemetry && (
+                <div className="rounded-3xl border border-white/5 bg-white/[0.01] p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                                📡 Real-Time Telemetry & Active User IP Map
+                            </h2>
+                            <p className="text-xs text-gray-400 font-medium mt-1">
+                                Live stream of active users, IP addresses, locations, roadmaps, tasks, and exam arenas across the platform.
+                            </p>
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full">
+                            ● Live Feed ({telemetry.liveUsers?.length || 0} Connected)
+                        </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                        {telemetry.liveUsers?.slice(0, 6).map((u: any) => (
+                            <div key={u._id} className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between">
+                                <div>
+                                    <p className="text-xs font-black text-white">{u.name} ({u.role})</p>
+                                    <p className="text-[10px] text-cyan-300 font-mono font-bold mt-0.5">🌐 IP: {u.ipAddress}</p>
+                                    <p className="text-[10px] text-gray-400 font-medium">📍 {u.city}, India</p>
+                                </div>
+                                <span className="text-[9px] font-black text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded-md">
+                                    Active
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

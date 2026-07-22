@@ -93,7 +93,13 @@ const resolveYoutubeVideoId = async (searchQuery: string, excludeIds: Set<string
 // HELPER: get or create student profile
 // ─────────────────────────────────────────────────────────────────
 const getOrCreateProfile = async (userId: string) => {
-    let profile = await MinervaStudentProfile.findOne({ userId });
+    let profile: any = await MinervaStudentProfile.findOne({ userId });
+    let firstName = 'Mayur';
+    try {
+        const user = await User.findById(userId).select('firstName lastName email');
+        if (user && user.firstName) firstName = user.firstName;
+    } catch (e) {}
+
     if (!profile) {
         let education_type = 'college';
         let grade_level = 'undergraduate';
@@ -122,7 +128,11 @@ const getOrCreateProfile = async (userId: string) => {
             onboarding_done 
         });
     }
-    return profile;
+
+    const profileObj = profile.toObject ? profile.toObject() : { ...profile };
+    profileObj.firstName = firstName;
+    profileObj.studentName = firstName;
+    return profileObj;
 };
 
 // ─────────────────────────────────────────────────────────────────

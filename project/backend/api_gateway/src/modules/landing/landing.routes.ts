@@ -12,6 +12,7 @@ router.get('/page', landingController.getPageData);
 // 👉 Intent aur Tracking APIs
 router.post('/intent', landingController.saveIntent);
 router.get('/config/:key', landingController.getConfig); // Public Config Fetch
+router.get('/lockdown-status', landingController.getLockdownStatus);
 router.post('/visit', landingController.trackVisit);
 
 export default router;

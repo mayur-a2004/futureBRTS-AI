@@ -34,6 +34,7 @@ export interface ILiveExamRoom extends Document {
     board: string;
     subject: string;
     topic: string;
+    language: string;
     totalQuestions: number;
     totalMarks: number;
     durationMinutes: number;
@@ -79,6 +80,7 @@ const LiveExamRoomSchema = new Schema({
     board: { type: String, default: 'CBSE' },
     subject: { type: String, default: 'Science' },
     topic: { type: String, default: 'General' },
+    language: { type: String, default: 'English' },
     totalQuestions: { type: Number, default: 10 },
     totalMarks: { type: Number, default: 10 },
     durationMinutes: { type: Number, default: 15 },

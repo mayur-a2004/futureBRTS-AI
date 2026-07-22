@@ -15,6 +15,108 @@ const gradeColor: Record<string, string> = {
     C: 'text-amber-400', D: 'text-orange-400', F: 'text-red-400',
 };
 
+// ─── Curriculum Syllabus Catalog Map (Standard -> Subject -> Chapters -> Topics) ───
+export const SYLLABUS_CATALOG: Record<string, Record<string, { chapter: string; topics: string[] }[]>> = {
+    '10': {
+        'Science': [
+            { chapter: 'Chapter 1: Chemical Reactions & Equations', topics: ['Types of Chemical Reactions', 'Balancing Chemical Equations', 'Oxidation & Reduction', 'Corrosion & Rancidity'] },
+            { chapter: 'Chapter 2: Acids, Bases & Salts', topics: ['Chemical Properties of Acids & Bases', 'pH Scale & Importance', 'Important Sodium & Calcium Compounds', 'Acid-Base Indicators'] },
+            { chapter: 'Chapter 3: Metals & Non-Metals', topics: ['Physical & Chemical Properties', 'Reactivity Series', 'Ionic Compounds & Bonding', 'Basic Metallurgy & Corrosion'] },
+            { chapter: 'Chapter 4: Carbon & Its Compounds', topics: ['Covalent Bonding in Carbon', 'Versatile Nature & Homologous Series', 'Functional Groups & Nomenclature', 'Ethanol & Ethanoic Acid'] },
+            { chapter: 'Chapter 5: Life Processes', topics: ['Autotrophic & Heterotrophic Nutrition', 'Respiration & Cellular ATP', 'Transportation in Humans & Plants', 'Excretion & Kidney Function'] },
+            { chapter: 'Chapter 6: Control & Coordination', topics: ['Human Nervous System & Reflex Arc', 'Brain Anatomy & Functions', 'Plant Hormones (Phytohormones)', 'Endocrine Gland Hormones'] },
+            { chapter: 'Chapter 7: How do Organisms Reproduce?', topics: ['Modes of Asexual Reproduction', 'Sexual Reproduction in Flowering Plants', 'Human Reproductive System', 'Reproductive Health & Contraception'] },
+            { chapter: 'Chapter 8: Heredity & Evolution', topics: ['Mendel’s Monohybrid & Dihybrid Crosses', 'Dominant & Recessive Traits', 'Sex Determination in Humans'] },
+            { chapter: 'Chapter 9: Light - Reflection & Refraction', topics: ['Reflection by Spherical Mirrors', 'Mirror Formula & Magnification', 'Refraction & Snell’s Law', 'Lens Formula & Power of Lens'] },
+            { chapter: 'Chapter 10: Human Eye & Colourful World', topics: ['Structure & Accommodation of Eye', 'Defects of Vision & Correction', 'Prism Dispersion & Rainbow', 'Atmospheric Refraction & Tyndall Effect'] },
+            { chapter: 'Chapter 11: Electricity', topics: ['Electric Current & Potential Difference', 'Ohm’s Law & Resistance', 'Series & Parallel Resistor Combinations', 'Joule’s Heating Effect & Electric Power'] },
+            { chapter: 'Chapter 12: Magnetic Effects of Electric Current', topics: ['Magnetic Field & Field Lines', 'Right Hand Thumb Rule & Solenoid', 'Force on Current Conductor', 'Electromagnetic Induction & Fuse'] },
+            { chapter: 'Chapter 13: Our Environment', topics: ['Ecosystem Components & Food Chains', '10% Energy Flow Law', 'Ozone Layer Depletion & Waste Management'] }
+        ],
+        'Mathematics': [
+            { chapter: 'Chapter 1: Real Numbers', topics: ['Fundamental Theorem of Arithmetic', 'Irrationality Proofs', 'Decimal Expansions of Rational Numbers'] },
+            { chapter: 'Chapter 2: Polynomials', topics: ['Geometrical Meaning of Zeroes', 'Relationship between Zeroes & Coefficients', 'Division Algorithm for Polynomials'] },
+            { chapter: 'Chapter 3: Pair of Linear Equations in Two Variables', topics: ['Graphical Method of Solution', 'Substitution & Elimination Methods', 'Cross-Multiplication Method'] },
+            { chapter: 'Chapter 4: Quadratic Equations', topics: ['Standard Form & Factorization', 'Completing the Square Method', 'Quadratic Formula & Nature of Roots'] },
+            { chapter: 'Chapter 5: Arithmetic Progressions', topics: ['nth Term of an AP', 'Sum of First n Terms of an AP', 'AP Word Problems'] },
+            { chapter: 'Chapter 6: Triangles', topics: ['Basic Proportionality Theorem (Thales)', 'Criteria for Similarity of Triangles', 'Areas of Similar Triangles & Pythagoras Theorem'] },
+            { chapter: 'Chapter 7: Coordinate Geometry', topics: ['Distance Formula', 'Section Formula & Midpoint', 'Area of a Triangle in Coordinate Plane'] },
+            { chapter: 'Chapter 8: Introduction to Trigonometry', topics: ['Trigonometric Ratios', 'Trigonometric Ratios of Specific Angles', 'Trigonometric Identities'] },
+            { chapter: 'Chapter 9: Some Applications of Trigonometry', topics: ['Heights & Distances', 'Angle of Elevation & Depression'] },
+            { chapter: 'Chapter 10: Circles', topics: ['Tangent to a Circle', 'Number of Tangents from a Point', 'Theorems on Tangent Lengths'] },
+            { chapter: 'Chapter 11: Areas Related to Circles', topics: ['Perimeter & Area of Circle', 'Area of Sector & Segment of Circle'] },
+            { chapter: 'Chapter 12: Surface Areas & Volumes', topics: ['Surface Area of Combination of Solids', 'Volume of Combination of Solids', 'Conversion of Solid Shapes'] },
+            { chapter: 'Chapter 13: Statistics', topics: ['Mean of Grouped Data (Direct/Step Deviation)', 'Mode of Grouped Data', 'Median of Grouped Data & Ogive'] },
+            { chapter: 'Chapter 14: Probability', topics: ['Theoretical Probability of Events', 'Dice, Cards & Coin Problems'] }
+        ],
+        'Social Science': [
+            { chapter: 'History: The Rise of Nationalism in Europe', topics: ['French Revolution & Idea of Nation', 'Making of Nationalism in Europe', 'Unification of Germany & Italy', 'Visualizing the Nation & Imperialism'] },
+            { chapter: 'History: Nationalism in India', topics: ['First World War & Satyagraha', 'Non-Cooperation Movement & Khilafat', 'Civil Disobedience Movement', 'The Sense of Collective Belonging'] },
+            { chapter: 'Geography: Resources and Development', topics: ['Types & Development of Resources', 'Resource Planning in India', 'Land & Soil Classification'] },
+            { chapter: 'Civics: Power Sharing', topics: ['Belgium & Sri Lanka Case Studies', 'Majoritarianism vs Accommodation', 'Forms of Power Sharing'] },
+            { chapter: 'Economics: Development', topics: ['What Development Promises', 'Income and Other Goals', 'National Development & Human Development Index'] }
+        ]
+    },
+    '9': {
+        'Science': [
+            { chapter: 'Chapter 1: Matter in Our Surroundings', topics: ['Physical Nature of Matter', 'States of Matter', 'Evaporation & Latent Heat'] },
+            { chapter: 'Chapter 2: Is Matter Around Us Pure?', topics: ['Mixtures, Solutions & Suspensions', 'Separating Components of a Mixture', 'Physical & Chemical Changes'] },
+            { chapter: 'Chapter 3: Atoms and Molecules', topics: ['Laws of Chemical Combination', 'Dalton Atomic Theory & Valency', 'Mole Concept & Molar Mass'] },
+            { chapter: 'Chapter 4: Structure of the Atom', topics: ['Thomson, Rutherford & Bohr Models', 'Subatomic Particles', 'Atomic Number, Mass & Isotopes'] },
+            { chapter: 'Chapter 5: The Fundamental Unit of Life', topics: ['Cell Structure & Plasma Membrane', 'Cell Organelles (Mitochondria, Plastids, ER)', 'Nucleus & Cell Division'] },
+            { chapter: 'Chapter 6: Motion', topics: ['Distance & Displacement', 'Uniform & Non-Uniform Speed/Velocity', 'Equations of Motion'] },
+            { chapter: 'Chapter 7: Force and Laws of Motion', topics: ['Balanced & Unbalanced Forces', 'Newton Three Laws of Motion', 'Momentum & Conservation'] },
+            { chapter: 'Chapter 8: Gravitation', topics: ['Universal Law of Gravitation', 'Free Fall & Acceleration due to Gravity', 'Mass, Weight, Thrust & Buoyancy'] },
+            { chapter: 'Chapter 9: Work and Energy', topics: ['Work Done by Constant Force', 'Kinetic and Potential Energy', 'Law of Conservation of Energy & Power'] },
+            { chapter: 'Chapter 10: Sound', topics: ['Production & Propagation of Sound Waves', 'Characteristics of Sound Waves', 'Reflection of Sound, Echo & SONAR'] }
+        ],
+        'Mathematics': [
+            { chapter: 'Chapter 1: Number Systems', topics: ['Irrational Numbers', 'Real Numbers & Decimal Expansions', 'Laws of Exponents for Real Numbers'] },
+            { chapter: 'Chapter 2: Polynomials', topics: ['Zeroes of a Polynomial', 'Remainder & Factor Theorems', 'Algebraic Identities'] },
+            { chapter: 'Chapter 3: Coordinate Geometry', topics: ['Cartesian System', 'Plotting Points in the Plane'] },
+            { chapter: 'Chapter 4: Linear Equations in Two Variables', topics: ['Linear Equations', 'Graph of a Linear Equation'] },
+            { chapter: 'Chapter 5: Lines and Angles', topics: ['Intersecting Lines & Parallel Lines', 'Angle Sum Property of a Triangle'] }
+        ]
+    },
+    '11_SCI_A': {
+        'Physics': [
+            { chapter: 'Units and Measurements', topics: ['SI Units & Significant Figures', 'Dimensional Analysis & Applications', 'Errors in Measurement'] },
+            { chapter: 'Motion in a Straight Line', topics: ['Position, Distance & Displacement', 'Instantaneous Velocity & Acceleration', 'Kinematic Equations for Uniformly Accelerated Motion'] },
+            { chapter: 'Motion in a Plane', topics: ['Scalars & Vectors Addition/Resolution', 'Projectile Motion & Trajectory', 'Uniform Circular Motion'] },
+            { chapter: 'Laws of Motion', topics: ['Newton Laws of Motion', 'Friction & Types', 'Circular Motion Mechanics'] },
+            { chapter: 'Work, Energy and Power', topics: ['Work-Energy Theorem', 'Conservative & Non-Conservative Forces', 'Collisions in 1D & 2D'] }
+        ],
+        'Chemistry': [
+            { chapter: 'Some Basic Concepts of Chemistry', topics: ['Mole Concept & Molar Mass', 'Stoichiometry & Limiting Reagent', 'Concentration Terms (Molarity, Molality)'] },
+            { chapter: 'Structure of Atom', topics: ['Bohr Model & Spectrum of Hydrogen', 'Quantum Mechanical Model & Quantum Numbers', 'Electronic Configuration Rules'] },
+            { chapter: 'Chemical Bonding & Molecular Structure', topics: ['Ionic & Covalent Bonding', 'VSEPR Theory & Molecular Geometry', 'Hybridization & Molecular Orbital Theory (MOT)'] }
+        ],
+        'Mathematics': [
+            { chapter: 'Sets and Functions', topics: ['Set Operations & Venn Diagrams', 'Relations & Functions', 'Domain, Range & Types of Functions'] },
+            { chapter: 'Trigonometric Functions', topics: ['Radian & Degree Measure', 'Trigonometric Functions & Graphs', 'Sum & Product Formulae'] },
+            { chapter: 'Permutations and Combinations', topics: ['Fundamental Principle of Counting', 'Permutation Formula nPr', 'Combination Formula nCr'] }
+        ]
+    },
+    '12_SCI_A': {
+        'Physics': [
+            { chapter: 'Electric Charges and Fields', topics: ['Coulomb Law & Electric Force', 'Electric Field & Gauss Law Applications', 'Electric Dipole & Flux'] },
+            { chapter: 'Electrostatic Potential and Capacitance', topics: ['Electric Potential & Equipotential Surfaces', 'Capacitors in Series & Parallel', 'Energy Stored in Capacitor & Dielectrics'] },
+            { chapter: 'Current Electricity', topics: ['Ohm Law, Drift Velocity & Resistance', 'Kirchhoff Laws & Applications', 'Wheatstone Bridge & Potentiometer'] },
+            { chapter: 'Ray Optics and Optical Instruments', topics: ['Refraction at Spherical Surfaces & Lenses', 'Total Internal Reflection & Prism', 'Microscopes and Telescopes'] }
+        ],
+        'Chemistry': [
+            { chapter: 'Solutions', topics: ['Henry Law & Raoult Law', 'Colligative Properties & Vapour Pressure', 'van t Hoff Factor & Abnormal Molar Mass'] },
+            { chapter: 'Electrochemistry', topics: ['Nernst Equation & Cell Potential', 'Kohlrausch Law & Conductance', 'Faraday Laws of Electrolysis & Batteries'] },
+            { chapter: 'Chemical Kinetics', topics: ['Rate of Reaction & Order', 'First & Zero Order Integrated Rate Equations', 'Arrhenius Equation & Activation Energy'] }
+        ],
+        'Mathematics': [
+            { chapter: 'Matrices and Determinants', topics: ['Matrix Multiplication & Transpose', 'Determinants & Inverse of Matrix', 'Solving System of Linear Equations'] },
+            { chapter: 'Continuity and Differentiability', topics: ['Continuity of Functions', 'Derivatives of Implicit & Inverse Functions', 'Chain Rule & Logarithmic Differentiation'] },
+            { chapter: 'Integrals', topics: ['Definite & Indefinite Integrals', 'Integration by Parts & Partial Fractions', 'Fundamental Theorem of Calculus'] }
+        ]
+    }
+};
+
 const MinervaExamListPage: React.FC = () => {
     const { token, user } = useAuth() as any;
     const navigate = useNavigate();
@@ -30,12 +132,15 @@ const MinervaExamListPage: React.FC = () => {
 
     // ─── Live Group Exam Arena States ───
     const [liveMode, setLiveMode] = useState<'PEER_GROUP' | 'TEACHER_CLASS' | 'SOLO_AI'>('PEER_GROUP');
+    const [liveScope, setLiveScope] = useState<'FULL_SUBJECT' | 'CHAPTER' | 'TOPIC'>('TOPIC');
     const [liveStandard, setLiveStandard] = useState('10');
     const [liveBoard, setLiveBoard] = useState('CBSE');
     const [liveSubject, setLiveSubject] = useState('Science');
-    const [liveTopic, setLiveTopic] = useState('Electricity & Magnetism');
+    const [liveChapter, setLiveChapter] = useState('Chapter 11: Electricity');
+    const [liveTopic, setLiveTopic] = useState('Ohm’s Law & Resistance');
     const [liveQuestions, setLiveQuestions] = useState(10);
     const [liveDuration, setLiveDuration] = useState(15);
+    const [liveLanguage, setLiveLanguage] = useState('English');
 
     const [liveRoom, setLiveRoom] = useState<any | null>(null);
     const [liveView, setLiveView] = useState<'SETUP' | 'LOBBY' | 'EXAM' | 'LEADERBOARD'>('SETUP');
@@ -99,7 +204,7 @@ const MinervaExamListPage: React.FC = () => {
         q5: 1
     });
     const [errorMsg, setErrorMsg] = useState('');
-    const [archiveFilter, setArchiveFilter] = useState<'all' | 'pass' | 'failed' | 'ai'>('all');
+    const [archiveFilter, setArchiveFilter] = useState<'all' | 'pass' | 'failed' | 'ai' | 'live_arena'>('all');
     const [showAllArchive, setShowAllArchive] = useState(false);
     const [progress, setProgress] = useState(0);
     const [progressText, setProgressText] = useState('');
@@ -185,6 +290,20 @@ const MinervaExamListPage: React.FC = () => {
     const handleCreateLiveRoom = async () => {
         setGenLoading(true);
         try {
+            let targetTopic = liveTopic;
+            let targetTitle = `${liveSubject}: ${liveTopic} Assessment`;
+
+            if (liveScope === 'FULL_SUBJECT') {
+                targetTopic = `Full Subject Syllabus (All Chapters of ${liveSubject})`;
+                targetTitle = `${liveSubject}: Full Syllabus Grand Mock Exam`;
+            } else if (liveScope === 'CHAPTER') {
+                targetTopic = `Full Chapter: ${liveChapter}`;
+                targetTitle = `${liveSubject} - ${liveChapter} Assessment`;
+            } else {
+                targetTopic = `${liveChapter} -> Topic: ${liveTopic}`;
+                targetTitle = `${liveSubject}: ${liveTopic} Assessment`;
+            }
+
             const res = await fetch('/api/future-education/live-exam/room', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
@@ -193,10 +312,11 @@ const MinervaExamListPage: React.FC = () => {
                     standard: liveStandard,
                     board: liveBoard,
                     subject: liveSubject,
-                    topic: liveTopic,
+                    topic: targetTopic,
+                    language: liveLanguage,
                     totalQuestions: liveQuestions,
                     durationMinutes: liveDuration,
-                    title: `${liveSubject}: ${liveTopic} Live Assessment`
+                    title: targetTitle
                 })
             });
             const d = await res.json();
@@ -320,6 +440,41 @@ const MinervaExamListPage: React.FC = () => {
                 console.error("Failed to load custom exams", e);
             }
 
+            // Fetch Live Group Exam Arena History (both candidate and host rooms)
+            let liveHistoryRooms: any[] = [];
+            try {
+                const liveRes = await fetch('/api/future-education/live-exam/history', {
+                    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+                });
+                const liveData = await liveRes.json();
+                if (liveData.success && Array.isArray(liveData.rooms)) {
+                    liveHistoryRooms = liveData.rooms.map((r: any) => {
+                        const isHost = r.hostId === user?._id || (r.hostId as any)?._id === user?._id;
+                        const myParticipant = r.participants?.find((p: any) => p.userId === user?._id || (p.userId as any)?._id === user?._id);
+                        return {
+                            _id: r._id,
+                            roomCode: r.roomCode,
+                            title: r.title || `${r.subject}: ${r.topic} Live Arena`,
+                            subject: r.subject,
+                            standard: r.standard,
+                            board: r.board,
+                            createdAt: r.createdAt,
+                            isLiveArena: true,
+                            isHost,
+                            liveRoom: r,
+                            status: 'submitted',
+                            score: myParticipant ? myParticipant.score : (r.participants?.[0]?.score || 0),
+                            totalMarks: r.totalMarks || 10,
+                            percentage: myParticipant ? myParticipant.percentage : (r.participants?.[0]?.percentage || 100),
+                            rank: myParticipant ? myParticipant.rank : 1,
+                            grade: myParticipant ? (myParticipant.percentage >= 70 ? 'A+' : myParticipant.percentage >= 50 ? 'B' : 'C') : 'A+'
+                        };
+                    });
+                }
+            } catch (e) {
+                console.error("Failed to load live exam history", e);
+            }
+
             const minervaExams = examsRes.success ? (examsRes.exams || []) : [];
             if (sessionsRes.success) {
                 const ready = (sessionsRes.sessions || []).filter((s: any) => s.completed_nodes > 0);
@@ -328,7 +483,7 @@ const MinervaExamListPage: React.FC = () => {
             }
 
             // Merge and sort by date
-            const combined = [...minervaExams, ...customExamsList].sort((a: any, b: any) => {
+            const combined = [...minervaExams, ...customExamsList, ...liveHistoryRooms].sort((a: any, b: any) => {
                 return new Date(b.createdAt || b.created_at || 0).getTime() - new Date(a.createdAt || a.created_at || 0).getTime();
             });
             setExams(combined);
@@ -602,7 +757,7 @@ const MinervaExamListPage: React.FC = () => {
             
             {/* Header */}
             <div className="sticky top-0 z-20 bg-black/40 backdrop-blur-xl border-b border-white/5 px-6 py-4">
-                <div className="max-w-3xl mx-auto flex items-center gap-4">
+                <div className="max-w-6xl mx-auto flex items-center gap-4">
                     <button onClick={() => {
                         if (loadedCustomExam) {
                             setLoadedCustomExam(null);
@@ -618,7 +773,7 @@ const MinervaExamListPage: React.FC = () => {
                 </div>
             </div>
 
-            <div className="max-w-3xl mx-auto px-6 py-6">
+            <div className="max-w-6xl mx-auto px-6 py-6">
                 
                 {/* ═══ VIEW 1: CUSTOM EXAM VIEWER ═══════════════════════════ */}
                 {loadedCustomExam ? (
@@ -1197,86 +1352,241 @@ const MinervaExamListPage: React.FC = () => {
 
                                 {/* ─── SUB-VIEW 1: SETUP ───────────────────────────────── */}
                                 {liveView === 'SETUP' && (
-                                    <div className="space-y-6">
-                                        {/* Mode Selector */}
-                                        <div>
-                                            <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2 block">Select Exam Arena Mode</label>
-                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                                {[
-                                                    { key: 'PEER_GROUP', title: '👥 Peer Group Test', desc: 'Challenge friends & classmates live' },
-                                                    { key: 'TEACHER_CLASS', title: '🏫 Teacher Class Assessment', desc: 'Official classroom live exam with dashboard' },
-                                                    { key: 'SOLO_AI', title: '🤖 Solo vs AI Bot', desc: 'Instant live practice against AI benchmark' }
-                                                ].map(m => (
-                                                    <div key={m.key} onClick={() => setLiveMode(m.key as any)}
-                                                        className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${liveMode === m.key ? 'border-cyan-400 bg-cyan-950/40 text-cyan-200 shadow-lg shadow-cyan-500/10' : 'border-white/5 bg-black/30 hover:border-white/15 text-slate-400'}`}>
-                                                        <div className="font-bold text-xs text-white mb-1">{m.title}</div>
-                                                        <div className="text-[10px] text-slate-400 leading-relaxed">{m.desc}</div>
+                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                        
+                                        {/* Left Section: Create Room Form */}
+                                        <div className="lg:col-span-2 space-y-6">
+                                            {/* Mode Selector */}
+                                            <div>
+                                                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2 block">Select Exam Arena Mode</label>
+                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                    {[
+                                                        { key: 'PEER_GROUP', title: '👥 Peer Group Test', desc: 'Challenge friends & classmates live' },
+                                                        { key: 'TEACHER_CLASS', title: '🏫 Teacher Class Test', desc: 'Official classroom live exam with dashboard' },
+                                                        { key: 'SOLO_AI', title: '🤖 Solo vs AI Bot', desc: 'Instant live practice against AI benchmark' }
+                                                    ].map(m => (
+                                                        <div key={m.key} onClick={() => setLiveMode(m.key as any)}
+                                                            className={`p-4 rounded-2xl border cursor-pointer transition-all ${liveMode === m.key ? 'border-cyan-400 bg-cyan-950/40 text-cyan-200 shadow-lg shadow-cyan-500/10' : 'border-white/5 bg-black/30 hover:border-white/15 text-slate-400'}`}>
+                                                            <div className="font-bold text-xs text-white mb-1">{m.title}</div>
+                                                            <div className="text-[10px] text-slate-400 leading-relaxed">{m.desc}</div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* Configuration Inputs */}
+                                            <div className="bg-black/30 border border-white/10 rounded-2xl p-5 space-y-5">
+                                                <div className="text-xs font-bold text-cyan-300 uppercase tracking-wider flex items-center justify-between">
+                                                    <span>🎯 Exam Scope & Syllabus Configuration</span>
+                                                    <span className="text-[10px] text-slate-400 font-normal">Dynamic Curriculum Catalog</span>
+                                                </div>
+
+                                                {/* Exam Scope Selector */}
+                                                <div>
+                                                    <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1.5 block">Select Assessment Coverage Scope</label>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                                        {[
+                                                            { id: 'FULL_SUBJECT', label: '🌐 Full Subject Syllabus', desc: 'Complete exam covering all chapters' },
+                                                            { id: 'CHAPTER', label: '📖 Single Chapter Focus', desc: 'Deep dive into 1 selected chapter' },
+                                                            { id: 'TOPIC', label: '🎯 Pinpoint Topic Practice', desc: 'Targeted test on 1 specific concept' }
+                                                        ].map(scope => (
+                                                            <div key={scope.id} onClick={() => setLiveScope(scope.id as any)}
+                                                                className={`p-3 rounded-xl border cursor-pointer transition-all ${liveScope === scope.id ? 'border-cyan-400 bg-cyan-950/60 text-cyan-200 shadow-md' : 'border-white/10 bg-black/40 hover:border-white/20 text-slate-400'}`}>
+                                                                <div className="font-bold text-xs text-white">{scope.label}</div>
+                                                                <div className="text-[9px] text-slate-400 mt-0.5">{scope.desc}</div>
+                                                            </div>
+                                                        ))}
                                                     </div>
-                                                ))}
-                                            </div>
-                                        </div>
+                                                </div>
 
-                                        {/* Configuration Inputs */}
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                            <div>
-                                                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">Class / Standard</label>
-                                                <select value={liveStandard} onChange={e => setLiveStandard(e.target.value)}
-                                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-cyan-500/40">
-                                                    {STANDARDS.map((s: any) => <option key={typeof s === 'string' ? s : s.id} value={typeof s === 'string' ? s : s.id}>{typeof s === 'string' ? `Class ${s}` : s.name}</option>)}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">Board</label>
-                                                <select value={liveBoard} onChange={e => setLiveBoard(e.target.value)}
-                                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-cyan-500/40">
-                                                    {BOARDS.map((b: any) => <option key={typeof b === 'string' ? b : b.id} value={typeof b === 'string' ? b : b.id}>{typeof b === 'string' ? b : b.name}</option>)}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">Subject</label>
-                                                <select value={liveSubject} onChange={e => setLiveSubject(e.target.value)}
-                                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-cyan-500/40">
-                                                    {SUBJECTS.map((sb: any) => <option key={typeof sb === 'string' ? sb : sb.id} value={typeof sb === 'string' ? sb : sb.id}>{typeof sb === 'string' ? sb : sb.name}</option>)}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">Chapter / Topic</label>
-                                                <input type="text" value={liveTopic} onChange={e => setLiveTopic(e.target.value)}
-                                                    placeholder="e.g. Electricity, Light, Trigonometry"
-                                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-cyan-500/40" />
-                                            </div>
-                                            <div>
-                                                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">Total Questions</label>
-                                                <select value={liveQuestions} onChange={e => setLiveQuestions(Number(e.target.value))}
-                                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-cyan-500/40">
-                                                    {[5, 10, 15, 20, 30, 50].map(q => <option key={q} value={q}>{q} Questions</option>)}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">Time Duration</label>
-                                                <select value={liveDuration} onChange={e => setLiveDuration(Number(e.target.value))}
-                                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-cyan-500/40">
-                                                    {[5, 10, 15, 20, 30, 45, 60].map(d => <option key={d} value={d}>{d} Minutes</option>)}
-                                                </select>
-                                            </div>
-                                        </div>
+                                                {/* Cascading Dropdowns */}
+                                                {(() => {
+                                                    const standardCatalog = SYLLABUS_CATALOG[liveStandard] || SYLLABUS_CATALOG['10'] || {};
+                                                    const mappedSubjects = STANDARD_SUBJECTS_MAP[liveStandard] || Object.keys(standardCatalog);
+                                                    const catalogSubjects = Array.from(new Set([...mappedSubjects, ...Object.keys(standardCatalog)]));
+                                                    
+                                                    const currentSubjectObj = standardCatalog[liveSubject] || [
+                                                        { chapter: `Chapter 1: ${liveSubject} Core Foundations`, topics: [`Core ${liveSubject} Concepts`, `Fundamental Principles & Rules`, `Key Terminology & Definitions`] },
+                                                        { chapter: `Chapter 2: ${liveSubject} Analytical Applications`, topics: [`Practical Applications & Problem Solving`, `Exam Style Numerical & Case Studies`] },
+                                                        { chapter: `Chapter 3: ${liveSubject} Full Course Revision`, topics: [`Comprehensive Subject Mock Practice`, `Previous Year Questions (PYQs)`] }
+                                                    ];
+                                                    
+                                                    const catalogChapters = currentSubjectObj.map(c => c.chapter);
+                                                    const currentChapterObj = currentSubjectObj.find(c => c.chapter === liveChapter) || currentSubjectObj[0];
+                                                    const catalogTopics = currentChapterObj ? currentChapterObj.topics : [`Core ${liveSubject} Concepts`];
 
-                                        {/* Actions: Create or Join */}
-                                        <div className="pt-2 border-t border-white/10 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    return (
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-2 border-t border-white/5">
+                                                            {/* 1. Class / Standard */}
+                                                            <div>
+                                                                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">Class / Standard</label>
+                                                                <select value={liveStandard} 
+                                                                    onChange={e => {
+                                                                        const newStd = e.target.value;
+                                                                        setLiveStandard(newStd);
+                                                                        const cat = SYLLABUS_CATALOG[newStd] || {};
+                                                                        const mapped = STANDARD_SUBJECTS_MAP[newStd] || Object.keys(cat);
+                                                                        const subList = Array.from(new Set([...mapped, ...Object.keys(cat)]));
+                                                                        if (subList.length > 0) {
+                                                                            const firstSub = subList[0];
+                                                                            setLiveSubject(firstSub);
+                                                                            const chList = cat[firstSub] || [
+                                                                                { chapter: `Chapter 1: ${firstSub} Core Foundations`, topics: [`Core ${firstSub} Concepts`] }
+                                                                            ];
+                                                                            if (chList.length > 0) {
+                                                                                setLiveChapter(chList[0].chapter);
+                                                                                if (chList[0].topics && chList[0].topics.length > 0) {
+                                                                                    setLiveTopic(chList[0].topics[0]);
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                    className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-cyan-500/40">
+                                                                    {STANDARDS.map((s: any) => <option key={typeof s === 'string' ? s : s.id} value={typeof s === 'string' ? s : s.id}>{typeof s === 'string' ? `Class ${s}` : s.name}</option>)}
+                                                                </select>
+                                                            </div>
+
+                                                            {/* 2. Board */}
+                                                            <div>
+                                                                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">Board</label>
+                                                                <select value={liveBoard} onChange={e => setLiveBoard(e.target.value)}
+                                                                    className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-cyan-500/40">
+                                                                    {BOARDS.map((b: any) => <option key={typeof b === 'string' ? b : b.id} value={typeof b === 'string' ? b : b.id}>{typeof b === 'string' ? b : b.name}</option>)}
+                                                                </select>
+                                                            </div>
+
+                                                            {/* 3. Subject (Dynamic - Includes All Standard Subjects) */}
+                                                            <div>
+                                                                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">Subject ({catalogSubjects.length})</label>
+                                                                <select value={liveSubject} 
+                                                                    onChange={e => {
+                                                                        const newSub = e.target.value;
+                                                                        setLiveSubject(newSub);
+                                                                        const chList = standardCatalog[newSub] || [
+                                                                            { chapter: `Chapter 1: ${newSub} Core Foundations`, topics: [`Core ${newSub} Concepts`] }
+                                                                        ];
+                                                                        if (chList.length > 0) {
+                                                                            setLiveChapter(chList[0].chapter);
+                                                                            if (chList[0].topics && chList[0].topics.length > 0) {
+                                                                                setLiveTopic(chList[0].topics[0]);
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                    className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-cyan-500/40 font-semibold text-cyan-300">
+                                                                    {catalogSubjects.map(sb => <option key={sb} value={sb}>{sb}</option>)}
+                                                                </select>
+                                                            </div>
+
+                                                            {/* 4. Chapter (Dynamic - Enabled for CHAPTER & TOPIC scope) */}
+                                                            {liveScope !== 'FULL_SUBJECT' && (
+                                                                <div className="sm:col-span-2 md:col-span-3">
+                                                                    <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">Select Chapter</label>
+                                                                    <select value={liveChapter}
+                                                                        onChange={e => {
+                                                                            const newCh = e.target.value;
+                                                                            setLiveChapter(newCh);
+                                                                            const chObj = currentSubjectObj.find(c => c.chapter === newCh);
+                                                                            if (chObj && chObj.topics && chObj.topics.length > 0) {
+                                                                                setLiveTopic(chObj.topics[0]);
+                                                                            }
+                                                                        }}
+                                                                        className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-cyan-500/40">
+                                                                        {catalogChapters.map(ch => <option key={ch} value={ch}>{ch}</option>)}
+                                                                    </select>
+                                                                </div>
+                                                            )}
+
+                                                            {/* 5. Topic (Dynamic - Enabled for TOPIC scope only) */}
+                                                            {liveScope === 'TOPIC' && (
+                                                                <div className="sm:col-span-2 md:col-span-3">
+                                                                    <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">Select Specific Topic / Concept</label>
+                                                                    <select value={liveTopic} onChange={e => setLiveTopic(e.target.value)}
+                                                                        className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-cyan-500/40">
+                                                                        {catalogTopics.map(t => <option key={t} value={t}>{t}</option>)}
+                                                                    </select>
+                                                                </div>
+                                                            )}
+
+                                                            {/* 6. Questions Count, Time Duration & Language */}
+                                                            <div>
+                                                                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">Total Questions</label>
+                                                                <select value={liveQuestions} onChange={e => setLiveQuestions(Number(e.target.value))}
+                                                                    className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-cyan-500/40">
+                                                                    {[5, 10, 15, 20, 30, 50].map(q => <option key={q} value={q}>{q} Questions</option>)}
+                                                                </select>
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">Time Duration</label>
+                                                                <select value={liveDuration} onChange={e => setLiveDuration(Number(e.target.value))}
+                                                                    className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-cyan-500/40">
+                                                                    {[5, 10, 15, 20, 30, 45, 60].map(d => <option key={d} value={d}>{d} Minutes</option>)}
+                                                                </select>
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">Exam Medium / Language</label>
+                                                                <select value={liveLanguage} onChange={e => setLiveLanguage(e.target.value)}
+                                                                    className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold text-cyan-300 outline-none focus:border-cyan-500/40">
+                                                                    <option value="English">🇬🇧 English Medium</option>
+                                                                    <option value="Hindi">🇮🇳 Hindi Medium (हिंदी)</option>
+                                                                    <option value="Gujarati">🇮🇳 Gujarati Medium (ગુજરાતી)</option>
+                                                                    <option value="Marathi">🇮🇳 Marathi Medium (मराठी)</option>
+                                                                    <option value="Tamil">🇮🇳 Tamil Medium (தமிழ்)</option>
+                                                                    <option value="Telugu">🇮🇳 Telugu Medium (తెలుగు)</option>
+                                                                    <option value="Bengali">🇮🇳 Bengali Medium (বাংলা)</option>
+                                                                    <option value="Kannada">🇮🇳 Kannada Medium (ಕನ್ನಡ)</option>
+                                                                    <option value="Malayalam">🇮🇳 Malayalam Medium (മലയാളം)</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
+
                                             <button onClick={handleCreateLiveRoom} disabled={genLoading}
-                                                className="py-3.5 px-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 text-white rounded-2xl font-black text-xs transition-all shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2">
+                                                className="w-full py-4 px-6 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 text-white rounded-2xl font-black text-sm transition-all shadow-xl shadow-cyan-500/20 flex items-center justify-center gap-2">
                                                 {genLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                                                 🚀 Create Live Exam Room & Generate AI Paper
                                             </button>
+                                        </div>
 
-                                            <div className="flex items-center gap-2">
-                                                <input type="text" value={joinCodeInput} onChange={e => setJoinCodeInput(e.target.value.toUpperCase())}
-                                                    placeholder="Enter Room Code (e.g. LIVE-9842)"
-                                                    className="flex-1 bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white font-mono uppercase tracking-wider outline-none focus:border-cyan-500/40" />
-                                                <button onClick={handleJoinLiveRoom} disabled={!joinCodeInput.trim() || genLoading}
-                                                    className="py-3 px-5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-2xl font-bold text-xs transition-all flex items-center gap-1.5 shrink-0">
-                                                    <Users className="w-4 h-4" /> Join Room
-                                                </button>
+                                        {/* Right Section: Join Room Box & Highlights */}
+                                        <div className="space-y-6">
+                                            {/* Join Room Card */}
+                                            <div className="bg-black/40 border border-cyan-500/30 rounded-2xl p-5 space-y-4">
+                                                <div className="flex items-center gap-2 text-xs font-black text-white uppercase tracking-wider">
+                                                    <Users className="w-4 h-4 text-cyan-400" /> Join Live Exam Room
+                                                </div>
+                                                <p className="text-[11px] text-slate-400 leading-relaxed">
+                                                    Got a Room Code from your teacher or friend? Enter it below to join the live lobby!
+                                                </p>
+                                                <div className="space-y-3">
+                                                    <input type="text" value={joinCodeInput} onChange={e => setJoinCodeInput(e.target.value.toUpperCase())}
+                                                        placeholder="Enter Room Code (e.g. LIVE-9842)"
+                                                        className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-xs text-white font-mono uppercase tracking-widest outline-none focus:border-cyan-500/40 text-center" />
+                                                    <button onClick={handleJoinLiveRoom} disabled={!joinCodeInput.trim() || genLoading}
+                                                        className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2">
+                                                        <Users className="w-4 h-4" /> Enter Live Lobby
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Arena Features Card */}
+                                            <div className="bg-gradient-to-b from-cyan-950/20 to-black/40 border border-white/10 rounded-2xl p-5 space-y-3">
+                                                <div className="text-xs font-bold text-cyan-300 uppercase tracking-wider">🌟 Arena Features</div>
+                                                <ul className="text-[11px] text-slate-400 space-y-2.5">
+                                                    <li className="flex items-start gap-2">
+                                                        <span className="text-cyan-400 font-bold">⚡</span>
+                                                        <span><strong>Synchronized Timer:</strong> All candidates start and submit together in real-time.</span>
+                                                    </li>
+                                                    <li className="flex items-start gap-2">
+                                                        <span className="text-emerald-400 font-bold">📊</span>
+                                                        <span><strong>Instant Ranks:</strong> Live leaderboard generated immediately upon submission.</span>
+                                                    </li>
+                                                    <li className="flex items-start gap-2">
+                                                        <span className="text-purple-400 font-bold">🧠</span>
+                                                        <span><strong>Topic Mastery:</strong> Weak areas & strong concepts highlighted by AI.</span>
+                                                    </li>
+                                                </ul>
                                             </div>
                                         </div>
                                     </div>
@@ -1284,7 +1594,7 @@ const MinervaExamListPage: React.FC = () => {
 
                                 {/* ─── SUB-VIEW 2: LOBBY (WAITING ROOM) ────────────────── */}
                                 {liveView === 'LOBBY' && liveRoom && (
-                                    <div className="space-y-6">
+                                    <div className="space-y-6 max-w-4xl mx-auto">
                                         {/* Room Header Banner */}
                                         <div className="bg-black/40 border border-cyan-500/30 rounded-2xl p-5 text-center relative overflow-hidden">
                                             <div className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest mb-1">Live Group Exam Lobby</div>
@@ -1299,10 +1609,11 @@ const MinervaExamListPage: React.FC = () => {
                                                 </button>
                                             </div>
 
-                                            <div className="flex justify-center items-center gap-4 text-[11px] text-slate-400 mt-3 font-medium">
+                                            <div className="flex justify-center items-center gap-4 text-[11px] text-slate-400 mt-3 font-medium flex-wrap">
                                                 <span>📋 {liveRoom.totalQuestions} Questions</span>
                                                 <span>⏱️ {liveRoom.durationMinutes} Mins</span>
                                                 <span>🏫 Class {liveRoom.standard} ({liveRoom.board})</span>
+                                                <span className="text-cyan-300 font-bold bg-cyan-950/60 border border-cyan-500/30 px-2 py-0.5 rounded-lg">🌐 Medium: {liveRoom.language || 'English'}</span>
                                             </div>
                                         </div>
 
@@ -1353,7 +1664,7 @@ const MinervaExamListPage: React.FC = () => {
 
                                 {/* ─── SUB-VIEW 3: LIVE EXAM EXECUTION ─────────────────── */}
                                 {liveView === 'EXAM' && liveRoom && (
-                                    <div className="space-y-5">
+                                    <div className="space-y-5 max-w-4xl mx-auto">
                                         {/* Live Timer & Question Counter Header */}
                                         <div className="bg-black/50 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
                                             <div>
@@ -1426,7 +1737,7 @@ const MinervaExamListPage: React.FC = () => {
 
                                 {/* ─── SUB-VIEW 4: INSTANT LIVE LEADERBOARD ────────────── */}
                                 {liveView === 'LEADERBOARD' && liveRoom && (
-                                    <div className="space-y-6">
+                                    <div className="space-y-6 max-w-4xl mx-auto">
                                         <div className="text-center bg-gradient-to-r from-amber-500/10 via-cyan-500/10 to-indigo-500/10 border border-white/10 p-6 rounded-3xl">
                                             <Trophy className="w-12 h-12 text-amber-400 mx-auto mb-2 animate-bounce" />
                                             <h3 className="text-xl font-black text-white">Live Exam Leaderboard & Analytics</h3>
@@ -1512,19 +1823,28 @@ const MinervaExamListPage: React.FC = () => {
                                     >
                                         AI Papers ({exams.filter(e => e.isCustom).length})
                                     </button>
+                                    <button 
+                                        onClick={() => setArchiveFilter('live_arena')}
+                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${archiveFilter === 'live_arena' ? 'bg-cyan-600/90 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+                                    >
+                                        ⚡ Live Arena ({exams.filter(e => e.isLiveArena).length})
+                                    </button>
                                 </div>
                             </div>
 
                             {(() => {
                                 const filteredExams = exams.filter((exam: any) => {
                                     if (archiveFilter === 'pass') {
-                                        return exam.status === 'submitted' && !exam.isCustom && exam.grade !== 'F';
+                                        return exam.status === 'submitted' && !exam.isCustom && !exam.isLiveArena && exam.grade !== 'F';
                                     }
                                     if (archiveFilter === 'failed') {
-                                        return exam.status === 'submitted' && !exam.isCustom && exam.grade === 'F';
+                                        return exam.status === 'submitted' && !exam.isCustom && !exam.isLiveArena && exam.grade === 'F';
                                     }
                                     if (archiveFilter === 'ai') {
                                         return exam.isCustom;
+                                    }
+                                    if (archiveFilter === 'live_arena') {
+                                        return exam.isLiveArena;
                                     }
                                     return true;
                                 });
@@ -1533,19 +1853,24 @@ const MinervaExamListPage: React.FC = () => {
                                     return (
                                         <div className="text-center py-12 bg-white/[0.01] border border-dashed border-white/5 rounded-3xl p-6 shadow-md">
                                             <div className="text-gray-500 text-xs italic">
-                                                No matching exam records found.
+                                                No matching exam records found in this category.
                                             </div>
                                         </div>
                                     );
                                 }
 
-                                const displayedExams = showAllArchive ? filteredExams : filteredExams.slice(0, 4);
+                                const displayedExams = showAllArchive ? filteredExams : filteredExams.slice(0, 8);
 
                                 return (
                                     <div className="space-y-3">
                                         {displayedExams.map((exam: any) => {
                                             const handleClick = () => {
-                                                if (exam.isCustom) {
+                                                if (exam.isLiveArena && exam.liveRoom) {
+                                                    setGeneratorTab('live_group');
+                                                    setLiveRoom(exam.liveRoom);
+                                                    setLiveView('LEADERBOARD');
+                                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                } else if (exam.isCustom) {
                                                     setCustomExamId(exam._id);
                                                     setLoadedCustomExam(exam.generatedPaper);
                                                 } else {

@@ -7,6 +7,8 @@ import { ThemeProvider } from './context/ThemeContext';
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
+import { EmergencyLockdownOverlay } from './components/EmergencyLockdownOverlay';
+
 // Lazy Loaded Components
 const Layout = lazy(() => import('./components/layout/Layout'));
 const AuthLayout = lazy(() => import('./components/layout/AuthLayout'));
@@ -317,16 +319,17 @@ function App() {
                             />
                             <Router>
                                 <ScrollToTop />
-                                {/* GLOBAL BACKGROUND - Applied once for the whole app */}
-                                <div className="min-h-screen bg-black text-white font-sans selection:bg-indigo-500/30 font-inter relative">
-                                    {/* Animation Layer */}
-                                    <div className="fixed inset-0 z-0 pointer-events-none">
-                                        <UniverseBackground intensity={1} />
-                                    </div>
+                                <Suspense fallback={<NeuralLoader />}>
+                                    <EmergencyLockdownOverlay />
+                                    {/* GLOBAL BACKGROUND - Applied once for the whole app */}
+                                    <div className="min-h-screen bg-black text-white font-sans selection:bg-indigo-500/30 font-inter relative">
+                                        {/* Animation Layer */}
+                                        <div className="fixed inset-0 z-0 pointer-events-none">
+                                            <UniverseBackground intensity={1} />
+                                        </div>
 
-                                    {/* App Content - Higher Z-Index */}
-                                    <div className="relative z-10">
-                                        <Suspense fallback={<NeuralLoader />}>
+                                        {/* App Content - Higher Z-Index */}
+                                        <div className="relative z-10">
                                             <Routes>
                                                 {/* Public Routes with Shared Layout */}
                                                 <Route element={<PublicLayout />}>
@@ -432,12 +435,12 @@ function App() {
                                                 {/* Fallback */}
                                                 <Route path="*" element={<NotFound />} />
                                             </Routes>
-                                        </Suspense>
 
-                                        {/* --- GLOBAL INQUIRY FLOATING BUTTON --- */}
-                                        <InquiryButton />
+                                            {/* --- GLOBAL INQUIRY FLOATING BUTTON --- */}
+                                            <InquiryButton />
+                                        </div>
                                     </div>
-                                </div>
+                                </Suspense>
                             </Router>
                         </ModalProvider>
                     </ThemeProvider>

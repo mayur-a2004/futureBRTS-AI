@@ -76,5 +76,11 @@ router.get('/education/exams', adminController.getEducationExams);
 router.get('/education/results', adminController.getEducationResults);
 router.get('/education/parents', adminController.getEducationParents);
 
+// 🚨 Emergency Lockdown & Live Telemetry
+router.get('/user-details/:userId', adminController.getUserDetails);
+router.get('/emergency-lockdown', adminController.getEmergencyLockdownStatus);
+router.post('/emergency-lockdown', adminController.toggleEmergencyLockdown);
+router.get('/live-telemetry', adminController.getLiveTrackingFeed);
+
 export default router;
 

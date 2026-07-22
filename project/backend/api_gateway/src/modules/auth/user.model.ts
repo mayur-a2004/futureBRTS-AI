@@ -52,7 +52,7 @@ export interface IUser extends Document {
         };
     };
     role: 'user' | 'admin' | 'teacher';
-    status: 'active' | 'inactive';
+    status: 'active' | 'inactive' | 'suspended';
     tokenBalance: number;
     isPremium: boolean;
     subscriptionTier: 'free' | 'day' | 'week' | 'monthly' | '3_month' | '6_month' | 'yearly';
@@ -70,6 +70,17 @@ export interface IUser extends Document {
         gender?: string;
         whatsappNumber?: string;
     };
+    lastIpAddress?: string;
+    registeredIpAddress?: string;
+    locationDetails?: {
+        ip?: string;
+        city?: string;
+        region?: string;
+        country?: string;
+        countryCode?: string;
+        isp?: string;
+    };
+    deviceInfo?: string;
     createdAt: Date;
 }
 
@@ -120,7 +131,7 @@ const UserSchema: Schema = new Schema({
         }
     },
     role: { type: String, enum: ['user', 'admin', 'teacher'], default: 'user' },
-    status: { type: String, enum: ['active', 'inactive'], default: 'active' },
+    status: { type: String, enum: ['active', 'inactive', 'suspended'], default: 'active' },
     tokenBalance: { type: Number, default: 1000 }, // 1000 for new users as requested
     isPremium: { type: Boolean, default: false },
     subscriptionTier: { type: String, enum: ['free', 'day', 'week', 'monthly', '3_month', '6_month', 'yearly'], default: 'free' },
@@ -141,6 +152,17 @@ const UserSchema: Schema = new Schema({
         gender: { type: String, default: '' },
         whatsappNumber: { type: String, default: '' }
     },
+    lastIpAddress: { type: String, default: '' },
+    registeredIpAddress: { type: String, default: '' },
+    locationDetails: {
+        ip: { type: String, default: '' },
+        city: { type: String, default: '' },
+        region: { type: String, default: '' },
+        country: { type: String, default: '' },
+        countryCode: { type: String, default: '' },
+        isp: { type: String, default: '' }
+    },
+    deviceInfo: { type: String, default: '' },
     createdAt: { type: Date, default: Date.now }
 });
 
