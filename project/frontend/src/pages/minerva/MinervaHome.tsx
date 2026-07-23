@@ -22,6 +22,7 @@ import { sanitizeExternalUrl } from '../../utils/url';
 import { NeuralTooltip } from '../../components/ui/NeuralTooltip';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import MinervaWhiteboardCanvas from '../../components/chat/MinervaWhiteboardCanvas';
 
 mermaid.initialize({
   startOnLoad: false,
@@ -339,6 +340,7 @@ const MinervaHome: React.FC = () => {
     const [activeLabConfig, setActiveLabConfig] = useState<LabConfig | null>(DEFAULT_LAB_CONFIG);
     const [labPanelOpen, setLabPanelOpen] = useState(false);
     const [labDetached, setLabDetached] = useState(false);
+    const [showWhiteboard, setShowWhiteboard] = useState(false);
 
 
     // Message Translations & Selection States
@@ -393,6 +395,25 @@ const MinervaHome: React.FC = () => {
     const [suggestedSchools, setSuggestedSchools] = useState<string[]>([]);
     const [showSchoolSuggestions, setShowSchoolSuggestions] = useState(false);
     const [onboardingSubmitting, setOnboardingSubmitting] = useState(false);
+
+    const [dueReviews, setDueReviews] = useState<any[]>([]);
+
+    useEffect(() => {
+        const fetchDueReviews = async () => {
+            try {
+                const tokenToUse = localStorage.getItem('fbrts_token') || localStorage.getItem('token') || '';
+                if (tokenToUse) {
+                    const res = await minervaApi.getDueReviews(tokenToUse);
+                    if (res?.success && Array.isArray(res.dueReviews) && res.dueReviews.length > 0) {
+                        setDueReviews(res.dueReviews);
+                    }
+                }
+            } catch (err) {
+                console.error('[MinervaHome] Error fetching due reviews:', err);
+            }
+        };
+        fetchDueReviews();
+    }, []);
 
     useEffect(() => {
         if (!isSchoolStandard(standard)) {
@@ -1482,6 +1503,25 @@ const MinervaHome: React.FC = () => {
                     </motion.div>
                 )}
             </AnimatePresence>
+            {/* Spaced Repetition Proactive Review Banner */}
+            {dueReviews.length > 0 && (
+                <div className="bg-gradient-to-r from-amber-500/20 via-indigo-600/30 to-purple-600/20 border-b border-amber-500/30 px-6 py-2 flex items-center justify-between text-xs font-bold text-amber-200 backdrop-blur-xl animate-in slide-in-from-top duration-300 z-40">
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm animate-bounce">⚡</span>
+                        <span>{dueReviews[0].notificationMessage}</span>
+                    </div>
+                    <button
+                        onClick={() => {
+                            sendMessage(`Explain ${dueReviews[0].topic} in ${dueReviews[0].subject} with key review concepts`);
+                            setDueReviews(prev => prev.slice(1));
+                        }}
+                        className="px-3 py-1 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-[10px] tracking-wide transition-all shadow-md active:scale-95 flex items-center gap-1 shrink-0"
+                    >
+                        Start Revision Quiz 🚀
+                    </button>
+                </div>
+            )}
+
             {/* Header */}
             <header className="relative w-full z-30 flex items-center px-4 md:px-6 py-2.5 md:py-3 border-b border-white/[0.06] bg-[#030209]/95 backdrop-blur-2xl flex-shrink-0 shadow-lg min-w-0">
                 {/* Badges and Actions Row (Scrollable on Mobile, Flex on Desktop) */}
@@ -1783,6 +1823,16 @@ const MinervaHome: React.FC = () => {
                                 <Plus size={16} />
                             </button>
 
+                            {/* Live Interactive Whiteboard Canvas Launcher */}
+                            <button
+                                onClick={() => setShowWhiteboard(true)}
+                                type="button"
+                                title="Open Live Interactive Whiteboard Canvas"
+                                className="flex-shrink-0 w-9 h-9 rounded-full bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 hover:text-indigo-200 flex items-center justify-center transition-all shadow-lg shadow-indigo-500/10"
+                            >
+                                <Edit2 size={15} />
+                            </button>
+
                             {/* Text Area */}
                             <textarea
                                 ref={inputRef}
@@ -1866,6 +1916,12 @@ const MinervaHome: React.FC = () => {
             isDetached={labDetached}
             onToggleDetach={() => setLabDetached(!labDetached)}
             isMuted={isMuted}
+        />
+
+        {/* Live Interactive Whiteboard Canvas Overlay */}
+        <MinervaWhiteboardCanvas
+            isOpen={showWhiteboard}
+            onClose={() => setShowWhiteboard(false)}
         />
         </div>
 

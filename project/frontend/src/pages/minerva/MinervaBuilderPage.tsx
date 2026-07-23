@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { minervaApi } from '../../api/minerva.api';
 import { ChevronLeft, Zap, FileText, Check, Copy, Download, Sparkles, Layers, Map, BookOpen, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const MinervaBuilderPage: React.FC = () => {
     const { token } = useAuth() as any;
@@ -308,8 +310,34 @@ const MinervaBuilderPage: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="prose prose-invert max-w-none text-sm leading-relaxed text-gray-300 select-text bg-[#030209]/80 p-4 rounded-xl border border-white/[0.06] shadow-inner max-h-[400px] overflow-y-auto break-words whitespace-pre-wrap">
-                        {item.materialText}
+                    <div className="prose prose-invert max-w-none text-sm leading-relaxed text-gray-300 select-text bg-[#030209]/80 p-5 rounded-xl border border-white/[0.06] shadow-inner max-h-[500px] overflow-y-auto break-words space-y-3">
+                        <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                                h1: ({ children }) => <h1 className="text-xl md:text-2xl font-black text-white mt-5 mb-3 border-b border-white/10 pb-2">{children}</h1>,
+                                h2: ({ children }) => <h2 className="text-lg md:text-xl font-bold text-indigo-300 mt-4 mb-2">{children}</h2>,
+                                h3: ({ children }) => <h3 className="text-base md:text-lg font-bold text-cyan-400 mt-3 mb-2">{children}</h3>,
+                                h4: ({ children }) => <h4 className="text-sm md:text-base font-bold text-slate-200 mt-3 mb-1.5">{children}</h4>,
+                                p: ({ children }) => <p className="text-sm md:text-[15px] leading-relaxed mb-3 text-slate-200 font-medium whitespace-pre-wrap break-words">{children}</p>,
+                                ul: ({ children }) => <ul className="list-disc pl-6 space-y-2 my-3 text-slate-200 text-sm md:text-[15px]">{children}</ul>,
+                                ol: ({ children }) => <ol className="list-decimal pl-6 space-y-2 my-3 text-slate-200 text-sm md:text-[15px]">{children}</ol>,
+                                li: ({ children }) => <li className="leading-relaxed whitespace-pre-wrap break-words">{children}</li>,
+                                pre: ({ children }) => <pre className="bg-zinc-950/90 border border-white/10 rounded-xl p-4 my-3 font-mono text-xs md:text-sm text-indigo-200 whitespace-pre-wrap break-words overflow-x-hidden shadow-lg">{children}</pre>,
+                                code: ({ inline, children }: any) => (
+                                    inline ? (
+                                        <code className="bg-indigo-500/15 text-indigo-300 px-2 py-0.5 rounded font-mono text-xs border border-indigo-500/20 whitespace-pre-wrap break-words">
+                                            {children}
+                                        </code>
+                                    ) : (
+                                        <code className="font-mono text-xs md:text-sm text-slate-200 whitespace-pre-wrap break-words">
+                                            {children}
+                                        </code>
+                                    )
+                                )
+                            }}
+                        >
+                            {item.materialText}
+                        </ReactMarkdown>
                     </div>
                 </div>
             );

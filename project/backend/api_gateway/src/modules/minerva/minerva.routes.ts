@@ -136,7 +136,30 @@ router.get('/live-exam/room/:roomCode', authMiddleware, liveExamController.getRo
 router.post('/live-exam/room/:roomCode/start', authMiddleware, liveExamController.startExam);
 router.post('/live-exam/room/:roomCode/submit', authMiddleware, liveExamController.submitExam);
 router.post('/live-exam/room/:roomCode/end', authMiddleware, liveExamController.endExam);
-router.get('/live-exam/history', authMiddleware, liveExamController.getUserHistory);
+// ─── MARKET-DOMINANT ADVANCED FEATURES ───────────────────────
+import { MinervaVoiceService } from './minerva_voice_service';
+import { StudentKnowledgeGraphService } from './student_knowledge_graph.service';
+import { SpacedRepetitionEngine } from './spaced_repetition_engine';
+
+router.post('/voice/stream', authMiddleware, MinervaVoiceService.handleVoiceStream);
+router.get('/knowledge-graph/memory', authMiddleware, async (req: any, res: any) => {
+    try {
+        const userId = req.user?.id || req.user?._id;
+        const memory = await StudentKnowledgeGraphService.getStudentMemoryContext(userId);
+        res.json({ success: true, memory });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch knowledge memory' });
+    }
+});
+router.get('/spaced-repetition/due-reviews', authMiddleware, async (req: any, res: any) => {
+    try {
+        const userId = req.user?.id || req.user?._id;
+        const dueReviews = await SpacedRepetitionEngine.getDueReviews(userId);
+        res.json({ success: true, dueReviews });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch due reviews' });
+    }
+});
 
 export default router;
 // Touched for rebuild

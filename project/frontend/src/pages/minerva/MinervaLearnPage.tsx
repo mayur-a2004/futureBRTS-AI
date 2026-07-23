@@ -841,7 +841,7 @@ const MinervaLearnPage: React.FC = () => {
                             </div>
                         )}
 
-                        <div className="text-gray-300 text-xs leading-relaxed font-medium prose prose-invert max-w-none space-y-3 [&_p]:mb-3 [&_p]:leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-3 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-3 [&_strong]:text-white [&_strong]:font-bold [&_code]:bg-white/10 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-indigo-300 [&_code]:font-mono [&_code]:text-[11px]">
+                        <div className="text-slate-200 text-base md:text-[16.5px] leading-relaxed font-medium prose prose-invert max-w-none space-y-4 [&_p]:mb-5 [&_p]:text-base [&_p]:md:text-[16.5px] [&_p]:leading-[1.85] [&_p]:whitespace-pre-wrap [&_p]:break-words [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-4 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-4 [&_strong]:text-white [&_strong]:font-bold [&_code]:bg-white/10 [&_code]:px-2 [&_code]:py-1 [&_code]:rounded [&_code]:text-indigo-300 [&_code]:font-mono [&_code]:text-sm [&_code]:whitespace-pre-wrap [&_code]:break-words">
                             {translating ? (
                                 <div className="flex flex-col items-center justify-center py-12 text-center">
                                     <Loader2 className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4 text-indigo-400" />
@@ -859,6 +859,43 @@ const MinervaLearnPage: React.FC = () => {
                                                 rel="noopener noreferrer" 
                                                 className="text-cyan-400 hover:text-cyan-300 underline font-semibold inline-flex items-center gap-1"
                                             />
+                                        ),
+                                        p: ({ node, ...props }) => (
+                                            <p className="text-slate-200 text-base md:text-[16.5px] leading-[1.85] mb-5 font-medium whitespace-pre-wrap break-words" {...props} />
+                                        ),
+                                        h1: ({ node, ...props }) => (
+                                            <h1 className="text-2xl md:text-3xl font-black text-white mt-8 mb-4 tracking-tight border-b border-white/10 pb-3" {...props} />
+                                        ),
+                                        h2: ({ node, ...props }) => (
+                                            <h2 className="text-xl md:text-2xl font-bold text-indigo-300 mt-7 mb-4 tracking-tight" {...props} />
+                                        ),
+                                        h3: ({ node, ...props }) => (
+                                            <h3 className="text-lg md:text-xl font-bold text-cyan-400 mt-6 mb-3 tracking-tight" {...props} />
+                                        ),
+                                        ul: ({ node, ...props }) => (
+                                            <ul className="list-disc pl-6 space-y-3 my-5 text-slate-200 text-base md:text-[16.5px]" {...props} />
+                                        ),
+                                        ol: ({ node, ...props }) => (
+                                            <ol className="list-decimal pl-6 space-y-3 my-5 text-slate-200 text-base md:text-[16.5px]" {...props} />
+                                        ),
+                                        li: ({ node, ...props }) => (
+                                            <li className="text-slate-200 text-base md:text-[16.5px] leading-relaxed whitespace-pre-wrap break-words" {...props} />
+                                        ),
+                                        pre: ({ node, children, ...props }: any) => (
+                                            <pre className="bg-zinc-950/90 border border-white/10 rounded-2xl p-5 my-5 font-mono text-sm md:text-[15px] text-indigo-200 whitespace-pre-wrap break-words shadow-2xl overflow-x-hidden" {...props}>
+                                                {children}
+                                            </pre>
+                                        ),
+                                        code: ({ node, inline, className, children, ...props }: any) => (
+                                            inline ? (
+                                                <code className="bg-indigo-500/15 text-indigo-300 px-2 py-0.5 rounded-lg font-mono text-sm border border-indigo-500/20 whitespace-pre-wrap break-words" {...props}>
+                                                    {children}
+                                                </code>
+                                            ) : (
+                                                <code className="font-mono text-sm md:text-[15px] text-slate-200 whitespace-pre-wrap break-words" {...props}>
+                                                    {children}
+                                                </code>
+                                            )
                                         )
                                     }}
                                 >
@@ -1068,17 +1105,57 @@ const MinervaLearnPage: React.FC = () => {
                                     {/* MCQ Choices */}
                                     {task.type === 'mcq' && task.options?.length > 0 && (
                                         <div className="space-y-2 mb-4">
-                                            {task.options.map((opt: string, oi: number) => (
-                                                <button key={oi}
-                                                    onClick={() => !task.submitted && setAnswers(prev => ({ ...prev, [task._id]: opt }))}
-                                                    className={`w-full text-left text-xs px-4 py-3 rounded-xl border transition-all font-semibold
-                                                        ${answers[task._id] === opt
-                                                            ? 'bg-indigo-600/20 border-indigo-500/50 text-white shadow-lg shadow-indigo-950/20'
-                                                            : 'bg-white/[0.01] border-white/5 text-gray-400 hover:bg-white/5 hover:text-white'
-                                                        } ${task.submitted ? 'cursor-default' : 'cursor-pointer'}`}>
-                                                    <span className="font-black mr-2">{String.fromCharCode(65 + oi)}.</span>{cleanOptionText(opt, String.fromCharCode(65 + oi))}
-                                                </button>
-                                            ))}
+                                            {task.options.map((opt: string, oi: number) => {
+                                                const studentAns = answers[task._id] || task.student_answer || task.user_answer || results[task._id]?.student_answer;
+                                                const isStudentChoice = studentAns === opt || studentAns === String.fromCharCode(65 + oi) || studentAns?.startsWith(String.fromCharCode(65 + oi));
+                                                const isCorrectOpt = task.correct_answer === opt || task.correct_answer === String.fromCharCode(65 + oi) || task.correct_answer?.startsWith(String.fromCharCode(65 + oi));
+                                                
+                                                let buttonStyle = 'bg-white/[0.01] border-white/5 text-gray-400 hover:bg-white/5 hover:text-white';
+                                                if (task.submitted) {
+                                                    if (isStudentChoice && (task.passed || isCorrectOpt)) {
+                                                        buttonStyle = 'bg-emerald-500/15 border-emerald-500/50 text-emerald-300 shadow-lg shadow-emerald-950/20';
+                                                    } else if (isStudentChoice && !task.passed) {
+                                                        buttonStyle = 'bg-rose-500/15 border-rose-500/50 text-rose-300 shadow-lg shadow-rose-950/20';
+                                                    } else if (isCorrectOpt) {
+                                                        buttonStyle = 'bg-indigo-500/15 border-indigo-500/50 text-indigo-300 shadow-lg shadow-indigo-950/20';
+                                                    }
+                                                } else if (answers[task._id] === opt) {
+                                                    buttonStyle = 'bg-indigo-600/20 border-indigo-500/50 text-white shadow-lg shadow-indigo-950/20';
+                                                }
+
+                                                return (
+                                                    <button key={oi}
+                                                        onClick={() => !task.submitted && setAnswers(prev => ({ ...prev, [task._id]: opt }))}
+                                                        className={`w-full text-left text-xs px-4 py-3 rounded-xl border transition-all font-semibold flex items-center justify-between
+                                                            ${buttonStyle} ${task.submitted ? 'cursor-default' : 'cursor-pointer'}`}>
+                                                        <div>
+                                                            <span className="font-black mr-2">{String.fromCharCode(65 + oi)}.</span>{cleanOptionText(opt, String.fromCharCode(65 + oi))}
+                                                        </div>
+                                                        {task.submitted && isStudentChoice && (
+                                                            <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border ${task.passed || isCorrectOpt ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border-rose-500/30'}`}>
+                                                                Your Answer {task.passed || isCorrectOpt ? '✓' : '✗'}
+                                                            </span>
+                                                        )}
+                                                        {task.submitted && !isStudentChoice && isCorrectOpt && (
+                                                            <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                                                Correct Choice ✓
+                                                            </span>
+                                                        )}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+
+                                    {/* Submitted Answer Display for Non-MCQ / Written Tasks */}
+                                    {task.submitted && task.type !== 'mcq' && (
+                                        <div className="mb-4 p-4 rounded-2xl border border-white/10 bg-black/40 space-y-1">
+                                            <div className="text-[10px] font-black uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                                                <span>👤</span> Your Submitted Answer:
+                                            </div>
+                                            <div className="text-xs md:text-sm font-semibold text-slate-100 whitespace-pre-wrap leading-relaxed">
+                                                {answers[task._id] || task.student_answer || task.user_answer || results[task._id]?.student_answer || task.answer || "Answer Submitted & Graded"}
+                                            </div>
                                         </div>
                                     )}
 
@@ -1108,18 +1185,20 @@ const MinervaLearnPage: React.FC = () => {
                                     )}
 
                                     {/* Grading Feedback Results */}
-                                    {results[task._id] && (
+                                    {(results[task._id] || task.submitted) && (
                                         <div className="mt-4 space-y-3 pt-3 border-t border-white/5">
-                                            <div className={`p-4 rounded-2xl border ${results[task._id].passed ? 'bg-emerald-950/10 border-emerald-500/20' : 'bg-red-950/10 border-red-500/20'}`}>
+                                            <div className={`p-4 rounded-2xl border ${(results[task._id]?.passed ?? task.passed) ? 'bg-emerald-950/10 border-emerald-500/20' : 'bg-red-950/10 border-red-500/20'}`}>
                                                 <div className="font-bold text-xs mb-1.5 flex items-center gap-1">
-                                                    <span>{results[task._id].passed ? '✅ Passed!' : '❌ Needs revision'}</span>
+                                                    <span>{(results[task._id]?.passed ?? task.passed) ? '✅ Passed!' : '❌ Needs revision'}</span>
                                                 </div>
-                                                <div className="text-gray-300 text-xs leading-relaxed font-medium">{results[task._id].feedback}</div>
+                                                <div className="text-gray-300 text-xs leading-relaxed font-medium">
+                                                    {results[task._id]?.feedback || task.ai_feedback || task.feedback || (task.passed ? "Great effort! Your response meets the core concept criteria." : "Review the key concepts and attempt again.")}
+                                                </div>
                                             </div>
-                                            {results[task._id].correction && (
+                                            {(results[task._id]?.correction || task.correct_answer || task.solution) && (
                                                 <div className="p-4 bg-indigo-950/10 border border-indigo-500/25 rounded-2xl text-xs text-gray-300">
-                                                    <span className="font-bold text-indigo-300 block mb-1">Model Answer Explanation:</span>
-                                                    {results[task._id].correction}
+                                                    <span className="font-bold text-indigo-300 block mb-1">Model Answer & Explanation:</span>
+                                                    {results[task._id]?.correction || task.correct_answer || task.solution}
                                                 </div>
                                             )}
                                         </div>

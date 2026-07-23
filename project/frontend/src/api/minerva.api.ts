@@ -207,9 +207,21 @@ export const minervaApi = {
         return handleRes(res);
     },
 
-    // ─── NEW STRATEGY ENDPOINTS ─────────────────────
+    // ─── NEW MARKET-DOMINANT API ENDPOINTS ────────────
     getDueReviews: async (token: string) => {
-        const res = await fetch(`${BASE_URL}/review/due`, { headers: authHeaders(token) });
+        const res = await fetch(`${BASE_URL}/spaced-repetition/due-reviews`, { headers: authHeaders(token) });
+        return handleRes(res);
+    },
+    getKnowledgeMemory: async (token: string) => {
+        const res = await fetch(`${BASE_URL}/knowledge-graph/memory`, { headers: authHeaders(token) });
+        return handleRes(res);
+    },
+    streamVoice: async (token: string, text: string, voiceId?: string, language?: string) => {
+        const res = await fetch(`${BASE_URL}/voice/stream`, {
+            method: 'POST',
+            headers: authHeaders(token),
+            body: JSON.stringify({ text, voiceId, language }),
+        });
         return handleRes(res);
     },
     regenerateNodeContent: async (token: string, nodeId: string) => {

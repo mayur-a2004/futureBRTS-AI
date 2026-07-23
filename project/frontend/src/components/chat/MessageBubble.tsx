@@ -486,12 +486,15 @@ export const MessageBubble = React.memo(({
                                                         style={atomDark}
                                                         language={match?.[1] || 'text'}
                                                         PreTag="div"
-                                                        className="!bg-transparent !p-6 !m-0 !text-[13px]"
+                                                        wrapLongLines={true}
+                                                        wrapLines={true}
+                                                        className="!bg-transparent !p-6 !m-0 !text-sm md:!text-base"
                                                         customStyle={{
                                                             margin: 0,
                                                             background: 'transparent',
-                                                            minWidth: '100%',
-                                                            width: 'max-content'
+                                                            width: '100%',
+                                                            whiteSpace: 'pre-wrap',
+                                                            wordBreak: 'break-word'
                                                         }}
                                                     >
                                                         {codeContent}
@@ -559,19 +562,21 @@ export const MessageBubble = React.memo(({
                             )}
 
                             {/* Suggestions Section */}
-                            {suggestions && suggestions.length > 0 && (
+                            {suggestions && suggestions.filter((s: string) => s && s.length <= 60 && !/(does not match|lacks|accuracy|score|defaulted|evaluation|simulation)/i.test(s)).length > 0 && (
                                 <div className="mt-8 pt-6 border-t border-white/5">
                                     <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">Neural Recommendations</div>
                                     <div className="flex flex-wrap gap-2">
-                                        {suggestions.map((s, idx) => (
-                                            <button
-                                                key={idx}
-                                                onClick={() => onSuggestionClick?.(s)}
-                                                className="px-4 py-2 rounded-full border border-white/10 bg-white/5 hover:bg-indigo-500/10 hover:border-indigo-500/30 text-[12px] font-bold text-gray-400 hover:text-white transition-all active:scale-95 flex items-center gap-2 group"
-                                            >
-                                                {s} <Sparkles size={10} className="text-indigo-400 group-hover:animate-pulse" />
-                                            </button>
-                                        ))}
+                                        {suggestions
+                                            .filter((s: string) => s && s.length <= 60 && !/(does not match|lacks|accuracy|score|defaulted|evaluation|simulation)/i.test(s))
+                                            .map((s, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    onClick={() => onSuggestionClick?.(s)}
+                                                    className="px-4 py-2 rounded-full border border-white/10 bg-white/5 hover:bg-indigo-500/10 hover:border-indigo-500/30 text-[12px] font-bold text-gray-400 hover:text-white transition-all active:scale-95 flex items-center gap-2 group"
+                                                >
+                                                    {s} <Sparkles size={10} className="text-indigo-400 group-hover:animate-pulse" />
+                                                </button>
+                                            ))}
                                     </div>
 
                                     {onViewBuildConsole && (

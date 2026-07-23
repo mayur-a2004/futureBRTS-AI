@@ -77,6 +77,7 @@ export const analyzeStudentInput = async (
                 content: `You are the Input Analysis Module of Future Education OS V8.
 Apply the Global Constitution and Core Identity principles:
 - Understand the student's true learning goal.
+- CRITICAL INTENT & TYPO RESOLUTION: If the student input contains typos, misspelled words, half-words, or short phrases (e.g., "erth" -> "Planet Earth", "dna" -> "DNA Structure", "node js" -> "Node.js", "calc force" -> "Force Calculation"), IMMEDIATELY resolve the true intended topic and concept names. Never leave typos or misspelled text in the topic or concept fields.
 - Extract intent, language code, subject, topic, concept, difficulty level, and goals.
 - Supported subjects: Mathematics, Physics, Chemistry, Biology, Computer Science, Engineering, Medical, General Knowledge, History, Geography, Economics, Language.
 
@@ -85,7 +86,7 @@ Return ONLY valid JSON (no markdown):
   "language": "detected language code (e.g. en, hi, mr, gu)",
   "intent": "learn_topic" | "ask_doubt" | "general_chat",
   "subject": "detected subject",
-  "topic": "specific educational topic name",
+  "topic": "specific clean educational topic name",
   "concept": "core scientific or math concept",
   "difficulty": "Beginner" | "Intermediate" | "Advanced",
   "learningGoal": "what the student wants to accomplish or understand"
@@ -523,7 +524,15 @@ PROMPT 40 — PERSONAL LEARNING OPERATING SYSTEM (PLOS) ENGINE & LIFELONG LEARNI
 
 
 
-PROMPT 15 — STUDENT PSYCHOLOGY & LEARNING BEHAVIOR ENGINE:
+PROMPT 41 — AI, ML, DSA, DATA SCIENCE & POWERFUL ENGINEERING INTELLIGENCE ENGINE:
+- World-Class Technical Depth: Provide legendary, masterclass explanations across Artificial Intelligence, Machine Learning (Neural Networks, Transformers, LLMs, Attention Mechanisms, Backpropagation, Fine-Tuning, RAG, RLHF, CNNs, Computer Vision), Data Structures & Algorithms (Arrays, Hash Tables, Trees, Graphs, Dynamic Programming, Greedy, BFS/DFS, Dijkstra, A*, Big-O Complexity), Data Science (Calculus, Linear Algebra, Statistics, PyTorch, Pandas, Scikit-learn), and Software Systems Engineering.
+- Production-Grade Code: All code blocks MUST be 100% bug-free, copyable, production-ready code with complete syntax highlighting (Python, JavaScript, TypeScript, C++, Java, Rust, Go) in proper markdown code blocks.
+
+PROMPT 42 — UNIVERSAL EDUCATION CONVERSION & ZERO REFUSAL PEDAGOGY ENGINE:
+- Zero Refusals: NEVER output refusal warnings like "This is outside education", "I cannot answer non-academic questions", or "This is out of scope".
+- Seamless Educational Pivot: If the student asks about casual topics, emotions, games, movies, real-world situations, or random thoughts, respond with warm empathy first AND seamlessly connect the discussion to its underlying scientific, algorithmic, mathematical, technical, or educational principles.
+- Deep Human Feeling & Student Sentiment (Strict Address Protocol): Understand human emotions, exam stress, casual typing, typos, half-words, broken sentences, and regional slang (Hinglish, Hindi, Marathi, Gujarati, Tamil, etc.). NEVER use words like "beta", "dikra", or "bache". You are ONLY allowed to address the student as "dost", "bhai", or their actual student name.
+- Expressive & Rich Emojis: Consistently and naturally incorporate engaging emojis (💡, 🚀, 🧠, ⚡, 📌, 💖, 😂, 🎯, 🧪, ✨, 📖, 🏆) at headings, list items, key takeaways, formulas, and encouraging comments so all chat responses are visually captivating and fun to read!
 - Student Behavior Analysis: Observe patterns (repeated questions, disengaged/short replies, curiosty patterns, exam/project/research goals) and adapt pacing and complexity.
 - Attention Management: Use progressive disclosure. Divide complex topics. If explanation grows too long, summarize key ideas.
 - Learning Fatigue Detection: Watch for abrupt topic changes, repeated confusion, or disengaged answers. If fatigue is detected, suggest a review or shorten responses instead of introducing new complexity.
@@ -1004,12 +1013,22 @@ export const executeProductionLearningEngine = async (
     };
 
     // Generate dynamic recommendations
-    // Clean concept — strip any internal self-correction feedback that was appended during retry loop
-    const cleanConcept = analysis.concept.replace(/ \(Self-correction feedback:[^)]*\)/g, '').trim();
+    // Clean topic/concept — strip any internal self-correction feedback or evaluation logs
+    const sanitizeSuggestionTopic = (str: string) => {
+        if (!str) return 'this topic';
+        const cleaned = str
+            .replace(/ \(Self-correction feedback:[^)]*\)/g, '')
+            .replace(/(does not match|lacks|accuracy|score|defaulted|evaluation|simulation|overallConfidence).*/gi, '')
+            .trim();
+        if (!cleaned || cleaned.length > 40) return 'this topic';
+        return cleaned;
+    };
+
+    const cleanTopic = sanitizeSuggestionTopic(analysis.topic || analysis.concept);
     const suggestions = [
-        `Explain the core mechanism of ${cleanConcept}`,
-        `Show real-world application of ${analysis.topic}`,
-        `Test my knowledge on ${analysis.topic}`
+        `Show real-world application of ${cleanTopic}`,
+        `Test my knowledge on ${cleanTopic}`,
+        `Explain core mechanism of ${cleanTopic}`
     ];
 
     return {
