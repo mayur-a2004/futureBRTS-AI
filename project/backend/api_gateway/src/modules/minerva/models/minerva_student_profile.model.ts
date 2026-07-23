@@ -33,7 +33,7 @@ const MinervaStudentProfileSchema = new Schema({
     grade_level: { type: String, default: 'class_10' },
     education_type: { type: String, default: 'school' },
     board: { type: String, default: 'cbse' },
-    state: { type: String, default: 'general' },
+    state: { type: String, default: '' },
     medium: { type: String, default: 'english' },
     language_preference: { type: String, default: 'english' },
     learning_style: { type: String, default: 'mixed' },

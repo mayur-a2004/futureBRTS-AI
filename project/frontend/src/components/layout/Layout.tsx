@@ -6,6 +6,7 @@ import TokenWall from "@/components/economy/TokenWall";
 import { useModal } from "@/context/ModalContext";
 import { io } from "socket.io-client";
 import { motion } from "framer-motion";
+import WelcomeTour from "@/components/shared/WelcomeTour";
 
 
 export default function Layout() {
@@ -13,6 +14,16 @@ export default function Layout() {
     const navigate = useNavigate();
     const { logout, user } = useAuth();
     const { confirm } = useModal();
+
+    // Onboarding welcome tour state
+    const [showWelcomeTour, setShowWelcomeTour] = useState(false);
+
+    useEffect(() => {
+        const tourCompleted = localStorage.getItem("fbrts_welcome_tour_completed") === "true";
+        if (!tourCompleted) {
+            setShowWelcomeTour(true);
+        }
+    }, []);
 
     // Session State
     const [sessions, setSessions] = useState<any[]>([]);
@@ -585,9 +596,11 @@ export default function Layout() {
                             const isActive = item.path === '/future-education'
                                 ? (location.pathname === '/future-education' || location.pathname === '/future-education/')
                                 : location.pathname.startsWith(item.path);
+                            const itemTourId = item.name.toLowerCase().replace(/\s+/g, '-');
                             return (
                                 <Link
                                     key={item.path}
+                                    id={`tour-nav-${itemTourId}`}
                                     title={isSidebarCollapsed ? item.name : ""}
                                     to={item.path}
                                     className={`relative flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-2 px-3'} py-2 rounded-lg text-[13px] font-medium transition-all group ${isActive ? 'bg-indigo-500/10 text-indigo-400' : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04]'}`}
@@ -823,9 +836,11 @@ export default function Layout() {
                                 default: return name;
                             }
                         };
+                        const itemTourId = item.name.toLowerCase().replace(/\s+/g, '-');
                         return (
                             <Link
                                 key={item.path}
+                                id={`tour-mobile-${itemTourId}`}
                                 to={item.path}
                                 className={`flex flex-col items-center justify-center min-w-[74px] flex-shrink-0 h-full gap-1.5 transition-all ${isActive ? 'text-indigo-400' : 'text-gray-500 active:text-gray-300'}`}
                             >
@@ -873,6 +888,11 @@ export default function Layout() {
                 onClose={() => setIsTokenWallOpen(false)}
                 onActionComplete={handleTokenWallAction}
             />
+
+            {/* 🗺️ Welcome Tour Overlay */}
+            {showWelcomeTour && (
+                <WelcomeTour onClose={() => setShowWelcomeTour(false)} />
+            )}
         </div >
     )
 }

@@ -1878,8 +1878,17 @@ const MinervaHome: React.FC = () => {
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-[#0b0915] border border-indigo-500/30 rounded-[2rem] p-8 max-w-md w-full shadow-[0_0_50px_rgba(79,70,229,0.3)] relative overflow-hidden"
+                            className="bg-[#0b0915] border border-indigo-500/30 rounded-[2rem] p-8 max-w-md w-full shadow-[0_0_50px_rgba(79,70,229,0.3)] relative max-h-[90vh] overflow-y-auto"
                         >
+                            {/* Close / Cancel Button */}
+                            <button 
+                                type="button"
+                                onClick={() => setShowOnboarding(false)}
+                                className="absolute top-6 right-6 text-gray-500 hover:text-white transition-colors"
+                            >
+                                <X size={18} />
+                            </button>
+
                             {/* Scanning beam animation */}
                             <div className="absolute inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-indigo-500 to-transparent top-0 animate-bounce" />
                             

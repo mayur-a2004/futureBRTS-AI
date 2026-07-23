@@ -344,6 +344,9 @@ export const adminController = {
             const transactions = await Transaction.find({ userId }).sort({ createdAt: -1 });
             const analytics = await StrategicAnalytic.findOne({ userId }).sort({ timestamp: -1 });
 
+            const MinervaStudentProfile = require('../minerva/models/minerva_student_profile.model').default;
+            const studentProfile = await MinervaStudentProfile.findOne({ userId });
+
             res.json({
                 success: true,
                 user,
@@ -352,7 +355,10 @@ export const adminController = {
                 roadmaps,
                 tasks,
                 transactions,
-                location: analytics?.location
+                location: analytics?.location,
+                educationOS: {
+                    studentProfile
+                }
             });
         } catch (err: any) {
             res.status(500).json({ success: false, error: err.message });

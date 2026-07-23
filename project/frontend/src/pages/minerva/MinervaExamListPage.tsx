@@ -7,7 +7,7 @@ import { io, Socket } from 'socket.io-client';
 import { 
     ChevronLeft, Award, Clock, FileText, CheckCircle, 
     Loader2, BookOpen, AlertCircle, Sparkles, Trash2,
-    Users, Play, Copy, Check, Trophy, Send
+    Users, Play, Copy, Check, Trophy, Send, X
 } from 'lucide-react';
 
 const gradeColor: Record<string, string> = {
@@ -149,7 +149,8 @@ const MinervaExamListPage: React.FC = () => {
     const [liveCurrentQ, setLiveCurrentQ] = useState(0);
     const [liveTimeLeft, setLiveTimeLeft] = useState(900); // seconds
     const [liveSubmitting, setLiveSubmitting] = useState(false);
-    const [_liveResult, setLiveResult] = useState<any | null>(null);
+
+    const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null);
     const [copiedCode, setCopiedCode] = useState(false);
     const [socketInst, setSocketInst] = useState<Socket | null>(null);
 
@@ -395,7 +396,7 @@ const MinervaExamListPage: React.FC = () => {
             const d = await res.json();
             if (d.success && d.room) {
                 setLiveRoom(d.room);
-                setLiveResult(d.result);
+
                 setLiveView('LEADERBOARD');
                 if (socketInst) {
                     socketInst.emit('submit_live_exam', { roomCode: d.room.roomCode, userId: user?._id });
@@ -1343,7 +1344,7 @@ const MinervaExamListPage: React.FC = () => {
                                         <p className="text-[11px] text-slate-400 mt-0.5">Real-time synchronized multi-student exam hall & live rank analytics</p>
                                     </div>
                                     {liveView !== 'SETUP' && (
-                                        <button onClick={() => { setLiveView('SETUP'); setLiveRoom(null); setLiveResult(null); }}
+                                        <button onClick={() => { setLiveView('SETUP'); setLiveRoom(null); }}
                                             className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold text-slate-300 transition-all">
                                             ⚙️ Exit Arena
                                         </button>
@@ -1736,58 +1737,184 @@ const MinervaExamListPage: React.FC = () => {
                                 )}
 
                                 {/* ─── SUB-VIEW 4: INSTANT LIVE LEADERBOARD ────────────── */}
-                                {liveView === 'LEADERBOARD' && liveRoom && (
-                                    <div className="space-y-6 max-w-4xl mx-auto">
-                                        <div className="text-center bg-gradient-to-r from-amber-500/10 via-cyan-500/10 to-indigo-500/10 border border-white/10 p-6 rounded-3xl">
-                                            <Trophy className="w-12 h-12 text-amber-400 mx-auto mb-2 animate-bounce" />
-                                            <h3 className="text-xl font-black text-white">Live Exam Leaderboard & Analytics</h3>
-                                            <p className="text-xs text-slate-400 mt-1">{liveRoom.title} • Instant AI Results Evaluation</p>
-                                        </div>
+                                {liveView === 'LEADERBOARD' && liveRoom && (() => {
+                                    const myIdStr = String(user?._id);
+                                    
+                                    // Identify active participant to show responses review for
+                                    const defaultParticipant = liveRoom.participants?.find((x: any) => {
+                                        const xId = typeof x.userId === 'object' && x.userId?._id ? String(x.userId._id) : String(x.userId);
+                                        return xId === myIdStr;
+                                    });
+                                    const activeReviewParticipant = liveRoom.participants?.find((x: any) => {
+                                        const xId = typeof x.userId === 'object' && x.userId?._id ? String(x.userId._id) : String(x.userId);
+                                        return xId === selectedParticipantId;
+                                    }) || defaultParticipant || liveRoom.participants?.[0];
 
-                                        {/* Leaderboard Table */}
-                                        <div className="bg-black/40 border border-white/10 rounded-2xl p-4 overflow-x-auto">
-                                            <table className="w-full text-left text-xs">
-                                                <thead>
-                                                    <tr className="border-b border-white/10 text-slate-500 font-bold uppercase text-[9px] tracking-wider">
-                                                        <th className="pb-3 px-3">Rank</th>
-                                                        <th className="pb-3 px-3">Candidate</th>
-                                                        <th className="pb-3 px-3">Score</th>
-                                                        <th className="pb-3 px-3">Accuracy</th>
-                                                        <th className="pb-3 px-3">Time Taken</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-white/5">
-                                                    {liveRoom.participants
-                                                        ?.sort((a: any, b: any) => b.score - a.score || a.timeTakenSeconds - b.timeTakenSeconds)
-                                                        ?.map((p: any, idx: number) => {
-                                                            const isMe = p.userId === (user as any)?._id || (p.userId as any)?._id === (user as any)?._id;
+                                    const activeReviewIdStr = activeReviewParticipant ? (typeof activeReviewParticipant.userId === 'object' && activeReviewParticipant.userId?._id ? String(activeReviewParticipant.userId._id) : String(activeReviewParticipant.userId)) : '';
+
+                                    return (
+                                        <div className="space-y-6 max-w-4xl mx-auto">
+                                            <div className="text-center bg-gradient-to-r from-amber-500/10 via-cyan-500/10 to-indigo-500/10 border border-white/10 p-6 rounded-3xl">
+                                                <Trophy className="w-12 h-12 text-amber-400 mx-auto mb-2 animate-bounce" />
+                                                <h3 className="text-xl font-black text-white">Live Exam Leaderboard & Analytics</h3>
+                                                <p className="text-xs text-slate-400 mt-1">{liveRoom.title} • Instant AI Results Evaluation</p>
+                                            </div>
+
+                                            {/* Leaderboard Table */}
+                                            <div className="bg-black/40 border border-white/10 rounded-2xl p-4 overflow-x-auto">
+                                                <table className="w-full text-left text-xs">
+                                                    <thead>
+                                                        <tr className="border-b border-white/10 text-slate-500 font-bold uppercase text-[9px] tracking-wider">
+                                                            <th className="pb-3 px-3">Rank</th>
+                                                            <th className="pb-3 px-3">Candidate</th>
+                                                            <th className="pb-3 px-3">Score</th>
+                                                            <th className="pb-3 px-3">Accuracy</th>
+                                                            <th className="pb-3 px-3">Time Taken</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-white/5">
+                                                        {liveRoom.participants
+                                                            ?.sort((a: any, b: any) => b.score - a.score || a.timeTakenSeconds - b.timeTakenSeconds)
+                                                            ?.map((p: any, idx: number) => {
+                                                                const pUserIdStr = typeof p.userId === 'object' && p.userId?._id ? String(p.userId._id) : String(p.userId);
+                                                                const isMe = pUserIdStr === myIdStr;
+                                                                const isSelected = pUserIdStr === activeReviewIdStr;
+
+                                                                return (
+                                                                    <tr 
+                                                                        key={pUserIdStr} 
+                                                                        onClick={() => setSelectedParticipantId(pUserIdStr)}
+                                                                        className={`cursor-pointer transition-all hover:bg-white/[0.04] ${
+                                                                            isSelected 
+                                                                                ? 'bg-indigo-950/40 text-indigo-200 border-l-2 border-indigo-500 font-bold' 
+                                                                                : isMe 
+                                                                                    ? 'bg-cyan-950/20 text-cyan-200 font-semibold' 
+                                                                                    : 'text-slate-350'
+                                                                        }`}
+                                                                    >
+                                                                        <td className="py-3 px-3 font-black">
+                                                                            {idx === 0 ? '🥇 #1' : idx === 1 ? '🥈 #2' : idx === 2 ? '🥉 #3' : `#${idx + 1}`}
+                                                                        </td>
+                                                                        <td className="py-3 px-3 flex items-center gap-2">
+                                                                            <div className="w-6 h-6 rounded-full bg-cyan-950 border border-cyan-500/30 flex items-center justify-center text-[10px] font-bold text-cyan-300">
+                                                                                {p.firstName?.[0] || 'S'}
+                                                                            </div>
+                                                                            <span>{p.firstName} {isMe && '(You)'}</span>
+                                                                        </td>
+                                                                        <td className="py-3 px-3 font-mono font-bold text-cyan-300">{p.score} / {liveRoom.totalMarks}</td>
+                                                                        <td className="py-3 px-3 font-mono text-emerald-400">{p.percentage}%</td>
+                                                                        <td className="py-3 px-3 text-slate-400">{Math.floor((p.timeTakenSeconds || 0) / 60)}m {(p.timeTakenSeconds || 0) % 60}s</td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            {/* Detailed Responses Review Panel */}
+                                            {activeReviewParticipant && (
+                                                <div className="bg-[#0e0c1f] border border-white/10 rounded-3xl p-6 space-y-6">
+                                                    <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                                                        <div>
+                                                            <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                                                                <span>🎯</span> Response Review: {activeReviewParticipant.firstName}
+                                                            </h4>
+                                                            <p className="text-[10px] text-slate-500 mt-0.5">
+                                                                Click any candidate on the leaderboard above to review their detailed right & wrong answers.
+                                                            </p>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <div className="text-xs font-bold text-cyan-400 font-mono">
+                                                                Score: {activeReviewParticipant.score} / {liveRoom.totalMarks}
+                                                            </div>
+                                                            <div className="text-[10px] text-emerald-400 font-mono">
+                                                                Accuracy: {activeReviewParticipant.percentage}%
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="space-y-5">
+                                                        {liveRoom.questions?.map((q: any, qIdx: number) => {
+                                                            const rawAns = activeReviewParticipant.answers?.[qIdx] ?? activeReviewParticipant.answers?.[String(qIdx)];
+                                                            const studentAns = typeof rawAns === 'number' ? rawAns : null;
+                                                            const isCorrect = studentAns === q.correctAnswer;
+                                                            const hasAnswered = studentAns !== null;
+
                                                             return (
-                                                                <tr key={p.userId} className={isMe ? 'bg-cyan-950/30 text-cyan-200 font-bold' : 'text-slate-300'}>
-                                                                    <td className="py-3 px-3 font-black">
-                                                                        {idx === 0 ? '🥇 #1' : idx === 1 ? '🥈 #2' : idx === 2 ? '🥉 #3' : `#${idx + 1}`}
-                                                                    </td>
-                                                                    <td className="py-3 px-3 flex items-center gap-2">
-                                                                        <div className="w-6 h-6 rounded-full bg-cyan-950 border border-cyan-500/30 flex items-center justify-center text-[10px] font-bold text-cyan-300">
-                                                                            {p.firstName?.[0] || 'S'}
+                                                                <div key={q.question_number} className="bg-black/35 border border-white/5 rounded-2xl p-4 space-y-3">
+                                                                    <div className="flex items-start justify-between gap-3">
+                                                                        <div className="flex-1">
+                                                                            <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block mb-1">
+                                                                                Question {q.question_number} • {q.topic || 'General'}
+                                                                            </span>
+                                                                            <p className="text-xs font-bold text-white leading-relaxed">
+                                                                                {q.question}
+                                                                            </p>
                                                                         </div>
-                                                                        <span>{p.firstName} {isMe && '(You)'}</span>
-                                                                    </td>
-                                                                    <td className="py-3 px-3 font-mono font-bold text-cyan-300">{p.score} / {liveRoom.totalMarks}</td>
-                                                                    <td className="py-3 px-3 font-mono text-emerald-400">{p.percentage}%</td>
-                                                                    <td className="py-3 px-3 text-slate-400">{Math.floor((p.timeTakenSeconds || 0) / 60)}m {(p.timeTakenSeconds || 0) % 60}s</td>
-                                                                </tr>
+                                                                        <div>
+                                                                            {hasAnswered ? (
+                                                                                isCorrect ? (
+                                                                                    <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-wider">
+                                                                                        <Check size={10} strokeWidth={3} /> Correct
+                                                                                    </span>
+                                                                                ) : (
+                                                                                    <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-bold uppercase tracking-wider">
+                                                                                        <X size={10} strokeWidth={3} /> Incorrect
+                                                                                    </span>
+                                                                                )
+                                                                            ) : (
+                                                                                <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold uppercase tracking-wider">
+                                                                                    Unanswered
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                                                                        {q.options?.map((opt: string, oIdx: number) => {
+                                                                            const isOptCorrect = oIdx === q.correctAnswer;
+                                                                            const isOptSelected = oIdx === studentAns;
+                                                                            
+                                                                            let optBgClass = "bg-white/[0.02] border-white/5 text-slate-350";
+                                                                            if (isOptCorrect) {
+                                                                                optBgClass = "bg-emerald-500/10 border-emerald-500/40 text-emerald-400 font-semibold";
+                                                                            } else if (isOptSelected && !isCorrect) {
+                                                                                optBgClass = "bg-rose-500/10 border-rose-500/40 text-rose-400 font-semibold";
+                                                                            }
+
+                                                                            return (
+                                                                                <div key={oIdx} className={`flex items-center gap-2.5 px-3 py-2.5 border rounded-xl text-[11px] transition-all ${optBgClass}`}>
+                                                                                    <span className="w-5 h-5 rounded-lg bg-black/45 border border-white/10 flex items-center justify-center text-[10px] font-black uppercase text-indigo-300">
+                                                                                        {String.fromCharCode(65 + oIdx)}
+                                                                                    </span>
+                                                                                    <span className="flex-1 leading-snug">{opt}</span>
+                                                                                    {isOptCorrect && <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider">Correct</span>}
+                                                                                    {isOptSelected && !isOptCorrect && <span className="text-[10px] font-black text-rose-400 uppercase tracking-wider">Chosen</span>}
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+
+                                                                    {q.explanation && (
+                                                                        <div className="bg-indigo-950/25 border-l-2 border-indigo-500/50 rounded-r-xl p-3 text-[10px] text-indigo-200 mt-2 leading-relaxed">
+                                                                            <span className="font-black text-indigo-400 uppercase tracking-wider block mb-1">Concept Explanation</span>
+                                                                            {q.explanation}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
                                                             );
                                                         })}
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
 
-                                        <button onClick={() => { setLiveView('SETUP'); setLiveRoom(null); setLiveResult(null); }}
-                                            className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold text-xs rounded-2xl transition-all">
-                                            ← Back to Live Exam Arena Setup
-                                        </button>
-                                    </div>
-                                )}
+                                            <button onClick={() => { setLiveView('SETUP'); setLiveRoom(null); setSelectedParticipantId(null); }}
+                                                className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold text-xs rounded-2xl transition-all">
+                                                ← Back to Live Exam Arena Setup
+                                            </button>
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         )}
 
