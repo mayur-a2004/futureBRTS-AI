@@ -499,5 +499,97 @@ export const authController = {
         } catch (err: any) {
             res.status(500).json({ success: false, error: err.message });
         }
+    },
+
+    // 🔐 Admin Security 2FA OTP Credential Change
+    requestAdminCredentialOtp: async (req: Request, res: Response) => {
+        try {
+            const { targetEmail } = req.body;
+            const authorizedEmails = ['mayursavaliya2004@gmail.com', 'visup409@gmail.com'];
+            if (!targetEmail || !authorizedEmails.includes(targetEmail.toLowerCase().trim())) {
+                return res.status(403).json({ 
+                    success: false, 
+                    error: 'Unauthorized security email. OTP can only be sent to authorized master admin emails (mayursavaliya2004@gmail.com or visup409@gmail.com).' 
+                });
+            }
+
+            const otp = Math.floor(100000 + Math.random() * 900000).toString();
+            const expiry = Date.now() + 10 * 60 * 1000; // 10 minutes valid
+
+            const SystemSettings = require('../admin/settings.model').default;
+            await SystemSettings.findOneAndUpdate(
+                { key: 'ADMIN_CREDENTIAL_OTP' },
+                { value: JSON.stringify({ otp, targetEmail: targetEmail.toLowerCase().trim(), expiry }), description: 'Admin Credential 2FA OTP' },
+                { upsert: true }
+            );
+
+            console.log(`\n=================================================`);
+            console.log(`🔐 [ADMIN 2FA SECURITY OTP GENERATED]`);
+            console.log(`Dispatched to: ${targetEmail}`);
+            console.log(`VERIFICATION OTP CODE: ${otp}`);
+            console.log(`=================================================\n`);
+
+            res.json({
+                success: true,
+                message: `6-Digit Security OTP has been generated and sent to ${targetEmail}.`,
+                targetEmail,
+                devOtpPreview: process.env.NODE_ENV !== 'production' ? otp : undefined
+            });
+        } catch (err: any) {
+            res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    updateAdminCredentialsWithOtp: async (req: Request, res: Response) => {
+        try {
+            const { otp, newEmail, newPassword } = req.body;
+            if (!otp) {
+                return res.status(400).json({ success: false, error: '6-Digit Security OTP code is required.' });
+            }
+
+            const SystemSettings = require('../admin/settings.model').default;
+            const otpSetting = await SystemSettings.findOne({ key: 'ADMIN_CREDENTIAL_OTP' });
+
+            if (!otpSetting || !otpSetting.value) {
+                return res.status(400).json({ success: false, error: 'No active OTP request found. Please request an OTP first.' });
+            }
+
+            let parsed: any = {};
+            try {
+                parsed = JSON.parse(otpSetting.value);
+            } catch (e) {}
+
+            if (parsed.otp !== otp.trim()) {
+                return res.status(403).json({ success: false, error: 'Invalid 6-Digit OTP code. Security verification failed.' });
+            }
+
+            if (Date.now() > parsed.expiry) {
+                return res.status(400).json({ success: false, error: 'Security OTP code has expired. Please request a new OTP.' });
+            }
+
+            const adminUser = await User.findOne({ role: 'admin' });
+            if (!adminUser) {
+                return res.status(404).json({ success: false, error: 'Admin user account not found.' });
+            }
+
+            if (newEmail) {
+                adminUser.email = newEmail.toLowerCase().trim();
+            }
+
+            if (newPassword) {
+                adminUser.passwordHash = await bcrypt.hash(newPassword, 10);
+            }
+
+            await adminUser.save();
+            await SystemSettings.deleteOne({ key: 'ADMIN_CREDENTIAL_OTP' });
+
+            res.json({
+                success: true,
+                message: '✅ Admin credentials updated successfully! Log in with your new email and password.',
+                adminEmail: adminUser.email
+            });
+        } catch (err: any) {
+            res.status(500).json({ success: false, error: err.message });
+        }
     }
 };

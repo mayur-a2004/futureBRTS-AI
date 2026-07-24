@@ -145,7 +145,7 @@ export default function Builder() {
     // Initial Load & Session Management
     useEffect(() => {
         const init = async () => {
-            const token = localStorage.getItem('fbrts_token');
+            const token = localStorage.getItem('fbrts_token') || localStorage.getItem('token') || localStorage.getItem('minerva_token');
             if (!token) return;
 
             // Priority 1: URL Deep Link (User explicitly navigated here)
@@ -159,7 +159,6 @@ export default function Builder() {
             // Priority 2: Local Persistence (The "Last Seen" session)
             const savedSessionId = localStorage.getItem('fbrts_active_session');
             if (savedSessionId) {
-                console.info("⚡ Resuming Local Persistence Session:", savedSessionId);
                 setSearchParams({ sessionId: savedSessionId });
                 return;
             }
@@ -170,7 +169,6 @@ export default function Builder() {
                 const data = await res.json();
                 if (data.success && data.sessions && data.sessions.length > 0) {
                     const latest = data.sessions[0];
-                    console.info("⚡ Synchronizing with Server Session:", latest._id);
                     setSearchParams({ sessionId: latest._id });
                     return;
                 }
@@ -178,9 +176,15 @@ export default function Builder() {
                 console.error("Neural Registry Sync Failed", e);
             }
 
-            // Priority 4: Fresh Neural Thread — Open Project Architect instead of blank chat
-            console.info("⚡ No session found — Opening Project Architect...");
-            setCollageProjectModalOpen(true);
+            // Priority 4: Auto-Create Live Builder Discussion Session
+            try {
+                const newSession = await createSession();
+                if (newSession?._id) {
+                    setSearchParams({ sessionId: newSession._id });
+                }
+            } catch (err) {
+                console.error("Failed to auto-create live Builder session", err);
+            }
         };
         init();
     }, [sessionId, currentLoadedId, setSearchParams]);

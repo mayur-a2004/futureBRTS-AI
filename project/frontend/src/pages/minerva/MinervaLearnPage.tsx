@@ -2,9 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { minervaApi } from '../../api/minerva.api';
-import { ChevronLeft, BookOpen, Sparkles, Youtube, Lightbulb, Play, Check, MessageSquare, Zap, Mic, Volume2, VolumeX, RefreshCw } from 'lucide-react';
+import { ChevronLeft, BookOpen, Sparkles, Youtube, Lightbulb, Play, Check, MessageSquare, Zap, Mic, Volume2, VolumeX, RefreshCw, PenTool, ExternalLink, Terminal } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import MinervaWhiteboardCanvas from '../../components/chat/MinervaWhiteboardCanvas';
+import MinervaTopicIndexer from '../../components/minerva/MinervaTopicIndexer';
+import { parseMessageToSmartBoardSteps } from '../../utils/smartBoardUtils';
 
 const cleanOptionText = (opt: string, letter: string): string => {
     if (!opt) return '';
@@ -17,6 +20,7 @@ const MinervaLearnPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const { token } = useAuth() as any;
     const navigate = useNavigate();
+    const [showSmartBoard, setShowSmartBoard] = useState(false);
 
     // Extract YouTube video ID from various URL formats
     const extractYouTubeId = (url: string): string | null => {
@@ -558,6 +562,14 @@ const MinervaLearnPage: React.FC = () => {
                             <span>Ask Doubt</span>
                         </button>
                         <button
+                            onClick={() => setShowSmartBoard(true)}
+                            className="text-[10px] md:text-xs bg-gradient-to-r from-amber-500 via-orange-600 to-pink-600 hover:opacity-90 border border-orange-400/20 px-2.5 py-1.5 rounded-xl transition-all font-bold flex items-center gap-1 text-white active:scale-95 shrink-0 shadow-md shadow-orange-950/20"
+                            title="Open AI Touch Smart Board with Stroke Handwriting"
+                        >
+                            <PenTool size={12} />
+                            <span>Smart Board</span>
+                        </button>
+                        <button
                             onClick={() => navigate(`/future-education/builder?sessionId=${node.session_id}`)}
                             className="text-[10px] md:text-xs bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 border border-indigo-500/20 px-2.5 py-1.5 rounded-xl transition-all font-semibold flex items-center gap-1 text-white active:scale-95 shrink-0"
                         >
@@ -572,6 +584,25 @@ const MinervaLearnPage: React.FC = () => {
             </div>
 
             <div className="max-w-3xl mx-auto px-6 py-6 space-y-6">
+
+                {/* Sub-Topic Indexer Sidebar / Accordion */}
+                <MinervaTopicIndexer
+                    unitTitle={`${node.subject || 'Subject Blueprint'} • Chapter ${node.order_index || 1}.0`}
+                    chapterTitle={node.chapter || node.title}
+                    nodes={[
+                        {
+                            id: node._id,
+                            indexCode: `1.${node.order_index || 1}`,
+                            title: node.title,
+                            status: node.status === 'DONE' ? 'DONE' : 'IN_PROGRESS',
+                            weightageMarks: 5,
+                            isBoardHighPriority: true
+                        }
+                    ]}
+                    activeNodeId={node._id}
+                    onSelectNode={() => {}}
+                    isCollapsedDefault={true}
+                />
 
                 {/* View Mode & Translator Row */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -823,19 +854,27 @@ const MinervaLearnPage: React.FC = () => {
                             </button>
                         </div>
 
-                        {/* Dynamic AI Topic Illustration — Pollinations AI (Free, No API Key) */}
+                        {/* Dynamic AI Topic Illustration — High Accuracy Topic Visual */}
                         {node?.title && (
-                            <div className="mb-5 rounded-2xl overflow-hidden border border-white/5 shadow-xl relative group">
+                            <div className="mb-5 rounded-2xl overflow-hidden border border-white/5 shadow-xl relative group bg-black/40">
                                 <img
-                                    src={`https://image.pollinations.ai/prompt/${encodeURIComponent(`educational illustration of ${node.title}, ${view === 'simple' ? 'simple colorful story style' : 'detailed scientific textbook diagram'}, clean white background, vibrant colors, highly detailed, professional educational artwork`)  }?width=800&height=360&nologo=true&seed=${encodeURIComponent(node.title)}`}
+                                    src={`https://image.pollinations.ai/prompt/${encodeURIComponent(`${node.title} ${node.topic || ''} technical textbook visual diagram, schematic infographic illustration, high quality, crisp details, clean educational vector style`)}?width=800&height=360&nologo=true&seed=${encodeURIComponent(node.title)}`}
                                     alt={`Visual illustration of ${node.title}`}
                                     className="w-full h-52 object-cover transition-transform duration-500 group-hover:scale-105"
-                                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                    onError={(e) => {
+                                        const img = e.target as HTMLImageElement;
+                                        if (!img.dataset.retried) {
+                                            img.dataset.retried = 'true';
+                                            img.src = `https://source.unsplash.com/800x360/?${encodeURIComponent(node.title + ' ' + (node.topic || ''))}`;
+                                        } else {
+                                            img.style.display = 'none';
+                                        }
+                                    }}
                                 />
                                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-4 py-3">
                                     <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
                                         <Sparkles size={10} className="text-indigo-400" />
-                                        AI-Generated Visual — {node.title}
+                                        100% Topic Visual Diagram — {node.title}
                                     </span>
                                 </div>
                             </div>
@@ -918,6 +957,84 @@ const MinervaLearnPage: React.FC = () => {
                             <h2 className="font-bold text-sm text-emerald-400">Real World Application</h2>
                         </div>
                         <div className="text-gray-300 text-xs leading-relaxed font-medium">{node.real_world_example}</div>
+                    </div>
+                )}
+
+                {/* Practical Setup, Software Installation & Official Links Card */}
+                {(node.practical_setup_guide || (node.official_download_links && node.official_download_links.length > 0) || (node.terminal_commands && node.terminal_commands.length > 0)) && (
+                    <div className="bg-gradient-to-br from-indigo-950/30 via-slate-900/40 to-purple-950/20 border border-indigo-500/30 rounded-3xl p-6 shadow-2xl backdrop-blur-md space-y-4">
+                        <div className="flex items-center gap-2.5 border-b border-white/10 pb-3">
+                            <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 flex items-center justify-center font-bold">
+                                🛠️
+                            </div>
+                            <div>
+                                <h2 className="font-bold text-sm text-indigo-300">Practical Setup, Tools &amp; Software Installation Guide</h2>
+                                <p className="text-[10px] text-gray-400 font-semibold">Official Download Links, Environment Setup &amp; Terminal Commands</p>
+                            </div>
+                        </div>
+
+                        {/* Step-by-Step Setup Guide */}
+                        {node.practical_setup_guide && (
+                            <div className="text-gray-300 text-xs leading-relaxed font-medium bg-black/30 border border-white/5 rounded-2xl p-4">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                    {node.practical_setup_guide}
+                                </ReactMarkdown>
+                            </div>
+                        )}
+
+                        {/* Official Software & IDE Download Links */}
+                        {node.official_download_links && node.official_download_links.length > 0 && (
+                            <div>
+                                <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                                    <span>🔗 Official Software &amp; Tool Download Links</span>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                    {node.official_download_links.map((link: any, lIdx: number) => (
+                                        <a
+                                            key={lIdx}
+                                            href={link.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.03] hover:bg-indigo-500/10 border border-white/10 hover:border-indigo-500/40 text-xs text-gray-200 hover:text-white transition-all group shadow-sm"
+                                        >
+                                            <div className="flex items-center gap-2 truncate">
+                                                <span className="text-sm">📥</span>
+                                                <div className="truncate">
+                                                    <div className="font-bold truncate">{link.name}</div>
+                                                    <div className="text-[9px] text-indigo-300/80 font-semibold">{link.category || 'Official Download'}</div>
+                                                </div>
+                                            </div>
+                                            <ExternalLink size={14} className="text-indigo-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Terminal Installation Commands */}
+                        {node.terminal_commands && node.terminal_commands.length > 0 && (
+                            <div>
+                                <div className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                                    <Terminal size={12} />
+                                    <span>💻 Terminal Setup &amp; Package Installation Commands</span>
+                                </div>
+                                <div className="bg-zinc-950 border border-emerald-500/20 rounded-2xl p-4 font-mono text-xs text-emerald-300 space-y-2 shadow-inner">
+                                    {node.terminal_commands.map((cmd: string, cIdx: number) => (
+                                        <div key={cIdx} className="flex items-start gap-2 group">
+                                            <span className="text-emerald-500 font-bold select-none">$</span>
+                                            <span className="select-all flex-1 font-semibold">{cmd}</span>
+                                            <button
+                                                onClick={() => navigator.clipboard.writeText(cmd)}
+                                                className="text-[9px] text-gray-500 hover:text-white opacity-60 group-hover:opacity-100 transition-opacity"
+                                                title="Copy Command"
+                                            >
+                                                Copy
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -1253,6 +1370,14 @@ const MinervaLearnPage: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {/* AI Touch Smart Board Canvas Overlay */}
+            <MinervaWhiteboardCanvas
+                isOpen={showSmartBoard}
+                onClose={() => setShowSmartBoard(false)}
+                initialTitle={node?.title || 'Topic Solution'}
+                solutionSteps={parseMessageToSmartBoardSteps(node?.explanation_detailed || node?.explanation_simple || '', node?.title || 'Topic Solution').steps}
+            />
         </div>
     );
 };
@@ -1397,7 +1522,6 @@ const MathLab: React.FC = () => {
                         onChange={e => setSlope(Number(e.target.value))}
                         className="flex-1 accent-indigo-500 h-1 bg-white/5 rounded-lg appearance-none cursor-pointer"
                     />
-                    <span className="text-[10px] font-mono font-bold text-indigo-300 w-6 text-right">{slope}</span>
                 </div>
                 <div className="flex items-center gap-3">
                     <span className="text-[10px] font-bold text-gray-400 w-16 uppercase">Intercept (c):</span>

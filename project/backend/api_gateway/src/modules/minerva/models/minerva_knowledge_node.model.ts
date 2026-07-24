@@ -15,6 +15,12 @@ export interface IStudyResource {
     content?: string;
 }
 
+export interface IOfficialDownloadLink {
+    name: string;
+    url: string;
+    category?: string;
+}
+
 export interface IMinervaKnowledgeNode extends Document {
     session_id: mongoose.Types.ObjectId;
     userId: mongoose.Types.ObjectId;
@@ -28,10 +34,16 @@ export interface IMinervaKnowledgeNode extends Document {
     exam_weightage_percent: number;
     status: string; // 'LOCKED' | 'UNLOCKED' | 'IN_PROGRESS' | 'DONE' | 'NEEDS_REVIEW'
     order_index: number;
+    index_code?: string;
+    weightage_marks?: number;
+    is_board_high_priority?: boolean;
     // Content
     explanation_simple: string;    // Basic explanation
     explanation_detailed: string;  // Full theory
     real_world_example: string;    // Analogy / example
+    practical_setup_guide?: string; // Installation & setup guide
+    official_download_links?: IOfficialDownloadLink[];
+    terminal_commands?: string[];
     key_formulas: string[];
     key_points: string[];
     // Resources
@@ -69,6 +81,12 @@ const StudyResource = new Schema({
     content: String,
 }, { _id: false });
 
+const OfficialDownloadLink = new Schema({
+    name: String,
+    url: String,
+    category: String,
+}, { _id: false });
+
 const MinervaKnowledgeNodeSchema = new Schema({
     session_id: { type: Schema.Types.ObjectId, ref: 'MinervaStudySession', required: true },
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
@@ -86,9 +104,15 @@ const MinervaKnowledgeNodeSchema = new Schema({
         default: 'LOCKED' 
     },
     order_index: { type: Number, default: 0 },
+    index_code: { type: String, default: '1.1' },
+    weightage_marks: { type: Number, default: 5 },
+    is_board_high_priority: { type: Boolean, default: true },
     explanation_simple: { type: String, default: '' },
     explanation_detailed: { type: String, default: '' },
     real_world_example: { type: String, default: '' },
+    practical_setup_guide: { type: String, default: '' },
+    official_download_links: { type: [OfficialDownloadLink], default: [] },
+    terminal_commands: { type: [String], default: [] },
     key_formulas: { type: [String], default: [] },
     key_points: { type: [String], default: [] },
     youtube_links: { type: [YoutubeLink], default: [] },

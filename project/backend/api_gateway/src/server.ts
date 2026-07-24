@@ -94,9 +94,147 @@ import adminRoutes from './modules/admin/admin.routes';
 app.use('/api/admin', adminRoutes);
 import jobsRoutes from './api/jobs.routes';
 
-// ...
 app.use('/api/upload', uploadRoutes);
-app.use('/api/jobs', jobsRoutes); // 👈 New Dedicated Jobs Route
+app.use('/api/jobs', jobsRoutes);
+
+// 🔍 DYNAMIC SEO, ROBOTS.TXT, SITEMAP.XML, LLMS.TXT & AI CRAWLER ENDPOINTS
+import SystemSettings from './modules/admin/settings.model';
+import ContactInquiry from './modules/minerva/models/contact_inquiry.model';
+
+app.get('/robots.txt', async (req, res) => {
+    try {
+        const setting = await SystemSettings.findOne({ key: 'SEO_ROBOTS_TXT' });
+        if (setting && setting.value) {
+            res.type('text/plain').send(setting.value);
+            return;
+        }
+    } catch (e) {}
+
+    const defaultRobots = `User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexBot
+Allow: /
+
+User-agent: GrokBot
+Allow: /
+
+Sitemap: https://futurebrts.com/sitemap.xml`;
+    res.type('text/plain').send(defaultRobots);
+});
+
+app.get('/sitemap.xml', async (req, res) => {
+    try {
+        const setting = await SystemSettings.findOne({ key: 'SEO_SITEMAP_XML' });
+        if (setting && setting.value) {
+            res.type('application/xml').send(setting.value);
+            return;
+        }
+    } catch (e) {}
+
+    const pages = ['', 'features', 'pricing', 'about', 'services', 'how-it-works', 'careers-public', 'contact', 'guest-chat', 'future-education'];
+    const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${pages.map(p => `  <url>
+    <loc>https://futurebrts.com/${p}</loc>
+    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>${p === '' ? '1.0' : '0.8'}</priority>
+  </url>`).join('\n')}
+</urlset>`;
+    res.type('application/xml').send(sitemap);
+});
+
+// LLM AI Crawlers Standard Format (ChatGPT, Gemini, Grok, Claude, Perplexity)
+const renderLLMsTxt = async (req: express.Request, res: express.Response) => {
+    try {
+        const setting = await SystemSettings.findOne({ key: 'SEO_LLMS_TXT' });
+        if (setting && setting.value) {
+            res.type('text/plain').send(setting.value);
+            return;
+        }
+    } catch (e) {}
+
+    const defaultLLMs = `# Future BRTS - Neural Career Architect & AI Education OS
+> The world's most advanced AI-powered career roadmap builder, full-stack app generator, and virtual science lab ecosystem.
+
+## Key Features & Platform Capabilities
+- **Future Education OS (Minerva AI Tutor)**: Interactive 3D molecular models, virtual physics/chemistry labs, board exam roadmaps (Class 1-12 & Higher Ed College Degrees).
+- **E-Builder Workshop**: Natural language full-stack web app, database schema, and route generator.
+- **Smart Touch Whiteboard**: Auto-handwritten math/physics step derivation with 2-way touch canvas.
+- **Official Board Alignment**: 34+ Central & State Boards (CBSE, GSEB, UPMSP, BSEB, Maharashtra Board) in 14+ Indian languages.
+
+## Canonical URLs
+- Home: https://futurebrts.com/
+- Features: https://futurebrts.com/features
+- Education OS: https://futurebrts.com/future-education
+- Roadmaps: https://futurebrts.com/future-education/roadmaps
+- Pricing & Pro: https://futurebrts.com/pricing
+- Contact: https://futurebrts.com/contact
+`;
+    res.type('text/plain').send(defaultLLMs);
+};
+
+app.get('/llms.txt', renderLLMsTxt);
+app.get('/.well-known/llms.txt', renderLLMsTxt);
+
+// Public Contact Form Submission Endpoint
+app.post('/api/public/contact', async (req, res) => {
+    try {
+        const { name, email, phone, subject, message } = req.body;
+        if (!name || !email || !message) {
+            res.status(400).json({ success: false, error: 'Name, email, and message are required fields.' });
+            return;
+        }
+        const inquiry = await ContactInquiry.create({ name, email, phone, subject, message, status: 'UNREAD' });
+        res.json({ success: true, message: 'Inquiry submitted successfully! Our team will contact you shortly.', inquiryId: inquiry._id });
+    } catch (err: any) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Admin Inquiries Endpoint
+app.get('/api/admin/inquiries', async (req, res) => {
+    try {
+        const inquiries = await ContactInquiry.find().sort({ createdAt: -1 }).limit(100);
+        res.json({ success: true, inquiries });
+    } catch (err: any) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.patch('/api/admin/inquiries/:id', async (req, res) => {
+    try {
+        const { status, admin_notes } = req.body;
+        const updated = await ContactInquiry.findByIdAndUpdate(req.params.id, { status, admin_notes }, { new: true });
+        res.json({ success: true, inquiry: updated });
+    } catch (err: any) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
 
 // 👉 Global error handler
 app.use(errorHandler);

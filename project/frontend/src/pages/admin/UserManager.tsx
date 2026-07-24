@@ -252,6 +252,21 @@ export default function UserManager() {
                                                     <div className="flex items-center gap-2 text-xs text-gray-500 mt-1 font-medium">
                                                         <Mail size={12} /> {user.email}
                                                     </div>
+                                                    <div className="mt-1">
+                                                        {user.provider === 'google' ? (
+                                                            <span className="text-[9px] font-black text-cyan-400 bg-cyan-950/60 border border-cyan-500/30 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                                                                🌐 Google OAuth
+                                                            </span>
+                                                        ) : user.provider === 'github' ? (
+                                                            <span className="text-[9px] font-black text-purple-400 bg-purple-950/60 border border-purple-500/30 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                                                                🐙 GitHub OAuth
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-[9px] font-black text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                                                                ✉️ Email Login
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </td>
@@ -354,54 +369,68 @@ export default function UserManager() {
                                     </div>
                                 ) : (
                                     <>
-                                        {/* Location & Context */}
+                                        {/* Student Education Profile & Location Context */}
                                         <div className="space-y-4">
-                                            <h3 className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">Location & IP Surveillance</h3>
-                                            <div className="p-6 rounded-[32px] bg-white/[0.02] border border-white/5 flex items-center justify-between">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
+                                            <h3 className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">Student Education Profile &amp; Location</h3>
+                                            
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1">
+                                                    <div className="text-[10px] font-black text-indigo-400 uppercase tracking-wider">School / College</div>
+                                                    <div className="text-xs font-bold text-white truncate">{userDetail?.profile?.school_name || selectedUser?.schoolName || 'Delhi Public School'}</div>
+                                                </div>
+                                                <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1">
+                                                    <div className="text-[10px] font-black text-indigo-400 uppercase tracking-wider">Grade / Standard &amp; Board</div>
+                                                    <div className="text-xs font-bold text-white">{userDetail?.profile?.grade_level || 'Class 10'} • {userDetail?.profile?.board || 'CBSE'} ({userDetail?.profile?.medium || 'English'})</div>
+                                                </div>
+                                            </div>
+
+                                            <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-9 h-9 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0">
                                                         <Globe size={18} className="text-orange-400" />
                                                     </div>
                                                     <div>
-                                                        <p className="text-xs font-black text-white">{userDetail?.locationString || 'Ahmedabad, Gujarat, India'}</p>
-                                                        <p className="text-[10px] text-cyan-300 font-mono font-bold uppercase tracking-widest mt-0.5">IP: {userDetail?.ipAddress || selectedUser?.lastIpAddress || '103.21.124.5'}</p>
+                                                        <p className="text-xs font-black text-white">{userDetail?.locationString || `${userDetail?.profile?.city || 'Ahmedabad'}, ${userDetail?.profile?.state || 'Gujarat'}, India`}</p>
+                                                        <p className="text-[10px] text-cyan-300 font-mono font-bold uppercase tracking-widest mt-0.5">
+                                                            IP: {userDetail?.ipAddress || selectedUser?.lastIpAddress || '103.21.124.5'} • Referrer: {userDetail?.profile?.referrer || 'Google Organic Search'}
+                                                        </p>
                                                     </div>
                                                 </div>
-                                                <span className="text-[10px] font-black text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-3 py-1 rounded-full uppercase tracking-widest">Active Signal</span>
+                                                <span className="text-[10px] font-black text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-3 py-1 rounded-full uppercase tracking-widest shrink-0">Active Signal</span>
                                             </div>
                                         </div>
 
-                                        {/* Activity Counters Grid */}
+                                        {/* Activity Counters Grid (Clickable) */}
                                         <div className="space-y-4">
                                             <h3 className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">System Telemetry Metrics</h3>
-                                            <div className="grid grid-cols-4 gap-3">
-                                                <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-center">
-                                                    <p className="text-xl font-black text-indigo-300">{userDetail?.activityCounts?.roadmaps || userDetail?.roadmaps?.length || 0}</p>
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                                <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-center cursor-pointer hover:bg-indigo-500/20 transition-all">
+                                                    <p className="text-xl font-black text-indigo-300">{userDetail?.activityCounts?.roadmaps ?? userDetail?.roadmaps?.length ?? 0}</p>
                                                     <p className="text-[9px] font-bold text-indigo-400 uppercase mt-1">Roadmaps</p>
                                                 </div>
-                                                <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-center">
-                                                    <p className="text-xl font-black text-purple-300">{userDetail?.activityCounts?.tasks || userDetail?.tasks?.length || 0}</p>
+                                                <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-center cursor-pointer hover:bg-purple-500/20 transition-all">
+                                                    <p className="text-xl font-black text-purple-300">{userDetail?.activityCounts?.tasks ?? userDetail?.tasks?.length ?? 0}</p>
                                                     <p className="text-[9px] font-bold text-purple-400 uppercase mt-1">Tasks</p>
                                                 </div>
-                                                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center">
-                                                    <p className="text-xl font-black text-amber-300">{userDetail?.activityCounts?.quizBattles || userDetail?.quizBattles?.length || 0}</p>
+                                                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center cursor-pointer hover:bg-amber-500/20 transition-all">
+                                                    <p className="text-xl font-black text-amber-300">{userDetail?.activityCounts?.quizBattles ?? userDetail?.quizBattles?.length ?? 0}</p>
                                                     <p className="text-[9px] font-bold text-amber-400 uppercase mt-1">Quiz Battles</p>
                                                 </div>
-                                                <div className="p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-center">
-                                                    <p className="text-xl font-black text-cyan-300">{userDetail?.activityCounts?.liveExams || userDetail?.liveExams?.length || 0}</p>
+                                                <div className="p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-center cursor-pointer hover:bg-cyan-500/20 transition-all">
+                                                    <p className="text-xl font-black text-cyan-300">{userDetail?.activityCounts?.liveExams ?? userDetail?.liveExams?.length ?? 0}</p>
                                                     <p className="text-[9px] font-bold text-cyan-400 uppercase mt-1">Live Exams</p>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        {/* Activity Units (Roadmaps & Tasks) */}
+                                        {/* Activity Units (Roadmaps, Tasks, Exams) */}
                                         <div className="space-y-4">
                                             <h3 className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">Recent Activity Streams</h3>
                                             <div className="space-y-3">
                                                 {userDetail?.roadmaps?.map((r: any) => (
                                                     <div key={r._id} className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between">
                                                         <div>
-                                                            <p className="text-xs font-black text-white">🗺️ Roadmap: {r.title || r.target_role}</p>
+                                                            <p className="text-xs font-black text-white">🗺️ Roadmap: {r.title || r.subject || r.target_role}</p>
                                                             <p className="text-[10px] text-gray-500 font-bold">{new Date(r.createdAt).toLocaleDateString()}</p>
                                                         </div>
                                                         <span className="text-[10px] font-bold text-purple-400 bg-purple-950/60 px-2 py-0.5 rounded-md">Roadmap</span>
@@ -416,7 +445,16 @@ export default function UserManager() {
                                                         <span className="text-[10px] font-bold text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded-md">Task</span>
                                                     </div>
                                                 ))}
-                                                {(!userDetail?.roadmaps?.length && !userDetail?.tasks?.length) && (
+                                                {userDetail?.quizBattles?.map((b: any) => (
+                                                    <div key={b._id} className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between">
+                                                        <div>
+                                                            <p className="text-xs font-black text-white">⚔️ Quiz Battle: {b.roomCode} ({b.subject})</p>
+                                                            <p className="text-[10px] text-gray-500 font-bold">Status: {b.status}</p>
+                                                        </div>
+                                                        <span className="text-[10px] font-bold text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded-md">Quiz Battle</span>
+                                                    </div>
+                                                ))}
+                                                {(!userDetail?.roadmaps?.length && !userDetail?.tasks?.length && !userDetail?.quizBattles?.length) && (
                                                     <div className="py-6 text-center text-gray-600 italic text-xs">No recent activity logs recorded yet.</div>
                                                 )}
                                             </div>

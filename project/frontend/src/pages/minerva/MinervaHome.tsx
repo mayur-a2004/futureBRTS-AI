@@ -23,6 +23,7 @@ import { NeuralTooltip } from '../../components/ui/NeuralTooltip';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import MinervaWhiteboardCanvas from '../../components/chat/MinervaWhiteboardCanvas';
+import { parseMessageToSmartBoardSteps } from '../../utils/smartBoardUtils';
 
 mermaid.initialize({
   startOnLoad: false,
@@ -341,6 +342,15 @@ const MinervaHome: React.FC = () => {
     const [labPanelOpen, setLabPanelOpen] = useState(false);
     const [labDetached, setLabDetached] = useState(false);
     const [showWhiteboard, setShowWhiteboard] = useState(false);
+    const [whiteboardTitle, setWhiteboardTitle] = useState<string>('AI Touch Smart Board');
+    const [whiteboardSteps, setWhiteboardSteps] = useState<any[]>([]);
+
+    const handleOpenSmartBoardForContent = (content: string, titleStr: string = 'Maths / Science Solution') => {
+        const { title, steps } = parseMessageToSmartBoardSteps(content, titleStr);
+        setWhiteboardTitle(title);
+        setWhiteboardSteps(steps);
+        setShowWhiteboard(true);
+    };
 
 
     // Message Translations & Selection States
@@ -1322,9 +1332,20 @@ const MinervaHome: React.FC = () => {
                                     </div>
                                 )}
 
-                                {/* ── Translate + Voice action bar ── */}
+                                {/* ── Translate + Voice + Smart Board action bar ── */}
                                 {!isError && (
                                     <div className="flex items-center justify-between mt-4 pt-3 border-t border-white/5 gap-2 flex-wrap opacity-60 group-hover:opacity-100 transition-opacity duration-200">
+                                        
+                                        {/* Smart Board Sync Button */}
+                                        <button
+                                            onClick={() => handleOpenSmartBoardForContent(displayContent, 'Maths / Science Solution')}
+                                            title="Open solution in AI Touch Smart Board"
+                                            className="px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 font-bold text-[10px] flex items-center gap-1.5 transition-all active:scale-95 shadow-sm"
+                                        >
+                                            <Edit2 size={12} className="text-indigo-400" />
+                                            <span>🖊️ Open in Smart Board</span>
+                                        </button>
+
                                         {/* Translate dropdown */}
                                         <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
                                             <span>🗣️ Translate:</span>
@@ -1922,6 +1943,8 @@ const MinervaHome: React.FC = () => {
         <MinervaWhiteboardCanvas
             isOpen={showWhiteboard}
             onClose={() => setShowWhiteboard(false)}
+            initialTitle={whiteboardTitle}
+            solutionSteps={whiteboardSteps}
         />
         </div>
 

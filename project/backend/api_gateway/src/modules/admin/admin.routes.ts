@@ -82,5 +82,9 @@ router.get('/emergency-lockdown', adminController.getEmergencyLockdownStatus);
 router.post('/emergency-lockdown', adminController.toggleEmergencyLockdown);
 router.get('/live-telemetry', adminController.getLiveTrackingFeed);
 
+// 🔐 Admin Security 2FA OTP Credential Change Routes
+router.post('/request-credential-otp', adminController.requestAdminCredentialOtp);
+router.post('/update-credentials-otp', adminController.updateAdminCredentialsWithOtp);
+
 export default router;
 

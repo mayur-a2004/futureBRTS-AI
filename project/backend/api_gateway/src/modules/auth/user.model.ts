@@ -93,8 +93,8 @@ const UserSchema: Schema = new Schema({
     age: { type: Number },
     grade: { type: Number, default: 10 },          // Class 6-12
     schoolName: { type: String, default: '' },      // "DPS Gandhinagar"
-    city: { type: String, default: '' },            // "Gandhinagar"
     provider: { type: String, enum: ['local', 'google', 'github'], default: 'local' },
+    auth_source: { type: String, default: 'Direct Email Registration' },
     parentDetails: {
         parentEmail: { type: String, lowercase: true, default: "" },
         parentPhone: { type: String, default: "" },

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Globe,
     BarChart3,
@@ -13,14 +13,44 @@ import { toast } from 'react-toastify';
 export default function GoogleServices() {
     const [isLoading, setIsLoading] = useState(false);
     const [configs, setConfigs] = useState({
-        ga_id: "G-XXXXXXXXXX",
-        gsc_id: "sc-domain:futurebrts.com",
+        ga_id: "",
+        gsc_id: "",
         maps_api_key: "",
-        adsense_client_id: "pub-xxxxxxxxxxxxxxxx",
-        tag_manager_id: "GTM-XXXXXXX",
-        facebook_pixel_id: "XXXXXXXXXXXXXXXX",
-        google_ads_id: "AW-XXXXXXXXX"
+        adsense_client_id: "",
+        tag_manager_id: "",
+        facebook_pixel_id: "",
+        google_ads_id: ""
     });
+
+    useEffect(() => {
+        fetchSavedSettings();
+    }, []);
+
+    const fetchSavedSettings = async () => {
+        try {
+            const token = localStorage.getItem('fbrts_token');
+            const res = await fetch('/api/admin/settings', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (data.success && Array.isArray(data.settings)) {
+                const map: Record<string, string> = {};
+                data.settings.forEach((s: any) => { map[s.key] = s.value; });
+
+                setConfigs({
+                    ga_id: map['GOOGLE_ANALYTICS_ID'] || map['SEO_GOOGLE_ANALYTICS_ID'] || "",
+                    gsc_id: map['GOOGLE_SEARCH_CONSOLE_ID'] || map['SEO_GOOGLE_SITE_VERIFICATION'] || "",
+                    maps_api_key: map['GOOGLE_MAPS_API_KEY'] || "",
+                    adsense_client_id: map['GOOGLE_ADSENSE_CLIENT_ID'] || map['SEO_GOOGLE_ADSENSE_ID'] || "",
+                    tag_manager_id: map['GOOGLE_TAG_MANAGER_ID'] || "",
+                    facebook_pixel_id: map['FACEBOOK_PIXEL_ID'] || map['SEO_META_PIXEL_ID'] || "",
+                    google_ads_id: map['GOOGLE_ADS_ID'] || ""
+                });
+            }
+        } catch (err) {
+            console.error("Failed to load Google Services settings:", err);
+        }
+    };
 
     const handleSave = async () => {
         setIsLoading(true);

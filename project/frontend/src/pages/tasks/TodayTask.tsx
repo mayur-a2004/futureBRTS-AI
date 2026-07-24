@@ -99,7 +99,7 @@ export default function TodayTask() {
             const statusRes = await fetch('/api/onboarding/status', { headers: { 'Authorization': `Bearer ${token}` } });
             const statusData = await statusRes.json();
 
-            const isCompleted = statusData.success && statusData.profile && statusData.profile.onboardingCompleted;
+            const isCompleted = (statusData.success && statusData.profile && (statusData.profile.onboardingCompleted || statusData.profile.onboarding_done)) || !!localStorage.getItem('fbrts_onboarding_backup');
             setOnboardingStatus(isCompleted ? 'COMPLETE' : 'INCOMPLETE');
 
             if (!isCompleted) {

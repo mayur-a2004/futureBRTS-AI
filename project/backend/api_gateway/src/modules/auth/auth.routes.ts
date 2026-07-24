@@ -26,4 +26,8 @@ router.get('/google/callback', authController.socialCallback);
 router.get('/github', authController.githubRedirect);
 router.get('/github/callback', authController.socialCallback);
 
+// 🔐 Admin Account Security 2FA OTP Routes
+router.post('/admin/request-credential-otp', authController.requestAdminCredentialOtp);
+router.post('/admin/update-credentials-otp', authController.updateAdminCredentialsWithOtp);
+
 export default router;

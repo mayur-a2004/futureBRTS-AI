@@ -148,9 +148,9 @@ export default function WelcomeTour({ onClose }: WelcomeTourProps) {
     if (!targetRect || activeStep.position === "center") {
       return {
         position: "fixed",
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
+        bottom: "24px",
+        right: "24px",
+        maxWidth: "420px",
         zIndex: 9999
       };
     }

@@ -1139,16 +1139,16 @@ export const generateRoadmap = async (
     const messages = [
         {
             role: 'system',
-            content: `You are an expert Indian education curriculum designer.
-Create a detailed topic roadmap for the given subject/topic.
-Board: ${boardLabel}, Grade: ${gradeLabel}, Medium: ${medium}, Target Language: ${language}
+            content: `You are an expert Indian education curriculum designer and senior engineering professor.
+Create a detailed, high-rigor topic roadmap for the given subject/topic.
+Board/University: ${boardLabel}, Grade/Degree: ${gradeLabel}, Medium: ${medium}, Target Language: ${language}
 
 Return ONLY valid JSON:
 {
     "title": "Session title",
     "subject": "subject name",
     "estimated_hours": number,
-    "board_pattern": "brief note about this board's exam pattern",
+    "board_pattern": "brief note about exam and curriculum pattern",
     "nodes": [
         {
             "order_index": 1,
@@ -1157,13 +1157,25 @@ Return ONLY valid JSON:
             "topic": "Main topic",
             "subtopic": "Specific subtopic",
             "priority": "HIGH" | "MEDIUM" | "LOW",
-            "priority_reason": "Why this is important for exam",
-            "board_relevance": "How this topic appears in board exams",
+            "priority_reason": "Why this is important for exam and practical mastery",
+            "board_relevance": "How this topic appears in board/university exams",
             "exam_weightage_percent": 0-100,
             "difficulty": "basic" | "intermediate" | "advanced",
             "estimated_time_minutes": number,
-            "key_points": ["point1", "point2", "point3"],
-            "key_formulas": ["formula1", "formula2"]
+            "explanation_simple": "Clear conceptual summary for quick understanding",
+            "explanation_detailed": "Deep, authoritative, comprehensive textbook/university-level theory with mathematical proofs, derivations, syntax rules, step-by-step logic, edge cases, and board 5-mark blueprint question",
+            "real_world_example": "Real-world engineering / industry application example with working code snippet or real life case study",
+            "practical_setup_guide": "Complete step-by-step practical setup guide including IDE setup (VS Code, Eclipse, Jupyter), SDK/compiler installation, and setup instructions",
+            "official_download_links": [
+                { "name": "VS Code Official Download", "url": "https://code.visualstudio.com/", "category": "IDE" },
+                { "name": "Official Compiler / Language Download", "url": "https://www.python.org/downloads/", "category": "Compiler / SDK" }
+            ],
+            "terminal_commands": [
+                "pip install numpy pandas matplotlib",
+                "npm install express cors"
+            ],
+            "key_points": ["Key Concept 1", "Key Concept 2", "Key Concept 3"],
+            "key_formulas": ["Formula / Syntax 1", "Formula / Syntax 2"]
         }
     ]
 }
@@ -1174,10 +1186,9 @@ RULES:
 - LOW = good to know (10%)
 - First node should always be UNLOCKED, rest LOCKED initially
 - Order from fundamental to advanced
-- For government exams (UPSC/SSC/JEE/NEET), follow their exact syllabus pattern
-- For state boards, follow that state's specific curriculum
 - Include 5-15 nodes depending on topic depth
-- IMPORTANT: Generate ALL text fields in the JSON (including title, board_pattern, chapter, topic, subtopic, priority_reason, board_relevance, key_points, key_formulas) in the target language: ${language}. If target language is Hinglish, write them in natural Romanized Hindi.`
+- IMPORTANT: Include actual official software download links (e.g. VS Code, Python, Node.js, Git, Java JDK, MySQL, PyTorch, GCC/G++) and terminal commands if the topic involves programming or tools.
+- IMPORTANT: Generate ALL text fields in the JSON in the target language: ${language}. If target language is Hinglish, write them in natural Romanized Hindi.`
         },
         {
             role: 'user',

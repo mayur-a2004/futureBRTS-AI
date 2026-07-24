@@ -174,6 +174,103 @@ export default function IntelligenceDashboard() {
                 </div>
             </div>
 
+            {/* ⚔️ 360-Degree Market Strategy & Competitor Threat Radar */}
+            <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                            <span className="text-[10px] font-black text-rose-400 uppercase tracking-widest">360° Competitor Defense &amp; Threat Intelligence</span>
+                        </div>
+                        <h2 className="text-2xl font-black text-white tracking-tight">Market Strategy &amp; Competitor War Room</h2>
+                    </div>
+                    <span className="text-xs font-black text-indigo-400 bg-indigo-950/80 px-4 py-1.5 rounded-full border border-indigo-500/30 uppercase tracking-widest">Active Moat Matrix</span>
+                </div>
+
+                {/* Competitor Moat Comparison Table */}
+                <div className="p-6 rounded-[32px] bg-white/[0.02] border border-white/5 space-y-6">
+                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                        <Target size={16} className="text-indigo-400" /> Platform Moat vs Major Competitors
+                    </h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {/* PhysicsWallah */}
+                        <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-3 hover:border-indigo-500/30 transition-all">
+                            <div className="flex justify-between items-start">
+                                <h4 className="text-white font-bold text-sm">PhysicsWallah / Byju's</h4>
+                                <span className="text-[9px] font-black text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">TRADITIONAL LECTURES</span>
+                            </div>
+                            <p className="text-[11px] text-gray-400">1-Way Pre-recorded Video Batch Courses</p>
+                            <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-[11px] text-indigo-300 font-medium">
+                                🚀 <strong className="text-white font-bold">Future BRTS Moat:</strong> Minerva AI 3D Anatomy/Chemistry Labs + Auto-Handwritten Smart Whiteboard.
+                            </div>
+                        </div>
+
+                        {/* Khan Academy */}
+                        <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-3 hover:border-purple-500/30 transition-all">
+                            <div className="flex justify-between items-start">
+                                <h4 className="text-white font-bold text-sm">Khan Academy</h4>
+                                <span className="text-[9px] font-black text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">STATIC EXERCISES</span>
+                            </div>
+                            <p className="text-[11px] text-gray-400">Generic Video Explanations &amp; Static Quizzes</p>
+                            <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-[11px] text-purple-300 font-medium">
+                                🚀 <strong className="text-white font-bold">Future BRTS Moat:</strong> 34+ State Boards Dynamic Exam Blueprints + Adaptive Daily Task System.
+                            </div>
+                        </div>
+
+                        {/* Replit / Coursera */}
+                        <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-3 hover:border-emerald-500/30 transition-all">
+                            <div className="flex justify-between items-start">
+                                <h4 className="text-white font-bold text-sm">Replit / Coursera</h4>
+                                <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">STANDARD IDE</span>
+                            </div>
+                            <p className="text-[11px] text-gray-400">Basic Online Text Code Editor</p>
+                            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-300 font-medium">
+                                🚀 <strong className="text-white font-bold">Future BRTS Moat:</strong> Full-Stack Natural Language E-Builder with Live Web Renders.
+                            </div>
+                        </div>
+
+                        {/* Duolingo / Unacademy */}
+                        <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-3 hover:border-rose-500/30 transition-all">
+                            <div className="flex justify-between items-start">
+                                <h4 className="text-white font-bold text-sm">Duolingo / Unacademy</h4>
+                                <span className="text-[9px] font-black text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">GAMIFIED FLASHCARDS</span>
+                            </div>
+                            <p className="text-[11px] text-gray-400">Solo MCQ Practice Drills</p>
+                            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-[11px] text-rose-300 font-medium">
+                                🚀 <strong className="text-white font-bold">Future BRTS Moat:</strong> 1v1 Real-Time Multiplayer Quiz Battles &amp; Parent Supervision Link.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 🛡️ Strategic AI Defense & Counter-Marketing Playbook */}
+                <div className="p-6 rounded-[32px] bg-gradient-to-br from-indigo-500/10 via-black to-purple-500/10 border border-indigo-500/30 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <Brain size={20} className="text-indigo-400" />
+                            <h3 className="text-sm font-black text-white uppercase tracking-widest">AI Counter-Marketing &amp; Growth Strategy</h3>
+                        </div>
+                        <span className="text-[10px] font-black text-emerald-400 bg-emerald-950/80 px-3 py-1 rounded-full border border-emerald-500/30 uppercase tracking-widest">Market Dominance Mode</span>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-medium text-gray-300">
+                        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1">
+                            <div className="text-indigo-400 font-black uppercase text-[10px]">Strategy 1: SEO Keyword Dominance</div>
+                            <p>Target search terms like <strong className="text-white">"AI Study Generator Gujarat Board"</strong> and <strong className="text-white">"CBSE Class 10 Interactive Blueprint"</strong> to outrank traditional video platforms.</p>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1">
+                            <div className="text-purple-400 font-black uppercase text-[10px]">Strategy 2: Freemium Moat Acquisition</div>
+                            <p>Offer free 3D Labs &amp; Smart Whiteboard access to students to build immediate platform lock-in before upselling Premium Live Exams.</p>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1">
+                            <div className="text-emerald-400 font-black uppercase text-[10px]">Strategy 3: Parent Trust &amp; WhatsApp Reports</div>
+                            <p>Auto-generate weekly WhatsApp progress summaries for parents to build word-of-mouth trust and zero churn.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {/* 🛡️ War Room Oversight */}
             <div className="space-y-6">
                 <div className="flex items-center justify-between">

@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom"
-import { LayoutDashboard, Zap, LogOut, Clock, Menu, X, MessageSquare, Map, CheckSquare, Edit2, Check, MoreHorizontal, Trash2, Share2, Pin, Archive, FolderInput, Sparkles, PanelLeftClose, PanelLeftOpen, Settings, User, ChevronRight, Briefcase, ShieldCheck, FileText, GraduationCap, Award, Swords } from "lucide-react"
+import { LayoutDashboard, Zap, LogOut, Clock, Menu, MessageSquare, Map, CheckSquare, Edit2, Check, MoreHorizontal, Trash2, Share2, Pin, Archive, FolderInput, Sparkles, PanelLeftClose, PanelLeftOpen, Settings, User, ChevronRight, ShieldCheck, FileText, GraduationCap, Award, Swords } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { useState, useEffect, useRef } from "react";
 import TokenWall from "@/components/economy/TokenWall";
@@ -458,11 +458,7 @@ export default function Layout() {
     ] : [
         { name: "Dashboard", path: "/dashboard", icon: <LayoutDashboard size={20} /> },
         { name: "Future Education OS", path: "/future-education", icon: <GraduationCap size={20} /> },
-        { name: "Roadmap", path: "/roadmap", icon: <Map size={20} /> },
-        { name: "Today Task", path: "/today-task", icon: <CheckSquare size={20} /> },
         { name: "Builder", path: "/builder", icon: <Zap size={20} /> },
-        { name: "Exam Generator", path: "/exam-generator", icon: <FileText size={20} /> },
-        { name: "Business War Room", path: "/war-room", icon: <Briefcase size={20} /> },
     ];
 
     if (!isFutureEd && user?.role === 'admin') {
@@ -522,41 +518,46 @@ export default function Layout() {
                             </div>
 
                             {!isSidebarCollapsed && (
-                                <>
-                                    <h1 className="text-xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 leading-none whitespace-nowrap">{isFutureEd ? "Future Ed OS" : "FutureBRTS"}</h1>
-                                    <button
-                                        onClick={toggleSidebar}
-                                        className="ml-auto p-2 text-gray-500 hover:text-white hover:bg-white/5 rounded-lg transition-all"
-                                        title="Close sidebar"
-                                    >
-                                        <PanelLeftClose size={18} />
-                                    </button>
-                                </>
-                            )}
-
-                            {/* ChatGPT style "Open sidebar" float-label */}
-                            {isSidebarCollapsed && (
-                                <div className="absolute left-14 opacity-0 group-hover/header-actions:opacity-100 pointer-events-none transition-all translate-x-1 group-hover/header-actions:translate-x-0 whitespace-nowrap">
-                                    <div className="bg-black border border-white/10 px-3 py-1.5 rounded-lg shadow-2xl">
-                                        <span className="text-[11px] font-bold text-white tracking-tight uppercase">Open sidebar</span>
-                                    </div>
+                                <div className="flex flex-col min-w-0">
+                                    <h1 className="font-black text-sm tracking-wider uppercase bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent truncate">
+                                        {isFutureEd ? "Future Ed OS" : "FutureBRTS"}
+                                    </h1>
+                                    <span className="text-[10px] text-gray-500 font-bold tracking-widest uppercase">
+                                        {isFutureEd ? "AI Student OS" : "AI Ecosystem"}
+                                    </span>
                                 </div>
                             )}
+
+                            {!isSidebarCollapsed && (
+                                <button
+                                    onClick={toggleSidebar}
+                                    className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-colors hidden md:flex items-center justify-center"
+                                    title="Collapse Sidebar"
+                                >
+                                    <PanelLeftClose size={16} />
+                                </button>
+                            )}
                         </div>
-                        <button onClick={closeMobileMenu} className="md:hidden p-2 text-gray-500"><X size={20} /></button>
                     </div>
                 </div>
 
-                <div className="flex-1 px-3 py-4 space-y-6 overflow-y-auto scrollbar-hide">
-                    {/* Gamification RPG Progression Profile Card */}
+                <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6 scrollbar-none">
+
+                    {/* Future Education OS Profile Header */}
                     {isFutureEd && !isSidebarCollapsed && (
-                        <div className="px-3 animate-in fade-in duration-300">
-                            <div className="bg-gradient-to-br from-[#0c0a21] via-[#050410] to-black border border-indigo-500/30 rounded-2xl p-3.5 shadow-lg relative overflow-hidden">
-                                <div className="absolute top-0 right-0 w-16 h-16 bg-indigo-500/5 rounded-full blur-xl pointer-events-none" />
-                                <div className="flex items-center justify-between text-[11px] font-bold text-gray-200">
-                                    <span className="flex items-center gap-1"><span className="text-[10px] text-indigo-400">Lv.</span> {level} Scholar</span>
-                                    <span className="text-amber-400 flex items-center gap-1">🪙 {gold} Gold</span>
+                        <div className="px-3 py-3 bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-transparent border border-indigo-500/20 rounded-2xl space-y-2 mb-2 animate-in fade-in duration-300">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-7 h-7 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-xs">
+                                        Lv.{level}
+                                    </div>
+                                    <div>
+                                        <div className="text-xs font-bold text-white leading-tight">Student Level {level}</div>
+                                        <div className="text-[10px] text-indigo-400 font-bold">{gold} 🪙 Gold Credits</div>
+                                    </div>
                                 </div>
+                            </div>
+                            <div>
                                 <div className="h-1.5 w-full bg-white/10 rounded-full mt-2 overflow-hidden border border-white/5">
                                     <div className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full" style={{ width: `${levelProgressPercent}%` }} />
                                 </div>
@@ -565,26 +566,6 @@ export default function Layout() {
                                     <span>{Math.round(levelProgressPercent)}% to Lv. {level + 1}</span>
                                 </div>
                             </div>
-                        </div>
-                    )}
-
-                    {/* Stats Widget for Future Education OS */}
-                    {isFutureEd && !isSidebarCollapsed && futureEdStats && (
-                        <div className="grid grid-cols-2 gap-2 mb-6 animate-in fade-in duration-300 px-3">
-                            {[
-                                { label: 'Active Streak', value: `${futureEdStats.streak_days} Days`, icon: '🔥', color: 'from-orange-500/10 via-red-500/5 to-transparent border-orange-500/20 text-orange-400' },
-                                { label: 'Chapters Done', value: `${futureEdStats.completed_topics}/${futureEdStats.total_topics}`, icon: '📚', color: 'from-indigo-500/10 via-purple-500/5 to-transparent border-indigo-500/20 text-indigo-400' },
-                                { label: 'Exams Taken', value: futureEdStats.total_exams_taken, icon: '🏆', color: 'from-emerald-500/10 via-teal-500/5 to-transparent border-emerald-500/20 text-emerald-400' },
-                                { label: 'Study Minutes', value: `${futureEdStats.total_study_minutes} Min`, icon: '⏱️', color: 'from-pink-500/10 via-rose-500/5 to-transparent border-pink-500/20 text-pink-400' },
-                            ].map((s, i) => (
-                                <div key={i} className={`bg-gradient-to-br ${s.color} border border-white/5 rounded-2xl p-2.5 flex flex-col justify-between shadow-lg backdrop-blur-sm transition-all hover:scale-[1.02]`}>
-                                    <div className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">{s.label}</div>
-                                    <div className="text-xs font-black mt-1 flex items-center justify-between">
-                                        <span>{s.value}</span>
-                                        <span>{s.icon}</span>
-                                    </div>
-                                </div>
-                            ))}
                         </div>
                     )}
 
@@ -626,6 +607,27 @@ export default function Layout() {
                         </button>
                     </div>
 
+                    {/* 🎓 Student Interactive Training Card */}
+                    {!isSidebarCollapsed && (
+                        <div className="mt-4 px-3 py-3 rounded-2xl bg-gradient-to-br from-indigo-900/40 via-purple-900/20 to-black border border-indigo-500/30 space-y-2 shadow-xl animate-in fade-in duration-300">
+                            <div className="flex items-center gap-2">
+                                <span className="text-base">🎓</span>
+                                <span className="text-xs font-black text-white uppercase tracking-wider">Student Training Guide</span>
+                            </div>
+                            <p className="text-[10px] text-gray-400 font-medium leading-relaxed">
+                                Learn how Future BRTS AI, Future Education OS & Builder IDE work in 3 easy steps.
+                            </p>
+                            <button
+                                onClick={() => {
+                                    window.open('/future-education', '_self');
+                                }}
+                                className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center justify-center gap-1"
+                            >
+                                <Sparkles size={12} /> Explore Training & OS
+                            </button>
+                        </div>
+                    )}
+                    
                     <div className="space-y-1">
                         {!isSidebarCollapsed && (
                             <div className="px-3 pb-1 text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center justify-between">

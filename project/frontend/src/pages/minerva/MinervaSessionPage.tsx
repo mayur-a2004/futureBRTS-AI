@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { minervaApi } from '../../api/minerva.api';
 import { ChevronLeft, CheckSquare, Award, Clock, ArrowRight, Lock, Youtube, MessageSquare, Zap } from 'lucide-react';
+import MinervaTopicIndexer from '../../components/minerva/MinervaTopicIndexer';
 
 const MinervaSessionPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -152,9 +153,31 @@ const MinervaSessionPage: React.FC = () => {
                 </div>
             </header>
 
-            <div className="max-w-4xl mx-auto px-6 py-8 relative z-10">
+            <div className="max-w-4xl mx-auto px-6 py-8 relative z-10 space-y-8">
+                {/* Hierarchical Sub-Topic Indexer Accordion */}
+                <MinervaTopicIndexer
+                    unitTitle={`${session.board ? session.board.toUpperCase() : 'CBSE'} • ${session.grade_level ? session.grade_level.toUpperCase() : 'CLASS 10'}`}
+                    chapterTitle={session.title || 'Official Board Curriculum'}
+                    nodes={sortedNodes.map((n, i) => ({
+                        id: n._id,
+                        indexCode: n.index_code || `1.${i + 1}`,
+                        title: n.title,
+                        chapterTitle: n.chapter || 'Chapter Unit',
+                        status: n.status === 'DONE' ? 'DONE' : (n.status === 'LOCKED' ? 'LOCKED' : 'IN_PROGRESS'),
+                        weightageMarks: n.weightage_marks || (i % 2 === 0 ? 5 : 3),
+                        isBoardHighPriority: n.is_board_high_priority || i % 2 === 0,
+                        lastScore: n.last_score
+                    }))}
+                    onSelectNode={(nodeId) => {
+                        const targetNode = nodes.find(n => n._id === nodeId);
+                        if (targetNode && targetNode.status !== 'LOCKED') {
+                            handleLearnNode(targetNode);
+                        }
+                    }}
+                />
+
                 {/* Stats Dashboard */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {[
                         { label: 'Total Topics', value: nodes.length, color: 'text-indigo-400', icon: '📚' },
                         { label: 'Completed', value: doneCount, color: 'text-emerald-400', icon: '✅' },

@@ -89,6 +89,49 @@ const resolveYoutubeVideoId = async (searchQuery: string, excludeIds: Set<string
     return null;
 };
 
+const ensureYoutubeLinks = async (node: any): Promise<any[]> => {
+    let links = (node as any)?.youtube_links || [];
+    if (links.length >= 3) return links;
+
+    const topicTitle = node?.title || 'Topic Explanation';
+    const subject = node?.topic || 'Subject';
+    const usedVideoIds = new Set<string>();
+
+    for (const l of links) {
+        if (l.url) {
+            const m = l.url.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/);
+            if (m && m[1]) usedVideoIds.add(m[1]);
+        }
+    }
+
+    const fallbackConfigs = [
+        { title: `${topicTitle} Full Concept Explanation (Hindi)`, lang: 'hindi', query: `${topicTitle} ${subject} explanation in hindi` },
+        { title: `${topicTitle} Complete Tutorial & Examples (English)`, lang: 'english', query: `${topicTitle} ${subject} detailed tutorial english` },
+        { title: `${topicTitle} One Shot Masterclass (Hinglish)`, lang: 'hinglish', query: `${topicTitle} ${subject} one shot explanation hinglish` },
+    ];
+
+    for (const cfg of fallbackConfigs) {
+        if (links.length >= 3) break;
+        const resolvedId = await resolveYoutubeVideoId(cfg.query, usedVideoIds);
+        if (resolvedId) usedVideoIds.add(resolvedId);
+
+        links.push({
+            title: cfg.title,
+            url: resolvedId
+                ? `https://www.youtube.com/watch?v=${resolvedId}`
+                : `https://www.youtube.com/results?search_query=${encodeURIComponent(cfg.query)}`,
+            channel: 'YouTube Educator',
+            lang: cfg.lang
+        });
+    }
+
+    if (node._id) {
+        await MinervaKnowledgeNode.findByIdAndUpdate(node._id, { youtube_links: links }).catch(() => {});
+    }
+
+    return links;
+};
+
 // ─────────────────────────────────────────────────────────────────
 // HELPER: get or create student profile
 // ─────────────────────────────────────────────────────────────────
@@ -673,6 +716,15 @@ export const minervaController = {
                             exam_weightage_percent: n.exam_weightage_percent || 0,
                             status: i === 0 ? 'UNLOCKED' : 'LOCKED',
                             order_index: n.order_index || i + 1,
+                            index_code: n.index_code || `1.${i + 1}`,
+                            weightage_marks: n.weightage_marks || (n.priority === 'HIGH' ? 5 : 3),
+                            is_board_high_priority: n.priority === 'HIGH',
+                            explanation_simple: n.explanation_simple || '',
+                            explanation_detailed: n.explanation_detailed || '',
+                            real_world_example: n.real_world_example || '',
+                            practical_setup_guide: n.practical_setup_guide || '',
+                            official_download_links: n.official_download_links || [],
+                            terminal_commands: n.terminal_commands || [],
                             key_points: n.key_points || [],
                             key_formulas: n.key_formulas || [],
                             estimated_time_minutes: n.estimated_time_minutes || 20,
@@ -985,7 +1037,7 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                         success: true,
                         node: freshNode,
                         tasks,
-                        youtube_links: (freshNode as any).youtube_links || []
+                        youtube_links: await ensureYoutubeLinks(freshNode)
                     });
                 }
             }
@@ -1060,7 +1112,7 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                         success: true,
                         node: updatedNode,
                         tasks: freshTasks,
-                        youtube_links: (node as any).youtube_links || []
+                        youtube_links: await ensureYoutubeLinks(updatedNode)
                     });
                 }
 
@@ -1080,7 +1132,7 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                     success: true, 
                     node, 
                     tasks,
-                    youtube_links: (node as any).youtube_links || []
+                    youtube_links: await ensureYoutubeLinks(node)
                 });
             }
 
