@@ -13,6 +13,7 @@ import MinervaChatMessage from './models/minerva_chat_message.model';
 import MinervaChatSession from './models/minerva_chat_session.model';
 import MinervaBuilderMaterial from './models/minerva_builder_material.model';
 import MinervaStudyTimeLog from './models/minerva_study_time_log.model';
+import MinervaSmartBoardSession from './models/minerva_smartboard_session.model';
 import {
     detectStudentIntent,
     getMinervaChat,
@@ -3408,6 +3409,41 @@ Guidelines:
             const exam = await MinervaExam.findOneAndDelete({ _id: id, userId });
             if (!exam) return res.status(404).json({ success: false, error: 'Exam not found' });
             return res.json({ success: true, message: 'Exam deleted successfully' });
+        } catch (err: any) {
+            return res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    saveSmartBoardSession: async (req: any, res: Response) => {
+        try {
+            const userId = req.user?.id || req.user?._id;
+            const { title, subject, steps, customStrokes, studentNotes } = req.body;
+
+            if (!title || !steps) {
+                return res.status(400).json({ success: false, error: 'Title and steps are required' });
+            }
+
+            const session = new MinervaSmartBoardSession({
+                userId,
+                title,
+                subject: subject || 'General',
+                steps,
+                customStrokes: customStrokes || '',
+                studentNotes: studentNotes || ''
+            });
+
+            await session.save();
+            return res.json({ success: true, message: 'Smart Board session saved to MongoDB successfully', session });
+        } catch (err: any) {
+            return res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    getSmartBoardSessions: async (req: any, res: Response) => {
+        try {
+            const userId = req.user?.id || req.user?._id;
+            const sessions = await MinervaSmartBoardSession.find({ userId }).sort({ createdAt: -1 }).limit(30);
+            return res.json({ success: true, sessions });
         } catch (err: any) {
             return res.status(500).json({ success: false, error: err.message });
         }

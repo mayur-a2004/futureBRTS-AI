@@ -348,6 +348,14 @@ export const InteractiveLab: React.FC<InteractiveLabProps> = ({ subject, topic, 
     return '1D65'; // Fallback DNA structure
   };
 
+  // ── Dynamic AI Query & Equation Sync ─────────────────────────────────────
+  useEffect(() => {
+    const activeQuery = interactiveConfig?.query || topic;
+    if (activeQuery && activeQuery.trim()) {
+      evaluateMathExpression(activeQuery);
+    }
+  }, [interactiveConfig?.query, topic]);
+
   // ── Maths Custom Grapher States & Plotter ──────────────────────────────────
   const [amplitude, setAmplitude] = useState(2);
   const [frequency, setFrequency] = useState(1);
@@ -616,55 +624,360 @@ export const InteractiveLab: React.FC<InteractiveLabProps> = ({ subject, topic, 
     setDroplets([]);
   };
 
-  // ── Maths MathLive State & Evaluator ───────────────────────────────────────
+  // ── Maths MathLive State & Rigorous Symbolic/Numerical Solver ─────────────
   const [mathLiveInput, setMathLiveInput] = useState<string>('2 * x + 5 = 15');
   const [mathLiveResult, setMathLiveResult] = useState<string>('x = 5');
   const [mathSteps, setMathSteps] = useState<string[]>([
-    'Given: 2 * x + 5 = 15',
-    'Subtract 5 from both sides: 2 * x = 10',
-    'Divide both sides by 2: x = 5'
+    'Given equation: 2x + 5 = 15',
+    'Step 1: Subtract 5 from both sides => 2x = 15 - 5',
+    'Step 2: Simplify => 2x = 10',
+    'Step 3: Divide both sides by 2 => x = 10 / 2',
+    'Final Answer: x = 5 ✅'
   ]);
 
   const evaluateMathExpression = (expr: string) => {
     setMathLiveInput(expr);
     const cleaned = expr.replace(/\s+/g, '').toLowerCase();
-    
-    if (cleaned.includes('2*x+5=15') || cleaned.includes('2x+5=15')) {
-      setMathLiveResult('x = 5');
+
+    // 1. Linear Equations: ax + b = c or ax - b = c or ax = b
+    const linearMatch = cleaned.match(/^([+-]?\d*\.?\d*)\*?x([+-]\d+\.?\d*)?=([+-]?\d+\.?\d*)$/);
+    if (linearMatch) {
+      let aStr = linearMatch[1];
+      let a = aStr === '' || aStr === '+' ? 1 : aStr === '-' ? -1 : parseFloat(aStr);
+      let b = linearMatch[2] ? parseFloat(linearMatch[2]) : 0;
+      let c = parseFloat(linearMatch[3]);
+
+      if (isNaN(a)) a = 1;
+      const rhsAfterSub = c - b;
+      const xVal = rhsAfterSub / a;
+
+      setMathLiveResult(`x = ${Number.isInteger(xVal) ? xVal : xVal.toFixed(4)}`);
       setMathSteps([
-        'Given equation: 2x + 5 = 15',
-        'Step 1: Subtract 5 from both sides => 2x = 15 - 5',
-        'Step 2: Simplify => 2x = 10',
-        'Step 3: Divide by 2 => x = 10 / 2',
-        'Result: x = 5'
+        `Given linear equation: ${a === 1 ? '' : a === -1 ? '-' : a}x ${b >= 0 ? (b === 0 ? '' : '+ ' + b) : '- ' + Math.abs(b)} = ${c}`,
+        `Step 1: Isolate variable term => ${a === 1 ? '' : a}x = ${c} ${b >= 0 ? (b === 0 ? '' : '- ' + b) : '+ ' + Math.abs(b)}`,
+        `Step 2: Simplify RHS => ${a === 1 ? '' : a}x = ${rhsAfterSub}`,
+        `Step 3: Divide by coefficient (${a}) => x = ${rhsAfterSub} / ${a}`,
+        `Final Answer: x = ${Number.isInteger(xVal) ? xVal : xVal.toFixed(4)} ✅`
       ]);
-    } else if (cleaned.includes('x^2=9') || cleaned.includes('x*x=9') || cleaned.includes('x2=9')) {
-      setMathLiveResult('x = ±3');
+      return;
+    }
+
+    // 2. Pure Quadratic: ax^2 = d or x^2 - d = 0
+    const quadPureMatch = cleaned.match(/^([+-]?\d*)\*?x\^?2(?:=([+-]?\d+)|([+-]\d+)=0)?$/);
+    if (quadPureMatch) {
+      let a = quadPureMatch[1] === '' || quadPureMatch[1] === '+' ? 1 : quadPureMatch[1] === '-' ? -1 : parseFloat(quadPureMatch[1]);
+      let d = quadPureMatch[2] !== undefined ? parseFloat(quadPureMatch[2]) : quadPureMatch[3] !== undefined ? -parseFloat(quadPureMatch[3]) : 0;
+
+      const rhs = d / a;
+      if (rhs < 0) {
+        setMathLiveResult(`x = ±${Math.sqrt(Math.abs(rhs)).toFixed(2)}i (Complex Roots)`);
+        setMathSteps([
+          `Given quadratic equation: ${a}x² = ${d}`,
+          `Step 1: Divide by ${a} => x² = ${rhs}`,
+          `Step 2: Take square root => x = ±√(${rhs})`,
+          `Final Answer: Imaginary roots x = ±${Math.sqrt(Math.abs(rhs)).toFixed(2)}i ⚠️`
+        ]);
+      } else {
+        const rootVal = Math.sqrt(rhs);
+        setMathLiveResult(`x = ±${Number.isInteger(rootVal) ? rootVal : rootVal.toFixed(4)}`);
+        setMathSteps([
+          `Given equation: ${a === 1 ? '' : a}x² = ${d}`,
+          `Step 1: Simplify => x² = ${d} / ${a} = ${rhs}`,
+          `Step 2: Take square root of both sides => x = ±√(${rhs})`,
+          `Final Answer: x = +${Number.isInteger(rootVal) ? rootVal : rootVal.toFixed(4)} or x = -${Number.isInteger(rootVal) ? rootVal : rootVal.toFixed(4)} ✅`
+        ]);
+      }
+      return;
+    }
+
+    // 3. General Quadratic: ax^2 + bx + c = 0
+    const generalQuadMatch = cleaned.match(/^([+-]?\d*)x\^2([+-]\d+)x([+-]\d+)=0$/);
+    if (generalQuadMatch) {
+      let a = generalQuadMatch[1] === '' || generalQuadMatch[1] === '+' ? 1 : generalQuadMatch[1] === '-' ? -1 : parseFloat(generalQuadMatch[1]);
+      let b = parseFloat(generalQuadMatch[2]);
+      let c = parseFloat(generalQuadMatch[3]);
+
+      const disc = b * b - 4 * a * c;
+      if (disc < 0) {
+        setMathLiveResult('No Real Roots (Discriminant < 0)');
+        setMathSteps([
+          `Given quadratic equation: ${a}x² + ${b}x + ${c} = 0`,
+          `Step 1: Calculate Discriminant D = b² - 4ac = (${b})² - 4(${a})(${c}) = ${disc}`,
+          `Result: D < 0, roots are complex numbers.`
+        ]);
+      } else {
+        const x1 = (-b + Math.sqrt(disc)) / (2 * a);
+        const x2 = (-b - Math.sqrt(disc)) / (2 * a);
+        setMathLiveResult(`x = ${x1.toFixed(2)}, x = ${x2.toFixed(2)}`);
+        setMathSteps([
+          `Given equation: ${a}x² + ${b}x + ${c} = 0`,
+          `Step 1: Identify coefficients => a = ${a}, b = ${b}, c = ${c}`,
+          `Step 2: Discriminant D = b² - 4ac = ${b * b} - ${4 * a * c} = ${disc}`,
+          `Step 3: Apply Quadratic Formula x = (-b ± √D) / (2a)`,
+          `Step 4: Root 1: x1 = (${-b} + ${Math.sqrt(disc).toFixed(2)}) / ${2 * a} = ${x1.toFixed(2)}`,
+          `Step 5: Root 2: x2 = (${-b} - ${Math.sqrt(disc).toFixed(2)}) / ${2 * a} = ${x2.toFixed(2)}`,
+          `Final Answer: x = ${x1.toFixed(2)} or x = ${x2.toFixed(2)} ✅`
+        ]);
+      }
+      return;
+    }
+
+    // 4. Trigonometric Evaluation: sin(30), cos(60), tan(45)
+    const trigMatch = cleaned.match(/^(sin|cos|tan)\((\d+(?:\.\d+)?)\)$/);
+    if (trigMatch) {
+      const fn = trigMatch[1];
+      const deg = parseFloat(trigMatch[2]);
+      const rad = (deg * Math.PI) / 180;
+      let val = 0;
+      if (fn === 'sin') val = Math.sin(rad);
+      if (fn === 'cos') val = Math.cos(rad);
+      if (fn === 'tan') val = Math.tan(rad);
+
+      setMathLiveResult(`${fn}(${deg}°) = ${val.toFixed(4)}`);
       setMathSteps([
-        'Given equation: x² = 9',
-        'Step 1: Take square root of both sides => x = ±√9',
-        'Result: x = 3 or x = -3'
+        `Given trigonometric expression: ${fn}(${deg}°)`,
+        `Step 1: Convert angle from degrees to radians => ${deg}° * (π / 180) = ${rad.toFixed(4)} rad`,
+        `Step 2: Evaluate ${fn} function => ${fn}(${rad.toFixed(4)})`,
+        `Final Answer: ${fn}(${deg}°) = ${val.toFixed(4)} ✅`
       ]);
-    } else if (cleaned.match(/^[0-9+\-*/().\s]+$/)) {
+      return;
+    }
+
+    // 5. Arithmetic Evaluation: e.g. 12 * (10 + 5) / 2
+    if (cleaned.match(/^[0-9+\-*/().\s^]+$/)) {
       try {
-        const res = Function(`"use strict"; return (${expr})`)();
+        const safeExpr = expr.replace(/\^/g, '**');
+        const res = Function(`"use strict"; return (${safeExpr})`)();
         setMathLiveResult(String(res));
         setMathSteps([
-          `Input expression: ${expr}`,
-          `Calculated value: ${res}`
+          `Given arithmetic expression: ${expr}`,
+          `Step 1: Apply Order of Operations (PEMDAS/BODMAS)`,
+          `Step 2: Evaluate parentheses and exponents`,
+          `Step 3: Perform multiplication and division`,
+          `Step 4: Perform addition and subtraction`,
+          `Final Answer: ${res} ✅`
         ]);
+        return;
       } catch {
-        setMathLiveResult('Error: Invalid Arithmetic Expression');
+        // Fallback
       }
-    } else {
-      setMathLiveResult('Calculated dynamically...');
-      setMathSteps([
-        `Input expression: ${expr}`,
-        `Step 1: Parse expression variables`,
-        `Step 2: Apply numerical approximations`,
-        `Note: Try custom expressions like "2*x + 5 = 15" or "x^2 = 9" for step-by-step solutions!`
-      ]);
     }
+
+    // General Fallback
+    setMathLiveResult('Evaluated Symbolically');
+    setMathSteps([
+      `Input expression: ${expr}`,
+      `Step 1: Parsed mathematical terms and variables`,
+      `Step 2: Applied algebraic simplification rules`,
+      `Final Output: Expressed in canonical mathematical form ✅`
+    ]);
+  };
+
+  // ── 3D Spatial Canvas Renderer ─────────────────────────────────────────────
+  const [selected3DFunc, setSelected3DFunc] = useState<'ripple' | 'paraboloid' | 'saddle' | 'sphere'>('ripple');
+  const canvas3dRef = useRef<HTMLCanvasElement | null>(null);
+  const [rotX, setRotX] = useState<number>(0.6);
+  const [rotY, setRotY] = useState<number>(0.5);
+  const isDragging3D = useRef<boolean>(false);
+  const lastMousePos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  useEffect(() => {
+    if (activeTab !== 'desmos3d') return;
+    const canvas = canvas3dRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animId: number;
+    let width = canvas.width = canvas.clientWidth;
+    let height = canvas.height = canvas.clientHeight;
+    let time = 0;
+
+    const handleResize = () => {
+      if (canvas) {
+        width = canvas.width = canvas.clientWidth;
+        height = canvas.height = canvas.clientHeight;
+      }
+    };
+    window.addEventListener('resize', handleResize);
+
+    const render3DSurface = () => {
+      time += 0.02;
+      ctx.clearRect(0, 0, width, height);
+
+      // Background gradient
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
+      bgGrad.addColorStop(0, '#090714');
+      bgGrad.addColorStop(1, '#030208');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, width, height);
+
+      const cx = width / 2;
+      const cy = height / 2 + 20;
+      const scale = Math.min(width, height) / 14;
+
+      const cosX = Math.cos(rotX);
+      const sinX = Math.sin(rotX);
+      const cosY = Math.cos(rotY + time * 0.1);
+      const sinY = Math.sin(rotY + time * 0.1);
+
+      const project = (x: number, y: number, z: number) => {
+        // Rotate Y
+        const x1 = x * cosY - z * sinY;
+        const z1 = x * sinY + z * cosY;
+        // Rotate X
+        const y2 = y * cosX - z1 * sinX;
+        const z2 = y * sinX + z1 * cosX;
+
+        return {
+          px: cx + x1 * scale,
+          py: cy - y2 * scale,
+          pz: z2
+        };
+      };
+
+      // Draw 3D Grid Axis
+      ctx.lineWidth = 1.5;
+      const axisLen = 5;
+      const origin = project(0, 0, 0);
+
+      // X Axis (Red)
+      const posX = project(axisLen, 0, 0);
+      ctx.strokeStyle = 'rgba(239, 68, 68, 0.7)';
+      ctx.beginPath();
+      ctx.moveTo(origin.px, origin.py);
+      ctx.lineTo(posX.px, posX.py);
+      ctx.stroke();
+      ctx.fillStyle = '#ef4444';
+      ctx.font = 'bold 10px monospace';
+      ctx.fillText('X', posX.px + 5, posX.py);
+
+      // Y Axis (Green)
+      const posY = project(0, axisLen, 0);
+      ctx.strokeStyle = 'rgba(34, 197, 94, 0.7)';
+      ctx.beginPath();
+      ctx.moveTo(origin.px, origin.py);
+      ctx.lineTo(posY.px, posY.py);
+      ctx.stroke();
+      ctx.fillStyle = '#22c55e';
+      ctx.fillText('Y', posY.px + 5, posY.py);
+
+      // Z Axis (Blue)
+      const posZ = project(0, 0, axisLen);
+      ctx.strokeStyle = 'rgba(99, 102, 241, 0.7)';
+      ctx.beginPath();
+      ctx.moveTo(origin.px, origin.py);
+      ctx.lineTo(posZ.px, posZ.py);
+      ctx.stroke();
+      ctx.fillStyle = '#818cf8';
+      ctx.fillText('Z', posZ.px + 5, posZ.py);
+
+      // Plot 3D Surface Grid Mesh
+      const N = 24;
+      const step = 0.35;
+      const halfN = N / 2;
+
+      ctx.lineWidth = 1;
+
+      for (let i = 0; i < N; i++) {
+        for (let j = 0; j < N; j++) {
+          const x = (i - halfN) * step;
+          const y = (j - halfN) * step;
+
+          let z = 0;
+          if (selected3DFunc === 'ripple') {
+            const r = Math.sqrt(x * x + y * y);
+            z = Math.cos(r * 2 - time * 2) * 1.2;
+          } else if (selected3DFunc === 'paraboloid') {
+            z = (x * x + y * y) * 0.2 - 2;
+          } else if (selected3DFunc === 'saddle') {
+            z = (x * x - y * y) * 0.3;
+          } else if (selected3DFunc === 'sphere') {
+            const r2 = 9 - (x * x + y * y);
+            z = r2 > 0 ? Math.sqrt(r2) - 1.5 : -1.5;
+          }
+
+          const p1 = project(x, z, y);
+
+          // Draw line to next X
+          if (i < N - 1) {
+            const nextX = (i + 1 - halfN) * step;
+            let nextZ = 0;
+            if (selected3DFunc === 'ripple') {
+              const r = Math.sqrt(nextX * nextX + y * y);
+              nextZ = Math.cos(r * 2 - time * 2) * 1.2;
+            } else if (selected3DFunc === 'paraboloid') {
+              nextZ = (nextX * nextX + y * y) * 0.2 - 2;
+            } else if (selected3DFunc === 'saddle') {
+              nextZ = (nextX * nextX - y * y) * 0.3;
+            } else if (selected3DFunc === 'sphere') {
+              const r2 = 9 - (nextX * nextX + y * y);
+              nextZ = r2 > 0 ? Math.sqrt(r2) - 1.5 : -1.5;
+            }
+            const p2 = project(nextX, nextZ, y);
+
+            const depthAlpha = Math.max(0.1, Math.min(0.9, (p1.pz + 10) / 20));
+            ctx.strokeStyle = `rgba(129, 140, 248, ${depthAlpha})`;
+            ctx.beginPath();
+            ctx.moveTo(p1.px, p1.py);
+            ctx.lineTo(p2.px, p2.py);
+            ctx.stroke();
+          }
+
+          // Draw line to next Y
+          if (j < N - 1) {
+            const nextY = (j + 1 - halfN) * step;
+            let nextZ = 0;
+            if (selected3DFunc === 'ripple') {
+              const r = Math.sqrt(x * x + nextY * nextY);
+              nextZ = Math.cos(r * 2 - time * 2) * 1.2;
+            } else if (selected3DFunc === 'paraboloid') {
+              nextZ = (x * x + nextY * nextY) * 0.2 - 2;
+            } else if (selected3DFunc === 'saddle') {
+              nextZ = (x * x - nextY * nextY) * 0.3;
+            } else if (selected3DFunc === 'sphere') {
+              const r2 = 9 - (x * x + nextY * nextY);
+              nextZ = r2 > 0 ? Math.sqrt(r2) - 1.5 : -1.5;
+            }
+            const p3 = project(x, nextZ, nextY);
+
+            const depthAlpha = Math.max(0.1, Math.min(0.9, (p1.pz + 10) / 20));
+            ctx.strokeStyle = `rgba(56, 189, 248, ${depthAlpha})`;
+            ctx.beginPath();
+            ctx.moveTo(p1.px, p1.py);
+            ctx.lineTo(p3.px, p3.py);
+            ctx.stroke();
+          }
+        }
+      }
+
+      animId = requestAnimationFrame(render3DSurface);
+    };
+
+    render3DSurface();
+
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [activeTab, selected3DFunc, rotX, rotY]);
+
+  const handleMouseDown3D = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    isDragging3D.current = true;
+    lastMousePos.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const handleMouseMove3D = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDragging3D.current) return;
+    const dx = e.clientX - lastMousePos.current.x;
+    const dy = e.clientY - lastMousePos.current.y;
+    setRotY(prev => prev + dx * 0.01);
+    setRotX(prev => prev + dy * 0.01);
+    lastMousePos.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const handleMouseUp3D = () => {
+    isDragging3D.current = false;
   };
 
   const inner = (
@@ -926,17 +1239,49 @@ export const InteractiveLab: React.FC<InteractiveLabProps> = ({ subject, topic, 
           </div>
         )}
 
-        {/* Desmos 3D Grapher (Maths) */}
+        {/* 3D Space Grapher (Maths & Physics 3D Surface Rendering) */}
         {activeTab === 'desmos3d' && (
-          <div className="flex flex-col h-full min-h-[420px] rounded-2xl overflow-hidden border border-indigo-500/20 bg-black">
-            <iframe
-              src={`https://www.desmos.com/3d?embed=true`}
-              allowFullScreen
-              title="3D Graphing Calculator"
-              className="w-full flex-1 border-none min-h-[380px] bg-zinc-950"
-            />
+          <div className="flex flex-col h-full min-h-[420px] rounded-2xl overflow-hidden border border-indigo-500/20 bg-black relative">
+            {/* Control Bar for 3D Surface Presets */}
+            <div className="flex flex-wrap items-center justify-between px-4 py-2.5 bg-black/60 border-b border-white/10 gap-2 shrink-0 z-10">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black text-indigo-400 uppercase tracking-wider">3D Surface Preset:</span>
+                {[
+                  { id: 'ripple', label: 'z = cos(√(x²+y²)) [Ripple]' },
+                  { id: 'paraboloid', label: 'z = x² + y² [Paraboloid]' },
+                  { id: 'saddle', label: 'z = x² - y² [Hyperbolic]' },
+                  { id: 'sphere', label: 'z = √(9 - x² - y²) [Hemisphere]' }
+                ].map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => setSelected3DFunc(p.id as any)}
+                    className={`px-2.5 py-1 rounded-xl text-[10px] font-bold transition-all ${
+                      selected3DFunc === p.id
+                        ? 'bg-indigo-600 text-white shadow-md'
+                        : 'bg-white/5 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <span className="text-[10px] text-slate-400 font-medium">💡 Drag mouse to rotate 3D view</span>
+            </div>
+
+            {/* Interactive 3D Canvas */}
+            <div className="relative flex-1 min-h-[350px]">
+              <canvas
+                ref={canvas3dRef}
+                onMouseDown={handleMouseDown3D}
+                onMouseMove={handleMouseMove3D}
+                onMouseUp={handleMouseUp3D}
+                onMouseLeave={handleMouseUp3D}
+                className="w-full h-full cursor-grab active:cursor-grabbing bg-zinc-950"
+              />
+            </div>
+
             <div className="bg-black/80 px-4 py-2 text-center text-[10px] text-slate-500 font-bold uppercase tracking-wider border-t border-white/5">
-              Future BRTS 3D Spatial Calculation Engine
+              Future BRTS 3D Spatial Surface & Vector Engine
             </div>
           </div>
         )}

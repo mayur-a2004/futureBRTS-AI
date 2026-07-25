@@ -50,6 +50,10 @@ router.delete('/chat/session/:id', authMiddleware, minervaController.deleteChatS
 router.put('/chat/session/:id/pin', authMiddleware, minervaController.togglePinChatSession);
 router.post('/upload', authMiddleware, upload.single('file'), minervaController.uploadFile);
 
+// ─── SMART BOARD MONGO SESSIONS ───────────────
+router.post('/smartboard/save', authMiddleware, minervaController.saveSmartBoardSession);
+router.get('/smartboard/history', authMiddleware, minervaController.getSmartBoardSessions);
+
 // ─── SESSIONS ──────────────────────────────────
 router.get('/sessions', authMiddleware, minervaController.getSessions);
 router.get('/session/:id', authMiddleware, minervaController.getSession);

@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { 
     Eraser, Download, Sparkles, X, Volume2, VolumeX, 
-    SkipForward, SkipBack, ZoomIn, ZoomOut, ChevronDown, ChevronUp, PenTool, Layout, Play
+    SkipForward, SkipBack, ZoomIn, ZoomOut, ChevronDown, ChevronUp, PenTool, Layout, Play, Cloud, Check
 } from 'lucide-react';
 
 export interface SolutionStep {
@@ -59,6 +59,10 @@ export const MinervaWhiteboardCanvas: React.FC<MinervaWhiteboardCanvasProps> = (
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const [isDrawing, setIsDrawing] = useState(false);
     
+    // MongoDB Cloud Save State
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveSuccess, setSaveSuccess] = useState(false);
+
     // Board Mode: 'ai_solution' (AI Solution Steps Overlay) vs 'blank_slate' (100% Clean Writing Blackboard)
     const [boardMode, setBoardMode] = useState<'ai_solution' | 'blank_slate'>('ai_solution');
 
@@ -87,6 +91,35 @@ export const MinervaWhiteboardCanvas: React.FC<MinervaWhiteboardCanvasProps> = (
         '#f43f5e', '#fbbf24', '#a855f7', '#f97316'
     ];
 
+    const saveSessionToMongo = async () => {
+        try {
+            setIsSaving(true);
+            const token = localStorage.getItem('token');
+            const res = await fetch('/api/v1/minerva/smartboard/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    title: initialTitle,
+                    steps: activeSteps,
+                    customStrokes: '',
+                    studentNotes: ''
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setSaveSuccess(true);
+                setTimeout(() => setSaveSuccess(false), 3000);
+            }
+        } catch (err) {
+            console.error('Failed to save smartboard session to MongoDB:', err);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     // Live Handwriting Character Typing Animation Loop
     useEffect(() => {
         if (!isOpen || boardMode !== 'ai_solution') return;
@@ -110,7 +143,7 @@ export const MinervaWhiteboardCanvas: React.FC<MinervaWhiteboardCanvasProps> = (
                     speakExplanation(currentStep.explanation);
                 }
             }
-        }, 22); // 22ms per char for realistic live chalk handwriting effect
+        }, 22);
 
         return () => clearInterval(typingInterval);
     }, [activeStepIdx, boardMode, isOpen]);
@@ -118,10 +151,28 @@ export const MinervaWhiteboardCanvas: React.FC<MinervaWhiteboardCanvasProps> = (
     // Auto-scroll canvas to active step
     useEffect(() => {
         if (boardMode === 'ai_solution') {
-            const targetScroll = Math.max(0, (activeStepIdx - 1) * 125);
+            const targetScroll = Math.max(0, (activeStepIdx - 1) * 145);
             setScrollY(targetScroll);
         }
     }, [activeStepIdx, boardMode]);
+
+    // Keyboard navigation (Arrow keys & Esc)
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'ArrowRight') {
+                setActiveStepIdx(prev => Math.min(activeSteps.length - 1, prev + 1));
+            } else if (e.key === 'ArrowLeft') {
+                setActiveStepIdx(prev => Math.max(0, prev - 1));
+            } else if (e.key === 'Escape') {
+                onClose();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, activeSteps.length, onClose]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -155,7 +206,7 @@ export const MinervaWhiteboardCanvas: React.FC<MinervaWhiteboardCanvasProps> = (
         ctx.strokeStyle = boardTheme === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.05)';
         ctx.lineWidth = 1;
         const gridSize = 30;
-        const totalHeight = Math.max(logicalHeight + scrollY + 1000, 2500);
+        const totalHeight = Math.max(logicalHeight + scrollY + 1000, activeSteps.length * 150 + 600);
 
         for (let x = 0; x < logicalWidth / zoomLevel; x += gridSize) {
             ctx.beginPath();
@@ -188,53 +239,104 @@ export const MinervaWhiteboardCanvas: React.FC<MinervaWhiteboardCanvasProps> = (
         const baseFontSize = canvasLogicalWidth < 480 ? 11 : canvasLogicalWidth < 768 ? 13 : 15;
 
         activeSteps.slice(0, activeStepIdx + 1).forEach((step, idx) => {
-            const startY = 45 + idx * 135;
+            const startY = 45 + idx * 145;
             const isActive = idx === activeStepIdx;
 
-            // Highlight Box for Active Step
-            if (isActive) {
-                ctx.fillStyle = 'rgba(99, 102, 241, 0.12)';
-                ctx.strokeStyle = '#6366f1';
+            // 1. Highlight Outer Box for Step
+            ctx.fillStyle = isActive ? 'rgba(99, 102, 241, 0.12)' : 'rgba(255, 255, 255, 0.02)';
+            ctx.strokeStyle = isActive ? '#6366f1' : 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = isActive ? 2 : 1;
+            ctx.beginPath();
+            ctx.roundRect(15, startY - 20, boxWidth, 120, 14);
+            ctx.fill();
+            ctx.stroke();
+
+            // 2. Step Header Title in Teacher Chalk Style
+            ctx.fillStyle = isActive ? '#818cf8' : '#94a3b8';
+            ctx.font = `bold ${baseFontSize + 2}px "Caveat", "KaTeX_Main", cursive, sans-serif`;
+            ctx.fillText(step.title, 25, startY - 2);
+
+            // 3. Render Special Subject Diagrams on Right Side of Step Box
+            const lowerTitle = (step.title + ' ' + step.latexOrFormula).toLowerCase();
+            const diagX = boxWidth - 70;
+            const diagY = startY + 25;
+
+            // Geometry / Triangle Diagram
+            if (lowerTitle.includes('triangle') || lowerTitle.includes('pythagoras') || lowerTitle.includes('hypotenuse') || lowerTitle.includes('sin') || lowerTitle.includes('cos') || lowerTitle.includes('tan')) {
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 1.8;
+                ctx.beginPath();
+                ctx.moveTo(diagX, diagY + 40);
+                ctx.lineTo(diagX + 50, diagY + 40);
+                ctx.lineTo(diagX + 50, diagY);
+                ctx.closePath();
+                ctx.stroke();
+                ctx.fillStyle = '#38bdf8';
+                ctx.font = '9px monospace';
+                ctx.fillText('θ', diagX + 15, diagY + 36);
+            }
+            // Atom / Orbit Diagram
+            else if (lowerTitle.includes('atom') || lowerTitle.includes('orbit') || lowerTitle.includes('electron') || lowerTitle.includes('circle') || lowerTitle.includes('radius')) {
+                ctx.strokeStyle = '#4ade80';
                 ctx.lineWidth = 1.5;
                 ctx.beginPath();
-                ctx.roundRect(15, startY - 20, boxWidth, 110, 14);
+                ctx.arc(diagX + 25, diagY + 20, 20, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.fillStyle = '#fbbf24';
+                ctx.beginPath();
+                ctx.arc(diagX + 25, diagY + 20, 5, 0, Math.PI * 2);
                 ctx.fill();
+            }
+            // Flow Diagram Node Box & Arrow
+            else if (lowerTitle.includes('→') || lowerTitle.includes('->') || lowerTitle.includes('=>') || lowerTitle.includes('reaction') || lowerTitle.includes('flow')) {
+                ctx.strokeStyle = '#a855f7';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(diagX, diagY, 20, 20);
+                ctx.strokeRect(diagX + 35, diagY, 20, 20);
+                ctx.fillStyle = '#a855f7';
+                ctx.beginPath();
+                ctx.moveTo(diagX + 22, diagY + 10);
+                ctx.lineTo(diagX + 33, diagY + 10);
                 ctx.stroke();
             }
 
-            // Step Header Title
-            ctx.fillStyle = isActive ? '#818cf8' : '#94a3b8';
-            ctx.font = `700 ${baseFontSize}px "Inter", sans-serif`;
-            ctx.fillText(step.title, 25, startY - 2);
-
-            // Step Formula / Live Animated Handwriting Text
+            // 4. Formula Text with Chalk Handwriting Font
             ctx.fillStyle = '#ffffff';
-            ctx.font = `bold ${baseFontSize + 2}px "KaTeX_Main", "Courier New", monospace`;
+            ctx.font = `bold ${baseFontSize + 3}px "Caveat", "Architects Daughter", "KaTeX_Main", cursive, monospace`;
             
             const fullFormula = step.latexOrFormula;
-            // If active step, show only written characters so far. If previous step, show full.
             const visibleFormula = isActive ? fullFormula.slice(0, writingCharCount) : fullFormula;
 
-            // Wrap text multi-line according to boxWidth
-            const maxCharsPerLine = Math.max(20, Math.floor(boxWidth / ((baseFontSize + 2) * 0.62)));
+            const maxCharsPerLine = Math.max(18, Math.floor((boxWidth - 90) / ((baseFontSize + 3) * 0.55)));
             const lines: string[] = [];
 
             for (let i = 0; i < visibleFormula.length; i += maxCharsPerLine) {
                 lines.push(visibleFormula.slice(i, i + maxCharsPerLine));
             }
-
             if (lines.length === 0) lines.push('');
 
             lines.forEach((lineText, lineIdx) => {
-                const lineY = startY + 26 + (lineIdx * (baseFontSize + 8));
+                const lineY = startY + 28 + (lineIdx * (baseFontSize + 9));
+                
+                // Draw Chalk Formula Boundary Box around key equation lines
+                if (lineText.includes('=') || lineText.includes('Given') || lineText.includes('Result')) {
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(251, 191, 36, 0.08)';
+                    ctx.strokeStyle = 'rgba(251, 191, 36, 0.4)';
+                    ctx.lineWidth = 1;
+                    const textWidth = ctx.measureText(lineText).width;
+                    ctx.fillRect(22, lineY - 14, Math.min(textWidth + 12, boxWidth - 40), baseFontSize + 10);
+                    ctx.strokeRect(22, lineY - 14, Math.min(textWidth + 12, boxWidth - 40), baseFontSize + 10);
+                    ctx.restore();
+                }
+
                 ctx.fillText(lineText, 25, lineY);
 
-                // Draw Glowing Chalk Tip / Pen Tip Cursor at end of the last line being actively written
+                // Cursor Glowing Chalk Tip & Hand Icon
                 if (isActive && lineIdx === lines.length - 1 && !isWritingCompleted) {
                     const textMetrics = ctx.measureText(lineText);
                     const tipX = 28 + textMetrics.width;
 
-                    // Glowing Chalk Dot
                     ctx.save();
                     ctx.shadowColor = '#6366f1';
                     ctx.shadowBlur = 10;
@@ -243,12 +345,28 @@ export const MinervaWhiteboardCanvas: React.FC<MinervaWhiteboardCanvasProps> = (
                     ctx.arc(tipX, lineY - 4, 5, 0, Math.PI * 2);
                     ctx.fill();
 
-                    // Pen Emoji Indicator
                     ctx.font = '14px sans-serif';
                     ctx.fillText('✍️', tipX + 4, lineY);
                     ctx.restore();
                 }
             });
+
+            // 5. Connecting Vertical Arrow (↓) down to Next Step
+            if (idx < activeSteps.length - 1 && idx <= activeStepIdx) {
+                const arrowY = startY + 105;
+                ctx.strokeStyle = '#6366f1';
+                ctx.fillStyle = '#6366f1';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(40, arrowY);
+                ctx.lineTo(40, arrowY + 14);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(35, arrowY + 10);
+                ctx.lineTo(40, arrowY + 16);
+                ctx.lineTo(45, arrowY + 10);
+                ctx.fill();
+            }
         });
     };
 
@@ -473,6 +591,23 @@ export const MinervaWhiteboardCanvas: React.FC<MinervaWhiteboardCanvasProps> = (
                         ))}
                     </div>
 
+                    {/* MS Word / Smart Whiteboard Tools: Shapes & Math Symbol Palette */}
+                    <div className="hidden lg:flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl px-2 py-0.5 shrink-0 text-[11px] font-bold text-gray-300">
+                        <span className="text-gray-400 text-[9px] mr-1">SYMBOLS:</span>
+                        {['√', 'π', 'θ', '±', 'Δ', '∫', 'Σ', '→', '°', '≈', '≤', '≥'].map(sym => (
+                            <button
+                                key={sym}
+                                onClick={() => {
+                                    navigator.clipboard.writeText(sym);
+                                }}
+                                className="px-1.5 py-0.5 rounded hover:bg-white/10 hover:text-white transition-all text-amber-300 active:scale-95"
+                                title={`Copy symbol '${sym}' to clipboard`}
+                            >
+                                {sym}
+                            </button>
+                        ))}
+                    </div>
+
                     {/* Eraser Button */}
                     <button
                         onClick={() => setTool('eraser')}
@@ -539,6 +674,21 @@ export const MinervaWhiteboardCanvas: React.FC<MinervaWhiteboardCanvasProps> = (
                             <ZoomIn size={12} />
                         </button>
                     </div>
+
+                    {/* Save to Cloud MongoDB */}
+                    <button
+                        onClick={saveSessionToMongo}
+                        disabled={isSaving}
+                        className={`px-2.5 py-1 rounded-xl text-white text-[10px] font-bold transition-all flex items-center gap-1 shrink-0 shadow-md ${
+                            saveSuccess
+                                ? 'bg-emerald-600 border border-emerald-400'
+                                : 'bg-white/10 hover:bg-white/20 border border-white/10'
+                        }`}
+                        title="Save Smart Board Session to MongoDB"
+                    >
+                        {saveSuccess ? <Check size={12} className="text-emerald-300" /> : <Cloud size={12} className="text-sky-300" />}
+                        <span>{isSaving ? 'Saving...' : saveSuccess ? 'Saved to Cloud' : 'Save Session'}</span>
+                    </button>
 
                     {/* Export PNG */}
                     <button
@@ -614,22 +764,36 @@ export const MinervaWhiteboardCanvas: React.FC<MinervaWhiteboardCanvasProps> = (
                                 </button>
                             )}
 
-                            {/* Clickable Step Pills */}
-                            <div className="flex items-center gap-0.5 bg-white/5 border border-white/10 p-0.5 rounded-lg">
-                                {activeSteps.map((_, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => handleSelectStep(idx)}
-                                        className={`w-5 h-5 rounded-md text-[9px] font-bold transition-all ${
-                                            activeStepIdx === idx
-                                                ? 'bg-indigo-600 text-white font-black scale-105'
-                                                : 'text-gray-400 hover:text-white hover:bg-white/10'
-                                        }`}
-                                    >
-                                        {idx + 1}
-                                    </button>
-                                ))}
-                            </div>
+                            {/* Dynamic Clickable Step Pills / Dropdown for 6+ Steps */}
+                            {activeSteps.length <= 6 ? (
+                                <div className="flex items-center gap-0.5 bg-white/5 border border-white/10 p-0.5 rounded-lg">
+                                    {activeSteps.map((_, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => handleSelectStep(idx)}
+                                            className={`w-5 h-5 rounded-md text-[9px] font-bold transition-all ${
+                                                activeStepIdx === idx
+                                                    ? 'bg-indigo-600 text-white font-black scale-105 shadow-md'
+                                                    : 'text-gray-400 hover:text-white hover:bg-white/10'
+                                            }`}
+                                        >
+                                            {idx + 1}
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : (
+                                <select
+                                    value={activeStepIdx}
+                                    onChange={(e) => handleSelectStep(Number(e.target.value))}
+                                    className="bg-[#0B0917] border border-indigo-500/40 text-indigo-300 text-[10px] font-bold rounded-lg px-2 py-1 outline-none cursor-pointer"
+                                >
+                                    {activeSteps.map((s, idx) => (
+                                        <option key={idx} value={idx}>
+                                            Step {idx + 1} / {activeSteps.length}: {s.title.slice(0, 24)}...
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
 
                             {/* Previous Step Button */}
                             <button
