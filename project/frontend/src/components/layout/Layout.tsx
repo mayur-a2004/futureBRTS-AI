@@ -764,19 +764,41 @@ export default function Layout() {
                         </div>
                     )}
 
-                    <button
-                        onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                        title={isSidebarCollapsed ? "Settings" : ""}
-                        className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'gap-3 px-4'} py-3 rounded-xl text-sm font-bold text-gray-500 hover:text-white hover:bg-white/[0.03] transition-all relative group`}
-                    >
-                        <Settings size={20} className={`shrink-0 ${isSettingsOpen ? 'text-indigo-400 rotate-90' : ''} transition-all duration-500`} />
-                        {!isSidebarCollapsed && (
-                            <>
-                                <span>Settings</span>
-                                <ChevronRight size={14} className={`ml-auto opacity-50 transition-transform ${isSettingsOpen ? 'rotate-90' : ''}`} />
-                            </>
-                        )}
-                    </button>
+                    {!user ? (
+                        <div className="flex flex-col gap-2 p-1">
+                            {!isSidebarCollapsed && (
+                                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider px-1">Guest Mode</span>
+                            )}
+                            <div className={`flex ${isSidebarCollapsed ? 'flex-col' : 'items-center'} gap-2`}>
+                                <Link
+                                    to="/auth/login"
+                                    className="flex-1 py-2 px-3 text-center rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all border border-white/10 shadow-sm"
+                                >
+                                    Log In
+                                </Link>
+                                <Link
+                                    to="/auth/register"
+                                    className="flex-1 py-2 px-3 text-center rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:opacity-90 text-white text-xs font-bold transition-all shadow-md"
+                                >
+                                    Sign Up
+                                </Link>
+                            </div>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                            title={isSidebarCollapsed ? "Settings" : ""}
+                            className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'gap-3 px-4'} py-3 rounded-xl text-sm font-bold text-gray-500 hover:text-white hover:bg-white/[0.03] transition-all relative group`}
+                        >
+                            <Settings size={20} className={`shrink-0 ${isSettingsOpen ? 'text-indigo-400 rotate-90' : ''} transition-all duration-500`} />
+                            {!isSidebarCollapsed && (
+                                <>
+                                    <span>Settings</span>
+                                    <ChevronRight size={14} className={`ml-auto opacity-50 transition-transform ${isSettingsOpen ? 'rotate-90' : ''}`} />
+                                </>
+                            )}
+                        </button>
+                    )}
 
                     {/* Settings Dropdown */}
                     {isSettingsOpen && (

@@ -128,17 +128,16 @@ const OnboardingGuard = () => {
     return onboardingCompleted ? <Outlet /> : <Navigate to="/onboarding" replace />;
 };
 
-// ⚡ SMART ROOT: ChatGPT-style instant redirect for returning users.
-// • Token in localStorage + valid  → go to /dashboard (or /onboarding if not done)
-// • No token / invalid            → show LandingPage (normal visitor flow)
+// ⚡ SMART ROOT: Direct Guest AI Load (ChatGPT / Grok Style)
+// • Returning authenticated user → /dashboard (or /onboarding if incomplete)
+// • New guest user              → direct load into /builder (Guest AI Mode)
 const SmartRoot = () => {
     const { isAuthenticated, loading, onboardingCompleted } = useAuth();
-    // Show loader only while verifying token with server (returning users only)
     if (loading) return <NeuralLoader />;
     if (isAuthenticated) {
         return <Navigate to={onboardingCompleted ? '/dashboard' : '/onboarding'} replace />;
     }
-    return <LandingPage />;
+    return <Navigate to="/builder" replace />;
 };
 
 // 🚫 PUBLIC-ONLY ROUTE: Already logged-in users should not see login/register.
@@ -335,6 +334,8 @@ function App() {
                                                 <Route element={<PublicLayout />}>
                                                     {/* ⚡ SmartRoot: returning users skip landing page entirely */}
                                                     <Route path="/" element={<SmartRoot />} />
+                                                    <Route path="/landing" element={<LandingPage />} />
+                                                    <Route path="/home" element={<LandingPage />} />
                                                     <Route path="/pricing" element={<Pricing />} />
                                                     <Route path="/about" element={<About />} />
                                                     <Route path="/services" element={<Services />} />
@@ -360,7 +361,15 @@ function App() {
                                                     <Route path="reset-password" element={<ResetPassword />} />
                                                 </Route>
 
-                                                {/* Onboarding - Mandatory Protected */}
+                                                {/* ⚡ Open Guest AI Routes (Direct ChatGPT / Grok Experience) */}
+                                                <Route element={<Layout />}>
+                                                    <Route path="/builder" element={<Builder />} />
+                                                    <Route path="/future-education" element={<MinervaHome />} />
+                                                    <Route path="/future-education/session/:id" element={<MinervaSessionPage />} />
+                                                    <Route path="/future-education/learn/:id" element={<MinervaLearnPage />} />
+                                                </Route>
+
+                                                {/* Mandatory Protected Onboarding & Account Routes */}
                                                 <Route element={<ProtectedRoute />}>
                                                     <Route path="/onboarding" element={<Onboarding />} />
 
@@ -368,7 +377,6 @@ function App() {
                                                     <Route element={<OnboardingGuard />}>
                                                         <Route element={<Layout />}>
                                                             <Route path="dashboard" element={<Dashboard />} />
-                                                            <Route path="builder" element={<Builder />} />
                                                             <Route path="careers" element={<Careers />} />
                                                             <Route path="projects" element={<Projects />} />
                                                             <Route path="projects/:id" element={<ProjectEdit />} />
@@ -387,10 +395,7 @@ function App() {
                                                             <Route path="checkout" element={<Checkout />} />
                                                             <Route path="checkout/success" element={<Success />} />
 
-                                                            {/* 🎓 Future Education OS — Nested inside Layout */}
-                                                            <Route path="future-education" element={<MinervaHome />} />
-                                                            <Route path="future-education/session/:id" element={<MinervaSessionPage />} />
-                                                            <Route path="future-education/learn/:id" element={<MinervaLearnPage />} />
+                                                            {/* 🎓 Future Education OS Advanced Pages */}
                                                             <Route path="future-education/homework" element={<MinervaHomeworkPage />} />
                                                             <Route path="future-education/exams" element={<MinervaExamListPage />} />
                                                             <Route path="future-education/exam/:id" element={<MinervaExamPage />} />
