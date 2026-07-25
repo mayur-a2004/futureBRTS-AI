@@ -81,8 +81,10 @@ export default function Register() {
             });
 
             if (res.success) {
+                localStorage.removeItem('fbrts_onboarding_backup');
+                localStorage.removeItem('fbrts_active_session');
                 login(res.user, res.token);
-                // 👉 Seedha onboarding par redirect karna
+                // 👉 Seedha onboarding par redirect karna (3 questions)
                 navigate("/onboarding");
             } else {
                 setError(res.error || "Registration failed");
@@ -102,7 +104,15 @@ export default function Register() {
 
     return (
         <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="space-y-3 mb-8 md:mb-10 text-center md:text-left pt-10 md:pt-0">
+            <div className="flex items-center gap-3 mb-4 justify-center md:justify-start pt-6 md:pt-0">
+                <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shrink-0 border border-white/10 shadow-lg shadow-indigo-500/10">
+                    <img src="/logo.png" alt="Future BRTS Logo" className="w-full h-full object-cover" />
+                </div>
+                <span className="font-black text-sm tracking-[0.2em] uppercase text-white">
+                    Future<span className="text-indigo-400">BRTS</span>
+                </span>
+            </div>
+            <div className="space-y-3 mb-8 md:mb-10 text-center md:text-left">
                 <h2 className="text-3xl md:text-5xl font-black text-white tracking-tighter leading-tight">{content.heading}</h2>
                 <p className="text-gray-500 font-medium text-base md:text-lg">{content.subtext}</p>
             </div>

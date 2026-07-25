@@ -832,8 +832,12 @@ const MinervaHome: React.FC = () => {
                     // Dynamically fetch YouTube video ID if not preset
                     if (config.youtube_query && !config.youtube_video_id) {
                         try {
+                            const headers: Record<string, string> = {};
+                            if (token && token !== 'null' && token !== 'undefined') {
+                                headers['Authorization'] = `Bearer ${token}`;
+                            }
                             const ytRes = await fetch(`/api/future-education/lab/youtube-search?query=${encodeURIComponent(config.youtube_query)}`, {
-                                headers: { 'Authorization': `Bearer ${token}` }
+                                headers
                             });
                             const ytData = await ytRes.json();
                             if (ytData.success && ytData.video_id) {

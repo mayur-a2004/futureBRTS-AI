@@ -1,7 +1,7 @@
 // Trigger reload 2
 import express from 'express';
 import { minervaController } from './minerva.controller';
-import { authMiddleware } from '../../shared/middleware/auth.middleware';
+import { authMiddleware, guestOrAuthMiddleware } from '../../shared/middleware/auth.middleware';
 
 import multer from 'multer';
 import path from 'path';
@@ -38,8 +38,8 @@ router.put('/profile', authMiddleware, minervaController.updateProfile);
 router.get('/stats', authMiddleware, minervaController.getStats);
 router.post('/study-time/add', authMiddleware, minervaController.addStudyTime);
 
-// ─── CHAT (Main entry point) ───────────────────
-router.post('/chat', authMiddleware, minervaController.chat);
+// ─── CHAT (Main entry point - Guest Allowed) ───
+router.post('/chat', guestOrAuthMiddleware, minervaController.chat);
 router.post('/chat/message/:messageId/feedback', authMiddleware, minervaController.logMessageFeedback);
 router.get('/chat/history', authMiddleware, minervaController.getChatHistory);
 router.get('/chat/sessions', authMiddleware, minervaController.getChatSessions);
@@ -92,11 +92,11 @@ router.post('/exam/:id/appeal', authMiddleware, minervaController.appealExamQues
 router.post('/exam/:id/proctoring', authMiddleware, minervaController.reportProctoringViolation);
 router.get('/leaderboard', authMiddleware, minervaController.getLeaderboard);
 
-// ─── VIRTUAL LAB ────────────────────────────────
-router.get('/lab/youtube-search', authMiddleware, minervaController.labYoutubeSearch);
-router.get('/lab/youtube-search-list', authMiddleware, minervaController.labYoutubeSearchList);
-router.get('/lab/sketchfab-search', authMiddleware, minervaController.labSketchfabSearch);
-router.get('/lab/sketchfab-search-list', authMiddleware, minervaController.labSketchfabSearchList);
+// ─── VIRTUAL LAB (Guest Allowed) ────────────────
+router.get('/lab/youtube-search', guestOrAuthMiddleware, minervaController.labYoutubeSearch);
+router.get('/lab/youtube-search-list', guestOrAuthMiddleware, minervaController.labYoutubeSearchList);
+router.get('/lab/sketchfab-search', guestOrAuthMiddleware, minervaController.labSketchfabSearch);
+router.get('/lab/sketchfab-search-list', guestOrAuthMiddleware, minervaController.labSketchfabSearchList);
 
 // ─── PARENT VERIFICATION & PORTAL ────────────────
 import { parentController } from './parent.controller';
@@ -105,8 +105,8 @@ router.get('/parent/verify', minervaController.verifyParentEmail);
 router.post('/parent/resend-verification', authMiddleware, minervaController.resendParentVerification);
 router.get('/parent/report/:studentEmail', parentController.getStudentReport);
 
-// ─── PYTHON CODE EXECUTION ───────────────────────
-router.post('/lab/execute-python', authMiddleware, minervaController.executePythonCode);
+// ─── PYTHON CODE EXECUTION (Guest Allowed) ───────
+router.post('/lab/execute-python', guestOrAuthMiddleware, minervaController.executePythonCode);
 
 // ─── QUIZ ARENA (Team Battle) ──────────────────────────────
 import { battleController } from './battle.controller';

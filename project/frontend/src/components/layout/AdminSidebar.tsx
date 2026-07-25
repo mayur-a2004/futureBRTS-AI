@@ -104,7 +104,9 @@ export default function AdminSidebar({ isCollapsed, toggleSidebar, logout }: { i
                 <div className="flex items-center justify-between">
                     {!isCollapsed && (
                         <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center font-black text-xs shrink-0">AD</div>
+                            <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center shrink-0 border border-white/10 shadow-md">
+                                <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
+                            </div>
                             <h1 className="text-lg font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 leading-none">Admin Panel</h1>
                         </div>
                     )}

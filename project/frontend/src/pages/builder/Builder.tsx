@@ -141,12 +141,19 @@ export default function Builder() {
     const [projectDownloadUrl, setProjectDownloadUrl] = useState<string | null>(null);
     const [activeProjectFiles, setActiveProjectFiles] = useState<any>(null);
 
+    const getAuthHeaders = () => {
+        const token = localStorage.getItem('fbrts_token') || localStorage.getItem('token') || localStorage.getItem('minerva_token');
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token && token !== 'null' && token !== 'undefined') {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        return headers;
+    };
 
     // Initial Load & Session Management
     useEffect(() => {
         const init = async () => {
             const token = localStorage.getItem('fbrts_token') || localStorage.getItem('token') || localStorage.getItem('minerva_token');
-            if (!token) return;
 
             // Priority 1: URL Deep Link (User explicitly navigated here)
             if (sessionId) {
@@ -156,27 +163,29 @@ export default function Builder() {
                 return;
             }
 
-            // Priority 2: Local Persistence (The "Last Seen" session)
+            // Priority 2: Local Persistence (The "Last Seen" session for logged in user)
             const savedSessionId = localStorage.getItem('fbrts_active_session');
-            if (savedSessionId) {
+            if (savedSessionId && token) {
                 setSearchParams({ sessionId: savedSessionId });
                 return;
             }
 
             // Priority 3: Server Registry (Most recent verified session)
-            try {
-                const res = await fetch('/api/builder/sessions', { headers: { 'Authorization': `Bearer ${token}` } });
-                const data = await res.json();
-                if (data.success && data.sessions && data.sessions.length > 0) {
-                    const latest = data.sessions[0];
-                    setSearchParams({ sessionId: latest._id });
-                    return;
+            if (token) {
+                try {
+                    const res = await fetch('/api/builder/sessions', { headers: getAuthHeaders() });
+                    const data = await res.json();
+                    if (data.success && data.sessions && data.sessions.length > 0) {
+                        const latest = data.sessions[0];
+                        setSearchParams({ sessionId: latest._id });
+                        return;
+                    }
+                } catch (e) {
+                    console.error("Neural Registry Sync Failed", e);
                 }
-            } catch (e) {
-                console.error("Neural Registry Sync Failed", e);
             }
 
-            // Priority 4: Auto-Create Live Builder Discussion Session
+            // Priority 4: Auto-Create Live Builder Discussion Session (Supports Guest Mode)
             try {
                 const newSession = await createSession();
                 if (newSession?._id) {
@@ -206,11 +215,9 @@ export default function Builder() {
     useEffect(() => {
         const checkResources = async () => {
             if (!currentLoadedId) return;
-            const token = localStorage.getItem('fbrts_token');
-            if (!token) return;
             try {
                 // Fetch the session directly to check its specific roadmap status
-                const sRes = await fetch(`/api/builder/session/${currentLoadedId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const sRes = await fetch(`/api/builder/session/${currentLoadedId}`, { headers: getAuthHeaders() });
                 const sData = await sRes.json();
 
                 if (sData.success && sData.session && sData.session.hasRoadmap) {
@@ -229,10 +236,9 @@ export default function Builder() {
         let interval: any;
         if (activeTitanProject && (activeTitanProject.status !== 'COMPLETED' && activeTitanProject.status !== 'FAILED')) {
             interval = setInterval(async () => {
-                const token = localStorage.getItem('fbrts_token');
                 try {
                     const res = await fetch(`/api/collage-project/${activeTitanProject._id}`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
+                        headers: getAuthHeaders()
                     });
                     const data = await res.json();
                     if (data.success) {
@@ -264,9 +270,9 @@ export default function Builder() {
     }, [messages]);
 
     const processMessages = (msgs: any[]) => {
-        if (!msgs || !Array.isArray(msgs)) return [];
-        return msgs.map((m: any) => {
-            if (m.role === 'assistant' && typeof m.content === 'string' && m.content.includes('||SUGGESTIONS_JSON||')) {
+        if (!Array.isArray(msgs)) return [];
+        return msgs.map(m => {
+            if (typeof m.content === 'string' && m.content.includes('||SUGGESTIONS_JSON||')) {
                 const parts = m.content.split('||SUGGESTIONS_JSON||');
                 const cleanContent = parts[0].trim();
                 let suggestions = m.suggestions || [];
@@ -282,11 +288,10 @@ export default function Builder() {
     };
 
     const loadSession = async (id: string) => {
-        const token = localStorage.getItem('fbrts_token');
         try {
             setLoading(true);
             const res = await fetch(`/api/builder/session/${id}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: getAuthHeaders()
             });
             const data = await res.json();
             if (data.success) {
@@ -311,13 +316,11 @@ export default function Builder() {
     };
 
     const createSession = async () => {
-        const token = localStorage.getItem('fbrts_token');
-
         try {
             // Rule 1: Do NOT assume intent. Wait for user message.
             const res = await fetch('/api/builder/session', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                headers: getAuthHeaders(),
                 body: JSON.stringify({ initialPrompt: "", title: "New Chat" })
             });
             const data = await res.json();
@@ -342,8 +345,14 @@ export default function Builder() {
 
     const handleSend = async (overrideContent?: string) => {
         const contentToSend = overrideContent || input;
-        if (!contentToSend.trim() || !currentLoadedId) return;
-        await sendToSession(currentLoadedId, contentToSend, overrideContent ? undefined : [...files]);
+        if (!contentToSend.trim()) return;
+        let targetId = currentLoadedId;
+        if (!targetId) {
+            const newSession = await createSession();
+            targetId = newSession?._id || '65f123456789abcdef123456';
+        }
+        if (!targetId) return;
+        await sendToSession(targetId, contentToSend, overrideContent ? undefined : [...files]);
     };
 
     // 🚀 Core send — accepts explicit sessionId to bypass React state race conditions
@@ -388,10 +397,9 @@ export default function Builder() {
         const startTime = Date.now();
 
         try {
-            const token = localStorage.getItem('fbrts_token');
             const res = await fetch(`/api/builder/session/${targetSessionId}/message/stream`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                headers: getAuthHeaders(),
                 body: JSON.stringify({
                     content: contentToSend,
                     inputMode: inputMode?.label,

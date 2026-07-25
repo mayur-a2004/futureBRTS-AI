@@ -137,8 +137,23 @@ const ensureYoutubeLinks = async (node: any): Promise<any[]> => {
 // HELPER: get or create student profile
 // ─────────────────────────────────────────────────────────────────
 const getOrCreateProfile = async (userId: string) => {
-    let profile: any = await MinervaStudentProfile.findOne({ userId });
-    let firstName = 'Mayur';
+    if (!userId || userId === 'guest_user' || String(userId).startsWith('guest')) {
+        return {
+            userId: 'guest_user',
+            firstName: 'Guest',
+            studentName: 'Guest',
+            education_type: 'general',
+            grade_level: 'undergraduate',
+            onboarding_done: true
+        };
+    }
+
+    let profile: any = null;
+    try {
+        profile = await MinervaStudentProfile.findOne({ userId });
+    } catch (e) {}
+
+    let firstName = 'Student';
     try {
         const user = await User.findById(userId).select('firstName lastName email');
         if (user && user.firstName) firstName = user.firstName;
@@ -253,7 +268,14 @@ const saveChatMessage = async (
     metadata: any = null,
     chat_session_id: any = null
 ) => {
-    return await MinervaChatMessage.create({ userId, role, content, content_type, session_id, metadata, chat_session_id });
+    if (!userId || userId === 'guest_user' || String(userId).startsWith('guest')) {
+        return { _id: 'guest_msg_' + Date.now(), userId: 'guest_user', role, content, content_type, metadata, createdAt: new Date() };
+    }
+    try {
+        return await MinervaChatMessage.create({ userId, role, content, content_type, session_id, metadata, chat_session_id });
+    } catch (e) {
+        return { _id: 'guest_msg_' + Date.now(), userId, role, content, content_type, metadata, createdAt: new Date() };
+    }
 };
 
 // ─────────────────────────────────────────────────────────────────

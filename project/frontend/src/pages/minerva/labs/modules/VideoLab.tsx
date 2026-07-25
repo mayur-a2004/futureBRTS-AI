@@ -55,14 +55,22 @@ const VideoLab: React.FC<VideoLabProps> = ({
   const [searchError, setSearchError] = useState('');
   const lastAutoSearchedTopic = useRef<string>('');
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('fbrts_token') || localStorage.getItem('token') || localStorage.getItem('minerva_token');
+    const headers: Record<string, string> = {};
+    if (token && token !== 'null' && token !== 'undefined') {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+  };
+
   const handleManualSearch = async (q: string) => {
     if (!q.trim()) return;
     setSearching(true);
     setSearchError('');
     try {
-      const token = localStorage.getItem('fbrts_token');
       const res = await fetch(`/api/future-education/lab/youtube-search-list?query=${encodeURIComponent(q.trim())}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: getAuthHeaders()
       });
       const data = await res.json();
       if (data.success && data.results && data.results.length > 0) {

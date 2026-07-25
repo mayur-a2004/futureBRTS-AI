@@ -78,6 +78,45 @@ export const authMiddleware = async (req: any, res: Response, next: NextFunction
     }
 };
 
+export const guestOrAuthMiddleware = async (req: any, res: Response, next: NextFunction) => {
+    const token = req.headers.authorization?.split(' ')[1] || req.query.token;
+
+    if (!token || token === 'null' || token === 'undefined') {
+        req.user = {
+            _id: '65f123456789abcdef123456',
+            firstName: 'Guest',
+            lastName: 'Student',
+            email: 'guest@futurebrts.com',
+            role: 'guest',
+            isGuest: true,
+            status: 'active'
+        };
+        return next();
+    }
+
+    try {
+        const decoded: any = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+        const user = await User.findById(decoded.id);
+        if (user && user.status === 'active') {
+            req.user = user;
+            return next();
+        }
+    } catch (err) {
+        // Fallback to guest mode on invalid token for public AI chat
+    }
+
+    req.user = {
+        _id: '65f123456789abcdef123456',
+        firstName: 'Guest',
+        lastName: 'Student',
+        email: 'guest@futurebrts.com',
+        role: 'guest',
+        isGuest: true,
+        status: 'active'
+    };
+    return next();
+};
+
 export const adminMiddleware = (req: any, res: Response, next: NextFunction) => {
     if (req.user && req.user.role === 'admin') {
         next();

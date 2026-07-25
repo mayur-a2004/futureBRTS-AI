@@ -122,6 +122,14 @@ export default function Login() {
 
     return (
         <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="flex items-center gap-3 mb-4 justify-center md:justify-start">
+                <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shrink-0 border border-white/10 shadow-lg shadow-indigo-500/10">
+                    <img src="/logo.png" alt="Future BRTS Logo" className="w-full h-full object-cover" />
+                </div>
+                <span className="font-black text-sm tracking-[0.2em] uppercase text-white">
+                    Future<span className="text-indigo-400">BRTS</span>
+                </span>
+            </div>
             <div className="space-y-2 mb-6 text-center md:text-left">
                 <h2 className="text-2xl md:text-3xl font-black text-white tracking-tighter leading-tight">{content.heading}</h2>
                 <p className="text-gray-500 font-medium text-xs md:text-sm">{content.subtext}</p>

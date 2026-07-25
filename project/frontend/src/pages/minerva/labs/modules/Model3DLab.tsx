@@ -72,15 +72,23 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
   // Track the last topic we auto-searched to avoid re-running when user types manually
   const lastAutoSearchedTopic = useRef<string>('');
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('fbrts_token') || localStorage.getItem('token') || localStorage.getItem('minerva_token');
+    const headers: Record<string, string> = {};
+    if (token && token !== 'null' && token !== 'undefined') {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+  };
+
   const handleManualSearch = async (q: string) => {
     if (!q.trim()) return;
     setSearching(true);
     setSearchError('');
     setSearchResults([]);
     try {
-      const token = localStorage.getItem('fbrts_token');
       const res = await fetch(`/api/future-education/lab/sketchfab-search-list?query=${encodeURIComponent(q.trim())}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: getAuthHeaders()
       });
       const data = await res.json();
       if (data.success && data.results && data.results.length > 0) {
@@ -169,7 +177,6 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
     }
 
     setSketchfabLoading(true);
-    const token = localStorage.getItem('fbrts_token');
     
     const cleanQuery = sketchfab_hint
       .replace(/Interactive/gi, '')
@@ -178,7 +185,7 @@ export const Model3DLab: React.FC<Model3DLabProps> = ({
       .trim();
 
     fetch(`/api/future-education/lab/sketchfab-search?query=${encodeURIComponent(cleanQuery)}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: getAuthHeaders()
     })
       .then(r => r.json())
       .then(data => {

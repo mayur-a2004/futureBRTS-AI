@@ -10,7 +10,7 @@ export default function Onboarding() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        if (onboardingCompleted || localStorage.getItem('fbrts_onboarding_backup')) {
+        if (onboardingCompleted) {
             navigate('/builder', { replace: true });
         }
     }, [onboardingCompleted, navigate]);

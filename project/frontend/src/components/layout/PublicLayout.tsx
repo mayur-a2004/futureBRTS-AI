@@ -24,8 +24,10 @@ export default function PublicLayout() {
                 {/* --- SHARED HEADER --- */}
                 <motion.header style={{ backgroundColor: headerBg, backdropFilter: headerBlur }} className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 py-4">
                     <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
-                        <div className="flex items-center gap-2 cursor-pointer" onClick={() => { setIsMobileMenuOpen(false); navigate('/'); }}>
-                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-black">F</div>
+                        <div className="flex items-center gap-3 cursor-pointer" onClick={() => { setIsMobileMenuOpen(false); navigate('/'); }}>
+                            <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center shrink-0 border border-white/10 shadow-md">
+                                <img src="/logo.png" alt="Future BRTS Logo" className="w-full h-full object-cover" />
+                            </div>
                             <span className="text-xl font-black tracking-tighter">FutureBRTS</span>
                         </div>
 
@@ -174,8 +176,10 @@ function Footer() {
             
             <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12 md:gap-16 relative z-10">
                 <div className="space-y-6 col-span-1 md:col-span-2">
-                    <h3 className="text-2xl font-black italic uppercase tracking-tighter flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-black text-xs not-italic text-white">F</span>
+                    <h3 className="text-2xl font-black italic uppercase tracking-tighter flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center shrink-0 border border-white/10 shadow-md">
+                            <img src="/logo.png" alt="Future BRTS Logo" className="w-full h-full object-cover" />
+                        </div>
                         FUTURE <span className="text-indigo-500">BRTS</span>
                     </h3>
                     <p className="text-sm text-gray-400 font-medium max-w-sm leading-relaxed text-left">

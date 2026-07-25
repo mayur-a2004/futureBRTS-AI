@@ -228,7 +228,9 @@ export default function WelcomeTour({ onClose }: WelcomeTourProps) {
             <div className="flex flex-col gap-4">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-black text-[10px] text-white">F</div>
+                  <div className="w-6 h-6 rounded overflow-hidden flex items-center justify-center shrink-0 border border-white/10 shadow-sm">
+                    <img src="/logo.png" alt="Future BRTS Logo" className="w-full h-full object-cover" />
+                  </div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">FutureBRTS</span>
                 </div>
                 <button

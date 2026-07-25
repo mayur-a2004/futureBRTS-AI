@@ -125,7 +125,7 @@ export const layer7WafSentinel = (req: Request, res: Response, next: NextFunctio
         const authHeader = req.headers.authorization;
         if (authHeader && authHeader.startsWith('Bearer ')) {
             const token = authHeader.split(' ')[1];
-            if (token && (token.includes('<') || token.includes('>') || token.length < 10)) {
+            if (token && token !== 'null' && token !== 'undefined' && (token.includes('<') || token.includes('>') || token.length < 10)) {
                 sendEmergencySecurityAlert('L6_TOKEN_TAMPER_ATTEMPT', clientIp, `Malformed or tampered authorization token`, url);
                 return res.status(401).json({
                     success: false,

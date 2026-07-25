@@ -2,10 +2,15 @@
 
 const BASE_URL = '/api/future-education';
 
-const authHeaders = (token: string) => ({
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json',
-});
+const authHeaders = (token?: string | null) => {
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+    };
+    if (token && token !== 'null' && token !== 'undefined') {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+};
 
 const handleRes = async (res: Response) => {
     const data = await res.json();

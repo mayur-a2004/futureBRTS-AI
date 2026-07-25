@@ -5,7 +5,10 @@ import { logger } from '../utils/logger';
 
 export const tokenGuard = async (req: any, res: Response, next: NextFunction) => {
     try {
-        const userId = req.user.id;
+        if (req.user?.isGuest) {
+            return next();
+        }
+        const userId = req.user.id || req.user._id;
         const user = await User.findById(userId);
 
         if (!user) {

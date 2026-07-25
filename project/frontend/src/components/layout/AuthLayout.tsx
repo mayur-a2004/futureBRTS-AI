@@ -36,9 +36,9 @@ export default function AuthLayout() {
                     <Link to="/" className="inline-flex items-center gap-2 text-gray-500 hover:text-white transition text-[10px] font-black uppercase tracking-widest mb-4 group">
                         <ArrowLeft size={12} className="group-hover:-translate-x-1 transition-transform" /> Back to Home
                     </Link>
-                    <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 flex items-center justify-center text-white font-black text-sm shadow-[0_0_20px_rgba(99,102,241,0.35)] shrink-0">
-                            F
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center shrink-0 border border-white/10 shadow-md">
+                            <img src="/logo.png" alt="Future BRTS Logo" className="w-full h-full object-cover" />
                         </div>
                         <span className="font-display font-black text-xs tracking-[0.2em] uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-200 to-indigo-300">
                             FutureBRTS
@@ -85,7 +85,7 @@ export default function AuthLayout() {
                         
                         <div className="text-[10px] font-black text-indigo-400/80 uppercase tracking-widest mb-2 flex items-center gap-1.5 border-b border-white/5 pb-2">
                             <Activity size={12} className="animate-pulse" />
-                            Minerva Engine Status
+                            Future Engine Status
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">

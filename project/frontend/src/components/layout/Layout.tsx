@@ -509,11 +509,13 @@ export default function Layout() {
                             {/* Logo Button - Collapsed state hover trigger */}
                             <div
                                 onClick={isSidebarCollapsed ? toggleSidebar : undefined}
-                                className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-600 flex items-center justify-center font-black text-sm shrink-0 cursor-pointer transition-all hover:opacity-90 relative shadow-md"
+                                className="w-9 h-9 rounded-xl bg-slate-900 border border-white/10 overflow-hidden flex items-center justify-center shrink-0 cursor-pointer transition-all hover:opacity-90 relative shadow-md"
                             >
-                                <span className={`${isSidebarCollapsed ? 'group-hover/header-actions:opacity-0' : ''} transition-opacity text-white`}>F</span>
+                                <img src="/logo.png" alt="Future BRTS Logo" className="w-full h-full object-cover" />
                                 {isSidebarCollapsed && (
-                                    <PanelLeftOpen size={18} className="absolute opacity-0 group-hover/header-actions:opacity-100 transition-opacity text-white" />
+                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/header-actions:opacity-100 transition-opacity flex items-center justify-center">
+                                        <PanelLeftOpen size={18} className="text-white" />
+                                    </div>
                                 )}
                             </div>
 

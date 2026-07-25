@@ -40,7 +40,10 @@ export const FutureBrtsLogo: React.FC = () => {
     }, []);
 
     return (
-        <div className="relative inline-flex items-center select-none w-full" style={{ height: '85px', maxWidth: '640px' }}>
+        <div className="relative inline-flex items-center gap-4 select-none w-full" style={{ height: '85px', maxWidth: '720px' }}>
+            <div className="w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center shrink-0 border border-indigo-500/30 shadow-[0_0_25px_rgba(99,102,241,0.4)] bg-slate-950">
+                <img src="/logo.png" alt="Future BRTS Logo" className="w-full h-full object-cover" />
+            </div>
             <svg viewBox="0 0 540 90" className="w-full h-full overflow-visible">
                 <defs>
                     {/* Glowing filter for neon effect */}
