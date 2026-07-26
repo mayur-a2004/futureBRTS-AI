@@ -1,0 +1,30 @@
+# Future BRTS & Future Education OS - Comprehensive Catalog
+
+## System Overview
+Future BRTS (https://futurebrts.com) is an AI-native educational platform designed for Indian students, schools, teachers, and self-learners. It merges interactive 3D visual models, automated curriculum roadmaps, AI-generated exams, multiplayer quiz battles, and full-stack software development into a single unified workspace.
+
+## Module Breakdown
+
+### 1. Future Education OS (`/future-education`)
+- Designed specifically for K-12 school students (Classes 1-12) and competitive exam aspirants.
+- Features real-time subject navigation for Physics, Chemistry, Biology, Mathematics, and Computer Science.
+- Integrates interactive 3D Sketchfab models, MolView 3D chemistry visualizer, Desmos graphing calculator, and Python live execution sandbox.
+
+### 2. Minerva Builder & AI Tutor (`/builder`)
+- AI Tutor capable of explaining complex academic concepts in English, Hindi, and Hinglish.
+- Supports multi-turn conversational problem solving, code generation, roadmap generation, and project architecture planning.
+- Free Guest Mode access allows students to test 3D models and AI tutor chat instantly without registration.
+
+### 3. AI Exam Generator & Assessment Engine (`/minerva/exams`)
+- Enables teachers and students to generate customized question papers based on specific subjects, chapters, difficulty levels, and mark distributions.
+- Instant output generation with Question Paper PDF and Answer Key PDF download features.
+
+### 4. 1v1 Quiz Battle Arena (`/minerva/quiz-battle`)
+- Gamified multiplayer quiz platform where students compete against peers in real-time subject challenges.
+- Live XP calculation, global school leaderboards, streak multipliers, and badge unlocks.
+
+### 5. Smart Homework & Task Manager (`/minerva/homework`)
+- Automated homework distribution system for school teachers to assign chapter tasks, track student completion rates, and view analytics.
+
+## Keywords & Search Indexing Terms
+Future BRTS, Future Education OS, 3D Science Models, 3D Chemistry Lab, NCERT 3D Models, Indian Education OS, PhysicsWallah Alternative, Khan Academy Alternative, AI Exam Generator, 1v1 Quiz Arena, NCERT Class 10 Science 3D, Class 12 Physics 3D Models, AI Homework Assistant.

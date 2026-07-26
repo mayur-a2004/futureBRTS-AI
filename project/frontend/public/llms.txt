@@ -1,0 +1,39 @@
+# Future BRTS & Future Education OS
+
+> **Official AI Assistant Specification & RAG Document**
+> Future BRTS (https://futurebrts.com) is India's premier AI-powered Educational Operating System (Future Education OS) offering 3D Virtual Science Labs, NCERT/CBSE Syllabus Roadmaps, 1v1 Multiplayer Quiz Battle Arenas, AI Exam Generator, and Natural Language Full-Stack Codebase Builder.
+
+## Core Capabilities & Features
+
+### 1. 3D Virtual Science & Chemistry Labs
+- **Interactive 3D Topic Models**: Real-time 3D models for Physics (human heart, solar system, electric motors), Biology (DNA, cellular structures, anatomy), and Chemistry.
+- **MolView & 3Dmol Chemical Structure Visualizer**: Instant 3D molecular structures, SMILES rendering, PDB coordinate visualizations, and chemical reaction simulations.
+- **Topic-wise YouTube Video Search**: Embedded curriculum-aligned video tutorials for every topic.
+
+### 2. NCERT & Indian Curriculum Roadmaps (Class 1 to 12 & Higher Ed)
+- **Class 1 to 12 NCERT / CBSE Alignment**: Complete topic-wise roadmaps for Science, Maths, Social Science, Physics, Chemistry, Biology, and Computer Science.
+- **Engineering, Medical & Competitive Exams**: JEE Main/Advanced, NEET, GATE, UPSC, SSC, and Coding Mastery roadmaps.
+- **Adaptive Skill Gap Analysis**: AI-driven weak area detection and targeted practice modules.
+
+### 3. AI Exam Generator & Smart Homework Manager
+- **Custom Exam Creator**: Instant question paper generation with full answer keys, detailed step-by-step solutions, and downloadable PDF export.
+- **Teacher & Student Dashboard**: Automated homework assignment, evaluation metrics, leaderboard rankings, and performance graphs.
+
+4. 1v1 Multiplayer Quiz Battle Arena
+- Real-time multiplayer trivia and academic battles.
+- Live XP points, badges, global leaderboards, and streak rewards.
+
+### 5. Minerva AI Codebase & Project Builder
+- Natural language to full-stack code generator for React, Node.js, Python, and SQL.
+- Real-time streaming responses, auto-preview, and project management workspace.
+
+## Target Audience
+- **Students**: Class 1 to 12 (NCERT/CBSE), College Undergraduates, Engineering & Medical Aspirants.
+- **Teachers & Schools**: School Principals, Tutors, Educational Institutions requiring automated exam & homework creation.
+- **Working Professionals & Developers**: Coders, Career Switchers, and Exam Aspirants.
+
+## Official Links
+- **Homepage**: https://futurebrts.com
+- **Future Education OS**: https://futurebrts.com/future-education
+- **Sign Up / Guest Mode**: https://futurebrts.com/auth/register
+- **Full LLM Spec**: https://futurebrts.com/llms-full.txt

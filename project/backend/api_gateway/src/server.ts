@@ -199,6 +199,7 @@ const renderLLMsTxt = async (req: express.Request, res: express.Response) => {
 };
 
 app.get('/llms.txt', renderLLMsTxt);
+app.get('/llms-full.txt', renderLLMsTxt);
 app.get('/.well-known/llms.txt', renderLLMsTxt);
 
 // Public Contact Form Submission Endpoint
