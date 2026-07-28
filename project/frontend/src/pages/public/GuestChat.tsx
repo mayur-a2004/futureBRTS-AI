@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Send, Copy, ThumbsUp, ThumbsDown, Sparkles } from "lucide-react"
+import { Send, Sparkles } from "lucide-react"
 import { useNavigate, useLocation } from "react-router-dom"
 import UniverseBackground from "@/components/ui/UniverseBackground"
 import axios from "axios"
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { MessageBubble } from "@/components/chat/MessageBubble"
 
 interface Message {
     role: 'user' | 'assistant';
@@ -19,6 +18,7 @@ export default function GuestChat() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isTyping, setIsTyping] = useState(false);
+    const [activeSymbol, setActiveSymbol] = useState<'/' | '@' | '#' | null>(null);
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }));
     const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -29,6 +29,15 @@ export default function GuestChat() {
         }, 1000);
         return () => clearInterval(timer);
     }, []);
+
+    const getGuestSessionId = () => {
+        let id = sessionStorage.getItem('fbrts_guest_session_id');
+        if (!id) {
+            id = 'guest_sess_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
+            sessionStorage.setItem('fbrts_guest_session_id', id);
+        }
+        return id;
+    };
 
     const handleSend = async (e: React.FormEvent | null, directMessage?: string) => {
         if (e) e.preventDefault();
@@ -44,7 +53,8 @@ export default function GuestChat() {
             const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:7001';
             const res = await axios.post(`${API_URL}/api/guest/chat`, {
                 message: content,
-                history: messages.concat(userMsg)
+                history: messages.concat(userMsg),
+                guestSessionId: getGuestSessionId()
             });
 
             if (res.data?.success) {
@@ -142,58 +152,13 @@ export default function GuestChat() {
                                 key={i}
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className={`flex gap-4 w-full ${msg.role === 'user' ? 'justify-end items-start' : 'items-start'}`}
                             >
-                                {msg.role === 'assistant' && (
-                                    <div className="relative shrink-0 mt-1">
-                                        <div className="w-9 h-9 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shadow-[0_0_15px_rgba(79,70,229,0.2)]">
-                                            <span className="font-black text-lg italic tracking-tighter text-indigo-400">F</span>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className={`flex flex-col gap-2 ${msg.role === 'user' ? 'items-end max-w-[80%]' : 'max-w-[85%]'}`}>
-                                    <div className={`p-4 rounded-[1.5rem] text-sm md:text-[14px] leading-[1.5] whitespace-pre-wrap ${msg.role === 'assistant'
-                                        ? 'text-gray-200'
-                                        : 'bg-[#1a1a1a]/80 border border-white/5 text-gray-100 shadow-xl backdrop-blur-sm px-5'
-                                        }`}>
-                                        {msg.role === 'assistant' ? (
-                                            <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-p:mb-2.5 prose-strong:text-white prose-strong:font-black prose-ul:list-disc prose-ul:pl-4 prose-li:mb-1 prose-code:text-indigo-300">
-                                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
-                                            </div>
-                                        ) : msg.content}
-                                    </div>
-
-                                    {msg.role === 'assistant' && (
-                                        <div className="flex flex-col gap-3 mt-0.5">
-                                            <div className="flex items-center gap-3 px-1">
-                                                <button className="text-gray-700 hover:text-white transition-colors" title="Copy"><Copy size={13} /></button>
-                                                <button className="text-gray-700 hover:text-white transition-colors"><ThumbsUp size={13} /></button>
-                                                <button className="text-gray-700 hover:text-white transition-colors"><ThumbsDown size={13} /></button>
-                                            </div>
-
-                                            {msg.suggestions && msg.suggestions.length > 0 && (
-                                                <div className="flex flex-wrap gap-2">
-                                                    {msg.suggestions.map((s, idx) => (
-                                                        <button
-                                                            key={idx}
-                                                            onClick={() => handleSend(null, s)}
-                                                            className="px-5 py-1.5 rounded-full bg-[#1a1a1a]/40 border border-white/5 hover:border-indigo-500/50 hover:bg-indigo-500/10 text-[9px] font-black tracking-widest text-gray-500 hover:text-white transition-all uppercase"
-                                                        >
-                                                            {s}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-
-                                {msg.role === 'user' && (
-                                    <div className="w-9 h-9 rounded-full bg-gray-900 border border-white/10 flex items-center justify-center shrink-0 shadow-lg mt-1">
-                                        <span className="text-[10px] font-black text-gray-500">G</span>
-                                    </div>
-                                )}
+                                <MessageBubble
+                                    role={msg.role}
+                                    content={msg.content}
+                                    suggestions={msg.suggestions}
+                                    onSuggestionClick={(s) => handleSend(null, s)}
+                                />
                             </motion.div>
                         ))}
 
@@ -216,6 +181,100 @@ export default function GuestChat() {
             {/* Input Bar Section */}
             <footer className="relative z-30 px-8 py-4 flex flex-col items-center gap-3">
                 <div className="w-full max-w-4xl relative">
+                    {/* ⚡ SMART SYMBOL POPUP MATRIX (/, @, #) FOR GUEST CHAT */}
+                    {activeSymbol && (
+                        <div className="absolute bottom-[calc(100%+12px)] left-4 bg-[#111113]/95 border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,1)] p-2 w-[320px] max-h-[320px] overflow-y-auto z-50 font-sans backdrop-blur-2xl animate-in fade-in slide-in-from-bottom-2">
+                            <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-400 border-b border-white/5 mb-1 flex items-center justify-between">
+                                <span>{activeSymbol === '/' ? '⚡ Slash Commands' : activeSymbol === '@' ? '🌐 AI Tools & Mentions' : '🏷️ Educational Standards'}</span>
+                                <span className="text-gray-500 font-normal">Esc to close</span>
+                            </div>
+                            {activeSymbol === '/' && (
+                                <div className="space-y-1">
+                                    {[
+                                        { label: '3D Science Lab', desc: 'Open Virtual Lab', icon: '🔬', tag: '/lab' },
+                                        { label: 'Generate NCERT Exam', desc: 'AI Quiz Creator', icon: '📄', tag: '/exam' },
+                                        { label: 'Deep Thinking Mode', desc: 'For detailed answers', icon: '💡', tag: '/think' }
+                                    ].map((item, idx) => (
+                                        <button
+                                            key={idx}
+                                            type="button"
+                                            onClick={() => {
+                                                const words = input.split(/\s+/);
+                                                words.pop();
+                                                setInput((words.join(' ') + ' ' + item.tag).trim() + ' ');
+                                                setActiveSymbol(null);
+                                            }}
+                                            className="flex items-center gap-3 w-full px-3 py-2 text-xs text-white hover:bg-white/10 rounded-xl transition-all text-left group"
+                                        >
+                                            <span className="text-base">{item.icon}</span>
+                                            <div>
+                                                <div className="font-bold text-white group-hover:text-indigo-300 transition-colors">{item.label}</div>
+                                                <div className="text-[10px] text-gray-400">{item.desc}</div>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            {activeSymbol === '@' && (
+                                <div className="space-y-1">
+                                    {[
+                                        { tag: '@web', label: 'Web Search & Scrape', desc: 'Find real-time news & sources', icon: '🌐' },
+                                        { tag: '@image', label: 'Create Image', desc: 'Visualize anything', icon: '🎨' },
+                                        { tag: '@math', label: 'Desmos Math Grapher', desc: 'Interactive equations', icon: '📊' },
+                                        { tag: '@3d', label: '3D Science Lab Viewer', desc: 'Biology & Chemistry 3D', icon: '🧬' },
+                                        { tag: '@news', label: 'Live News Bulletin', desc: 'Real-time Indian & Global news', icon: '📰' }
+                                    ].map((item, idx) => (
+                                        <button
+                                            key={idx}
+                                            type="button"
+                                            onClick={() => {
+                                                const words = input.split(/\s+/);
+                                                words.pop();
+                                                setInput((words.join(' ') + ' ' + item.tag).trim() + ' ');
+                                                setActiveSymbol(null);
+                                            }}
+                                            className="flex items-center gap-3 w-full px-3 py-2 text-xs text-white hover:bg-white/10 rounded-xl transition-all text-left group"
+                                        >
+                                            <span className="text-base">{item.icon}</span>
+                                            <div>
+                                                <div className="font-bold text-white group-hover:text-indigo-300 transition-colors">{item.label}</div>
+                                                <div className="text-[10px] text-gray-400">{item.desc}</div>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            {activeSymbol === '#' && (
+                                <div className="space-y-1">
+                                    {[
+                                        { tag: '#NCERTClass10', label: 'NCERT Class 10', desc: 'Official CBSE Standard', icon: '📘' },
+                                        { tag: '#JEE2026', label: 'JEE Advanced', desc: 'High-difficulty engineering prep', icon: '⚡' },
+                                        { tag: '#NEETBiology', label: 'NEET Medical', desc: 'Medical entrance standard', icon: '🩺' },
+                                        { tag: '#CBSEBoard', label: 'CBSE Curriculum', desc: 'School board guidelines', icon: '🎓' }
+                                    ].map((item, idx) => (
+                                        <button
+                                            key={idx}
+                                            type="button"
+                                            onClick={() => {
+                                                const words = input.split(/\s+/);
+                                                words.pop();
+                                                setInput((words.join(' ') + ' ' + item.tag).trim() + ' ');
+                                                setActiveSymbol(null);
+                                            }}
+                                            className="flex items-center gap-3 w-full px-3 py-2 text-xs text-white hover:bg-white/10 rounded-xl transition-all text-left group"
+                                        >
+                                            <span className="text-base">{item.icon}</span>
+                                            <div>
+                                                <div className="font-bold text-white group-hover:text-indigo-300 transition-colors">{item.label}</div>
+                                                <div className="text-[10px] text-gray-400">{item.desc}</div>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     <form
                         onSubmit={handleSend}
                         className="relative bg-[#0d0d0d]/90 border border-white/10 rounded-[1.8rem] p-1 pr-4 shadow-[0_10px_30px_rgba(0,0,0,0.6)] backdrop-blur-3xl focus-within:border-indigo-500/20 transition-all"
@@ -224,8 +283,19 @@ export default function GuestChat() {
                             <input
                                 type="text"
                                 value={input}
-                                onChange={e => setInput(e.target.value)}
-                                placeholder="Message Future BRTS..."
+                                onChange={e => {
+                                    const val = e.target.value;
+                                    setInput(val);
+                                    const lastWord = val.split(/\s+/).pop() || '';
+                                    if (lastWord.startsWith('/') && lastWord.length <= 4) setActiveSymbol('/');
+                                    else if (lastWord.startsWith('@') && lastWord.length <= 4) setActiveSymbol('@');
+                                    else if (lastWord.startsWith('#') && lastWord.length <= 4) setActiveSymbol('#');
+                                    else setActiveSymbol(null);
+                                }}
+                                onKeyDown={e => {
+                                    if (e.key === 'Escape') setActiveSymbol(null);
+                                }}
+                                placeholder="Message Future BRTS... (Type / for actions, @ for tools, # for subjects)"
                                 className="flex-1 bg-transparent border-none py-3 px-6 text-sm md:text-base text-white font-medium focus:ring-0 outline-none placeholder:text-gray-800"
                             />
                             <div className="flex items-center gap-2">

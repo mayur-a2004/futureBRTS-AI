@@ -122,6 +122,10 @@ export const MessageBubble = React.memo(({
     if (!isUser && strippedContent.includes('||SUGGESTIONS_JSON||')) {
         strippedContent = strippedContent.split('||SUGGESTIONS_JSON||')[0].trim();
     }
+    // Also strip any stray "SUGGESTIONS:" heading the AI sometimes writes before the JSON line
+    if (!isUser) {
+        strippedContent = strippedContent.replace(/^\s*(\*{0,2}SUGGESTIONS:?\*{0,2})\s*$/gim, '').trim();
+    }
 
     const cleanedContent = !isUser ? strippedContent : content;
     const sanitizedCleanedContent = sanitizeMarkdownImages(cleanedContent);
@@ -407,6 +411,29 @@ export const MessageBubble = React.memo(({
                                     h1: ({ node, ...props }) => <h1 className="!text-[1.8rem] !font-black !text-white !mb-6 first:!mt-0 !mt-10 !italic !uppercase !leading-tight !tracking-tighter" {...props} />,
                                     h2: ({ node, ...props }) => <h2 className="!text-[1.5rem] !font-black !text-white !mb-4 first:!mt-0 !mt-8 !tracking-tight" {...props} />,
                                     h3: ({ node, ...props }) => <h3 className="!text-[1.2rem] !font-bold !text-white !mb-3 first:!mt-0 !mt-6" {...props} />,
+                                    img: ({ src, alt }) => (
+                                        <div className="my-6 flex flex-col items-center justify-center mx-auto max-w-lg w-full group/img relative">
+                                            <div className="relative overflow-hidden rounded-2xl border border-white/10 shadow-2xl bg-black/40 w-full flex items-center justify-center">
+                                                <img
+                                                    src={src}
+                                                    alt={alt || 'Educational Media'}
+                                                    className="w-full h-auto max-h-[340px] object-cover hover:scale-[1.02] transition-transform duration-500 rounded-2xl"
+                                                    onError={(e) => {
+                                                        const target = e.target as HTMLImageElement;
+                                                        if (!target.dataset.failed) {
+                                                            target.dataset.failed = 'true';
+                                                            target.src = `https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=800`;
+                                                        }
+                                                    }}
+                                                />
+                                            </div>
+                                            {alt && (
+                                                <div className="mt-2 text-center text-[11px] font-bold text-gray-300 bg-white/5 border border-white/10 rounded-full px-4 py-1 flex items-center gap-2 backdrop-blur-md">
+                                                    🖼️ <span>{alt}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ),
                                     ul: ({ children }) => <ul className="space-y-6 my-8">{children}</ul>,
                                     li: ({ children }) => {
                                         return (
@@ -497,7 +524,7 @@ export const MessageBubble = React.memo(({
                                                             wordBreak: 'break-word'
                                                         }}
                                                     >
-                                                        {codeContent}
+                                                    {codeContent}
                                                     </SyntaxHighlighter>
                                                 </div>
                                             </div>
@@ -505,6 +532,63 @@ export const MessageBubble = React.memo(({
                                     },
                                     a: ({ href, children }) => {
                                         const sanitizedHref = href ? sanitizeExternalUrl(href) : href;
+                                        const linkText = String(children || '');
+                                        
+                                        // 📺 Check YouTube Video Embed
+                                        const getYouTubeEmbedUrl = (url: string) => {
+                                            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+                                            const match = url.match(regExp);
+                                            return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : null;
+                                        };
+
+                                        const ytEmbed = sanitizedHref ? getYouTubeEmbedUrl(sanitizedHref) : null;
+                                        const isYouTubeUrl = sanitizedHref && (sanitizedHref.includes('youtube.com') || sanitizedHref.includes('youtu.be'));
+
+                                        if (ytEmbed || isYouTubeUrl) {
+                                            const searchFallback = `https://www.youtube.com/results?search_query=${encodeURIComponent(linkText || 'educational tutorial')}`;
+                                            return (
+                                                <div className="my-4 rounded-2xl overflow-hidden border border-white/10 shadow-xl bg-black/80 max-w-md w-full">
+                                                    {ytEmbed ? (
+                                                        <div className="aspect-video w-full relative bg-black">
+                                                            <iframe
+                                                                src={ytEmbed}
+                                                                title="YouTube Video Player"
+                                                                className="w-full h-full border-0 rounded-t-2xl"
+                                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                                allowFullScreen
+                                                            />
+                                                        </div>
+                                                    ) : null}
+                                                    <div className="p-3 bg-white/5 flex items-center justify-between text-xs text-gray-300 gap-2 border-t border-white/5">
+                                                        <span className="font-bold flex items-center gap-1.5 truncate text-[11px]">
+                                                            📺 <span>YouTube Educational Video</span>
+                                                        </span>
+                                                        <a
+                                                            href={sanitizedHref || searchFallback}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="text-indigo-400 hover:text-indigo-300 font-bold shrink-0 flex items-center gap-1 bg-indigo-500/10 px-2.5 py-1 rounded-lg border border-indigo-500/20 hover:border-indigo-400 transition-all text-[11px] no-underline"
+                                                        >
+                                                            Watch on YouTube <ExternalLink size={10} />
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            );
+                                        }
+
+                                        // 🚀 Internal Ecosystem Route Badge
+                                        if (sanitizedHref && sanitizedHref.startsWith('/')) {
+                                            return (
+                                                <a
+                                                    href={sanitizedHref}
+                                                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 text-indigo-300 hover:text-white hover:border-indigo-400 transition-all font-bold text-xs shadow-md my-1 cursor-pointer no-underline"
+                                                >
+                                                    <Sparkles size={12} className="text-indigo-400 animate-pulse" />
+                                                    <span>{children}</span>
+                                                </a>
+                                            );
+                                        }
+
                                         const isDownload = sanitizedHref?.includes('/download') ||
                                             sanitizedHref?.includes('storage') ||
                                             sanitizedHref?.endsWith('.pdf') ||
@@ -518,22 +602,47 @@ export const MessageBubble = React.memo(({
                                                 <a
                                                     href={sanitizedHref}
                                                     onClick={(e) => handleDownload(e, sanitizedHref!, String(children))}
-                                                    className="flex items-center gap-4 p-5 my-4 rounded-[22px] bg-indigo-500/10 border border-indigo-500/20 hover:bg-indigo-500/20 transition-all no-underline group/link shadow-lg cursor-pointer"
+                                                    className="flex items-center gap-4 p-4 my-3 rounded-[20px] bg-indigo-500/10 border border-indigo-500/20 hover:bg-indigo-500/20 transition-all no-underline group/link shadow-lg cursor-pointer max-w-md"
                                                 >
-                                                    <div className="w-12 h-12 rounded-[16px] bg-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover/link:bg-indigo-500 group-hover/link:text-white transition-all shadow-inner">
-                                                        <FileText size={22} />
+                                                    <div className="w-10 h-10 rounded-[14px] bg-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover/link:bg-indigo-500 group-hover/link:text-white transition-all shadow-inner">
+                                                        <FileText size={20} />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="text-sm font-black text-white truncate uppercase tracking-tight">{children}</div>
-                                                        <div className="text-[9px] text-indigo-400/60 font-black uppercase tracking-[0.25em] mt-1 italic">Secure Object Ready</div>
+                                                        <div className="text-xs font-black text-white truncate uppercase tracking-tight">{children}</div>
+                                                        <div className="text-[9px] text-indigo-400/60 font-black uppercase tracking-[0.25em] mt-0.5 italic">Download Attachment</div>
                                                     </div>
-                                                    <Download size={18} className="text-gray-500 group-hover/link:text-white transition-colors" />
+                                                    <Download size={16} className="text-gray-500 group-hover/link:text-white transition-colors" />
                                                 </a>
                                             );
                                         }
+
+                                        // 🌐 External Verified Resource Link Badge with Favicon
+                                        let domainName = '';
+                                        try {
+                                            if (sanitizedHref && sanitizedHref.startsWith('http')) {
+                                                domainName = new URL(sanitizedHref).hostname.replace(/^www\./, '');
+                                            }
+                                        } catch (e) {}
+
                                         return (
-                                            <a href={sanitizedHref} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 transition-colors inline-flex items-center gap-1 font-bold">
-                                                {children} <ExternalLink size={12} />
+                                            <a
+                                                href={sanitizedHref}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-indigo-500/15 border border-white/10 hover:border-indigo-500/40 text-indigo-300 hover:text-white transition-all text-xs font-semibold no-underline my-1 shadow-sm cursor-pointer"
+                                            >
+                                                {domainName ? (
+                                                    <img
+                                                        src={`https://www.google.com/s2/favicons?domain=${domainName}&sz=32`}
+                                                        alt=""
+                                                        className="w-3.5 h-3.5 rounded shrink-0"
+                                                        onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                                                    />
+                                                ) : (
+                                                    <Globe size={12} className="text-indigo-400 shrink-0" />
+                                                )}
+                                                <span className="truncate max-w-[240px] font-medium">{children}</span>
+                                                <ExternalLink size={11} className="text-indigo-400/70 shrink-0" />
                                             </a>
                                         );
                                     }
@@ -541,8 +650,6 @@ export const MessageBubble = React.memo(({
                             >
                                 {cleanContentForRender}
                             </ReactMarkdown>
-
-                            {/* Summary Section */}
                             {summary && (
                                 <motion.div
                                     initial={{ opacity: 0, y: 10 }}

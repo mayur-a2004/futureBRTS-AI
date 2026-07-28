@@ -61,6 +61,30 @@ export default function Builder() {
     const [showMenu, setShowMenu] = useState(false);
     const [menuView, setMenuView] = useState<'main' | 'more'>('main');
     const [collageProjectModalOpen, setCollageProjectModalOpen] = useState(false);
+    const [activeSymbol, setActiveSymbol] = useState<'/' | '@' | '#' | null>(null);
+
+    const handleInputChange = (val: string) => {
+        setInput(val);
+        const lastWord = val.split(/\s+/).pop() || '';
+        if (lastWord.startsWith('/') && lastWord.length <= 4) {
+            setActiveSymbol('/');
+        } else if (lastWord.startsWith('@') && lastWord.length <= 4) {
+            setActiveSymbol('@');
+        } else if (lastWord.startsWith('#') && lastWord.length <= 4) {
+            setActiveSymbol('#');
+        } else {
+            setActiveSymbol(null);
+        }
+    };
+
+    const handleSymbolSelect = (replacementText: string) => {
+        const words = input.split(/\s+/);
+        words.pop();
+        const newText = (words.join(' ') + ' ' + replacementText).trim() + ' ';
+        setInput(newText);
+        setActiveSymbol(null);
+        if (textAreaRef.current) textAreaRef.current.focus();
+    };
 
     const handleDownload = (url: string, filename: string) => {
         const link = document.createElement('a');
@@ -505,6 +529,29 @@ export default function Builder() {
                     }
                 }
             }
+            // ✅ After stream complete: parse ||SUGGESTIONS_JSON|| and any stray headings
+            setMessages(prev => prev.map(m => {
+                if (m.id !== assistantMsgId) return m;
+                let finalContent = m.content || '';
+                let suggestions = m.suggestions || [];
+
+                // Strip stray "SUGGESTIONS:" heading the AI sometimes writes
+                finalContent = finalContent.replace(/^\s*(\*{0,2}SUGGESTIONS:?\*{0,2})\s*$/gim, '').trim();
+
+                // Parse ||SUGGESTIONS_JSON|| token
+                if (finalContent.includes('||SUGGESTIONS_JSON||')) {
+                    const parts = finalContent.split('||SUGGESTIONS_JSON||');
+                    finalContent = parts[0].trim();
+                    // Also strip any trailing "SUGGESTIONS:" heading left behind
+                    finalContent = finalContent.replace(/^\s*(\*{0,2}SUGGESTIONS:?\*{0,2})\s*$/gim, '').trim();
+                    try {
+                        const parsed = JSON.parse(parts[1].trim());
+                        if (Array.isArray(parsed)) suggestions = parsed;
+                    } catch (e) { console.error('Suggestions parse error', e); }
+                }
+
+                return { ...m, content: finalContent, suggestions };
+            }));
         } catch (e) {
             console.error(e);
             // Show error on failure
@@ -1352,11 +1399,14 @@ export default function Builder() {
                             <textarea
                                 ref={textAreaRef}
                                 className="flex-1 bg-transparent border-0 focus:ring-0 text-white placeholder:text-white/20 text-[14px] md:text-[15px] py-2.5 md:py-3 resize-none max-h-[200px] leading-relaxed font-medium transition-colors"
-                                placeholder={isListening ? "Listening with Neural Precision..." : (inputMode ? `Collaborating in ${inputMode.label}...` : "Ask anything...")}
+                                placeholder={isListening ? "Listening with Neural Precision..." : (inputMode ? `Collaborating in ${inputMode.label}...` : "Ask anything... (Type / for actions, @ for tools, # for subjects)")}
                                 value={input}
-                                onChange={e => setInput(e.target.value)}
+                                onChange={e => handleInputChange(e.target.value)}
                                 onPaste={handlePaste}
-                                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                                onKeyDown={e => {
+                                    if (e.key === 'Escape') setActiveSymbol(null);
+                                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); setActiveSymbol(null); handleSend(); }
+                                }}
                                 disabled={loading}
                                 rows={1}
                                 autoFocus
@@ -1387,6 +1437,85 @@ export default function Builder() {
                                 )}
                             </div>
                         </div>
+
+                        {/* ⚡ SMART SYMBOL POPUP MATRIX (/, @, #) */}
+                        {activeSymbol && (
+                            <div className="absolute bottom-[calc(100%+12px)] left-4 bg-[#111113]/95 border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,1)] p-2 w-[320px] max-h-[320px] overflow-y-auto z-50 font-sans backdrop-blur-2xl animate-in fade-in slide-in-from-bottom-2">
+                                <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-400 border-b border-white/5 mb-1 flex items-center justify-between">
+                                    <span>{activeSymbol === '/' ? '⚡ Slash Commands' : activeSymbol === '@' ? '🌐 AI Tools & Mentions' : '🏷️ Educational Standards'}</span>
+                                    <span className="text-gray-500 font-normal">Esc to close</span>
+                                </div>
+                                {activeSymbol === '/' && (
+                                    <div className="space-y-1">
+                                        {[
+                                            { label: 'Add photos & files', desc: 'Upload from computer', icon: '📎', action: () => fileInputRef.current?.click() },
+                                            { label: 'Dictate', desc: 'Convert speech to text', icon: '🎙️', action: () => handleMicClick() },
+                                            { label: 'Deep Thinking Mode', desc: 'For detailed answers', icon: '💡', action: () => handleModeSelect('Deep research', '🔭', 'text-blue-400') },
+                                            { label: '3D Science Lab', desc: 'Open Virtual Lab', icon: '🔬', action: () => handleSymbolSelect('3D Science Lab model') },
+                                            { label: 'Generate NCERT Exam', desc: 'AI Quiz Creator', icon: '📄', action: () => handleSymbolSelect('Generate NCERT Exam paper') },
+                                            { label: 'Project Architect', desc: 'Build Industrial App', icon: '🚀', action: () => setCollageProjectModalOpen(true) }
+                                        ].map((item, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={() => { item.action(); setActiveSymbol(null); }}
+                                                className="flex items-center gap-3 w-full px-3 py-2 text-xs text-white hover:bg-white/10 rounded-xl transition-all text-left group"
+                                            >
+                                                <span className="text-base">{item.icon}</span>
+                                                <div>
+                                                    <div className="font-bold text-white group-hover:text-indigo-300 transition-colors">{item.label}</div>
+                                                    <div className="text-[10px] text-gray-400">{item.desc}</div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                                {activeSymbol === '@' && (
+                                    <div className="space-y-1">
+                                        {[
+                                            { tag: '@web', label: 'Web Search & Scrape', desc: 'Find real-time news & sources', icon: '🌐' },
+                                            { tag: '@image', label: 'Create Image', desc: 'Visualize anything', icon: '🎨' },
+                                            { tag: '@math', label: 'Desmos Math Grapher', desc: 'Interactive equations', icon: '📊' },
+                                            { tag: '@3d', label: '3D Science Lab Viewer', desc: 'Biology & Chemistry 3D', icon: '🧬' },
+                                            { tag: '@news', label: 'Live News Bulletin', desc: 'Real-time Indian & Global news', icon: '📰' }
+                                        ].map((item, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={() => handleSymbolSelect(item.tag)}
+                                                className="flex items-center gap-3 w-full px-3 py-2 text-xs text-white hover:bg-white/10 rounded-xl transition-all text-left group"
+                                            >
+                                                <span className="text-base">{item.icon}</span>
+                                                <div>
+                                                    <div className="font-bold text-white group-hover:text-indigo-300 transition-colors">{item.label}</div>
+                                                    <div className="text-[10px] text-gray-400">{item.desc}</div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                                {activeSymbol === '#' && (
+                                    <div className="space-y-1">
+                                        {[
+                                            { tag: '#NCERTClass10', label: 'NCERT Class 10', desc: 'Official CBSE Standard', icon: '📘' },
+                                            { tag: '#JEE2026', label: 'JEE Advanced', desc: 'High-difficulty engineering prep', icon: '⚡' },
+                                            { tag: '#NEETBiology', label: 'NEET Medical', desc: 'Medical entrance standard', icon: '🩺' },
+                                            { tag: '#CBSEBoard', label: 'CBSE Curriculum', desc: 'School board guidelines', icon: '🎓' }
+                                        ].map((item, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={() => handleSymbolSelect(item.tag)}
+                                                className="flex items-center gap-3 w-full px-3 py-2 text-xs text-white hover:bg-white/10 rounded-xl transition-all text-left group"
+                                            >
+                                                <span className="text-base">{item.icon}</span>
+                                                <div>
+                                                    <div className="font-bold text-white group-hover:text-indigo-300 transition-colors">{item.label}</div>
+                                                    <div className="text-[10px] text-gray-400">{item.desc}</div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Dropdown Menu */}
                         {showMenu && (

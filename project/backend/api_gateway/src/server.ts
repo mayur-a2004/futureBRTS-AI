@@ -202,6 +202,46 @@ app.get('/llms.txt', renderLLMsTxt);
 app.get('/llms-full.txt', renderLLMsTxt);
 app.get('/.well-known/llms.txt', renderLLMsTxt);
 
+// Public Guest Mode Chat Endpoint
+app.post('/api/guest/chat', async (req, res) => {
+    try {
+        const { message, history, guestSessionId } = req.body;
+        if (!message?.trim()) {
+            res.status(400).json({ success: false, error: 'Message is required' });
+            return;
+        }
+
+        const { getProviderResponse } = require('./shared/services/openai.service');
+        const formattedMessages = [
+            {
+                role: 'system',
+                content: `You are Future BRTS AI — an elite, 10X human senior tech co-founder & elder brother ('Bhai') for guest users.
+Be super warm, intelligent, logical, and helpful.
+If asked for code, output 90%+ accurate complete code.
+If asked for news/videos/products, output YouTube links (e.g. [Watch Video](https://www.youtube.com/watch?v=...)), Amazon/Flipkart product pills, and verified domain sources.
+EVERY response MUST end with ||SUGGESTIONS_JSON|| ["Action 1", "Action 2", "Action 3"].`
+            },
+            ...(Array.isArray(history) ? history.slice(-6).map((h: any) => ({
+                role: h.role === 'user' ? 'user' : 'assistant',
+                content: h.content
+            })) : []),
+            { role: 'user', content: message }
+        ];
+
+        const aiResult = await getProviderResponse(formattedMessages, { temperature: 0.7 });
+        let replyText = aiResult?.choices?.[0]?.message?.content || "Hey! Future BRTS AI here. How can I help you build or learn today?";
+
+        if (!replyText.includes('||SUGGESTIONS_JSON||')) {
+            replyText += '\n\n||SUGGESTIONS_JSON|| ["Explore Education OS", "Build Fullstack App", "Ask Coding Doubt"]';
+        }
+
+        res.json({ success: true, response: replyText });
+    } catch (err: any) {
+        console.error('[Guest Chat API Error]', err);
+        res.status(500).json({ success: false, error: 'Neural link busy. Please retry.' });
+    }
+});
+
 // Public Contact Form Submission Endpoint
 app.post('/api/public/contact', async (req, res) => {
     try {

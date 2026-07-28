@@ -154,7 +154,31 @@ const MinervaHome: React.FC = () => {
 
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
+    const [activeSymbol, setActiveSymbol] = useState<'/' | '@' | '#' | null>(null);
     const [loading, setLoading] = useState(false);
+
+    const handleInputChange = (val: string) => {
+        setInput(val);
+        const lastWord = val.split(/\s+/).pop() || '';
+        if (lastWord.startsWith('/') && lastWord.length <= 4) {
+            setActiveSymbol('/');
+        } else if (lastWord.startsWith('@') && lastWord.length <= 4) {
+            setActiveSymbol('@');
+        } else if (lastWord.startsWith('#') && lastWord.length <= 4) {
+            setActiveSymbol('#');
+        } else {
+            setActiveSymbol(null);
+        }
+    };
+
+    const handleSymbolSelect = (replacementText: string) => {
+        const words = input.split(/\s+/);
+        words.pop();
+        const newText = (words.join(' ') + ' ' + replacementText).trim() + ' ';
+        setInput(newText);
+        setActiveSymbol(null);
+        if (inputRef.current) inputRef.current.focus();
+    };
     const [uploading, setUploading] = useState(false);
     const [uploadedFile, setUploadedFile] = useState<{ name: string; text: string; url?: string; type?: string } | null>(null);
     const [isDeepStudy, setIsDeepStudy] = useState(false);
@@ -1858,13 +1882,96 @@ const MinervaHome: React.FC = () => {
                                 <Edit2 size={15} />
                             </button>
 
+                            {/* ⚡ SMART SYMBOL POPUP MATRIX (/, @, #) FOR MINERWA TUTOR CHAT */}
+                            {activeSymbol && (
+                                <div className="absolute bottom-[calc(100%+12px)] left-4 bg-[#111113]/95 border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,1)] p-2 w-[320px] max-h-[320px] overflow-y-auto z-50 font-sans backdrop-blur-2xl animate-in fade-in slide-in-from-bottom-2">
+                                    <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-400 border-b border-white/5 mb-1 flex items-center justify-between">
+                                        <span>{activeSymbol === '/' ? '⚡ Slash Commands' : activeSymbol === '@' ? '🌐 AI Tools & Mentions' : '🏷️ Educational Standards'}</span>
+                                        <span className="text-gray-500 font-normal">Esc to close</span>
+                                    </div>
+                                    {activeSymbol === '/' && (
+                                        <div className="space-y-1">
+                                            {[
+                                                { label: '3D Science Lab', desc: 'Open Virtual Lab', icon: '🔬', action: () => handleSymbolSelect('3D Science Lab model') },
+                                                { label: 'Generate NCERT Exam', desc: 'AI Quiz Creator', icon: '📄', action: () => handleSymbolSelect('Generate NCERT Exam paper') },
+                                                { label: 'Deep Study Mode', desc: 'For deep academic answers', icon: '💡', action: () => { setIsDeepStudy(true); setActiveSymbol(null); } },
+                                                { label: 'Scan Textbook PDF', desc: 'Upload study file', icon: '📎', action: () => { fileInputRef.current?.click(); setActiveSymbol(null); } }
+                                            ].map((item, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    type="button"
+                                                    onClick={item.action}
+                                                    className="flex items-center gap-3 w-full px-3 py-2 text-xs text-white hover:bg-white/10 rounded-xl transition-all text-left group"
+                                                >
+                                                    <span className="text-base">{item.icon}</span>
+                                                    <div>
+                                                        <div className="font-bold text-white group-hover:text-indigo-300 transition-colors">{item.label}</div>
+                                                        <div className="text-[10px] text-gray-400">{item.desc}</div>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {activeSymbol === '@' && (
+                                        <div className="space-y-1">
+                                            {[
+                                                { tag: '@web', label: 'Web Search & Scrape', desc: 'Find real-time news & sources', icon: '🌐' },
+                                                { tag: '@image', label: 'Create Image', desc: 'Visualize anything', icon: '🎨' },
+                                                { tag: '@math', label: 'Desmos Math Grapher', desc: 'Interactive equations', icon: '📊' },
+                                                { tag: '@3d', label: '3D Science Lab Viewer', desc: 'Biology & Chemistry 3D', icon: '🧬' },
+                                                { tag: '@news', label: 'Live News Bulletin', desc: 'Real-time Indian & Global news', icon: '📰' }
+                                            ].map((item, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    type="button"
+                                                    onClick={() => handleSymbolSelect(item.tag)}
+                                                    className="flex items-center gap-3 w-full px-3 py-2 text-xs text-white hover:bg-white/10 rounded-xl transition-all text-left group"
+                                                >
+                                                    <span className="text-base">{item.icon}</span>
+                                                    <div>
+                                                        <div className="font-bold text-white group-hover:text-indigo-300 transition-colors">{item.label}</div>
+                                                        <div className="text-[10px] text-gray-400">{item.desc}</div>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {activeSymbol === '#' && (
+                                        <div className="space-y-1">
+                                            {[
+                                                { tag: '#NCERTClass10', label: 'NCERT Class 10', desc: 'Official CBSE Standard', icon: '📘' },
+                                                { tag: '#JEE2026', label: 'JEE Advanced', desc: 'High-difficulty engineering prep', icon: '⚡' },
+                                                { tag: '#NEETBiology', label: 'NEET Medical', desc: 'Medical entrance standard', icon: '🩺' },
+                                                { tag: '#CBSEBoard', label: 'CBSE Curriculum', desc: 'School board guidelines', icon: '🎓' }
+                                            ].map((item, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    type="button"
+                                                    onClick={() => handleSymbolSelect(item.tag)}
+                                                    className="flex items-center gap-3 w-full px-3 py-2 text-xs text-white hover:bg-white/10 rounded-xl transition-all text-left group"
+                                                >
+                                                    <span className="text-base">{item.icon}</span>
+                                                    <div>
+                                                        <div className="font-bold text-white group-hover:text-indigo-300 transition-colors">{item.label}</div>
+                                                        <div className="text-[10px] text-gray-400">{item.desc}</div>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             {/* Text Area */}
                             <textarea
                                 ref={inputRef}
                                 value={input}
-                                onChange={e => setInput(e.target.value)}
-                                onKeyDown={handleKeyDown}
-                                placeholder={isDeepStudy ? "Ask a doubt, explain in detail..." : "Ask a doubt or request a topic..."}
+                                onChange={e => handleInputChange(e.target.value)}
+                                onKeyDown={e => {
+                                    if (e.key === 'Escape') setActiveSymbol(null);
+                                    handleKeyDown(e);
+                                }}
+                                placeholder={isDeepStudy ? "Ask a doubt, explain in detail... (Type / for actions, @ for tools, # for subjects)" : "Ask a doubt or request a topic... (Type / for actions, @ for tools, # for subjects)"}
                                 rows={1}
                                 className={`flex-1 bg-transparent resize-none text-sm placeholder-gray-500 outline-none leading-relaxed py-1.5 transition-colors duration-300 ${isDeepStudy ? 'text-cyan-100 caret-cyan-400' : 'text-white'}`}
                                 style={{ minHeight: '24px' }}

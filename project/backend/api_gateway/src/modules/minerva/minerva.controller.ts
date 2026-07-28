@@ -494,8 +494,12 @@ export const minervaController = {
                 }
             }
 
-            // Update study streak
-            updateStreak(userId).catch(err => console.error('Streak update failed:', err));
+            const isGuest = !userId;
+
+            // Update study streak (logged-in only)
+            if (!isGuest) {
+                updateStreak(userId).catch(err => console.error('Streak update failed:', err));
+            }
 
             // Get student profile
             const profile = await getOrCreateProfile(userId);
@@ -511,14 +515,16 @@ export const minervaController = {
                 activeSessionId = null;
             }
 
-            if (!activeChatSessionId) {
-                const newSession = await MinervaChatSession.create({
-                    userId,
-                    title: 'New Chat'
-                });
-                activeChatSessionId = newSession._id;
-            } else {
-                await MinervaChatSession.findByIdAndUpdate(activeChatSessionId, { last_accessed: new Date() });
+            if (!isGuest) {
+                if (!activeChatSessionId) {
+                    const newSession = await MinervaChatSession.create({
+                        userId,
+                        title: 'New Chat'
+                    });
+                    activeChatSessionId = newSession._id;
+                } else {
+                    await MinervaChatSession.findByIdAndUpdate(activeChatSessionId, { last_accessed: new Date() });
+                }
             }
 
             // Parse message if it's a file upload format
@@ -540,54 +546,43 @@ export const minervaController = {
                 cleanDisplayContent = `📁 ${filename}\n\n${studentQuery || 'Explain this uploaded study material.'}`;
             }
 
-            // Update session title if it's 'New Chat' or empty
-            const currentSession = await MinervaChatSession.findById(activeChatSessionId);
-            if (currentSession && (currentSession.title === 'New Chat' || !currentSession.title)) {
-                let newTitle = filename ? `File: ${filename}` : studentQuery;
-                if (newTitle.length > 35) {
-                    newTitle = newTitle.substring(0, 32) + '...';
+            if (!isGuest && activeChatSessionId) {
+                // Update session title if it's 'New Chat' or empty
+                const currentSession = await MinervaChatSession.findById(activeChatSessionId);
+                if (currentSession && (currentSession.title === 'New Chat' || !currentSession.title)) {
+                    let newTitle = filename ? `File: ${filename}` : studentQuery;
+                    if (newTitle.length > 35) {
+                        newTitle = newTitle.substring(0, 32) + '...';
+                    }
+                    await MinervaChatSession.findByIdAndUpdate(activeChatSessionId, { title: newTitle });
                 }
-                await MinervaChatSession.findByIdAndUpdate(activeChatSessionId, { title: newTitle });
-            }
-
-            // Analyze previous message for self-learning feedback loop
-            try {
-                const lastAssistantMsg = await MinervaChatMessage.findOne({ 
-                    userId, 
-                    chat_session_id: activeChatSessionId,
-                    role: 'minerva'
-                }).sort({ createdAt: -1 }).lean();
-
-                if (lastAssistantMsg && studentQuery) {
-                    const { processSelfLearningFeedback } = require('./minerva.service');
-                    processSelfLearningFeedback(studentQuery, lastAssistantMsg.content, profile).catch((err: any) => {
-                        console.error("Error in processSelfLearningFeedback:", err);
-                    });
-                }
-            } catch (err) {
-                console.error("Failed to fetch previous assistant message for self-learning:", err);
             }
 
             // Save student message (clean version)
-            const savedStudentMsg = await saveChatMessage(
-                userId,
-                'student',
-                cleanDisplayContent,
-                'text',
-                activeSessionId,
-                {
-                    file_text: fullExtractedText || undefined,
-                    filename: filename || undefined,
-                    file_url: file_url || undefined,
-                    file_type: file_type || undefined
-                },
-                activeChatSessionId
-            );
+            if (!isGuest && activeChatSessionId) {
+                await saveChatMessage(
+                    userId,
+                    'student',
+                    cleanDisplayContent,
+                    'text',
+                    activeSessionId,
+                    {
+                        file_text: fullExtractedText || undefined,
+                        filename: filename || undefined,
+                        file_url: file_url || undefined,
+                        file_type: file_type || undefined
+                    },
+                    activeChatSessionId
+                );
+            }
 
-            // Get recent chat history for context (reconstructing full messages for LLM context)
-            const rawChatHistory = await MinervaChatMessage.find({ userId, chat_session_id: activeChatSessionId })
-                .sort({ createdAt: -1 }).limit(30).lean();
-            rawChatHistory.reverse();
+            // Get recent chat history for context
+            let rawChatHistory: any[] = [];
+            if (!isGuest && activeChatSessionId) {
+                rawChatHistory = await MinervaChatMessage.find({ userId, chat_session_id: activeChatSessionId })
+                    .sort({ createdAt: -1 }).limit(30).lean();
+                rawChatHistory.reverse();
+            }
 
             const chatHistory = rawChatHistory.map((m: any) => {
                 let content = m.content;
@@ -918,17 +913,21 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                 }
             }
 
-            // Save Minerva reply
-            const savedReply = await saveChatMessage(userId, 'minerva', reply, content_type, activeSessionId, metadata, activeChatSessionId);
+            // Save Minerva reply (logged-in only)
+            let savedMessageId = 'guest-msg-' + Date.now();
+            if (!isGuest && activeChatSessionId) {
+                const savedReply = await saveChatMessage(userId, 'minerva', reply, content_type, activeSessionId, metadata, activeChatSessionId);
+                savedMessageId = String(savedReply._id);
+            }
 
             return res.json({
                 success: true,
                 reply,
                 content_type,
                 metadata,
-                message_id: savedReply._id,
+                message_id: savedMessageId,
                 intent: intent.intent,
-                chat_session_id: activeChatSessionId,
+                chat_session_id: activeChatSessionId || 'guest-session',
             });
 
         } catch (err: any) {

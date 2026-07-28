@@ -45,9 +45,10 @@ export const builderController = {
             let landingIntentId = req.body.landingIntentId;
 
             if (req.user?.isGuest) {
+                const uniqueGuestId = req.headers['x-guest-session-id'] || req.body?.guestSessionId || ('guest_sess_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now());
                 const guestSession = {
-                    _id: '65f123456789abcdef123456',
-                    userId: 'guest_user',
+                    _id: uniqueGuestId,
+                    userId: 'guest_' + uniqueGuestId,
                     title: title || 'Guest Mission',
                     messages: [],
                     isGuest: true,
@@ -136,34 +137,27 @@ export const builderController = {
             let projectVision = 'A high-impact industrial solution';
             let projectCategory = 'Graduation';
 
-            let session = await Session.findOne({ _id: sessionId, userId: req.user.id || req.user._id }).catch(() => null);
-            if (!session && req.user?.isGuest) {
-                try {
-                    session = await Session.findById('65f123456789abcdef123456');
-                    if (!session) {
-                        session = await Session.create({
-                            _id: '65f123456789abcdef123456',
-                            userId: req.user.id || req.user._id || 'guest_user',
-                            title: content?.slice(0, 30) || 'Guest Mission',
-                            messages: []
-                        });
-                    }
-                } catch (e) {
-                    session = {
-                        _id: '65f123456789abcdef123456',
-                        userId: 'guest_user',
-                        title: 'Guest Mission',
-                        messages: [],
-                        save: async () => {}
-                    } as any;
-                }
+            let session: any = null;
+            if (req.user?.isGuest) {
+                session = new Session({
+                    _id: sessionId || ('guest_sess_' + Math.random().toString(36).substring(2, 9)),
+                    userId: req.user?.id || req.user?._id || 'guest_user',
+                    title: content?.slice(0, 30) || 'Guest Mission',
+                    messages: []
+                });
+            } else {
+                session = await Session.findOne({ _id: sessionId, userId: req.user.id || req.user._id }).catch(() => null);
             }
             if (!session) return res.status(404).json({ success: false, error: 'Session not found' });
 
-            const user = await User.findById(userId).catch(() => null);
+            const user = (req.user?.isGuest || !userId || userId === 'guest_user' || String(userId).startsWith('guest'))
+                ? null
+                : await User.findById(userId).catch(() => null);
             const userName = user?.firstName || 'Guest';
 
-            let onboarding = await OnboardingProfile.findOne({ userId }).sort({ createdAt: -1 });
+            let onboarding = (req.user?.isGuest || !userId || userId === 'guest_user' || String(userId).startsWith('guest'))
+                ? null
+                : await OnboardingProfile.findOne({ userId }).sort({ createdAt: -1 }).catch(() => null);
             // MED-2 FIX: Do NOT create a silent fake profile here either.
             if (!onboarding) {
                 onboarding = {
@@ -261,7 +255,9 @@ export const builderController = {
                 timestamp: new Date(),
                 attachments: processedAttachments
             });
-            await session.save();
+            if (!req.user?.isGuest && session.save) {
+                await session.save().catch(() => {});
+            }
 
             // Collage Project Detection
             let isCollageProjectBuild = false;
@@ -300,7 +296,9 @@ export const builderController = {
                 projectCategory = getVal('Category') || projectCategory;
 
                 session.title = `🔱 ${projectFormat}: ${projectField.split(' ').slice(0, 4).join(' ')}`;
-                await session.save();
+                if (!req.user?.isGuest && session.save) {
+                    await session.save().catch(() => {});
+                }
 
                 if (isTitanPlanRequest) {
                     collageProjectContext = `
@@ -599,7 +597,9 @@ The Neural Engine has synthesized your end-to-end business ecosystem. All files 
             }
 
             session.updatedAt = new Date();
-            await session.save();
+            if (!req.user?.isGuest && session.save) {
+                await session.save().catch(() => {});
+            }
 
             const updatedUser = await User.findById(userId).select('tokenBalance');
             res.json({
@@ -619,7 +619,7 @@ The Neural Engine has synthesized your end-to-end business ecosystem. All files 
         try {
             const { content, attachments, inputMode } = req.body;
             const sessionId = req.params.id;
-            const userId = req.user.id;
+            const userId = req.user?.id || req.user?._id || 'guest_user';
 
             let projectField = 'Industrial Project';
             let projectFormat = 'Full Stack App';
@@ -627,33 +627,27 @@ The Neural Engine has synthesized your end-to-end business ecosystem. All files 
             let projectVision = 'A high-impact industrial solution';
             let projectCategory = 'Graduation';
 
-            let session = await Session.findOne({ _id: sessionId, userId: req.user.id || req.user._id }).catch(() => null);
-            if (!session && (req.user?.isGuest || sessionId === '65f123456789abcdef123456')) {
-                try {
-                    session = await Session.findById('65f123456789abcdef123456');
-                    if (!session) {
-                        session = await Session.create({
-                            _id: '65f123456789abcdef123456',
-                            userId: req.user.id || req.user._id || 'guest_user',
-                            title: content?.slice(0, 30) || 'Guest Mission',
-                            messages: []
-                        });
-                    }
-                } catch (e) {
-                    session = new Session({
-                        _id: '65f123456789abcdef123456',
-                        userId: 'guest_user',
-                        title: 'Guest Mission',
-                        messages: []
-                    });
-                }
+            let session: any = null;
+            if (req.user?.isGuest || userId === 'guest_user') {
+                session = new Session({
+                    _id: sessionId || ('guest_sess_' + Math.random().toString(36).substring(2, 9)),
+                    userId: 'guest_user',
+                    title: content?.slice(0, 30) || 'Guest Mission',
+                    messages: []
+                });
+            } else {
+                session = await Session.findOne({ _id: sessionId, userId }).catch(() => null);
             }
             if (!session) return res.status(404).json({ success: false, error: 'Session not found' });
 
-            const user = await User.findById(userId).catch(() => null);
+            const user = (req.user?.isGuest || !userId || userId === 'guest_user' || String(userId).startsWith('guest'))
+                ? null
+                : await User.findById(userId).catch(() => null);
             const userName = user?.firstName || 'Guest';
 
-            let onboarding = await OnboardingProfile.findOne({ userId }).sort({ createdAt: -1 });
+            let onboarding = (req.user?.isGuest || !userId || userId === 'guest_user' || String(userId).startsWith('guest'))
+                ? null
+                : await OnboardingProfile.findOne({ userId }).sort({ createdAt: -1 }).catch(() => null);
             if (!onboarding) {
                 onboarding = {
                     life_stage: 'Unset',
@@ -778,7 +772,9 @@ The Neural Engine has synthesized your end-to-end business ecosystem. All files 
                 timestamp: new Date(),
                 attachments: processedAttachments
             });
-            await session.save();
+            if (!req.user?.isGuest && session.save) {
+                await session.save().catch(() => {});
+            }
 
             // Collage Project Detection
             let isCollageProjectBuild = false;
@@ -815,7 +811,9 @@ The Neural Engine has synthesized your end-to-end business ecosystem. All files 
                 projectCategory = getVal('Category') || projectCategory;
 
                 session.title = `🔱 ${projectFormat}: ${projectField.split(' ').slice(0, 4).join(' ')}`;
-                await session.save();
+                if (!req.user?.isGuest && session.save) {
+                    await session.save().catch(() => {});
+                }
 
                 if (isTitanPlanRequest) {
                     collageProjectContext = `
@@ -989,7 +987,7 @@ Provide 15 complex technical questions and high-level enterprise answers.
                     }
                 } else {
                     res.write(`data: ${JSON.stringify({ type: 'think', token: `[ANALYZING]: Generating research queries...\n` })}\n\n`);
-                    
+
                     let queries: string[] = [content];
                     try {
                         const fastAnalysisPrompt = [
@@ -999,75 +997,70 @@ Provide 15 complex technical questions and high-level enterprise answers.
                         const analysisRes = await getProviderResponse(fastAnalysisPrompt, { jsonMode: true, maxTokens: 100 }, 'groq');
                         const cleanJson = String(analysisRes?.choices?.[0]?.message?.content || analysisRes?.message || analysisRes?.output || "").trim();
                         const parsed = JSON.parse(cleanJson);
-                        if (Array.isArray(parsed)) {
-                            queries = parsed.slice(0, 3);
-                        }
-                    } catch (err) {
-                        // ignore and use fallback
-                    }
+                        if (Array.isArray(parsed)) queries = parsed.slice(0, 3);
+                    } catch (err) { /* fallback to original content */ }
+
+                    // ⚡ PARALLEL: Run all searches simultaneously instead of one-by-one
+                    const workerUrl = process.env.PYTHON_WORKER_URL || 'http://127.0.0.1:8000';
+                    res.write(`data: ${JSON.stringify({ type: 'think', token: `[SEARCH]: Launching ${queries.length} parallel web searches...\n` })}\n\n`);
+
+                    const searchResults = await Promise.allSettled(
+                        queries.map(query =>
+                            axios.post(`${workerUrl}/search`, { query, max_results: 3 }, { timeout: 10000 })
+                                .then(r => ({ query, data: r.data }))
+                                .catch(() => ({ query, data: null }))
+                        )
+                    );
 
                     const targetUrlsToScrape: string[] = [];
 
-                    for (const query of queries) {
-                        res.write(`data: ${JSON.stringify({ type: 'think', token: `[SEARCH]: Searching the web for: "${query}"\n` })}\n\n`);
-                        try {
-                            const workerUrl = process.env.PYTHON_WORKER_URL || 'http://127.0.0.1:8000';
-                            const workerRes = await axios.post(`${workerUrl}/search`, { query, max_results: 3 });
-                            
-                            if (workerRes.data && workerRes.data.status === 'success' && Array.isArray(workerRes.data.results)) {
-                                res.write(`data: ${JSON.stringify({ type: 'think', token: `[READING]: Found results for: "${query}"\n` })}\n\n`);
-                                const snippets = workerRes.data.results.map((r: any) => `- Source: ${r.href}\n  Title: ${r.title}\n  Snippet: ${r.body}`).join('\n\n');
-                                accumulatedScrapedContext += `\n\n--- SEARCH RESULTS FOR "${query}" ---\n${snippets}\n--------------------------------------\n`;
-                                
-                                // Collect top 2 URLs from this query
-                                const queryUrls = workerRes.data.results
-                                    .map((r: any) => r.href)
-                                    .filter((href: string) => href && href.startsWith('http') && !href.toLowerCase().includes('futurebrts.com'));
-                                
-                                for (const href of queryUrls.slice(0, 2)) {
-                                    if (!targetUrlsToScrape.includes(href)) {
-                                        targetUrlsToScrape.push(href);
-                                    }
-                                }
-                            } else {
-                                res.write(`data: ${JSON.stringify({ type: 'think', token: `[READING]: No results found for: "${query}"\n` })}\n\n`);
+                    for (const result of searchResults) {
+                        if (result.status !== 'fulfilled') continue;
+                        const { query, data } = result.value;
+                        if (data?.status === 'success' && Array.isArray(data.results)) {
+                            res.write(`data: ${JSON.stringify({ type: 'think', token: `[READING]: Got results for: "${query}"\n` })}\n\n`);
+                            const snippets = data.results.map((r: any) => `- Source: ${r.href}\n  Title: ${r.title}\n  Snippet: ${r.body}`).join('\n\n');
+                            accumulatedScrapedContext += `\n\n--- SEARCH RESULTS FOR "${query}" ---\n${snippets}\n--------------------------------------\n`;
+                            const queryUrls = data.results
+                                .map((r: any) => r.href)
+                                .filter((href: string) => href && href.startsWith('http') && !href.toLowerCase().includes('futurebrts.com'));
+                            for (const href of queryUrls.slice(0, 2)) {
+                                if (!targetUrlsToScrape.includes(href)) targetUrlsToScrape.push(href);
                             }
-                        } catch (err: any) {
-                            res.write(`data: ${JSON.stringify({ type: 'think', token: `[READING]: Search execution failed for "${query}": ${err.message}\n` })}\n\n`);
+                        } else {
+                            res.write(`data: ${JSON.stringify({ type: 'think', token: `[READING]: No results for: "${query}"\n` })}\n\n`);
                         }
                     }
 
-                    // Scrape the collected URLs in detail!
+                    // ⚡ PARALLEL: Scrape all URLs simultaneously with 8s timeout per URL
                     if (targetUrlsToScrape.length > 0) {
-                        const urlsToProcess = targetUrlsToScrape.slice(0, 4);
-                        res.write(`data: ${JSON.stringify({ type: 'think', token: `[ANALYZING]: Found ${urlsToProcess.length} websites to crawl. Starting deep scraper loop...\n` })}\n\n`);
-                        
-                        for (const url of urlsToProcess) {
-                            res.write(`data: ${JSON.stringify({ type: 'think', token: `[SCRAPING]: Scanning page: ${url}\n` })}\n\n`);
-                            try {
-                                const workerUrl = process.env.PYTHON_WORKER_URL || 'http://127.0.0.1:8000';
-                                const workerRes = await axios.post(`${workerUrl}/scrape-leads`, { url });
-                                
-                                if (workerRes.data && workerRes.data.status === 'success') {
-                                    const data = workerRes.data;
-                                    res.write(`data: ${JSON.stringify({ type: 'think', token: `[READING]: Extracted leads & text content from: ${url}\n` })}\n\n`);
-                                    
-                                    const leads = data.leads || {};
-                                    let leadsText = `\n\n--- DETAILED SCRAPED CONTENT FOR ${url} ---\n`;
-                                    leadsText += `Title: ${data.title}\n`;
-                                    leadsText += `Description: ${data.description}\n`;
-                                    leadsText += `Emails Found: ${leads.emails?.length > 0 ? leads.emails.join(', ') : 'None'}\n`;
-                                    leadsText += `Phones Found: ${leads.phones?.length > 0 ? leads.phones.join(', ') : 'None'}\n`;
-                                    leadsText += `Socials Found: ${leads.socials?.length > 0 ? leads.socials.join(', ') : 'None'}\n`;
-                                    leadsText += `Text Content Preview:\n${data.text_preview?.substring(0, 1500)}\n`;
-                                    leadsText += `------------------------------------\n`;
-                                    
-                                    accumulatedScrapedContext += leadsText;
-                                } else {
-                                    res.write(`data: ${JSON.stringify({ type: 'think', token: `[READING]: Failed to scrape ${url}: ${workerRes.data?.message || 'Unknown error'}\n` })}\n\n`);
-                                }
-                            } catch (err: any) {
-                                res.write(`data: ${JSON.stringify({ type: 'think', token: `[READING]: Scrape failed for ${url}: ${err.message}\n` })}\n\n`);
+                        const urlsToProcess = targetUrlsToScrape.slice(0, 3); // max 3 to keep it snappy
+                        res.write(`data: ${JSON.stringify({ type: 'think', token: `[SCRAPING]: Crawling ${urlsToProcess.length} pages in parallel...\n` })}\n\n`);
+
+                        const scrapeResults = await Promise.allSettled(
+                            urlsToProcess.map(url =>
+                                axios.post(`${workerUrl}/scrape-leads`, { url }, { timeout: 8000 })
+                                    .then(r => ({ url, data: r.data }))
+                                    .catch(() => ({ url, data: null }))
+                            )
+                        );
+
+                        for (const result of scrapeResults) {
+                            if (result.status !== 'fulfilled') continue;
+                            const { url, data } = result.value;
+                            if (data?.status === 'success') {
+                                res.write(`data: ${JSON.stringify({ type: 'think', token: `[READING]: Extracted content from: ${url}\n` })}\n\n`);
+                                const leads = data.leads || {};
+                                let leadsText = `\n\n--- SCRAPED CONTENT: ${url} ---\n`;
+                                leadsText += `Title: ${data.title}\nDescription: ${data.description}\n`;
+                                leadsText += `Emails: ${leads.emails?.length > 0 ? leads.emails.join(', ') : 'None'}\n`;
+                                leadsText += `Phones: ${leads.phones?.length > 0 ? leads.phones.join(', ') : 'None'}\n`;
+                                leadsText += `Socials: ${leads.socials?.length > 0 ? leads.socials.join(', ') : 'None'}\n`;
+                                leadsText += `Content:\n${data.text_preview?.substring(0, 1200)}\n`;
+                                leadsText += `------------------------------------\n`;
+                                accumulatedScrapedContext += leadsText;
+                            } else {
+                                res.write(`data: ${JSON.stringify({ type: 'think', token: `[READING]: Skipped unreachable: ${url}\n` })}\n\n`);
                             }
                         }
                     }
@@ -1136,7 +1129,9 @@ INSTRUCTIONS:
                 }
 
                 session.updatedAt = new Date();
-                await session.save();
+                if (!req.user?.isGuest && session.save) {
+                    await session.save().catch(() => {});
+                }
 
                 const updatedUser = await User.findById(userId).select('tokenBalance');
 
@@ -1336,9 +1331,13 @@ The Neural Engine has synthesized your end-to-end business ecosystem. All files 
             }
 
             session.updatedAt = new Date();
-            await session.save();
+            if (!req.user?.isGuest && session.save) {
+                await session.save().catch(() => {});
+            }
 
-            const updatedUser = await User.findById(userId).select('tokenBalance');
+            const updatedUser = (req.user?.isGuest || !userId || userId === 'guest_user' || String(userId).startsWith('guest'))
+                ? null
+                : await User.findById(userId).select('tokenBalance').catch(() => null);
 
             // Send final metadata chunk
             res.write(`data: ${JSON.stringify({
