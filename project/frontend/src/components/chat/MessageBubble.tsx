@@ -56,9 +56,12 @@ const sanitizeMarkdownImages = (text: string): string => {
 };
 
 export interface Attachment {
-    name: string;
-    type: string;
+    name?: string;
+    type?: string;
     preview?: string;
+    url?: string;
+    mime_type?: string;
+    original_name?: string;
 }
 
 interface MessageBubbleProps {
@@ -209,25 +212,68 @@ export const MessageBubble = React.memo(({
 
                     {attachments && attachments.length > 0 && (
                         <div className={`flex flex-wrap gap-3 mb-4 ${isUser ? 'justify-end' : ''}`}>
-                            {attachments.map((file, i) => (
-                                <div key={i} className="relative group overflow-hidden rounded-[18px] border border-white/10 bg-black/40 backdrop-blur-md">
-                                    {file.preview ? (
-                                        <img
-                                            src={file.preview}
-                                            alt={file.name}
-                                            className="h-52 w-auto max-w-full object-cover rounded-lg hover:scale-110 transition-transform duration-500 cursor-pointer"
-                                            onClick={() => window.open(file.preview, '_blank')}
-                                        />
-                                    ) : (
-                                        <div className="flex items-center gap-3 px-4 py-3 h-14 min-w-[140px]">
-                                            <div className="p-2 bg-indigo-500/20 rounded-xl text-indigo-400">
-                                                <FileText size={18} />
+                            {attachments.map((file, i) => {
+                                const fileName = file.name || file.original_name || 'Attachment';
+                                const fileType = (file.type || file.mime_type || '').toLowerCase();
+                                const fileUrl = file.preview || file.url || '';
+
+                                const isImage = fileType.includes('image') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(fileName) || fileUrl.startsWith('data:image/');
+                                const isVideo = fileType.includes('video') || /\.(mp4|webm|mov|m4v)$/i.test(fileName) || fileUrl.startsWith('data:video/');
+                                const isAudio = fileType.includes('audio') || /\.(mp3|wav|ogg|m4a)$/i.test(fileName) || fileUrl.startsWith('data:audio/');
+                                const isPdf = fileType.includes('pdf') || fileName.toLowerCase().endsWith('.pdf');
+
+                                return (
+                                    <div key={i} className="relative group overflow-hidden rounded-2xl border border-white/10 bg-[#121214]/80 backdrop-blur-md max-w-sm shadow-lg">
+                                        {isImage && fileUrl ? (
+                                            <div className="relative overflow-hidden group/img">
+                                                <img
+                                                    src={fileUrl}
+                                                    alt={fileName}
+                                                    className="h-48 w-auto max-w-full object-cover rounded-xl transition-transform duration-500 group-hover/img:scale-105 cursor-pointer"
+                                                    onClick={() => window.open(fileUrl, '_blank')}
+                                                />
+                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-white bg-black/60 px-2.5 py-1 rounded-full border border-white/20">View Image</span>
+                                                </div>
                                             </div>
-                                            <span className="text-[11px] font-bold uppercase tracking-widest truncate max-w-[120px] opacity-70">{file.name}</span>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
+                                        ) : isVideo && fileUrl ? (
+                                            <div className="p-1 max-w-xs">
+                                                <video src={fileUrl} controls className="w-full max-h-48 rounded-xl bg-black" />
+                                                <div className="text-[10px] text-gray-400 font-bold truncate px-2 py-1">{fileName}</div>
+                                            </div>
+                                        ) : isAudio && fileUrl ? (
+                                            <div className="p-3 flex flex-col gap-1.5 min-w-[220px]">
+                                                <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold uppercase tracking-wider">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                                                    <span>{fileName || 'Voice Note / Audio'}</span>
+                                                </div>
+                                                <audio src={fileUrl} controls className="w-full h-8" />
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-3 px-4 py-3 min-w-[180px]">
+                                                <div className={`p-2.5 rounded-xl text-white ${isPdf ? 'bg-red-500/20 text-red-400' : 'bg-indigo-500/20 text-indigo-400'}`}>
+                                                    <FileText size={20} />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-xs font-bold text-white truncate max-w-[130px]">{fileName}</div>
+                                                    <div className="text-[9px] text-gray-400 uppercase font-black tracking-widest mt-0.5">{isPdf ? 'PDF Document' : 'Attachment'}</div>
+                                                </div>
+                                                {fileUrl && (
+                                                    <a
+                                                        href={fileUrl}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="p-1.5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
+                                                        title="Open document"
+                                                    >
+                                                        <ExternalLink size={14} />
+                                                    </a>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
 

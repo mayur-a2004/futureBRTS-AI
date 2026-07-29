@@ -368,28 +368,33 @@ export default function Builder() {
     };
 
     const handleSend = async (overrideContent?: string) => {
-        const contentToSend = overrideContent || input;
-        if (!contentToSend.trim()) return;
+        const rawContent = overrideContent || input;
+        const currentFiles = overrideContent ? [] : [...files];
+        if (!rawContent.trim() && currentFiles.length === 0) return;
+
+        const contentToSend = rawContent.trim() || (currentFiles.length > 0 ? "Analyze this attached image and explain what it is in detail." : "Hello");
+
         let targetId = currentLoadedId;
         if (!targetId) {
             const newSession = await createSession();
             targetId = newSession?._id || '65f123456789abcdef123456';
         }
         if (!targetId) return;
-        await sendToSession(targetId, contentToSend, overrideContent ? undefined : [...files]);
+        await sendToSession(targetId, contentToSend, currentFiles);
     };
 
     // 🚀 Core send — accepts explicit sessionId to bypass React state race conditions
     const sendToSession = async (targetSessionId: string, contentToSend: string, attachmentFiles?: typeof files) => {
-        if (!contentToSend.trim() || !targetSessionId) return;
-
         const usedFiles = attachmentFiles || [];
+        if ((!contentToSend.trim() && usedFiles.length === 0) || !targetSessionId) return;
+
+        const finalPrompt = contentToSend.trim() || (usedFiles.length > 0 ? "Analyze this attached image and explain what it is in detail." : "Hello");
         const tempId = Date.now().toString();
 
         const optimisticMsg = {
             id: tempId,
             role: 'user',
-            content: contentToSend,
+            content: finalPrompt,
             timestamp: new Date(),
             attachments: [...usedFiles]
         };
@@ -425,7 +430,7 @@ export default function Builder() {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
-                    content: contentToSend,
+                    content: finalPrompt,
                     inputMode: inputMode?.label,
                     attachments: attachmentsPayload
                 })

@@ -134,6 +134,24 @@ class MailService {
         `;
         await this.sendEmail(to, subject, html);
     }
+
+    async sendPasswordResetEmail(to: string, userName: string, resetLink: string) {
+        const subject = `🔐 Password Reset Request - Future BRTS Account`;
+        const html = `
+            <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+                <h2 style="color: #4f46e5; margin-top: 0;">Future BRTS AI Platform</h2>
+                <p>Hello ${userName || 'User'},</p>
+                <p>We received a request to reset the password for your <strong>Future BRTS</strong> account associated with <strong>${to}</strong>.</p>
+                <p>Please click the button below to reset your password. This link is valid for 15 minutes:</p>
+                <div style="margin: 28px 0; text-align: center;">
+                    <a href="${resetLink}" style="background-color: #4f46e5; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">Reset Password Now</a>
+                </div>
+                <p style="color: #64748b; font-size: 13px;">Or copy and paste this link into your browser:<br/><a href="${resetLink}" style="color: #4f46e5; word-break: break-all;">${resetLink}</a></p>
+                <p style="color: #94a3b8; font-size: 12px; margin-top: 32px; border-top: 1px solid #f1f5f9; padding-top: 16px;">If you did not request a password reset, please ignore this email or contact Future BRTS support if you have security concerns.</p>
+            </div>
+        `;
+        await this.sendEmail(to, subject, html);
+    }
 }
 
 export const mailService = new MailService();

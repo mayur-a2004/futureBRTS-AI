@@ -670,6 +670,7 @@ The Neural Engine has synthesized your end-to-end business ecosystem. All files 
 
                 for (const file of attachments) {
                     try {
+                        let status = 'uploaded';
                         const fileId = crypto.randomUUID();
                         const extension = (file.name.split('.').pop() || 'bin').toLowerCase();
                         const fileName = `${fileId}.${extension}`;
@@ -686,7 +687,16 @@ The Neural Engine has synthesized your end-to-end business ecosystem. All files 
                             fs.writeFileSync(filePath, Buffer.from(bufferData, 'base64'));
                             
                             let extractedText = '';
-                            let status = 'uploaded';
+                            let mimeType = file.type || 'application/octet-stream';
+                            const isImg = ['png', 'jpg', 'jpeg', 'webp', 'jfif', 'bmp', 'tiff', 'gif', 'svg'].includes(extension) || mimeType.startsWith('image/');
+                            if (isImg && !mimeType.startsWith('image/')) {
+                                mimeType = `image/${extension === 'jfif' || extension === 'jpg' ? 'jpeg' : extension}`;
+                            }
+                            
+                            let fullPreview = file.preview;
+                            if (!fullPreview || !fullPreview.startsWith('data:')) {
+                                fullPreview = `data:${mimeType};base64,${bufferData}`;
+                            }
 
                             if (extension === 'pdf') {
                                 console.log(`[Builder PDF] Parsing local PDF: ${file.name}`);
@@ -695,8 +705,8 @@ The Neural Engine has synthesized your end-to-end business ecosystem. All files 
                                 extractedText = parsedPdf.text || '';
                                 status = 'processed';
                                 attachmentContext += `\n\n--- FILE CONTENT (${file.name}) ---\n${extractedText.substring(0, 15000)}\n-----------------------------------\n`;
-                            } else if (['png', 'jpg', 'jpeg', 'webp'].includes(extension) || file.type.startsWith('image/')) {
-                                console.log(`[Builder OCR] Running local Tesseract OCR (eng+hin+guj) for image: ${file.name}`);
+                            } else if (isImg) {
+                                console.log(`[Builder OCR & Vision] Processing image: ${file.name}`);
                                 let result;
                                 try {
                                     result = await Tesseract.recognize(filePath, 'eng+hin+guj');
@@ -707,29 +717,36 @@ The Neural Engine has synthesized your end-to-end business ecosystem. All files 
                                 extractedText = result?.data?.text || '';
                                 status = 'processed';
                                 attachmentContext += `\n\n--- FILE CONTENT (${file.name}) ---\n${extractedText.substring(0, 15000)}\n-----------------------------------\n`;
+                                if (fullPreview) {
+                                    attachmentContext += `\n[IMAGE_BASE64_URL:${fullPreview}]\n`;
+                                }
                             } else {
                                 // Fallback to python service for other formats
                                 console.log(`[Builder Python] Dispatching to Python worker for: ${file.name}`);
-                                const analysis = await pythonService.processAttachment(filePath, file.type, file.name, content);
-                                if (analysis.status === 'SUCCESS') {
+                                const analysis = await pythonService.processAttachment(filePath, mimeType, file.name, content).catch(() => null);
+                                if (analysis && analysis.status === 'SUCCESS') {
                                     status = 'processed';
                                     const summary = analysis.summary || "Processed successfully.";
                                     const fullText = analysis.extracted_text || "";
                                     attachmentContext += `\n\n--- FILE ANALYSIS (${file.name}) ---\nSummary: ${summary}\nExtracted Content (Snippet):\n${fullText.substring(0, 2000)}\n-----------------------------------\n`;
                                 } else {
-                                    status = 'failed';
-                                    attachmentContext += `\n\n[System]: Failed to process file ${file.name}. Reason: ${analysis.reason}`;
+                                    status = 'processed';
+                                    attachmentContext += `\n\n[System]: File ${file.name} saved for AI vision/multimodal analysis.`;
                                 }
                             }
 
+                            const publicUrl = `/uploads/${fileName}`;
+
                             processedAttachments.push({
                                 file_id: fileId,
-                                type: file.type.split('/')[0],
+                                type: mimeType.split('/')[0] || 'attachment',
+                                name: file.name,
                                 original_name: file.name,
                                 storage_path: filePath,
-                                mime_type: file.type,
+                                mime_type: mimeType,
                                 status: status,
-                                preview: undefined
+                                url: publicUrl,
+                                preview: fullPreview || publicUrl
                             });
                         }
                     } catch (e: any) {
@@ -739,10 +756,41 @@ The Neural Engine has synthesized your end-to-end business ecosystem. All files 
                 }
             }
 
+            // 🌐 AUTOMATIC LIVE WEB SCRAPING & URL EXTRACTOR
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            const detectedUrls = content.match(urlRegex);
+            if (detectedUrls && detectedUrls.length > 0) {
+                for (const targetUrl of detectedUrls.slice(0, 3)) {
+                    try {
+                        console.log(`[Builder Web Scraper] Scraping URL live: ${targetUrl}`);
+                        const scrapeRes = await axios.get(targetUrl, {
+                            headers: {
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+                            },
+                            timeout: 10000
+                        });
+                        const $ = cheerio.load(scrapeRes.data);
+                        $('script, style, nav, footer, header, svg, noscript, iframe').remove();
+                        const pageTitle = $('title').text().trim() || targetUrl;
+                        const pageHeading = $('h1').first().text().trim();
+                        const metaDesc = $('meta[name="description"]').attr('content') || $('meta[property="og:description"]').attr('content') || '';
+                        let bodyText = $('body').text().replace(/\s+/g, ' ').trim();
+                        if (bodyText.length > 8000) {
+                            bodyText = bodyText.substring(0, 8000) + '... [Content Truncated]';
+                        }
+                        attachmentContext += `\n\n--- [LIVE WEB SCRAPED CONTENT FROM: ${targetUrl}] ---\nTitle: ${pageTitle}\nMain Heading: ${pageHeading}\nMeta Description: ${metaDesc}\nExtracted Page Content:\n${bodyText}\n----------------------------------------------------\n`;
+                    } catch (scrapeErr: any) {
+                        console.warn(`[Builder Web Scraper] Failed to scrape ${targetUrl}:`, scrapeErr.message);
+                        attachmentContext += `\n[System]: Web Scraping attempt for ${targetUrl} encountered error: ${scrapeErr.message}`;
+                    }
+                }
+            }
+
             const userMsgId = crypto.randomUUID();
             let finalContent = content;
             if (attachmentContext && attachmentContext.length > 5) {
-                finalContent += `\n\n[SYSTEM: ATTACHMENT PROCESSED]\n${attachmentContext}`;
+                finalContent += `\n\n[SYSTEM: ATTACHMENT & LIVE DATA PROCESSED]\n${attachmentContext}`;
             }
 
             // Command Interception

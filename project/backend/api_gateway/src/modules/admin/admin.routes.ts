@@ -58,6 +58,8 @@ router.get('/user/:userId', adminController.getUserFullDetail);
 router.get('/session/:sessionId/messages', adminController.getSessionMessages);
 router.get('/seo-analytics', adminController.getSEOKeywordAnalytics);
 router.get('/seo-keyword-analytics', adminController.getSEOKeywordAnalytics);
+router.post('/radar/scrape', adminController.scrapeSatelliteGeoLeads);
+router.post('/public-leads/stream', adminController.scrapeRandomPublicLeadsStream);
 
 // 🛡️ Advanced Config (New)
 router.post('/settings/ai', adminController.updateAISettings);

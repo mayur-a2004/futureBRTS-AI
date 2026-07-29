@@ -71,6 +71,12 @@ ${systemContext?.userContext?.neuralMemory}
    - ⚠️ Do NOT write "SUGGESTIONS:", "**SUGGESTIONS**", or any label/heading before this line.
    - The line must be the LAST line of your response. Nothing after it.
    - Each suggestion must be under 50 characters.
+
+8. **10X NLU, DIALECT, TYPO & EMOTIONAL UNDERSTANDING ENGINE** (CRITICAL):
+   - **Ultra-Short Input Resolution**: For 1-3 word inputs (e.g., "hlo", "hi", "ha", "nhi", "kya?", "ok", "aage", "phir", "karo", "dikhao"), NEVER respond with "I don't understand" or robotic confusion. Resolve intent instantly using prior conversation context!
+   - **Typo & Dialect Resilience**: Seamlessly comprehend typos (e.g., "pho" -> photo/image, "vdio" -> video, "pfd" -> pdf, "mick" -> mic/audio, "smj" -> samajh, "kuto" -> do) and mixed regional dialects (Hinglish, Gujarati, Hindi, English).
+   - **Emotional Intelligence & Human Feel**: Detect user mood (excitement, frustration, curiosity). Respond with warmth, brotherly care ("Bhai"), high empathy, and zero robotic friction.
+   - **Multimodal Memory Retention**: Maintain persistent memory of previously attached photos, videos, PDFs, and audio files for seamless follow-up questions.
 `;
 
 const SYSTEM_PROMPT_ROADMAP = `
@@ -319,6 +325,41 @@ const safeJsonParse = (str: string) => {
     }
 };
 
+const sanitizeMessagesForTextOnly = (msgs: any[]): any[] => {
+    if (!Array.isArray(msgs)) return msgs;
+    return msgs.map(m => {
+        if (Array.isArray(m.content)) {
+            const textParts = m.content.map((part: any) => {
+                if (typeof part === 'string') return part;
+                if (part?.type === 'text') return part.text || '';
+                if (part?.type === 'image_url') return '[User attached an Image]';
+                if (part?.type === 'file_attachment') return `[User attached a file: ${part.name || 'document'} (${part.mime_type || 'file'})]`;
+                return String(part || '');
+            }).filter(Boolean).join('\n');
+            return { ...m, content: textParts || 'Proceed' };
+        }
+        return m;
+    });
+};
+
+const containsImagePayload = (msgs: any[]): boolean => {
+    if (!Array.isArray(msgs)) return false;
+    return msgs.some(m => {
+        if (Array.isArray(m.content)) {
+            return m.content.some((part: any) => 
+                part?.type === 'image_url' || 
+                part?.type === 'file_attachment' || 
+                part?.inlineData || 
+                part?.inline_data
+            );
+        }
+        if (typeof m.content === 'string') {
+            return m.content.includes('[IMAGE_BASE64_URL:') || m.content.includes('data:image/') || m.content.includes('data:audio/') || m.content.includes('data:video/') || m.content.includes('data:application/');
+        }
+        return false;
+    });
+};
+
 // HELPER: Unified Provider Handler — NVIDIA NIM (8 models) → Groq → OpenRouter → Gemini
 export const getProviderResponse = async (
     messages: any[],
@@ -326,6 +367,8 @@ export const getProviderResponse = async (
     forcedProvider?: string
 ) => {
     let lastError: any = null;
+    const hasImagePayload = containsImagePayload(messages);
+    const textOnlyMessages = hasImagePayload ? sanitizeMessagesForTextOnly(messages) : messages;
 
     // 🧠 Dynamic Key Discovery (DB First, Env Fallback)
     const activeGroqKey = await getAiKey('GROQ');
@@ -556,21 +599,33 @@ export const getProviderResponse = async (
         }
     };
 
-    // Helper: convert OpenAI-style message content to Gemini parts (supports vision)
+    // Helper: convert OpenAI-style message content to Gemini parts (supports image, audio, video, pdf, docs)
     const toGeminiParts = (content: any): any[] => {
         if (typeof content === 'string') return [{ text: content || '' }];
         if (Array.isArray(content)) {
-            return content.map((part: any) => {
-                if (part.type === 'text') return { text: part.text || '' };
-                if (part.type === 'image_url' && part.image_url?.url) {
+            const parts: any[] = [];
+            for (const part of content) {
+                if (typeof part === 'string') {
+                    parts.push({ text: part });
+                } else if (part?.type === 'text') {
+                    parts.push({ text: part.text || '' });
+                } else if (part?.type === 'image_url' && part.image_url?.url) {
                     const dataUrl = part.image_url.url;
-                    const match = dataUrl.match(/^data:(image\/[a-z]+);base64,(.+)$/);
+                    const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
                     if (match) {
-                        return { inlineData: { mimeType: match[1], data: match[2] } };
+                        parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
+                    } else {
+                        parts.push({ text: `[Attached Image URL: ${dataUrl}]` });
                     }
+                } else if (part?.type === 'file_attachment' && part.base64 && part.mime_type) {
+                    parts.push({ inlineData: { mimeType: part.mime_type, data: part.base64 } });
+                } else if (part?.inlineData) {
+                    parts.push({ inlineData: part.inlineData });
+                } else {
+                    parts.push({ text: String(part || '') });
                 }
-                return { text: String(part) };
-            });
+            }
+            return parts.length > 0 ? parts : [{ text: 'proceed' }];
         }
         return [{ text: String(content || '') }];
     };
@@ -847,7 +902,10 @@ export const getProviderResponse = async (
     const openrouterGroup = [runOpenRouter, runOpenRouterLlama70B];
     const bluesmindsGroup = [runBluesMinds];
 
-    if (activeProvider === 'nvidia') {
+    if (hasImagePayload) {
+        console.log("📸 Image payload detected — prioritizing Gemini & OpenAI Vision models!");
+        queue = [...geminiGroup, ...openaiGroup, ...nvidiaGroup, ...openrouterGroup, ...bluesmindsGroup, ...groqGroup, ...anthropicGroup];
+    } else if (activeProvider === 'nvidia') {
         queue = [...nvidiaGroup, ...bluesmindsGroup, ...groqGroup, ...openaiGroup, ...anthropicGroup, ...geminiGroup, ...openrouterGroup];
     } else if (activeProvider === 'gemini') {
         queue = [...geminiGroup, ...bluesmindsGroup, ...groqGroup, ...openaiGroup, ...anthropicGroup, ...nvidiaGroup, ...openrouterGroup];
@@ -1105,10 +1163,35 @@ export const getProviderResponseStream = async (
         const systemMsg = messages.find(m => m.role === 'system');
         let contents = messages
             .filter(m => m.role !== 'system')
-            .map(m => ({
-                role: m.role === 'assistant' ? 'model' : 'user',
-                parts: [{ text: String(m.content || '') }]
-            }));
+            .map(m => {
+                const parts: any[] = [];
+                if (Array.isArray(m.content)) {
+                    for (const item of m.content) {
+                        if (item.type === 'text') {
+                            parts.push({ text: item.text });
+                        } else if (item.type === 'image_url' && item.image_url?.url) {
+                            const dataUrl = item.image_url.url;
+                            const mimeMatch = dataUrl.match(/^data:(image\/[a-zA-Z0-9\+\-\.]+);base64,(.+)$/);
+                            if (mimeMatch) {
+                                parts.push({
+                                    inline_data: {
+                                        mime_type: mimeMatch[1],
+                                        data: mimeMatch[2]
+                                    }
+                                });
+                            } else {
+                                parts.push({ text: `[Image URL: ${dataUrl}]` });
+                            }
+                        }
+                    }
+                } else {
+                    parts.push({ text: String(m.content || '') });
+                }
+                return {
+                    role: m.role === 'assistant' ? 'model' : 'user',
+                    parts: parts.length > 0 ? parts : [{ text: 'proceed' }]
+                };
+            });
         if (contents.length === 0) contents = [{ role: 'user', parts: [{ text: 'proceed' }] }];
 
         const requestBody: any = {
@@ -1167,10 +1250,14 @@ export const getProviderResponseStream = async (
         return null;
     };
 
+    const hasImageStream = containsImagePayload(messages);
+    const textOnlyStreamMessages = hasImageStream ? sanitizeMessagesForTextOnly(messages) : messages;
+
     // Build streams queue based on active provider preference
     let queue: (() => Promise<any>)[] = [];
-    if (activeProvider === 'gemini') {
-        queue = [runGeminiStream, runNvidiaStream, runGroqPrimaryStream, runGroqLiteStream, runOpenRouterStream];
+    if (hasImageStream || activeProvider === 'gemini') {
+        console.log("📸 Image stream payload detected — prioritizing Gemini Vision Stream!");
+        queue = [runGeminiStream, runNvidiaStream, runOpenRouterStream, runGroqPrimaryStream, runGroqLiteStream];
     } else if (activeProvider === 'openrouter') {
         queue = [runOpenRouterStream, runNvidiaStream, runGroqPrimaryStream, runGeminiStream, runGroqLiteStream];
     } else {
@@ -1526,9 +1613,20 @@ INSTRUCTIONS:
             // We must inject a system instruction to output detailed step-by-step reasoning inside <think>...</think> tags if they are not already doing it natively
             let reasoningInstruction = `\nBefore answering, you MUST write down your detailed step-by-step thinking/reasoning process inside <think> and </think> tags. Do not skip this step.\n`;
 
-            let finalUserMessage = userMessage;
+            let finalUserMessage: any = userMessage;
             if (attachmentAnalysis && attachmentAnalysis.length > 5) {
-                finalUserMessage = `[ATTACHED DOCUMENT PRESENT]\n\nUser Query/Command: ${userMessage}\n\nIMPORTANT: Focus strictly on answering this query or executing this command on the attached document content. Prioritize this command above everything else.`;
+                const textPrompt = `[ATTACHED FILE PRESENT]\n\nUser Query/Command: ${userMessage}\n\nIMPORTANT: Prioritize answering this user query or executing this command directly on the attached file content.`;
+                const imageUrlMatch = attachmentAnalysis.match(/\[IMAGE_BASE64_URL:(data:image\/[^\]]+)\]/);
+                if (imageUrlMatch && imageUrlMatch[1]) {
+                    const imageUrl = imageUrlMatch[1];
+                    const cleanAnalysisText = attachmentAnalysis.replace(/\[IMAGE_BASE64_URL:data:image\/[^\]]+\]/g, '').trim();
+                    finalUserMessage = [
+                        { type: "text", text: `${textPrompt}\n\nFile Content/OCR:\n${cleanAnalysisText}` },
+                        { type: "image_url", image_url: { url: imageUrl } }
+                    ];
+                } else {
+                    finalUserMessage = `${textPrompt}\n\nFile Content Analysis:\n${attachmentAnalysis}`;
+                }
             }
 
             const messages = [

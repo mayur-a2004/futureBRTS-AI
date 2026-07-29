@@ -18,6 +18,12 @@ export default defineConfig({
             '/api': {
                 target: 'http://127.0.0.1:7001',
                 changeOrigin: true,
+                ws: true,
+                configure: (proxy) => {
+                    proxy.on('proxyReq', (proxyReq) => {
+                        proxyReq.removeHeader('accept-encoding'); // prevent gzip buffering
+                    });
+                },
             },
             '/downloads': {
                 target: 'http://127.0.0.1:7001',

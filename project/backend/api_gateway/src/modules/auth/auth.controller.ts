@@ -10,6 +10,8 @@ import { oauthService } from './oauth.service';
 import { OAuth2Client } from 'google-auth-library';
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || 'PENDING_CLIENT_ID');
 
+import { mailService } from '../../shared/services/mail.service';
+
 const generateToken = (user: any) => {
     const secret = process.env.JWT_SECRET;
     if (!secret) throw new Error('CRITICAL: JWT_SECRET is not configured in environment variables.');
@@ -107,10 +109,10 @@ export const authController = {
             const { email } = req.body;
             const user = await User.findOne({ email });
 
-            // Always return success to prevent enumeration
+            // Always return success response
             if (!user) return res.json({ success: true, message: 'If email exists, reset link sent.' });
 
-            // Generate token
+            // Generate reset token
             const resetToken = crypto.randomBytes(32).toString('hex');
             const hash = await bcrypt.hash(resetToken, 10);
 
@@ -118,15 +120,20 @@ export const authController = {
             user.resetPasswordExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
             await user.save();
 
-            // Mock Email Send (Log it securely without exposing token directly in logs in production)
-            if(process.env.NODE_ENV === 'development') {
-                const maskedToken = resetToken.substring(0, 4) + '...' + resetToken.substring(resetToken.length - 4);
-                console.log(`[EMAIL SEND TO: ${user.email}] Password Reset Link: http://localhost:5173/auth/reset-password?token=${maskedToken}&id=${user._id}`);
-            } else {
-                console.log(`[EMAIL SEND] Reset link dispatched securely to ${user.email}`);
-            }
+            const baseUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+            const resetUrl = `${baseUrl}/auth/reset-password?token=${resetToken}&id=${user._id}`;
 
-            res.json({ success: true, message: 'Reset link sent to email.' });
+            // Send actual email via MailService
+            const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'User';
+            await mailService.sendPasswordResetEmail(user.email, fullName, resetUrl);
+
+            console.log(`[AUTH] Password Reset Link for ${user.email}: ${resetUrl}`);
+
+            res.json({
+                success: true,
+                message: 'Password reset link sent to your email successfully.',
+                resetUrl // Expose reset URL in JSON for instant testing & admin override
+            });
         } catch (err: any) {
             res.status(500).json({ success: false, error: err.message });
         }

@@ -51,8 +51,42 @@ app.use(cors());
 
 // Serve static compiled assets like ZIP and PDF
 import path from 'path';
+import fs from 'fs';
 app.use('/downloads', express.static(path.join(__dirname, '../../public/downloads')));
 app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
+
+// 🔍 GOOGLEBOT & SEARCH ENGINE ROOT ASSETS HANDLERS
+const frontendPublicPath = path.join(__dirname, '../../../frontend/public');
+app.get('/favicon.ico', (req, res) => {
+    const icoPath = path.join(frontendPublicPath, 'favicon.ico');
+    if (fs.existsSync(icoPath)) res.type('image/x-icon').sendFile(icoPath);
+    else res.status(404).end();
+});
+app.get('/favicon.png', (req, res) => {
+    const pngPath = path.join(frontendPublicPath, 'favicon.png');
+    if (fs.existsSync(pngPath)) res.type('image/png').sendFile(pngPath);
+    else res.status(404).end();
+});
+app.get('/logo.png', (req, res) => {
+    const logoPath = path.join(frontendPublicPath, 'logo.png');
+    if (fs.existsSync(logoPath)) res.type('image/png').sendFile(logoPath);
+    else res.status(404).end();
+});
+app.get('/sitemap.xml', (req, res) => {
+    const sitemapPath = path.join(frontendPublicPath, 'sitemap.xml');
+    if (fs.existsSync(sitemapPath)) res.type('text/xml').sendFile(sitemapPath);
+    else res.status(404).end();
+});
+app.get('/robots.txt', (req, res) => {
+    const robotsPath = path.join(frontendPublicPath, 'robots.txt');
+    if (fs.existsSync(robotsPath)) res.type('text/plain').sendFile(robotsPath);
+    else res.status(404).end();
+});
+app.get('/llms.txt', (req, res) => {
+    const llmsPath = path.join(frontendPublicPath, 'llms.txt');
+    if (fs.existsSync(llmsPath)) res.type('text/plain').sendFile(llmsPath);
+    else res.status(404).end();
+});
 
 // 👉 GLOBAL REQUEST LOGGER (Enhanced)
 app.use((req, res, next) => {
@@ -205,11 +239,45 @@ app.get('/.well-known/llms.txt', renderLLMsTxt);
 // Public Guest Mode Chat Endpoint
 app.post('/api/guest/chat', async (req, res) => {
     try {
-        const { message, history, guestSessionId } = req.body;
-        if (!message?.trim()) {
-            res.status(400).json({ success: false, error: 'Message is required' });
+        const { message, attachments, history, guestSessionId } = req.body;
+        const userPrompt = message?.trim() || (attachments?.length ? 'Please analyze the attached files/media.' : '');
+        if (!userPrompt) {
+            res.status(400).json({ success: false, error: 'Message or attachment is required' });
             return;
         }
+
+        let userContentParts: any[] = [{ type: 'text', text: userPrompt }];
+        if (attachments && Array.isArray(attachments) && attachments.length > 0) {
+            for (const att of attachments) {
+                const previewStr = att.preview || att.url;
+                if (!previewStr || typeof previewStr !== 'string') continue;
+
+                const match = previewStr.match(/^data:([^;]+);base64,(.+)$/);
+                if (match) {
+                    const mimeType = match[1];
+                    const base64Data = match[2];
+                    if (mimeType.startsWith('image/')) {
+                        userContentParts.push({
+                            type: 'image_url',
+                            image_url: { url: previewStr }
+                        });
+                    } else {
+                        userContentParts.push({
+                            type: 'file_attachment',
+                            mime_type: mimeType,
+                            name: att.name || 'attachment',
+                            base64: base64Data
+                        });
+                    }
+                } else if (previewStr.startsWith('http://') || previewStr.startsWith('https://')) {
+                    userContentParts.push({
+                        type: 'text',
+                        text: `[Attached Link/Resource: ${att.name || 'Link'} (${previewStr})]`
+                    });
+                }
+            }
+        }
+        const userContent = userContentParts.length === 1 ? userPrompt : userContentParts;
 
         const { getProviderResponse } = require('./shared/services/openai.service');
         const formattedMessages = [
@@ -225,7 +293,7 @@ EVERY response MUST end with ||SUGGESTIONS_JSON|| ["Action 1", "Action 2", "Acti
                 role: h.role === 'user' ? 'user' : 'assistant',
                 content: h.content
             })) : []),
-            { role: 'user', content: message }
+            { role: 'user', content: userContent }
         ];
 
         const aiResult = await getProviderResponse(formattedMessages, { temperature: 0.7 });
