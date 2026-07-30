@@ -13,9 +13,12 @@ import {
     ExternalLink,
     Info,
     RefreshCw,
-    Users
+    Users,
+    Building2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import SchoolManagementAdmin from './SchoolManagementAdmin';
+
 
 export default function EducationOSAdmin() {
     const { tab = 'tutor-chats' } = useParams<{ tab: string }>();
@@ -97,8 +100,15 @@ export default function EducationOSAdmin() {
             icon: HeartHandshake,
             endpoint: '/api/admin/education/parents',
             description: 'Manage parent links, reports, and verification flags.'
+        },
+        'school-management': {
+            label: 'School & ERP B2B',
+            icon: Building2,
+            endpoint: '/api/v1/tenant/all',
+            description: 'Onboard and manage B2B schools, colleges, HMAC keys, and wallet credit balances.'
         }
     };
+
 
     const activeTab = tabsConfig[tab] || tabsConfig['tutor-chats'];
 
@@ -351,6 +361,10 @@ export default function EducationOSAdmin() {
         return true;
     });
 
+    if (tab === 'school-management') {
+        return <SchoolManagementAdmin />;
+    }
+
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             {/* Header */}
@@ -533,9 +547,13 @@ export default function EducationOSAdmin() {
                 </div>
             )}
 
-            {/* Main Interactive Table Panel */}
-            <div className="rounded-3xl border border-white/5 bg-white/[0.01] overflow-hidden">
-                {loading ? (
+            {tab === 'school-management' ? (
+                <SchoolManagementAdmin />
+            ) : (
+                /* Main Interactive Table Panel */
+                <div className="rounded-3xl border border-white/5 bg-white/[0.01] overflow-hidden">
+                    {loading ? (
+
                     <div className="p-20 text-center text-gray-500">
                         <RefreshCw size={36} className="animate-spin text-indigo-400 mx-auto mb-4" />
                         <p className="font-bold tracking-tight text-sm">Decoding student telemetry feed...</p>
@@ -897,6 +915,8 @@ export default function EducationOSAdmin() {
                     </div>
                 )}
             </div>
+            )}
+
 
             {/* Telemetry Detail Inspection Drawer Modal */}
             <AnimatePresence>

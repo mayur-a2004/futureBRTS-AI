@@ -23,7 +23,8 @@ import {
     GraduationCap,
     Flame,
     FileText,
-    HeartHandshake
+    HeartHandshake,
+    Building2
 } from 'lucide-react';
 
 interface SidebarItemProps {
@@ -94,6 +95,7 @@ export default function AdminSidebar({ isCollapsed, toggleSidebar, logout }: { i
         { name: "Practice Exams", path: "/admin/education/exams", icon: <FileText size={20} className="text-pink-400" /> },
         { name: "Academic Results", path: "/admin/education/results", icon: <GraduationCap size={20} className="text-amber-400" /> },
         { name: "Teacher & Parent Hub", path: "/admin/education/parents", icon: <HeartHandshake size={20} className="text-rose-450" /> },
+        { name: "School & ERP B2B", path: "/admin/education/school-management", icon: <Building2 size={20} className="text-teal-400" /> },
     ];
 
     const menuItems = sidebarMode === 'core' ? coreItems : educationItems;

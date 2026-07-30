@@ -39,6 +39,11 @@ const Builder = lazy(() => import('./pages/builder/Builder'));
 const BusinessWarRoom = lazy(() => import('./pages/war-room/BusinessWarRoom'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
+// ⚡ Frameless B2B ERP Embed Pages
+const EmbedOSPage = lazy(() => import('./pages/embed/EmbedOSPage'));
+const EmbedBuilderPage = lazy(() => import('./pages/embed/EmbedBuilderPage'));
+
+
 // 🎓 Minerva Education Pages (Full Screen — own layout)
 const MinervaHome = lazy(() => import('./pages/minerva/MinervaHome'));
 const MinervaSessionPage = lazy(() => import('./pages/minerva/MinervaSessionPage'));
@@ -349,6 +354,10 @@ function App() {
                                                 {/* Guest Chat - No Layout, Full Screen */}
                                                 <Route path="/guest-chat" element={<GuestChat />} />
 
+                                                {/* ⚡ Frameless B2B ERP Embed Routes */}
+                                                <Route path="/embed/os" element={<EmbedOSPage />} />
+                                                <Route path="/embed/builder" element={<EmbedBuilderPage />} />
+
                                                 {/* Auth Routes */}
                                                 <Route path="/auth" element={<AuthLayout />}>
                                                     {/* 🚫 Already logged-in? Redirect away from login/register */}
@@ -434,6 +443,8 @@ function App() {
                                                     <Route path="tracking" element={<TrackingLogs />} />
                                                     <Route path="intelligence" element={<IntelligenceDashboard />} />
                                                     <Route path="education/:tab" element={<EducationOSAdmin />} />
+                                                    <Route path="education-os/:tab" element={<EducationOSAdmin />} />
+                                                    <Route path="education-os" element={<Navigate to="education/school-management" replace />} />
                                                     <Route index element={<Navigate to="dashboard" replace />} />
                                                 </Route>
 

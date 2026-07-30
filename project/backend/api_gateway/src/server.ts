@@ -124,6 +124,116 @@ import examGeneratorRoutes from './modules/exam_generator/exam_generator.routes'
 app.use('/api/exam', examGeneratorRoutes);
 console.log('✅ Routes Mounted: /api/exam');
 
+import tenantRoutes from './modules/tenant/tenant.routes';
+app.use('/api/tenant', tenantRoutes);
+app.use('/api/v1/tenant', tenantRoutes);
+console.log('✅ Routes Mounted: /api/tenant & /api/v1/tenant');
+
+// 🤖 EMBEDDABLE FUTURE AI ASSISTANT WEB SDK FOR SCHOOL ERP INTEGRATION
+app.get('/sdk/future-ai.js', (req, res) => {
+  res.type('application/javascript').send(`
+(function() {
+  console.log('🚀 [Future AI OS SDK] Initialized for School ERP');
+  const scriptTag = document.currentScript;
+  const tenantId = scriptTag?.getAttribute('data-tenant') || 'mount_carmel_school';
+  const apiKey = scriptTag?.getAttribute('data-api-key') || 'fbrts_master_live_key_99x8273645';
+  const gatewayUrl = scriptTag?.getAttribute('data-gateway') || 'http://localhost:7001';
+
+  // Inject CSS Styles
+  const style = document.createElement('style');
+  style.innerHTML = \`
+    #future-ai-widget-btn {
+      position: fixed; bottom: 24px; right: 24px; z-index: 999999;
+      width: 60px; height: 60px; rounded-radius: 50%;
+      background: linear-gradient(135deg, #4f46e5, #9333ea);
+      border: 2px solid rgba(255,255,255,0.2); border-radius: 50%;
+      box-shadow: 0 10px 25px rgba(79,70,229,0.5); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.3s ease; color: white; font-size: 26px;
+    }
+    #future-ai-widget-btn:hover { transform: scale(1.1); }
+    #future-ai-chat-box {
+      position: fixed; bottom: 95px; right: 24px; z-index: 999999;
+      width: 380px; height: 520px; background: #09090b; color: white;
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 24px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.8); display: none;
+      flex-direction: column; overflow: hidden; font-family: system-ui, sans-serif;
+    }
+    .fai-header {
+      padding: 16px; background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.08);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .fai-body { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; font-size: 13px; }
+    .fai-msg-user { align-self: flex-end; background: #4f46e5; padding: 10px 14px; border-radius: 16px 16px 2px 16px; max-width: 80%; }
+    .fai-msg-ai { align-self: flex-start; background: rgba(255,255,255,0.08); padding: 10px 14px; border-radius: 16px 16px 16px 2px; max-width: 85%; }
+    .fai-footer { padding: 12px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; gap: 8px; }
+    .fai-input { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 10px 14px; border-radius: 12px; color: white; outline: none; font-size: 13px; }
+    .fai-send { background: #4f46e5; border: none; padding: 10px 16px; border-radius: 12px; color: white; font-weight: bold; cursor: pointer; }
+  \`;
+  document.head.appendChild(style);
+
+  // Inject HTML Elements
+  const btn = document.createElement('div');
+  btn.id = 'future-ai-widget-btn';
+  btn.innerHTML = '🤖';
+  document.body.appendChild(btn);
+
+  const box = document.createElement('div');
+  box.id = 'future-ai-chat-box';
+  box.innerHTML = \`
+    <div class="fai-header">
+      <strong style="font-size:14px; color:#a5b4fc;">🤖 Future AI Education Assistant</strong>
+      <span id="fai-close" style="cursor:pointer; font-weight:bold; color:#a1a1aa;">✕</span>
+    </div>
+    <div class="fai-body" id="fai-body">
+      <div class="fai-msg-ai">Hello! I am Future Education AI integrated into your School ERP. Ask me anything about syllabus, homework, or studies!</div>
+    </div>
+    <div class="fai-footer">
+      <input type="text" id="fai-input" class="fai-input" placeholder="Type study question..." />
+      <button id="fai-send" class="fai-send">Send</button>
+    </div>
+  \`;
+  document.body.appendChild(box);
+
+  // Event Listeners
+  btn.onclick = () => { box.style.display = box.style.display === 'flex' ? 'none' : 'flex'; };
+  document.getElementById('fai-close').onclick = () => { box.style.display = 'none'; };
+
+  const sendMsg = async () => {
+    const input = document.getElementById('fai-input');
+    const txt = input.value.trim();
+    if (!txt) return;
+    input.value = '';
+
+    const body = document.getElementById('fai-body');
+    body.innerHTML += \`<div class="fai-msg-user">\${txt}</div>\`;
+    body.scrollTop = body.scrollHeight;
+
+    try {
+      const res = await fetch(\`\${gatewayUrl}/api/v1/tenant/ai-tutor-chat\`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Tenant-Org-ID': tenantId, 'X-API-Key': apiKey },
+        body: JSON.stringify({ prompt: txt, tenantId: tenantId, studentName: 'ERP Student' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        body.innerHTML += \`<div class="fai-msg-ai">\${data.reply}</div>\`;
+      } else {
+        body.innerHTML += \`<div class="fai-msg-ai" style="background:#881337; color:#fecdd3;">\${data.error || 'Permission Denied'}</div>\`;
+      }
+    } catch(err) {
+      body.innerHTML += \`<div class="fai-msg-ai" style="background:#881337; color:#fecdd3;">Connection error to Future AI Gateway.</div>\`;
+    }
+    body.scrollTop = body.scrollHeight;
+  };
+
+  document.getElementById('fai-send').onclick = sendMsg;
+  document.getElementById('fai-input').onkeypress = (e) => { if (e.key === 'Enter') sendMsg(); };
+})();
+  `);
+});
+
+
 import adminRoutes from './modules/admin/admin.routes';
 app.use('/api/admin', adminRoutes);
 import jobsRoutes from './api/jobs.routes';
