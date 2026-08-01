@@ -8,6 +8,7 @@ import remarkGfm from 'remark-gfm';
 import MinervaWhiteboardCanvas from '../../components/chat/MinervaWhiteboardCanvas';
 import MinervaTopicIndexer from '../../components/minerva/MinervaTopicIndexer';
 import { parseMessageToSmartBoardSteps } from '../../utils/smartBoardUtils';
+import { INDIAN_LANGUAGES } from './MinervaQuizBattlePage';
 
 const cleanOptionText = (opt: string, letter: string): string => {
     if (!opt) return '';
@@ -625,17 +626,9 @@ const MinervaLearnPage: React.FC = () => {
                             onChange={(e) => handleLanguageChange(e.target.value)}
                             className="bg-black/60 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-indigo-500/50 transition-all font-semibold cursor-pointer hover:border-white/20"
                         >
-                            <option value="original">Original (English)</option>
-                            <option value="hinglish">Hinglish</option>
-                            <option value="hindi">Hindi (हिंदी)</option>
-                            <option value="marathi">Marathi (मराठी)</option>
-                            <option value="gujarati">Gujarati (ગુજરાતી)</option>
-                            <option value="bengali">Bengali (বাংলা)</option>
-                            <option value="tamil">Tamil (தமிழ்)</option>
-                            <option value="telugu">Telugu (తెలుగు)</option>
-                            <option value="kannada">Kannada (ಕನ್ನಡ)</option>
-                            <option value="punjabi">Punjabi (ਪੰਜਾਬੀ)</option>
-                            <option value="spanish">Spanish (Español)</option>
+                            {INDIAN_LANGUAGES.map((lang) => (
+                                <option key={lang.id} value={lang.id.toLowerCase()}>{lang.name}</option>
+                            ))}
                         </select>
                     </div>
                 </div>

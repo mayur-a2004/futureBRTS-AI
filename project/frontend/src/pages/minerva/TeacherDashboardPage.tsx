@@ -11,6 +11,8 @@ import {
 import { io } from 'socket.io-client';
 import { BOARDS, STANDARDS, STANDARD_SUBJECTS_MAP, isSchoolStandard } from './MinervaQuizBattlePage';
 
+import { TeacherWorkspacePage } from '../teacher/TeacherWorkspacePage';
+
 interface StudentStats {
     userId: string;
     name: string;
@@ -60,7 +62,9 @@ export default function TeacherDashboardPage() {
     const [parentReport, setParentReport] = useState<any>(null);
 
     // ─── TEACHER AUTH STATES ───
-    const [teacherToken, setTeacherToken] = useState<string | null>(localStorage.getItem('fbrts_teacher_token'));
+    const [teacherToken, setTeacherToken] = useState<string | null>(() => {
+        return localStorage.getItem('fbrts_teacher_token');
+    });
     const [teacherUser, setTeacherUser] = useState<any | null>(() => {
         const u = localStorage.getItem('fbrts_teacher_user');
         return u ? JSON.parse(u) : null;
@@ -80,6 +84,10 @@ export default function TeacherDashboardPage() {
     const [regRole, setRegRole] = useState('Subject Teacher');
     const [regGender, setRegGender] = useState('Male');
     const [regWhatsapp, setRegWhatsapp] = useState('');
+    const [regAssignedClasses, setRegAssignedClasses] = useState<string[]>(['CLASS-10A', 'CLASS-11B']);
+    const [regAssignedSubjects, setRegAssignedSubjects] = useState<string[]>(['Mathematics', 'Science']);
+    const [customClassInput, setCustomClassInput] = useState('');
+    const [customSubjectInput, setCustomSubjectInput] = useState('');
 
     // Teacher Login Form Fields
     const [loginEmail, setLoginEmail] = useState('');
@@ -259,7 +267,9 @@ export default function TeacherDashboardPage() {
                     subject: regSubject,
                     roleInSchool: regRole,
                     gender: regGender,
-                    whatsappNumber: regWhatsapp
+                    whatsappNumber: regWhatsapp,
+                    assignedClasses: regAssignedClasses,
+                    assignedSubjects: regAssignedSubjects
                 })
             });
 
@@ -601,10 +611,10 @@ export default function TeacherDashboardPage() {
                         
                         {/* 1. TEACHER AUTHENTICATION GATEWAY (If not logged in) */}
                         {!teacherToken ? (
-                            <div className="glass-panel max-w-md mx-auto p-6 md:p-8 border border-white/5">
+                            <div className="glass-panel max-w-4xl mx-auto p-6 md:p-8 border border-white/5">
                                 
                                 {/* Auth Tabs */}
-                                <div className="flex border-b border-white/5 pb-4 mb-6 gap-2">
+                                <div className="flex border-b border-white/5 pb-4 mb-6 gap-2 max-w-md mx-auto">
                                     <button onClick={() => { setAuthTab('LOGIN'); setAuthError(''); }}
                                         className={`flex-1 py-2 rounded-xl text-xs font-black transition-colors ${authTab === 'LOGIN' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}>
                                         🏫 Log In
@@ -616,14 +626,14 @@ export default function TeacherDashboardPage() {
                                 </div>
 
                                 {authError && (
-                                    <div className="text-red-400 bg-red-950/20 p-3 rounded-xl border border-red-500/20 text-xs flex items-center gap-2 mb-4">
+                                    <div className="text-red-400 bg-red-950/20 p-3 rounded-xl border border-red-500/20 text-xs flex items-center gap-2 mb-4 max-w-md mx-auto">
                                         <ShieldAlert size={14} /> {authError}
                                     </div>
                                 )}
 
                                 {/* LOGIN FORM */}
                                 {authTab === 'LOGIN' && (
-                                    <form onSubmit={handleTeacherLogin} className="space-y-4">
+                                    <form onSubmit={handleTeacherLogin} className="space-y-4 max-w-md mx-auto">
                                         <div>
                                             <label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Teacher Email Address*</label>
                                             <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} required
@@ -642,219 +652,193 @@ export default function TeacherDashboardPage() {
                                     </form>
                                 )}
 
-                                {/* REGISTER FORM */}
+                                {/* REGISTER FORM - 2-COLUMN SPACIOUS LAYOUT */}
                                 {authTab === 'REGISTER' && (
-                                    <form onSubmit={handleTeacherRegister} className="space-y-4">
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Full Name*</label>
-                                                <div className="relative">
-                                                    <input type="text" placeholder="Teacher Name" value={regName} onChange={e => setRegName(e.target.value)} required
-                                                        className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-8 pr-3 py-2 text-xs text-white outline-none focus:border-indigo-500" />
-                                                    <User size={12} className="absolute left-2.5 top-3 text-slate-500" />
+                                    <form onSubmit={handleTeacherRegister} className="space-y-6">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            
+                                            {/* LEFT COLUMN: PERSONAL & SCHOOL PROFILE */}
+                                            <div className="space-y-4 bg-slate-900/40 p-4 rounded-2xl border border-white/5">
+                                                <h3 className="text-xs font-black uppercase tracking-wider text-indigo-400 flex items-center gap-1.5 pb-2 border-b border-white/5">
+                                                    <User size={14} /> Personal & School Profile
+                                                </h3>
+
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Full Name*</label>
+                                                        <input type="text" placeholder="Teacher Name" value={regName} onChange={e => setRegName(e.target.value)} required
+                                                            className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">WhatsApp Number*</label>
+                                                        <input type="text" placeholder="9876543210" value={regWhatsapp} onChange={e => setRegWhatsapp(e.target.value)} required
+                                                            className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500" />
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">School Name*</label>
+                                                        <input type="text" placeholder="e.g. DPS School" value={regSchoolName} onChange={e => setRegSchoolName(e.target.value)} required
+                                                            className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Teacher ID*</label>
+                                                        <input type="text" placeholder="ID-54321" value={regTeacherId} onChange={e => setRegTeacherId(e.target.value)} required
+                                                            className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500" />
+                                                    </div>
+                                                </div>
+
+                                                <div>
+                                                    <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">School Address*</label>
+                                                    <input type="text" placeholder="School Address, City" value={regSchoolAddress} onChange={e => setRegSchoolAddress(e.target.value)} required
+                                                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500" />
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">School Role*</label>
+                                                        <input type="text" placeholder="e.g. Subject Teacher" value={regRole} onChange={e => setRegRole(e.target.value)} required
+                                                            className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Gender*</label>
+                                                        <select value={regGender} onChange={e => setRegGender(e.target.value)}
+                                                            className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500">
+                                                            <option value="Male">Male</option>
+                                                            <option value="Female">Female</option>
+                                                            <option value="Other">Other</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Gmail (Email)*</label>
+                                                        <input type="email" placeholder="teacher@gmail.com" value={regEmail} onChange={e => setRegEmail(e.target.value)} required
+                                                            className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Password*</label>
+                                                        <input type="password" placeholder="Min 6 chars" value={regPassword} onChange={e => setRegPassword(e.target.value)} required
+                                                            className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500" />
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <div>
-                                                <label className="text-[10px] font-black uppercase text-slate-500 block mb-1">WhatsApp Number*</label>
-                                                <div className="relative">
-                                                    <input type="text" placeholder="9876543210" value={regWhatsapp} onChange={e => setRegWhatsapp(e.target.value)} required
-                                                        className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-8 pr-3 py-2 text-xs text-white outline-none focus:border-indigo-500" />
-                                                    <Phone size={12} className="absolute left-2.5 top-3 text-slate-500" />
+
+                                            {/* RIGHT COLUMN: TEACHING RESPONSIBILITIES (MULTI-CLASS & MULTI-SUBJECT MANAGER) */}
+                                            <div className="space-y-4 bg-slate-900/40 p-4 rounded-2xl border border-white/5 flex flex-col justify-between">
+                                                <div className="space-y-4">
+                                                    <h3 className="text-xs font-black uppercase tracking-wider text-purple-400 flex items-center gap-1.5 pb-2 border-b border-white/5">
+                                                        <BookOpen size={14} /> Multi-Class & Multi-Subject Setup
+                                                    </h3>
+
+                                                    {/* 1. MULTI-CLASS / STANDARDS DROPDOWN SELECTOR & ADD */}
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase text-slate-300 block mb-1.5">
+                                                            🏫 Classes / Standards You Teach (Select from Dropdown)*
+                                                        </label>
+                                                        <div className="flex flex-wrap gap-1.5 mb-2 max-h-32 overflow-y-auto p-2 bg-slate-950/80 rounded-xl border border-white/5">
+                                                            {regAssignedClasses.map(cls => (
+                                                                <span key={cls} className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white text-[10px] font-bold flex items-center gap-1.5 shadow-md">
+                                                                    <span>{cls.replace('CLASS-', 'Class ')}</span>
+                                                                    <button type="button" onClick={() => setRegAssignedClasses(prev => prev.filter(c => c !== cls))} className="hover:text-red-300">
+                                                                        ×
+                                                                    </button>
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                        
+                                                        {/* Class Dropdown Selector */}
+                                                        <div className="flex gap-2">
+                                                            <select
+                                                                value={customClassInput}
+                                                                onChange={e => setCustomClassInput(e.target.value)}
+                                                                className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-indigo-500"
+                                                            >
+                                                                <option value="">-- Select Class & Section --</option>
+                                                                {['Class 8-A', 'Class 9-A', 'Class 9-B', 'Class 10-A', 'Class 10-B', 'Class 11-Physics', 'Class 11-Maths', 'Class 12-Science', 'Class 12-Commerce'].map(c => (
+                                                                    <option key={c} value={c}>🏫 {c}</option>
+                                                                ))}
+                                                            </select>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    if (!customClassInput) return;
+                                                                    const formatted = `CLASS-${customClassInput.toUpperCase().replace(/\s+/g, '_')}`;
+                                                                    if (!regAssignedClasses.includes(formatted)) {
+                                                                        setRegAssignedClasses(prev => [...prev, formatted]);
+                                                                    }
+                                                                    setCustomClassInput('');
+                                                                }}
+                                                                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shrink-0"
+                                                            >
+                                                                + Add Class
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* 2. MULTI-SUBJECT DROPDOWN SELECTOR & ADD */}
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase text-slate-300 block mb-1.5">
+                                                            📚 Subjects You Teach (Select from Dropdown)*
+                                                        </label>
+                                                        <div className="flex flex-wrap gap-1.5 mb-2 max-h-32 overflow-y-auto p-2 bg-slate-950/80 rounded-xl border border-white/5">
+                                                            {regAssignedSubjects.map(sub => (
+                                                                <span key={sub} className="px-2.5 py-1 rounded-lg bg-purple-600 text-white text-[10px] font-bold flex items-center gap-1.5 shadow-md">
+                                                                    <span>{sub}</span>
+                                                                    <button type="button" onClick={() => setRegAssignedSubjects(prev => prev.filter(s => s !== sub))} className="hover:text-red-300">
+                                                                        ×
+                                                                    </button>
+                                                                </span>
+                                                            ))}
+                                                        </div>
+
+                                                        {/* Subject Dropdown Selector */}
+                                                        <div className="flex gap-2">
+                                                            <select
+                                                                value={customSubjectInput}
+                                                                onChange={e => setCustomSubjectInput(e.target.value)}
+                                                                className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-indigo-500"
+                                                            >
+                                                                <option value="">-- Select Subject --</option>
+                                                                {['Mathematics', 'Science', 'Physics', 'Chemistry', 'Biology', 'English', 'Computer Science', 'Social Studies', 'Hindi', 'Accounts'].map(s => (
+                                                                    <option key={s} value={s}>📚 {s}</option>
+                                                                ))}
+                                                            </select>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    if (!customSubjectInput) return;
+                                                                    if (!regAssignedSubjects.includes(customSubjectInput)) {
+                                                                        setRegAssignedSubjects(prev => [...prev, customSubjectInput]);
+                                                                    }
+                                                                    setCustomSubjectInput('');
+                                                                }}
+                                                                className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shrink-0"
+                                                            >
+                                                                + Add Subject
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
                                                 </div>
-                                            </div>
-                                        </div>
 
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <label className="text-[10px] font-black uppercase text-slate-500 block mb-1">School Name*</label>
-                                                <div className="relative">
-                                                    <input type="text" placeholder="e.g. DPS School" value={regSchoolName} onChange={e => setRegSchoolName(e.target.value)} required
-                                                        className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-8 pr-3 py-2 text-xs text-white outline-none focus:border-indigo-500" />
-                                                    <School size={12} className="absolute left-2.5 top-3 text-slate-500" />
-                                                </div>
+                                                <button type="submit" disabled={authLoading}
+                                                    className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 disabled:opacity-50 text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 active:scale-[0.99] mt-4 shadow-xl shadow-indigo-600/30">
+                                                    {authLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play size={12} />}
+                                                    <span>Complete Registration & Enter Workspace</span>
+                                                </button>
                                             </div>
-                                            <div>
-                                                <label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Teacher ID*</label>
-                                                <div className="relative">
-                                                    <input type="text" placeholder="ID-54321" value={regTeacherId} onChange={e => setRegTeacherId(e.target.value)} required
-                                                        className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-8 pr-3 py-2 text-xs text-white outline-none focus:border-indigo-500" />
-                                                    <Tag size={12} className="absolute left-2.5 top-3 text-slate-500" />
-                                                </div>
-                                            </div>
-                                        </div>
 
-                                        <div>
-                                            <label className="text-[10px] font-black uppercase text-slate-500 block mb-1">School Address*</label>
-                                            <div className="relative">
-                                                <input type="text" placeholder="School Address, City" value={regSchoolAddress} onChange={e => setRegSchoolAddress(e.target.value)} required
-                                                    className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-8 pr-3 py-2 text-xs text-white outline-none focus:border-indigo-500" />
-                                                <MapPin size={12} className="absolute left-2.5 top-3 text-slate-500" />
-                                            </div>
                                         </div>
-
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Subject*</label>
-                                                <div className="relative">
-                                                    <select value={regSubject} onChange={e => setRegSubject(e.target.value)}
-                                                        className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-8 pr-3 py-2 text-xs text-white outline-none focus:border-indigo-500">
-                                                        {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
-                                                    </select>
-                                                    <Book size={12} className="absolute left-2.5 top-3.5 text-slate-500" />
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <label className="text-[10px] font-black uppercase text-slate-500 block mb-1">School Role*</label>
-                                                <input type="text" placeholder="e.g. Class Teacher" value={regRole} onChange={e => setRegRole(e.target.value)} required
-                                                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500" />
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Gender*</label>
-                                                <select value={regGender} onChange={e => setRegGender(e.target.value)}
-                                                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500">
-                                                    <option value="Male">Male</option>
-                                                    <option value="Female">Female</option>
-                                                    <option value="Other">Other</option>
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Gmail Address (Email)*</label>
-                                                <div className="relative">
-                                                    <input type="email" placeholder="teacher@gmail.com" value={regEmail} onChange={e => setRegEmail(e.target.value)} required
-                                                        className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-8 pr-3 py-2 text-xs text-white outline-none focus:border-indigo-500" />
-                                                    <Mail size={12} className="absolute left-2.5 top-3 text-slate-500" />
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Password*</label>
-                                            <input type="password" placeholder="Min 6 characters" value={regPassword} onChange={e => setRegPassword(e.target.value)} required
-                                                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500" />
-                                        </div>
-
-                                        <button type="submit" disabled={authLoading}
-                                            className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 disabled:opacity-50 text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 active:scale-[0.99] mt-6">
-                                            {authLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play size={12} />}
-                                            <span>Complete Registration & Enter</span>
-                                        </button>
                                     </form>
                                 )}
                             </div>
                         ) : (
-                            
                             // 2. TEACHER LOGGED IN COMMAND HUB DASHBOARD
-                            <div className="space-y-6">
-                                
-                                {/* Hero Header with Teacher Stats */}
-                                <div className="glass-panel p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                                    <div>
-                                        <div className="inline-flex items-center gap-1 bg-indigo-500/10 text-indigo-400 rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider mb-2">
-                                            <School className="w-3 h-3" /> Teacher Command Hub
-                                        </div>
-                                        <h2 className="text-2xl font-black text-white">{teacherUser.firstName || 'Teacher'} {teacherUser.lastName || ''}</h2>
-                                        <p className="text-xs text-slate-400 mt-0.5">
-                                            {teacherUser.teacherDetails?.schoolName || 'DPS School'} • {teacherUser.teacherDetails?.subject || 'Science'} Specialist
-                                        </p>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => setView('CREATE')}
-                                            className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 rounded-xl font-black text-xs hover:from-indigo-500 hover:to-violet-500 transition-all shadow-lg active:scale-[0.99] flex items-center gap-1">
-                                            ⚔️ Create Battle Room
-                                        </button>
-                                        <button onClick={handleTeacherLogout}
-                                            className="p-2.5 bg-slate-900 border border-white/5 hover:bg-slate-850 rounded-xl transition-all text-slate-400 hover:text-white flex items-center justify-center"
-                                            title="Logout Teacher Account"
-                                        >
-                                            <LogOut size={16} />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Active & Historical Tournaments */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    
-                                    {/* Create card/input */}
-                                    <div className="glass-panel p-6 md:col-span-1 flex flex-col justify-center space-y-4">
-                                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Join Active Room</h3>
-                                        <p className="text-xs text-slate-500">Track student progress inside an existing classroom battle code:</p>
-                                        <div className="flex gap-2">
-                                            <input
-                                                value={monitorCode}
-                                                onChange={e => setMonitorCode(e.target.value.toUpperCase())}
-                                                placeholder="ARENA-123456"
-                                                className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-center text-xs font-black tracking-wider uppercase focus:border-indigo-500 outline-none"
-                                            />
-                                            <button
-                                                onClick={() => monitorCode.trim() && startMonitoring(monitorCode.trim())}
-                                                className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-bold transition-colors"
-                                            >
-                                                Track
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* Stats grid */}
-                                    <div className="md:col-span-2 space-y-4">
-                                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Classroom Battle Stats</h3>
-                                        <div className="grid grid-cols-3 gap-4">
-                                            <div className="glass-panel p-4 text-center">
-                                                <div className="text-2xl font-black text-white">{teacherHistory.length}</div>
-                                                <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1">Tournaments Hosted</div>
-                                            </div>
-                                            <div className="glass-panel p-4 text-center">
-                                                <div className="text-2xl font-black text-emerald-450">{teacherHistory.filter(r => r.status === 'FINISHED').length}</div>
-                                                <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1">Completed Battles</div>
-                                            </div>
-                                            <div className="glass-panel p-4 text-center">
-                                                <div className="text-2xl font-black text-indigo-400">{teacherHistory.filter(r => r.status === 'ACTIVE').length}</div>
-                                                <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1">Running Battles</div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                </div>
-
-                                {/* Tournament History List */}
-                                <div className="glass-panel overflow-hidden">
-                                    <div className="px-6 py-4 border-b border-white/5">
-                                        <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Recently Hosted Battle Lobbies</h3>
-                                    </div>
-                                    <div className="divide-y divide-white/5">
-                                        {teacherHistory.length === 0 ? (
-                                            <div className="text-center py-8 text-slate-500 text-xs italic">
-                                                You haven't hosted any classroom tournaments yet. Create one above to get started!
-                                            </div>
-                                        ) : (
-                                            teacherHistory.map((room: any) => (
-                                                <div key={room.roomCode} onClick={() => {
-                                                    if (loadingClassroomResults) return;
-                                                    if (room.status === 'FINISHED') {
-                                                        fetchClassroomResults(room.roomCode);
-                                                    } else {
-                                                        startMonitoring(room.roomCode);
-                                                    }
-                                                }}
-                                                    className="flex items-center justify-between p-4 hover:bg-white/[0.01] cursor-pointer transition-all">
-                                                    <div>
-                                                        <div className="text-xs font-bold text-gray-200">{room.subject} {room.topic && `— ${room.topic}`}</div>
-                                                        <div className="text-[9px] text-slate-500 mt-0.5">Code: {room.roomCode} • Class {room.standard || room.grade || 10} • {room.totalRounds} Rounds</div>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${room.status === 'ACTIVE' ? 'bg-indigo-900/40 text-indigo-400 border border-indigo-850' : room.status === 'FINISHED' ? 'bg-emerald-950/65 text-emerald-400 border border-emerald-900/25' : 'bg-slate-900 text-slate-500 border border-slate-800'}`}>
-                                                            {room.status}
-                                                        </span>
-                                                        <span className="text-slate-500 text-xs">→</span>
-                                                    </div>
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
-                                </div>
-
+                            <div className="space-y-8">
+                                <TeacherWorkspacePage />
                             </div>
                         )}
 

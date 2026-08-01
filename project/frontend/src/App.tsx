@@ -60,6 +60,8 @@ const MinervaQuizBattlePage = lazy(() => import('./pages/minerva/MinervaQuizBatt
 const MinervaParentDashboardPage = lazy(() => import('./pages/minerva/MinervaParentDashboardPage'));
 const SchoolLeaderboardPage = lazy(() => import('./pages/minerva/SchoolLeaderboardPage'));
 const TeacherDashboardPage = lazy(() => import('./pages/minerva/TeacherDashboardPage'));
+const TeacherWorkspacePage = lazy(() => import('./pages/teacher/TeacherWorkspacePage'));
+const StudentWorkspacePage = lazy(() => import('./pages/student/StudentWorkspacePage'));
 
 
 // Admin Pages
@@ -417,6 +419,8 @@ function App() {
                                                             <Route path="future-education/parent-dashboard" element={<MinervaParentDashboardPage />} />
                                                             <Route path="future-education/school-leaderboard" element={<SchoolLeaderboardPage />} />
                                                             <Route path="future-education/teacher-dashboard" element={<TeacherDashboardPage />} />
+                                                            <Route path="teacher/workspace" element={<TeacherWorkspacePage />} />
+                                                            <Route path="student/workspace" element={<StudentWorkspacePage />} />
                                                             
                                                             {/* Redirect old path to new path recursively */}
                                                             <Route path="minerva" element={<Navigate to="/future-education" replace />} />

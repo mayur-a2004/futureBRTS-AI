@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { minervaApi } from '../../api/minerva.api';
 import { ChevronLeft, BookOpen, Plus, Sparkles, Compass, X, Trash2, GraduationCap, Globe, Layers, Calendar } from 'lucide-react';
-import { BOARDS } from './MinervaQuizBattlePage';
+import { BOARDS, INDIAN_LANGUAGES } from './MinervaQuizBattlePage';
+import { SchoolContextBar } from '../../components/education/SchoolContextBar';
 
 // Complete Explicit List of All Standards (1 to 12, Stream-Specific, Higher Ed & Competitive)
 const ALL_STANDARDS = [
@@ -112,23 +113,8 @@ const HIGHER_ED_DEGREE_MAP: Record<string, { id: string; name: string }[]> = {
     ]
 };
 
-// All 14+ Instruction Medium Languages
-const ALL_LANGUAGES = [
-    { id: 'hinglish', name: 'Hinglish (Mix)' },
-    { id: 'english', name: 'English' },
-    { id: 'hindi', name: 'Hindi (हिंदी)' },
-    { id: 'gujarati', name: 'Gujarati (ગુજરાતી)' },
-    { id: 'marathi', name: 'Marathi (मરાઠી)' },
-    { id: 'bengali', name: 'Bengali (বাংলা)' },
-    { id: 'tamil', name: 'Tamil (தமிழ்)' },
-    { id: 'telugu', name: 'Telugu (తెలుగు)' },
-    { id: 'kannada', name: 'Kannada (ಕನ್ನಡ)' },
-    { id: 'malayalam', name: 'Malayalam (മലയാളം)' },
-    { id: 'punjabi', name: 'Punjabi (ਪੰਜਾਬੀ)' },
-    { id: 'odia', name: 'Odia (ଓଡ଼ିଆ)' },
-    { id: 'assamese', name: 'Assamese (অসমীয়া)' },
-    { id: 'urdu', name: 'Urdu (اردو)' }
-];
+// All 22 Scheduled Indian Medium Languages
+const ALL_LANGUAGES = INDIAN_LANGUAGES;
 
 export const MinervaRoadmapsPage: React.FC = () => {
     const { token } = useAuth() as any;
@@ -141,6 +127,7 @@ export const MinervaRoadmapsPage: React.FC = () => {
     // Modal Tab Mode: 'school' (Tab 1: School/College 1-12 & Higher Ed) vs 'custom' (Tab 2: Out of Course)
     const [modalTab, setModalTab] = useState<'school' | 'custom'>('school');
 
+    const [selectedClass, setSelectedClass] = useState('CLASS-10A');
     // School / Syllabus Roadmap Form States
     const [board, setBoard] = useState('CBSE');
     const [gradeLevel, setGradeLevel] = useState('10');
@@ -389,6 +376,14 @@ export const MinervaRoadmapsPage: React.FC = () => {
             <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-purple-600/10 rounded-full blur-[140px] pointer-events-none" />
 
             <div className="max-w-6xl mx-auto relative z-10">
+                <SchoolContextBar
+                    moduleTitle="🗺️ Day-by-Day Roadmaps"
+                    selectedClass={selectedClass}
+                    onClassChange={setSelectedClass}
+                    selectedSubject={selectedSubject}
+                    onSubjectChange={setSelectedSubject}
+                />
+
                 {/* Header Navbar */}
                 <div className="flex items-center justify-between mb-8 pb-6 border-b border-white/5">
                     <div className="flex items-center gap-3">

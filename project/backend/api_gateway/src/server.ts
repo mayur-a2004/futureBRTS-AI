@@ -129,6 +129,11 @@ app.use('/api/tenant', tenantRoutes);
 app.use('/api/v1/tenant', tenantRoutes);
 console.log('✅ Routes Mounted: /api/tenant & /api/v1/tenant');
 
+import teacherPortalRoutes from './modules/tenant/teacher_portal.routes';
+app.use('/api/v1/teacher-workspace', teacherPortalRoutes);
+app.use('/api/auth/teacher', teacherPortalRoutes);
+console.log('✅ Routes Mounted: /api/v1/teacher-workspace & /api/auth/teacher');
+
 // 🤖 EMBEDDABLE FUTURE AI ASSISTANT WEB SDK FOR SCHOOL ERP INTEGRATION
 app.get('/sdk/future-ai.js', (req, res) => {
   res.type('application/javascript').send(`

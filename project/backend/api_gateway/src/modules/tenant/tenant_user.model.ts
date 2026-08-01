@@ -10,6 +10,8 @@ export interface ITenantUser extends Document {
   role: TenantUserRole;
   grade?: string;
   subject?: string;
+  assignedClasses?: string[];
+  assignedSubjects?: string[];
   queriesUsed: number;
   lastActive: Date;
   status: 'ACTIVE' | 'SUSPENDED';
@@ -30,6 +32,8 @@ const TenantUserSchema = new Schema<ITenantUser>(
     },
     grade: { type: String, default: '' },
     subject: { type: String, default: '' },
+    assignedClasses: { type: [String], default: ['CLASS-10A', 'CLASS-11B'] },
+    assignedSubjects: { type: [String], default: ['Mathematics', 'Science'] },
     queriesUsed: { type: Number, default: 0 },
     lastActive: { type: Date, default: Date.now },
     status: { type: String, enum: ['ACTIVE', 'SUSPENDED'], default: 'ACTIVE' }

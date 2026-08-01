@@ -98,11 +98,23 @@ const MODES = [
     { id: 'CUSTOM_BATTLE', label: 'Custom Match', icon: '🏆', desc: '6-Team Battle Royale (1-4/team)' },
 ];
 export const BOARDS = [
-    // National / Common Boards
+    // National & Competitive Entrance Exam Boards
+    { id: 'AP_ICET', name: 'AP ICET (Andhra Pradesh Integrated CET)' },
+    { id: 'TS_ICET', name: 'TS ICET (Telangana Integrated CET)' },
+    { id: 'NEET', name: 'NTA NEET (UG Medical Entrance)' },
+    { id: 'JEE_MAIN', name: 'NTA JEE Main (Engineering Entrance)' },
+    { id: 'JEE_ADV', name: 'IIT JEE Advanced' },
+    { id: 'GUJCET', name: 'GUJCET (Gujarat Common Entrance Test)' },
+    { id: 'KCET', name: 'KCET (Karnataka Common Entrance Test)' },
+    { id: 'MHT_CET', name: 'MHT-CET (Maharashtra CET)' },
+    { id: 'WBJEE', name: 'WBJEE (West Bengal JEE)' },
+
+    // National School Boards
     { id: 'CBSE', name: 'CBSE (Central Board of Secondary Education)' },
     { id: 'NCERT', name: 'NCERT' },
+    { id: 'ICSE', name: 'CISCE (ICSE / ISC Board)' },
     
-    // State Boards
+    // All 28 State Boards
     { id: 'BSEAP', name: 'Andhra Pradesh (BSEAP)' },
     { id: 'CBSE_ARUNACHAL', name: 'Arunachal Pradesh (CBSE)' },
     { id: 'ASSEB', name: 'Assam (ASSEB)' },
@@ -360,8 +372,34 @@ export const isSchoolStandard = (stdId: string) => {
     ].includes(stdId);
 };
 
+export const INDIAN_LANGUAGES = [
+    { id: 'Auto-Detect', name: '🌐 Auto-Detect Language' },
+    { id: 'English', name: '🇬🇧 English' },
+    { id: 'Hinglish', name: '🇮🇳 Hinglish (Hindi + English)' },
+    { id: 'Gujarati', name: 'ગુજરાતી (Gujarati)' },
+    { id: 'Hindi', name: 'हिंदी (Hindi)' },
+    { id: 'Marathi', name: 'મરાઠી (Marathi)' },
+    { id: 'Tamil', name: 'தமிழ் (Tamil)' },
+    { id: 'Telugu', name: 'తెలుగు (Telugu)' },
+    { id: 'Kannada', name: 'ಕನ್ನಡ (Kannada)' },
+    { id: 'Malayalam', name: 'മലയാളം (Malayalam)' },
+    { id: 'Bengali', name: 'বাংলা (Bengali)' },
+    { id: 'Punjabi', name: 'ਪੰਜਾਬੀ (Punjabi)' },
+    { id: 'Odia', name: 'ଓଡ଼ିଆ (Odia)' },
+    { id: 'Assamese', name: 'અસમિયા / অসমীয়া (Assamese)' },
+    { id: 'Urdu', name: 'اردو (Urdu)' },
+    { id: 'Sanskrit', name: 'संस्कृतम् (Sanskrit)' },
+    { id: 'Konkani', name: 'કોંકણી / कोंकणी (Konkani)' },
+    { id: 'Manipuri', name: 'મણિપુરી / মৈতৈલોન્ (Manipuri)' },
+    { id: 'Bodo', name: 'બોડો / बड़ो (Bodo)' },
+    { id: 'Santhali', name: 'સંથાલી / ᱥᱟᱱᱛᱟᱲᱤ (Santhali)' },
+    { id: 'Maithili', name: 'મૈથિલી / मैथिली (Maithili)' },
+    { id: 'Kashmiri', name: 'કશ્મીરી / کٲشُر (Kashmiri)' },
+    { id: 'Nepali', name: 'નેપાળી / नेपाली (Nepali)' }
+];
+
 export const SUBJECTS = ['Physics', 'Chemistry', 'Biology', 'Mathematics', 'History', 'Geography', 'Science', 'English', 'Social Studies'];
-const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
+const DIFFICULTIES = ['Easy', 'Medium', 'Hard', 'Mix All'];
 const AI_DIFFS = [
     { id: 'ROOKIE', label: 'Rookie', desc: '40% accuracy, slow thinking' },
     { id: 'SCHOLAR', label: 'Scholar', desc: '72% accuracy, medium speed' },
@@ -1736,6 +1774,26 @@ export default function MinervaQuizBattlePage() {
             roundIndex: currentRound, selectedOption: optIdx,
             timeMs: (15 - timeLeft) * 1000
         });
+
+        // 🔄 Real-Time Live Sync to Teacher Host Proctoring Dashboard
+        try {
+            const isRight = myQuestion ? myQuestion.correctAnswer === optIdx : false;
+            fetch('/api/v1/teacher-workspace/live-rooms/submit-answer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    roomCode: room.roomCode.toUpperCase(),
+                    studentId: user?._id || user?.id || `STU-${Math.floor(1000 + Math.random() * 9000)}`,
+                    answer: {
+                        qId: currentRound + 1,
+                        type: 'MCQ',
+                        text: myQuestion?.options?.[optIdx] ? `Option ${String.fromCharCode(65 + optIdx)} (${myQuestion.options[optIdx]})` : `Option ${optIdx + 1}`,
+                        isCorrect: isRight,
+                        score: isRight ? 2 : 0
+                    }
+                })
+            }).catch(() => {});
+        } catch (e) {}
     };
 
     const usePowerup = (pu: string) => {
@@ -2478,13 +2536,20 @@ export default function MinervaQuizBattlePage() {
                             </select>
                         </div>
 
-                        {/* Rounds */}
+                        {/* Rounds / Total Questions */}
                         <div className="mb-5 bg-[#080a13] border border-slate-850 rounded-2xl p-4">
                             <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 flex justify-between">
-                                <span>Total Match Rounds</span><span className="text-indigo-400 font-bold">{totalRounds} Rounds</span>
+                                <span>Total Match Rounds / Questions</span><span className="text-indigo-400 font-bold">{totalRounds} Questions</span>
                             </div>
-                            <input type="range" min={5} max={20} value={totalRounds} onChange={e => setTotalRounds(+e.target.value)}
+                            <input type="range" min={5} max={100} step={5} value={totalRounds} onChange={e => setTotalRounds(+e.target.value)}
                                 className="w-full accent-indigo-500 cursor-pointer" />
+                            <div className="flex justify-between text-[9px] text-slate-500 mt-1 font-mono">
+                                <span>5 Qs</span>
+                                <span>25 Qs</span>
+                                <span>50 Qs</span>
+                                <span>75 Qs</span>
+                                <span>100 Qs (Max Mega Quiz 🔥)</span>
+                            </div>
                         </div>
 
                         {/* AI Difficulty */}

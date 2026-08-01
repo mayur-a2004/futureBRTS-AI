@@ -4,10 +4,14 @@ import { useAuth } from '../../context/AuthContext';
 import { minervaApi } from '../../api/minerva.api';
 import { ChevronLeft, CheckCircle2, Send, Sparkles, MessageSquare, FileText, Loader2, Plus, X, Trash2 } from 'lucide-react';
 import { LevelUpModal } from '../../components/ui/LevelUpModal';
+import { SchoolContextBar } from '../../components/education/SchoolContextBar';
 
 const MinervaTasksPage: React.FC = () => {
     const { user, token } = useAuth() as any;
     const navigate = useNavigate();
+
+    const [selectedClass, setSelectedClass] = useState('CLASS-10A');
+    const [selectedSubject, setSelectedSubject] = useState('Mathematics');
 
     const [tasks, setTasks] = useState<any[]>([]);
     const [exams, setExams] = useState<any[]>([]);
@@ -504,6 +508,14 @@ const MinervaTasksPage: React.FC = () => {
             </header>
 
             <div className="max-w-4xl mx-auto px-4 md:px-6 py-8 relative z-10 w-full">
+                <SchoolContextBar
+                    moduleTitle="📋 Tasks & Homework"
+                    selectedClass={selectedClass}
+                    onClassChange={setSelectedClass}
+                    selectedSubject={selectedSubject}
+                    onSubjectChange={setSelectedSubject}
+                />
+
                 {/* 📊 Tasks & Homework Dashboard */}
                 {(() => {
                     const db = getHomeworkDashboard(tasks);

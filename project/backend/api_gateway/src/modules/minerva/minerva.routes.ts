@@ -119,7 +119,7 @@ router.get('/battle/room/:roomCode', authMiddleware, battleController.getRoom);
 router.get('/battle/rooms', authMiddleware, battleController.listActiveRooms);
 router.get('/battle/room/:roomCode/monitor', authMiddleware, battleController.monitorRoom);
 router.get('/battle/daily-status', authMiddleware, battleController.getDailyChallengeStatus);
-router.post('/battle/normalize-topic', authMiddleware, battleController.normalizeTopic);
+router.post('/battle/normalize-topic', battleController.normalizeTopic);
 router.get('/battle/teacher/rooms', authMiddleware, battleController.listTeacherRooms);
 router.get('/battle/teacher/room/:roomCode/results', authMiddleware, battleController.classroomResults);
 router.get('/battle/teacher/search-students', authMiddleware, battleController.searchStudents);

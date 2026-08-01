@@ -60,27 +60,76 @@ const cleanTopic = (topic: string): string => {
 // ─── Topic Normalizer ─────────────────────────────────────────────────────────
 const normalizeTopicWithAI = async (rawTopic: string, subject: string, standard: string): Promise<string> => {
     try {
-        const prompt = `You are a syllabus expert for Indian education boards.
-Normalize this chapter/topic name typed by a student:
-"${rawTopic}" (for ${subject}, Standard: ${standard})
+        const lower = (rawTopic || '').toLowerCase().trim();
+        const staticMap: Record<string, string> = {
+            'metal': 'Metals, Non-Metals & Chemical Reactivity',
+            'metals': 'Metals, Non-Metals & Chemical Reactivity',
+            'html': 'HTML5 Semantic Tags & Web Structure',
+            'html5': 'HTML5 Semantic Tags & Web Structure',
+            'css': 'CSS3 Styling, Flexbox & Grid Layouts',
+            'css3': 'CSS3 Styling, Flexbox & Grid Layouts',
+            'js': 'JavaScript Syntax, DOM & Async ES6+',
+            'javascript': 'JavaScript Core Concepts & ES6+',
+            'python': 'Python Data Structures & OOP',
+            'java': 'Java Object-Oriented Programming & Collections',
+            'cpp': 'C++ Pointers, Classes & Memory Management',
+            'c++': 'C++ Object-Oriented Programming',
+            'sql': 'SQL Queries, Joins & Database Schema Design',
+            'dbms': 'Database Management Systems & Relational Schema',
+            'dsa': 'Data Structures, Algorithms & Time Complexity',
+            'react': 'React Hooks, Components & State Management',
+            'node': 'Node.js Express API & Event Loop',
+            'nodejs': 'Node.js Express Server & REST APIs',
+            'maths': 'Mathematics Core Formulas & Proofs',
+            'math': 'Mathematics Core Formulas & Proofs',
+            'algebra': 'Linear Algebra, Equations & Polynomials',
+            'physics': 'Physics Fundamentals & Laws of Motion',
+            'chemistry': 'Chemistry Elements, Reactions & Equations',
+            'biology': 'Biological Systems & Cell Structure',
+            'newton': "Newton's Laws of Motion & Gravitation"
+        };
+        if (staticMap[lower]) {
+            return staticMap[lower];
+        }
 
-Rules:
-- Fix all spelling mistakes
-- Use standard educational terminology
-- Keep it concise (max 8 words)
-- Return ONLY the corrected topic name, nothing else, no explanation
-- Examples:
-  "mataels and non matals" → "Metals and Non-Metals"
-  "cell organels" → "Cell Organelles"
-  "newtons laws of moton" → "Newton's Laws of Motion"
-  "quadralic equations" → "Quadratic Equations"
-  "fotosinthesis" → "Photosynthesis"
-  "binary tree and bst" → "Binary Trees and BST"`;
-        const result = await callSwarmAIHelper(prompt);
-        const clean = result.trim().replace(/^["']|["']$/g, ''); // strip surrounding quotes if any
-        return clean.length > 0 ? clean : rawTopic; // fallback if AI returned empty
+        const messages = [
+            {
+                role: 'system',
+                content: `You are an expert curriculum syllabus normalizer. Return ONLY a JSON object with "normalizedTopic" property.`
+            },
+            {
+                role: 'user',
+                content: `Normalize topic: "${rawTopic}" for subject "${subject}", Grade "${standard}".
+RULES:
+1. Return ONLY a short 2 to 5 word educational topic title (e.g. "Metals and Non-Metals").
+2. DO NOT write explanations, sentences, or reasons (NEVER write "No direct relation...", "could be...", "in relation to...").
+3. Output format strictly JSON: {"normalizedTopic": "Clean Topic Title"}`
+            }
+        ];
+        const res = await getProviderResponse(messages as any, { jsonMode: true, maxTokens: 100, temperature: 0.1, taskType: 'chat' });
+        const content = res?.choices?.[0]?.message?.content || '';
+        if (content) {
+            try {
+                const parsed = JSON.parse(content);
+                if (parsed && parsed.normalizedTopic) {
+                    let cleaned = String(parsed.normalizedTopic).trim().replace(/^["']|["']$/g, '');
+                    const matchQuote = cleaned.match(/'([^']+)'/) || cleaned.match(/"([^"]+)"/);
+                    if (matchQuote && matchQuote[1] && matchQuote[1].length < 40) {
+                        cleaned = matchQuote[1];
+                    } else if (cleaned.length > 50) {
+                        cleaned = cleaned.split('.')[0].split(',')[0].substring(0, 45).trim();
+                    }
+                    return cleaned;
+                }
+            } catch {
+                let clean = content.trim().replace(/^["']|["']$/g, '');
+                if (clean.length > 45) clean = clean.substring(0, 45).trim();
+                if (clean.length > 0) return clean;
+            }
+        }
+        return rawTopic;
     } catch {
-        return rawTopic; // fallback to original if AI fails
+        return rawTopic;
     }
 };
 

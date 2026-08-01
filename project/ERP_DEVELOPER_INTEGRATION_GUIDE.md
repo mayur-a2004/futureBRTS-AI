@@ -166,8 +166,7 @@ Every API request is automatically validated against the school organization's O
   }
 }
 ```
-
----
+--
 
 ### 3.2 Vision AI Homework Auto-Checker (Notebook Image AI)
 * **POST** `/api/v1/tenant/grade-homework`
