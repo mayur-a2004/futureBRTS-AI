@@ -6,6 +6,9 @@ import UniverseBackground from "@/components/ui/UniverseBackground"
 import axios from "axios"
 import { MessageBubble } from "@/components/chat/MessageBubble"
 
+import AuthPromptModal from "@/components/auth/AuthPromptModal"
+import { useAuth } from "@/context/AuthContext"
+
 interface Attachment {
     name: string;
     type: string;
@@ -26,6 +29,8 @@ interface Message {
 export default function GuestChat() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { isAuthenticated } = useAuth();
+    const [showAuthModal, setShowAuthModal] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -165,11 +170,17 @@ export default function GuestChat() {
                     });
                 }
 
-                setMessages(prev => [...prev, {
-                    role: 'assistant',
-                    content: rawContent,
-                    suggestions: suggestions.length > 0 ? suggestions : ["EXPLORE CODING TOPICS", "DISCUSS BUSINESS IDEAS", "LEARN ABOUT AI"]
-                }]);
+                setMessages(prev => {
+                    const newMsgs: Message[] = [...prev, {
+                        role: 'assistant',
+                        content: rawContent,
+                        suggestions: suggestions.length > 0 ? suggestions : ["EXPLORE CODING TOPICS", "DISCUSS BUSINESS IDEAS", "LEARN ABOUT AI"]
+                    }];
+                    if (newMsgs.length >= 4 && !isAuthenticated) {
+                        setTimeout(() => setShowAuthModal(true), 1200);
+                    }
+                    return newMsgs;
+                });
             }
         } catch (err) {
             console.error("Guest Chat Error:", err);
@@ -450,6 +461,7 @@ export default function GuestChat() {
                     </form>
                 </div>
             </footer>
+            <AuthPromptModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
         </div>
     )
 }
