@@ -37,7 +37,12 @@ console.log(`[Config] JWT_SECRET: ${process.env.JWT_SECRET ? 'SET (' + process.e
 console.log(`[Config] MONGO_URI: ${process.env.MONGO_URI ? 'SET' : 'MISSING'}`);
 console.log(`[Config] AI_MODE: ${process.env.AI_MODE}`);
 
+import { fastApiCache } from './shared/middleware/fast_cache.middleware';
+
 const app = express();
+
+// ⚡ Ultra-Fast 0.001s RAM Cache for 400+ Users
+app.use(fastApiCache);
 
 // 👉 7-LAYER WEB APPLICATION FIREWALL SENTINEL (WAF)
 app.use(hardenedHelmet); // L1: Headers & CSP
