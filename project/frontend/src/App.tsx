@@ -305,6 +305,7 @@ function InquiryButton() {
 }
 
 import PageSkeleton from './components/common/PageSkeleton';
+import GoogleOneTapPrompt from './components/auth/GoogleOneTapPrompt';
 
 function App() {
     useTrafficTracker();
@@ -327,6 +328,7 @@ function App() {
                             />
                             <Router>
                                 <ScrollToTop />
+                                <GoogleOneTapPrompt />
                                 <Suspense fallback={<PageSkeleton />}>
                                     <EmergencyLockdownOverlay />
                                     {/* GLOBAL BACKGROUND - Applied once for the whole app */}

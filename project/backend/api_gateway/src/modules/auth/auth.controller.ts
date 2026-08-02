@@ -60,6 +60,66 @@ export const authController = {
         }
     },
 
+    googleOneTap: async (req: Request, res: Response) => {
+        try {
+            const { credential, email, name, picture } = req.body;
+            let userEmail = email;
+            let userFirstName = name ? name.split(' ')[0] : 'User';
+            let userLastName = name ? name.split(' ').slice(1).join(' ') : 'Google';
+            let avatarUrl = picture || '';
+
+            if (credential && typeof credential === 'string') {
+                try {
+                    const parts = credential.split('.');
+                    if (parts.length === 3) {
+                        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
+                        if (payload.email) userEmail = payload.email;
+                        if (payload.given_name) userFirstName = payload.given_name;
+                        if (payload.family_name) userLastName = payload.family_name;
+                        if (payload.picture) avatarUrl = payload.picture;
+                        if (payload.name && !name) {
+                            userFirstName = payload.name.split(' ')[0];
+                            userLastName = payload.name.split(' ').slice(1).join(' ') || 'User';
+                        }
+                    }
+                } catch (e) {
+                    console.warn("One-tap token decode fallback", e);
+                }
+            }
+
+            if (!userEmail) {
+                return res.status(400).json({ success: false, error: 'Email is required for Google One-Tap registration' });
+            }
+
+            let user = await User.findOne({ email: userEmail });
+            if (!user) {
+                user = await User.create({
+                    firstName: userFirstName || 'User',
+                    lastName: userLastName || 'Google',
+                    email: userEmail,
+                    passwordHash: await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10),
+                    provider: 'google',
+                    avatarUrl: avatarUrl,
+                    tokenBalance: 5000,
+                    onboardingCompleted: true,
+                    status: 'active'
+                });
+            }
+
+            if (user.status !== 'active') {
+                return res.status(403).json({ success: false, error: 'Account is blocked or inactive. Contact Admin.' });
+            }
+
+            res.json({
+                success: true,
+                token: generateToken(user),
+                user
+            });
+        } catch (err: any) {
+            res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
     googleAuth: async (req: Request, res: Response) => {
         try {
             const { token, email, name, googleId } = req.body;
