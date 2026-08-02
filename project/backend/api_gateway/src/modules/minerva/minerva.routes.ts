@@ -36,6 +36,7 @@ router.put('/profile', authMiddleware, minervaController.updateProfile);
 
 // ─── DASHBOARD / STATS ─────────────────────────
 router.get('/stats', authMiddleware, minervaController.getStats);
+router.get('/student-digest', authMiddleware, minervaController.getStudentDigest);
 router.post('/study-time/add', authMiddleware, minervaController.addStudyTime);
 
 // ─── CHAT (Main entry point - Guest Allowed) ───

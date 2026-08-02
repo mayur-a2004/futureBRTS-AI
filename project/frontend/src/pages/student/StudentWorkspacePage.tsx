@@ -5,6 +5,7 @@ import {
   UserCheck, Users, XCircle, Award, Check, Search, ShieldCheck, Flame, Upload
 } from 'lucide-react';
 import axios from 'axios';
+import { AIMemoryCompanionWidget } from '@/components/education/AIMemoryCompanionWidget';
 
 export const StudentWorkspacePage: React.FC = () => {
   const tenantOrgId = 'mount_carmel_school';
@@ -98,6 +99,11 @@ export const StudentWorkspacePage: React.FC = () => {
             <div className="text-3xl font-black text-emerald-400">94%</div>
             <span className="text-[10px] text-gray-400">Status: Good Academic Standing</span>
           </div>
+        </div>
+
+        {/* 🧠 AI SMART MEMORY & COMPANION PROGRESS DIGEST WIDGET */}
+        <div className="mt-6">
+          <AIMemoryCompanionWidget />
         </div>
 
         {/* WORKSPACE NAVIGATION TABS */}

@@ -5,6 +5,7 @@ import { minervaApi } from '../../api/minerva.api';
 import { ChevronLeft, BookOpen, Star, Flame, Trophy, CheckSquare, Zap, Hammer, MessageSquare } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
 import { AnimatePresence } from 'framer-motion';
+import { AIMemoryCompanionWidget } from '@/components/education/AIMemoryCompanionWidget';
 
 const MinervaDashboardPage: React.FC = () => {
     const { user, token } = useAuth() as any;
@@ -158,6 +159,11 @@ const MinervaDashboardPage: React.FC = () => {
                             <span>{xpNeeded} XP for Level {currentLevel + 1}</span>
                         </div>
                     </div>
+                </div>
+
+                {/* 🧠 AI SMART MEMORY & COMPANION PROGRESS DIGEST WIDGET */}
+                <div className="mb-8">
+                    <AIMemoryCompanionWidget />
                 </div>
 
                 {/* Stats Grid */}

@@ -14,6 +14,7 @@ import MinervaChatSession from './models/minerva_chat_session.model';
 import MinervaBuilderMaterial from './models/minerva_builder_material.model';
 import MinervaStudyTimeLog from './models/minerva_study_time_log.model';
 import MinervaSmartBoardSession from './models/minerva_smartboard_session.model';
+import { SpacedRepetitionEngine } from './spaced_repetition_engine';
 import {
     detectStudentIntent,
     getMinervaChat,
@@ -3465,6 +3466,63 @@ Guidelines:
             const userId = req.user?.id || req.user?._id;
             const sessions = await MinervaSmartBoardSession.find({ userId }).sort({ createdAt: -1 }).limit(30);
             return res.json({ success: true, sessions });
+        } catch (err: any) {
+            return res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    getStudentDigest: async (req: any, res: Response) => {
+        try {
+            const userId = req.user?.id || req.user?._id;
+
+            // 1. Spaced Repetition Due Reviews
+            let dueReviews: any[] = [];
+            if (userId) {
+                dueReviews = await SpacedRepetitionEngine.getDueReviews(userId);
+            }
+
+            // 2. Pending Priority Homework & Tasks
+            let pendingHomework: any[] = [];
+            if (userId) {
+                try {
+                    pendingHomework = await MinervaTask.find({
+                        userId: userId,
+                        status: { $ne: 'Completed' }
+                    }).sort({ dueDate: 1 }).limit(5);
+                } catch (e) {}
+            }
+
+            // 3. Dynamic Summary Nudge
+            let lastSummary = "Welcome back! Ready to excel in today's learning digest?";
+            if (dueReviews.length > 0) {
+                lastSummary = `Dost! ${dueReviews[0].subject || 'Subject'} me "${dueReviews[0].topic || 'Topic'}" ko revise kiye 7 din ho gaye. Ek quick 2-minute revision quiz try karoge? ⚡`;
+            } else if (pendingHomework.length > 0) {
+                lastSummary = `Priority Alert: You have ${pendingHomework.length} active homework tasks due! Completing them today keeps your streak active! 🔥`;
+            }
+
+            return res.json({
+                success: true,
+                digest: {
+                    summary: lastSummary,
+                    dueReviews,
+                    pendingHomework: pendingHomework.map(h => ({
+                        id: h._id,
+                        title: h.title,
+                        subject: h.subject || 'General',
+                        dueDate: h.dueDate,
+                        priority: h.priority || 'Medium',
+                        status: h.status
+                    })),
+                    activeRoadmap: {
+                        title: "Current Grade Curriculum Roadmap",
+                        progressPercent: 65,
+                        nextTopic: "Core Concepts & Practice Exercises"
+                    },
+                    upcomingExams: [
+                        { id: 'arena_1', title: 'Live Chemistry Battle Tournament', date: 'Tomorrow at 5:00 PM', type: 'Live Battle' }
+                    ]
+                }
+            });
         } catch (err: any) {
             return res.status(500).json({ success: false, error: err.message });
         }
