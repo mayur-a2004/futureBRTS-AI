@@ -304,6 +304,8 @@ function InquiryButton() {
     );
 }
 
+import PageSkeleton from './components/common/PageSkeleton';
+
 function App() {
     useTrafficTracker();
     return (
@@ -325,7 +327,7 @@ function App() {
                             />
                             <Router>
                                 <ScrollToTop />
-                                <Suspense fallback={<NeuralLoader />}>
+                                <Suspense fallback={<PageSkeleton />}>
                                     <EmergencyLockdownOverlay />
                                     {/* GLOBAL BACKGROUND - Applied once for the whole app */}
                                     <div className="min-h-screen bg-black text-white font-sans selection:bg-indigo-500/30 font-inter relative">

@@ -33,20 +33,24 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// ⚡ Synchronous check at module load — zero delay for returning users
+// ⚡ Synchronous check at module load — zero delay for new & returning users
 const _hasStoredToken = !!localStorage.getItem('fbrts_token');
+const _getStoredUser = () => {
+    try {
+        const u = localStorage.getItem('fbrts_user');
+        return u ? JSON.parse(u) : null;
+    } catch { return null; }
+};
+const _storedUser = _getStoredUser();
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [user, setUser] = useState<any>(null);
+    const [user, setUser] = useState<any>(_storedUser);
     const [token, setToken] = useState<string | null>(localStorage.getItem('fbrts_token'));
-    // ⚡ Optimistic auth: if token exists → assume authenticated immediately.
-    // The API call below will confirm or revoke this within ~200ms.
     const [isAuthenticated, setIsAuthenticated] = useState(_hasStoredToken);
-    const [onboardingCompleted, setOnboardingCompleted] = useState(false);
+    const [onboardingCompleted, setOnboardingCompleted] = useState(_storedUser?.onboardingCompleted ?? true);
     const [initialIntent, setInitialIntent] = useState(localStorage.getItem('fbrts_intent') || '');
-    // loading = true ONLY while we are verifying the token with the server.
-    // If no token → loading = false immediately (new user sees landing page instantly).
-    const [loading, setLoading] = useState(_hasStoredToken);
+    // ⚡ Instant 0ms load: if user is stored or no token → loading = false immediately!
+    const [loading, setLoading] = useState(_hasStoredToken && !_storedUser);
 
     useEffect(() => {
         const initAuth = async () => {
@@ -59,16 +63,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         setIsAuthenticated(true);
                         setOnboardingCompleted(res.user.onboardingCompleted);
                         setToken(tokenVal);
+                        localStorage.setItem('fbrts_user', JSON.stringify(res.user));
                     } else {
-                        // Token rejected by server — clear storage and reset auth
                         localStorage.removeItem('fbrts_token');
+                        localStorage.removeItem('fbrts_user');
                         setToken(null);
+                        setUser(null);
                         setIsAuthenticated(false);
                     }
                 } catch (err) {
-                    console.error("Auth init failed", err);
-                    // Network error: keep optimistic state so offline users
-                    // are not forced to re-login unnecessarily.
+                    console.error("Auth init background sync", err);
                 }
             }
             setLoading(false);
@@ -81,6 +85,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsAuthenticated(true);
         setOnboardingCompleted(userData.onboardingCompleted);
         localStorage.setItem('fbrts_token', tokenVal);
+        localStorage.setItem('fbrts_user', JSON.stringify(userData));
         setToken(tokenVal);
     };
 
@@ -88,6 +93,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(null);
         setIsAuthenticated(false);
         localStorage.removeItem('fbrts_token');
+        localStorage.removeItem('fbrts_user');
         setToken(null);
     };
 

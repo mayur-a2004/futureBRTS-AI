@@ -37,5 +37,20 @@ export default defineConfig({
     },
     optimizeDeps: {
         include: ['mermaid', 'prismjs', 'framer-motion', 'lucide-react']
+    },
+    build: {
+        target: 'esnext',
+        minify: 'esbuild',
+        cssMinify: true,
+        rollupOptions: {
+            output: {
+                manualChunks: {
+                    'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+                    'vendor-icons': ['lucide-react'],
+                    'vendor-motion': ['framer-motion'],
+                    'vendor-utils': ['axios', 'clsx', 'tailwind-merge']
+                }
+            }
+        }
     }
 })
