@@ -35,6 +35,14 @@ export const authController = {
                 provider: 'local'
             });
 
+            // 📩 Async Admin Email Alert
+            mailService.sendNewUserAdminAlert({
+                name: `${firstName} ${lastName}`.trim(),
+                email,
+                provider: 'Local Registration',
+                createdAt: user.createdAt
+            }).catch(e => console.error("Admin mail alert error", e));
+
             res.status(201).json({ success: true, token: generateToken(user), user });
         } catch (err: any) {
             res.status(500).json({ success: false, error: err.message });
@@ -91,8 +99,10 @@ export const authController = {
                 return res.status(400).json({ success: false, error: 'Email is required for Google One-Tap registration' });
             }
 
+            let isNewUser = false;
             let user = await User.findOne({ email: userEmail });
             if (!user) {
+                isNewUser = true;
                 user = await User.create({
                     firstName: userFirstName || 'User',
                     lastName: userLastName || 'Google',
@@ -104,6 +114,14 @@ export const authController = {
                     onboardingCompleted: true,
                     status: 'active'
                 });
+
+                // 📩 Async Admin Email Alert for Google One-Tap New User
+                mailService.sendNewUserAdminAlert({
+                    name: `${userFirstName} ${userLastName}`.trim(),
+                    email: userEmail,
+                    provider: 'Google One-Tap 1-Click',
+                    createdAt: user.createdAt
+                }).catch(e => console.error("Admin mail alert error", e));
             }
 
             if (user.status !== 'active') {

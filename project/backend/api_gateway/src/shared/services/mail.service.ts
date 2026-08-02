@@ -152,6 +152,57 @@ class MailService {
         `;
         await this.sendEmail(to, subject, html);
     }
+
+    async sendNewUserAdminAlert(userData: { name: string; email: string; provider?: string; createdAt?: Date }) {
+        const adminEmail = process.env.ADMIN_ALERT_EMAIL || 'futurebrts@gmail.com';
+        const subject = `🎉 [New User Alert] ${userData.name || 'New Visitor'} (${userData.email}) joined Future BRTS!`;
+        const timeStr = (userData.createdAt || new Date()).toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
+        
+        const html = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #6366f1; border-radius: 16px; background-color: #05060b; color: #ffffff;">
+                <div style="text-align: center; border-bottom: 1px solid #1e293b; padding-bottom: 16px; margin-bottom: 20px;">
+                    <h2 style="color: #818cf8; margin: 0; font-size: 24px;">🚀 Future BRTS AI Platform</h2>
+                    <span style="font-size: 11px; color: #10b981; font-weight: bold; letter-spacing: 0.1em; text-transform: uppercase;">NEW USER REGISTRATION ALERT</span>
+                </div>
+                
+                <p style="font-size: 15px; color: #cbd5e1; margin-bottom: 20px;">A new user has just registered and activated their account on Future BRTS AI:</p>
+                
+                <div style="background-color: #0f172a; padding: 20px; border-radius: 12px; border: 1px solid #1e293b; margin-bottom: 24px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                        <tr>
+                            <td style="padding: 8px 0; color: #94a3b8; font-weight: bold; width: 35%;">User Name:</td>
+                            <td style="padding: 8px 0; color: #f8fafc; font-weight: bold;">${userData.name || 'User'}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; color: #94a3b8; font-weight: bold;">Email Address:</td>
+                            <td style="padding: 8px 0; color: #38bdf8; font-weight: bold;">${userData.email}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; color: #94a3b8; font-weight: bold;">Registration Method:</td>
+                            <td style="padding: 8px 0; color: #a855f7; font-weight: bold;">${userData.provider || 'Google One-Tap / Signup'}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; color: #94a3b8; font-weight: bold;">Initial Tokens Granted:</td>
+                            <td style="padding: 8px 0; color: #f59e0b; font-weight: bold;">5,000 Free AI Tokens 🎁</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; color: #94a3b8; font-weight: bold;">Registration Time:</td>
+                            <td style="padding: 8px 0; color: #cbd5e1;">${timeStr} (IST)</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div style="text-align: center; margin-top: 24px;">
+                    <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard" style="background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%); color: white; padding: 14px 28px; text-decoration: none; border-radius: 10px; font-weight: bold; display: inline-block;">Open Admin Panel</a>
+                </div>
+
+                <p style="color: #64748b; font-size: 11px; margin-top: 28px; text-align: center; border-top: 1px solid #1e293b; padding-top: 16px;">
+                    This is an automated real-time notification sent directly to <strong>${adminEmail}</strong>.
+                </p>
+            </div>
+        `;
+        await this.sendEmail(adminEmail, subject, html);
+    }
 }
 
 export const mailService = new MailService();
