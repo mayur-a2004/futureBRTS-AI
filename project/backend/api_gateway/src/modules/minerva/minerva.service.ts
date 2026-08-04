@@ -1062,7 +1062,28 @@ export const getMinervaChat = async (
     context?: string,
     deep_study?: boolean
 ): Promise<{ reply: string; content_type: string; metadata: any }> => {
-    const history = chatHistory.slice(-24).map(m => ({
+    // ⚡ Special Symbol Command Parser (# Board/Subject, @ Tool, / Action, + File)
+    let extraCommandContext = "";
+    let cleanMessage = message;
+
+    // Handle # Tagging (e.g. #NEETBiology, #CBSEBoard, #GSEB, #Physics)
+    const hashMatches = message.match(/#([a-zA-Z0-9_]+)/g);
+    if (hashMatches) {
+        const tags = hashMatches.map(t => t.replace('#', '')).join(', ');
+        extraCommandContext += `\n[EXPLICIT SYLLABUS & BOARD TARGETING: ${tags}] - Focus explanation strictly according to the syllabus guidelines of ${tags}.\n`;
+    }
+
+    // Handle @ Tooling (e.g. @image, @3d, @calculator)
+    if (message.toLowerCase().includes('@image') || message.toLowerCase().includes('@3d')) {
+        extraCommandContext += `\n[TOOL TRIGGER: 3D MODEL & VISUAL EXPLANATION REQUESTED] - Provide a detailed step-by-step 3D structural breakdown and visual description.\n`;
+    }
+
+    // Handle / Quick Actions (e.g. /scan, /quiz, /roadmap)
+    if (message.toLowerCase().startsWith('/scan') || message.toLowerCase().includes('/isko scan')) {
+        extraCommandContext += `\n[ACTION TRIGGER: SCAN & OCR ANALYSIS] - Perform full OCR and step-by-step problem solution.\n`;
+    }
+
+    const formattedHistory = (chatHistory || []).slice(-24).map((m: any) => ({
         role: m.role === 'student' ? 'user' : 'assistant',
         content: m.content
     }));
@@ -1076,9 +1097,9 @@ export const getMinervaChat = async (
     const persona = (deep_study || isExplicitDetail) ? DEEP_STUDY_PERSONA(studentProfile) : MINERVA_PERSONA(studentProfile);
 
     const messages = [
-        { role: 'system', content: persona + (context ? `\n\nCONTEXT: ${context}` : '') },
-        ...history,
-        { role: 'user', content: message }
+        { role: 'system', content: persona + (context ? `\n\nCONTEXT: ${context}` : '') + extraCommandContext },
+        ...formattedHistory,
+        { role: 'user', content: cleanMessage }
     ];
 
     const res = await getProviderResponse(messages, { maxTokens: 2000, temperature: 0.75 });

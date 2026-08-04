@@ -121,6 +121,13 @@ export const MessageBubble = React.memo(({
     const searchingMatch = !isUser ? content.match(/\[SEARCHING\]:\s*(.*?)(?=\n|$)/i) : null;
     let strippedContent = content.replace(/\[SEARCHING\]:.*?(?=\n|$)/gi, "").trim();
 
+    // 🧠 Strip raw Base64 URLs and Attachment System Headers from leaking to UI
+    strippedContent = strippedContent
+        .replace(/\[IMAGE_BASE64_URL:data:image\/[^\]]+\]/g, '')
+        .replace(/\[SYSTEM:\s*ATTACHMENTS?\s*&?\s*LIVE\s*WEB\s*DATA\s*PROCESSED\]/gi, '')
+        .replace(/--- FILE CONTENT [\s\S]*?---/g, '')
+        .trim();
+
     // Ensure ||SUGGESTIONS_JSON|| never leaks to raw text
     if (!isUser && strippedContent.includes('||SUGGESTIONS_JSON||')) {
         strippedContent = strippedContent.split('||SUGGESTIONS_JSON||')[0].trim();

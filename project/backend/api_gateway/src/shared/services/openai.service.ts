@@ -1614,7 +1614,17 @@ INSTRUCTIONS:
             let reasoningInstruction = `\nBefore answering, you MUST write down your detailed step-by-step thinking/reasoning process inside <think> and </think> tags. Do not skip this step.\n`;
 
             let finalUserMessage: any = userMessage;
-            if (attachmentAnalysis && attachmentAnalysis.length > 5) {
+            if (typeof userMessage === 'string' && userMessage.includes('[IMAGE_BASE64_URL:')) {
+                const imageUrlMatch = userMessage.match(/\[IMAGE_BASE64_URL:(data:image\/[^\]]+)\]/);
+                if (imageUrlMatch && imageUrlMatch[1]) {
+                    const imageUrl = imageUrlMatch[1];
+                    const cleanUserText = userMessage.replace(/\[IMAGE_BASE64_URL:data:image\/[^\]]+\]/g, '').trim();
+                    finalUserMessage = [
+                        { type: "text", text: cleanUserText || "Explain this image step-by-step in detail." },
+                        { type: "image_url", image_url: { url: imageUrl } }
+                    ];
+                }
+            } else if (attachmentAnalysis && attachmentAnalysis.length > 5) {
                 const textPrompt = `[ATTACHED FILE PRESENT]\n\nUser Query/Command: ${userMessage}\n\nIMPORTANT: Prioritize answering this user query or executing this command directly on the attached file content.`;
                 const imageUrlMatch = attachmentAnalysis.match(/\[IMAGE_BASE64_URL:(data:image\/[^\]]+)\]/);
                 if (imageUrlMatch && imageUrlMatch[1]) {

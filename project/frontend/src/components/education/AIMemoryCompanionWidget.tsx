@@ -92,7 +92,7 @@ export const AIMemoryCompanionWidget: React.FC = () => {
             </p>
           </div>
           <button
-            onClick={() => navigate('/future-education/learn')}
+            onClick={() => navigate('/future-education')}
             className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl flex-shrink-0 flex items-center gap-1 transition-all cursor-pointer"
           >
             <span>Quick Practice</span>
@@ -124,8 +124,8 @@ export const AIMemoryCompanionWidget: React.FC = () => {
                     <span className="text-[10px] text-gray-400">{hw.subject} • Priority Focus</span>
                   </div>
                   <button
-                    onClick={() => navigate('/future-education/tasks')}
-                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-[11px] rounded-lg transition-all"
+                    onClick={() => navigate('/student/workspace')}
+                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-[11px] rounded-lg transition-all cursor-pointer"
                   >
                     Submit
                   </button>
@@ -159,8 +159,8 @@ export const AIMemoryCompanionWidget: React.FC = () => {
                     <span className="text-[10px] text-indigo-300">{rev.subject} • {rev.dueSinceDays} days ago</span>
                   </div>
                   <button
-                    onClick={() => navigate('/future-education/learn')}
-                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] rounded-lg transition-all"
+                    onClick={() => navigate('/future-education')}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] rounded-lg transition-all cursor-pointer"
                   >
                     2-Min Quiz
                   </button>
@@ -192,7 +192,7 @@ export const AIMemoryCompanionWidget: React.FC = () => {
                 <span className="line-clamp-1 font-semibold">{activeRoadmap.nextTopic}</span>
                 <button
                   onClick={() => navigate('/future-education/roadmaps')}
-                  className="text-emerald-400 hover:underline font-bold text-xs flex items-center gap-0.5 flex-shrink-0"
+                  className="text-emerald-400 hover:underline font-bold text-xs flex items-center gap-0.5 flex-shrink-0 cursor-pointer"
                 >
                   Resume <ArrowRight size={12} />
                 </button>
@@ -219,7 +219,7 @@ export const AIMemoryCompanionWidget: React.FC = () => {
             </div>
             <button
               onClick={() => navigate('/future-education/quiz-battle')}
-              className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-90 text-white font-bold text-[11px] rounded-lg transition-all"
+              className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-90 text-white font-bold text-[11px] rounded-lg transition-all cursor-pointer"
             >
               Join Arena
             </button>
