@@ -26,7 +26,7 @@ export const GoogleOneTapPrompt: React.FC = () => {
 
     const initializeOneTap = () => {
       if (window.google?.accounts?.id) {
-        const clientId = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || '1058293750192-example.apps.googleusercontent.com';
+        const clientId = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || '1067096585135-n1gu0ppe67vtoh8lgug7mbmn7s9pjjh8.apps.googleusercontent.com';
         
         window.google.accounts.id.initialize({
           client_id: clientId,
