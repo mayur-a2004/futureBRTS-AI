@@ -15,14 +15,11 @@ export default function Layout() {
     const { logout, user } = useAuth();
     const { confirm } = useModal();
 
-    // Onboarding welcome tour state
+    // Onboarding welcome tour state (Disabled per user request)
     const [showWelcomeTour, setShowWelcomeTour] = useState(false);
 
     useEffect(() => {
-        const tourCompleted = localStorage.getItem("fbrts_welcome_tour_completed") === "true";
-        if (!tourCompleted) {
-            setShowWelcomeTour(true);
-        }
+        localStorage.setItem("fbrts_welcome_tour_completed", "true");
     }, []);
 
     // Session State
@@ -915,8 +912,8 @@ export default function Layout() {
                 onActionComplete={handleTokenWallAction}
             />
 
-            {/* 🗺️ Welcome Tour Overlay */}
-            {showWelcomeTour && (
+            {/* 🗺️ Welcome Tour Overlay - Disabled per user request */}
+            {false && showWelcomeTour && (
                 <WelcomeTour onClose={() => setShowWelcomeTour(false)} />
             )}
         </div >
