@@ -440,15 +440,16 @@ export const TeacherWorkspacePage: React.FC = () => {
   }, [selectedClass, selectedSubject]);
 
   // --- FETCH ATTENDANCE REPORT ---
-  const fetchAttendance = async () => {
+  const fetchAttendance = async (targetDate?: string) => {
+    const d = targetDate || attendanceDate;
     try {
-      const res = await axios.get(`/api/v1/teacher-workspace/attendance-report?tenantOrgId=${tenantOrgId}&classId=${selectedClass}&date=${attendanceDate}`);
+      const res = await axios.get(`/api/v1/teacher-workspace/attendance-report?tenantOrgId=${tenantOrgId}&classId=${selectedClass}&date=${d}`);
       if (res.data && res.data.report) {
         setAttendanceReport(res.data.report);
         setAttendanceRecords(res.data.report.records || []);
       }
     } catch (err) {
-      console.warn('Could not fetch attendance:', err);
+      console.warn('Attendance report error:', err);
     }
   };
 
@@ -1119,8 +1120,12 @@ export const TeacherWorkspacePage: React.FC = () => {
               <input
                 type="date"
                 value={attendanceDate}
-                onChange={(e) => setAttendanceDate(e.target.value)}
-                className="bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white"
+                onChange={(e) => {
+                  const newDate = e.target.value;
+                  setAttendanceDate(newDate);
+                  fetchAttendance(newDate);
+                }}
+                className="bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-emerald-500 cursor-pointer"
               />
 
               <button
@@ -4352,8 +4357,8 @@ export const TeacherWorkspacePage: React.FC = () => {
 
       {/* 🔍 INTERACTIVE EVALUATION, MANUAL/AUTO AI GRADING & DOUBT ACTION MODAL */}
       {selectedSubmissionForGrade && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-950 border border-purple-500/30 rounded-3xl p-6 md:p-8 max-w-4xl w-full space-y-6 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-2xl z-[99999] flex items-center justify-center p-4 md:p-8 overflow-y-auto">
+          <div className="bg-zinc-950 border border-purple-500/40 rounded-3xl p-6 md:p-8 max-w-4xl w-full space-y-6 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto my-auto">
             
             {/* Header & Mode Switcher */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
