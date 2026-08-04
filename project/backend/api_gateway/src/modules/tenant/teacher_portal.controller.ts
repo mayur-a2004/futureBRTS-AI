@@ -151,6 +151,43 @@ export class TeacherPortalController {
     }
   }
 
+  static async syncDailySchoolData(req: Request, res: Response): Promise<void> {
+    try {
+      const { tenantOrgId, classId, date, teacherId, teacherName } = req.body;
+      const orgId = tenantOrgId || (req.headers['x-tenant-org-id'] as string) || 'mount_carmel_school';
+
+      const result = await TeacherPortalService.syncDailySchoolData({
+        tenantOrgId: orgId,
+        classId: classId || 'CLASS-10A',
+        date,
+        teacherId,
+        teacherName
+      });
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  static async getStudentAuditTimeline(req: Request, res: Response): Promise<void> {
+    try {
+      const orgId = (req.query.tenantOrgId as string) || (req.headers['x-tenant-org-id'] as string) || 'mount_carmel_school';
+      const classId = (req.query.classId as string) || 'CLASS-10A';
+      const studentId = (req.query.studentId as string) || 'STU-10492';
+      const date = req.query.date as string;
+
+      const audit = await TeacherPortalService.getStudentAuditTimeline({
+        tenantOrgId: orgId,
+        classId,
+        studentId,
+        date
+      });
+      res.json({ success: true, audit });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
   // --- TIMETABLE SCHEDULER ---
   static async getTimetable(req: Request, res: Response): Promise<void> {
     try {

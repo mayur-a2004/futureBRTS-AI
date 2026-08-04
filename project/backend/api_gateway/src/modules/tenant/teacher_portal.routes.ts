@@ -26,6 +26,8 @@ router.post('/update-submission-grade', teacherOnlyGuard, TeacherPortalControlle
 // Attendance System
 router.post('/mark-attendance', teacherOnlyGuard, TeacherPortalController.markAttendance);
 router.get('/attendance-report', TeacherPortalController.getAttendanceReport);
+router.post('/sync-daily-data', teacherOnlyGuard, TeacherPortalController.syncDailySchoolData);
+router.get('/student-audit', TeacherPortalController.getStudentAuditTimeline);
 
 // Timetable Schedule
 router.get('/timetable', TeacherPortalController.getTimetable);
