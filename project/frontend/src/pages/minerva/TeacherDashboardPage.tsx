@@ -11,7 +11,7 @@ import {
 import { io } from 'socket.io-client';
 import { BOARDS, STANDARDS, STANDARD_SUBJECTS_MAP, isSchoolStandard } from './MinervaQuizBattlePage';
 
-import { TeacherWorkspacePage } from '../teacher/TeacherWorkspacePage';
+import TeacherWorkspacePage from '../teacher/TeacherWorkspacePage';
 
 interface StudentStats {
     userId: string;

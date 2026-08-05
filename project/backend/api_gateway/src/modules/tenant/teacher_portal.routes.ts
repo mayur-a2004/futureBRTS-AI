@@ -26,6 +26,7 @@ router.post('/update-submission-grade', teacherOnlyGuard, TeacherPortalControlle
 // Attendance System
 router.post('/mark-attendance', teacherOnlyGuard, TeacherPortalController.markAttendance);
 router.get('/attendance-report', TeacherPortalController.getAttendanceReport);
+router.get('/student-attendance-summary', TeacherPortalController.getStudentAttendanceSummary);
 router.post('/sync-daily-data', teacherOnlyGuard, TeacherPortalController.syncDailySchoolData);
 router.get('/student-audit', TeacherPortalController.getStudentAuditTimeline);
 
@@ -42,6 +43,10 @@ router.post('/live-rooms/join', TeacherPortalController.joinLiveRoom);
 router.post('/live-rooms/start', TeacherPortalController.startLiveRoom);
 router.post('/live-rooms/end', TeacherPortalController.endLiveRoom);
 router.post('/live-rooms/submit-answer', TeacherPortalController.submitLiveAnswer);
+
+// Data Reset / Purge Endpoint
+router.delete('/clear-all-data', teacherOnlyGuard, TeacherPortalController.clearAllData);
+router.post('/clear-all-data', teacherOnlyGuard, TeacherPortalController.clearAllData);
 
 // Auth Routes
 router.post('/auth/register', TeacherPortalController.registerTeacher);

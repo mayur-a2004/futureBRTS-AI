@@ -13,6 +13,16 @@ export interface IUser extends Document {
     grade?: number;            // Class 6-12 — for quiz battle grade matching
     schoolName?: string;       // e.g. "DPS Gandhinagar" — for school leaderboard
     city?: string;             // e.g. "Gandhinagar" — for city-wise leaderboard
+    tenantOrgId?: string;      // e.g. "mount_carmel_school"
+    educationType?: 'k12' | 'higher_ed' | 'competitive';
+    board?: string;            // e.g. "CBSE", "ICSE", "GSEB"
+    standard?: string;         // e.g. "10", "11", "B.Tech"
+    section?: string;          // e.g. "A", "B", "CSE-1"
+    stream?: string;           // e.g. "Science", "Commerce", "Arts"
+    medium?: string;           // e.g. "english", "hindi", "gujarati"
+    mobile_number?: string;
+    branch?: string;
+    semester?: string;
     provider: 'local' | 'google' | 'github';
     parentDetails?: {
         parentEmail?: string;
@@ -93,6 +103,17 @@ const UserSchema: Schema = new Schema({
     age: { type: Number },
     grade: { type: Number, default: 10 },          // Class 6-12
     schoolName: { type: String, default: '' },      // "DPS Gandhinagar"
+    city: { type: String, default: 'Ahmedabad' },
+    tenantOrgId: { type: String, default: 'mount_carmel_school', index: true },
+    educationType: { type: String, enum: ['k12', 'higher_ed', 'competitive'], default: 'k12' },
+    board: { type: String, default: 'CBSE' },
+    standard: { type: String, default: '10' },
+    section: { type: String, default: 'A' },
+    stream: { type: String, default: 'Science' },
+    medium: { type: String, default: 'english' },
+    mobile_number: { type: String, default: '' },
+    branch: { type: String, default: '' },
+    semester: { type: String, default: '' },
     provider: { type: String, enum: ['local', 'google', 'github'], default: 'local' },
     auth_source: { type: String, default: 'Direct Email Registration' },
     parentDetails: {

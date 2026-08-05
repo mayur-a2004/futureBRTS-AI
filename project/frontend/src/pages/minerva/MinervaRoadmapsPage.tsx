@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { minervaApi } from '../../api/minerva.api';
-import { ChevronLeft, BookOpen, Plus, Sparkles, Compass, X, Trash2, GraduationCap, Globe, Layers, Calendar } from 'lucide-react';
+import { ChevronLeft, BookOpen, Plus, Sparkles, Compass, X, Trash2, GraduationCap, Globe, Layers, Calendar, FileText } from 'lucide-react';
 import { BOARDS, INDIAN_LANGUAGES } from './MinervaQuizBattlePage';
 import { SchoolContextBar } from '../../components/education/SchoolContextBar';
 
@@ -127,6 +127,26 @@ export const MinervaRoadmapsPage: React.FC = () => {
     // Modal Tab Mode: 'school' (Tab 1: School/College 1-12 & Higher Ed) vs 'custom' (Tab 2: Out of Course)
     const [modalTab, setModalTab] = useState<'school' | 'custom'>('school');
 
+    const [teacherRoadmapChapters, setTeacherRoadmapChapters] = useState<any[]>(() => {
+        const savedActive = localStorage.getItem('teacher_active_roadmap_chapters');
+        if (savedActive !== null) {
+            try {
+                const parsed = JSON.parse(savedActive);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            } catch (e) {}
+        }
+        const savedList = localStorage.getItem('saved_teacher_roadmaps');
+        if (savedList !== null) {
+            try {
+                const parsed = JSON.parse(savedList);
+                if (Array.isArray(parsed) && parsed.length > 0 && Array.isArray(parsed[0].chapters)) {
+                    return parsed[0].chapters;
+                }
+            } catch (e) {}
+        }
+        return [];
+    });
+
     const [selectedClass, setSelectedClass] = useState('CLASS-10A');
     // School / Syllabus Roadmap Form States
     const [board, setBoard] = useState('CBSE');
@@ -142,6 +162,8 @@ export const MinervaRoadmapsPage: React.FC = () => {
     const [customTopic, setCustomTopic] = useState('');
 
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [selectedChapterDetail, setSelectedChapterDetail] = useState<any | null>(null);
+    const [viewPdfDocument, setViewPdfDocument] = useState<boolean>(false);
 
     const isHigherEd = Boolean(HIGHER_ED_DEGREE_MAP[gradeLevel]);
 
@@ -370,7 +392,7 @@ export const MinervaRoadmapsPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[#05030a] text-white p-4 sm:p-8 font-inter relative overflow-hidden">
+        <div className="min-h-screen bg-[#05030a] text-white p-4 sm:p-8 font-inter relative overflow-y-auto pb-28">
             {/* Background Glow Effect */}
             <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[140px] pointer-events-none" />
             <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-purple-600/10 rounded-full blur-[140px] pointer-events-none" />
@@ -413,6 +435,87 @@ export const MinervaRoadmapsPage: React.FC = () => {
                         <Plus size={16} />
                         <span>Start New Study Course</span>
                     </button>
+                </div>
+
+                {/* 🗺️ TEACHER PUBLISHED CLASS CURRICULUM ROADMAP SECTION */}
+                <div className="mb-10 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h2 className="text-base font-black text-white flex items-center gap-2">
+                                <BookOpen size={18} className="text-indigo-400" /> Official Class {selectedClass} Curriculum Roadmap
+                            </h2>
+                            <p className="text-xs text-gray-400 mt-0.5">Live syllabus pacing and chapter completion status set by your Class Teachers.</p>
+                        </div>
+                        <span className="px-3 py-1 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-bold rounded-xl font-mono">
+                            Academic Year 2026-27
+                        </span>
+                    </div>
+
+                    {teacherRoadmapChapters.length === 0 ? (
+                        <div className="p-10 text-center bg-[#0B0915]/50 border border-dashed border-white/10 rounded-3xl space-y-3 shadow-inner">
+                            <BookOpen size={36} className="text-indigo-400/50 mx-auto" />
+                            <h3 className="text-sm font-bold text-white">No Official Class Curriculum Roadmap Published Yet</h3>
+                            <p className="text-xs text-gray-400 max-w-md mx-auto leading-relaxed">
+                                Class Teachers for <strong className="text-indigo-300">{selectedClass}</strong> have not published official syllabus roadmap chapters yet. You can create your own custom AI study courses below.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {teacherRoadmapChapters.map((ch, idx) => (
+                                <div 
+                                    key={idx} 
+                                    onClick={() => { setSelectedChapterDetail(ch); setViewPdfDocument(false); }}
+                                    className="p-5 rounded-3xl bg-[#0B0915]/80 border border-white/10 hover:border-indigo-500/50 hover:bg-[#0E0B1F] transition-all cursor-pointer active:scale-[0.99] space-y-3 shadow-xl group"
+                                >
+                                    <div className="flex items-start justify-between">
+                                        <div className="space-y-0.5">
+                                            <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest block flex items-center gap-1">
+                                                Chapter #{idx + 1} • <span className="underline group-hover:text-indigo-300">Click to Open PDF & Notes</span>
+                                            </span>
+                                            <h3 className="text-sm font-black text-white group-hover:text-indigo-200 transition-colors">{ch.title}</h3>
+                                        </div>
+
+                                        {ch.status === 'COMPLETED' ? (
+                                            <span className="px-2.5 py-0.5 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold uppercase shrink-0">
+                                                ✅ Completed
+                                            </span>
+                                        ) : ch.status === 'IN_PROGRESS' ? (
+                                            <span className="px-2.5 py-0.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold uppercase shrink-0">
+                                                ⚡ In Progress
+                                            </span>
+                                        ) : (
+                                            <span className="px-2.5 py-0.5 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-bold uppercase shrink-0">
+                                                ⏳ Pending
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider block">Subtopics:</span>
+                                        <div className="space-y-1 font-mono text-xs">
+                                            {(ch.subtopics || []).map((sub: string, sIdx: number) => (
+                                                <div key={sIdx} className="p-1.5 rounded-lg bg-black/40 border border-white/5 text-gray-300 flex items-center gap-1.5 text-[11px]">
+                                                    <span className="text-indigo-400 font-bold">•</span>
+                                                    <span>{sub}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[11px] text-gray-400 font-mono">
+                                        <span>Duration: {ch.duration || '6 Lectures'}</span>
+                                        <span className="text-indigo-400 font-bold flex items-center gap-1">
+                                            <FileText size={12} /> Open Chapter PDF & Notes →
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <div className="mb-4">
+                    <h2 className="text-sm font-black text-gray-400 uppercase tracking-wider">Additional Self-Study Courses</h2>
                 </div>
 
                 {/* Course Grid */}
@@ -730,6 +833,127 @@ export const MinervaRoadmapsPage: React.FC = () => {
                                 <span>Assemble AI Study Course</span>
                             </button>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* 📄 CHAPTER DETAIL & TEXTBOOK PDF VIEWER MODAL */}
+            {selectedChapterDetail && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+                    <div className="bg-[#0B0915] border border-white/10 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 md:p-8 shadow-2xl relative space-y-6">
+                        <button
+                            onClick={() => setSelectedChapterDetail(null)}
+                            className="absolute top-4 right-4 p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-gray-400 hover:text-white transition-all"
+                        >
+                            <X size={16} />
+                        </button>
+
+                        <div className="space-y-1">
+                            <span className="px-3 py-1 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold rounded-full font-mono uppercase">
+                                Official Class {selectedClass} Chapter Detail
+                            </span>
+                            <h2 className="text-xl font-black text-white pt-1">{selectedChapterDetail.title}</h2>
+                            <p className="text-xs text-gray-400">Duration: {selectedChapterDetail.duration || '5 Lectures'} • Board Textbook Standard</p>
+                        </div>
+
+                        {/* Chapter Subtopics list */}
+                        <div className="space-y-2">
+                            <h4 className="text-xs font-black uppercase text-gray-400 tracking-wider">Chapter Subtopics & Micro-Concepts</h4>
+                            <div className="space-y-2 font-mono">
+                                {(selectedChapterDetail.subtopics || []).map((sub: string, sIdx: number) => (
+                                    <div key={sIdx} className="p-3 rounded-2xl bg-black/40 border border-white/5 text-gray-200 text-xs flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-400 font-bold text-[10px] flex items-center justify-center">
+                                                {sIdx + 1}
+                                            </span>
+                                            <span>{sub}</span>
+                                        </div>
+                                        <span className="text-[10px] text-emerald-400 font-bold">Concept Ready</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* PDF View Container */}
+                        <div className="p-4 rounded-2xl bg-indigo-950/20 border border-indigo-500/30 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <FileText className="text-indigo-400" size={18} />
+                                    <span className="text-xs font-bold text-white">Official Board Textbook PDF & Solution Notes</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <a
+                                        href={`/api/v1/minerva/chapter-pdf/download?chapterTitle=${encodeURIComponent(selectedChapterDetail.title)}&board=${encodeURIComponent(board)}&standard=${encodeURIComponent(gradeLevel)}&subject=${encodeURIComponent(selectedSubject)}&medium=${encodeURIComponent(language)}&subtopics=${encodeURIComponent((selectedChapterDetail.subtopics || []).join(','))}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1"
+                                    >
+                                        📥 Download PDF ↗
+                                    </a>
+                                    <button
+                                        onClick={() => setViewPdfDocument(!viewPdfDocument)}
+                                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-md"
+                                    >
+                                        {viewPdfDocument ? 'Hide PDF View' : '📄 Preview PDF Content'}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {viewPdfDocument ? (
+                                <div className="space-y-3 pt-2">
+                                    <div className="w-full h-80 rounded-2xl bg-black/60 border border-white/10 p-4 overflow-y-auto space-y-3 text-xs font-mono text-gray-300">
+                                        <div className="p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/20 text-indigo-200 flex items-center justify-between">
+                                            <span>Official {board} Class {gradeLevel} Textbook PDF ({language} Medium)</span>
+                                            <a 
+                                                href={`/api/v1/minerva/chapter-pdf/download?chapterTitle=${encodeURIComponent(selectedChapterDetail.title)}&board=${encodeURIComponent(board)}&standard=${encodeURIComponent(gradeLevel)}&subject=${encodeURIComponent(selectedSubject)}&medium=${encodeURIComponent(language)}&subtopics=${encodeURIComponent((selectedChapterDetail.subtopics || []).join(','))}`}
+                                                target="_blank" 
+                                                rel="noreferrer"
+                                                className="underline text-indigo-400 font-bold"
+                                            >
+                                                Download Full PDF Document ↗
+                                            </a>
+                                        </div>
+                                        <p className="leading-relaxed">
+                                            <strong>Chapter Focus:</strong> {selectedChapterDetail.title} introduces key definitions, step-by-step proofs, solved textbook examples, and practice exercises tailored for {board} Class {gradeLevel} ({selectedSubject} in {language} medium).
+                                        </p>
+                                        <div className="space-y-1 bg-[#05030a] p-3 rounded-xl border border-white/5">
+                                            <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block">Subtopic Concept Modules:</span>
+                                            {(selectedChapterDetail.subtopics || []).map((sub: string, i: number) => (
+                                                <div key={i} className="text-gray-300 text-[11px]">
+                                                    • <strong>Module {i+1}:</strong> {sub} (Direct Board Numerical & Definition)
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="p-3 rounded-xl bg-emerald-950/20 border border-emerald-500/20 text-emerald-300">
+                                            ✅ Includes Official Board Exam Weightage: 8 Marks (Section A, B & C)
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="text-[11px] text-gray-400">
+                                    Click <strong>"Preview PDF Content"</strong> or <strong>"Download PDF ↗"</strong> to generate and download the exact {board} Class {gradeLevel} textbook PDF in {language} medium.
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="pt-2 flex flex-col sm:flex-row justify-end gap-3 border-t border-white/5">
+                            <button
+                                onClick={() => {
+                                    setSelectedChapterDetail(null);
+                                    navigate(`/future-education?askDoubt=${encodeURIComponent(`Mujhe Chapter '${selectedChapterDetail.title}' ke baare mein samjhaiye aur iske key formulas aur exam questions batayiye.`)}`);
+                                }}
+                                className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-indigo-300 border border-white/10 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                            >
+                                <Sparkles size={14} /> Ask AI Teacher Doubt on Chapter
+                            </button>
+                            <button
+                                onClick={() => setSelectedChapterDetail(null)}
+                                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all"
+                            >
+                                Close
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

@@ -166,5 +166,9 @@ router.get('/spaced-repetition/due-reviews', authMiddleware, async (req: any, re
     }
 });
 
+// ─── CHAPTER PDF GENERATOR & SEARCH ─────────────────────────
+router.get('/chapter-pdf/download', minervaController.generateChapterPdf);
+router.get('/chapter-pdf/details', minervaController.getChapterPdfDetails);
+
 export default router;
 // Touched for rebuild

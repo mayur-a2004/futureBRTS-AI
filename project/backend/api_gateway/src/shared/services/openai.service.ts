@@ -2026,8 +2026,15 @@ JSON Schema:
     extractIntent: async (message: string, attachmentPath?: string | null, attachmentMeta?: any | null): Promise<string> => {
         console.log(`[AI SERVICE] extractIntent called for: ${message.substring(0, 50)}`);
         return message;
+    },
+
+    sendChat: async (messages: any[], options?: any) => {
+        const res = await getProviderResponse(messages, options);
+        return res?.choices?.[0]?.message?.content || res?.message || res?.output || '';
     }
 };
+
+export const OpenAIService = openaiService;
 
 
 // ... mockResponse ...

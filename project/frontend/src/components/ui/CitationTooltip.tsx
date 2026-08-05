@@ -38,7 +38,7 @@ export const CitationTooltip = ({ citation, children }: { citation: Citation, ch
 
     const handleOpenLink = (e: React.MouseEvent) => {
         e.stopPropagation();
-        window.open(sanitizeExternalUrl(citation.url), '_blank');
+        window.open(sanitizeExternalUrl(citation.url, citation.name), '_blank');
     };
 
     return (

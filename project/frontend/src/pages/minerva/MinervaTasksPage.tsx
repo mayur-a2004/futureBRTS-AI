@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { minervaApi } from '../../api/minerva.api';
-import { ChevronLeft, CheckCircle2, Send, Sparkles, MessageSquare, FileText, Loader2, Plus, X, Trash2 } from 'lucide-react';
+import { ChevronLeft, CheckCircle2, Send, Sparkles, MessageSquare, FileText, Loader2, Plus, X, Trash2, Clock, Upload, UserCheck, Calendar } from 'lucide-react';
+import axios from 'axios';
 import { LevelUpModal } from '../../components/ui/LevelUpModal';
 import { SchoolContextBar } from '../../components/education/SchoolContextBar';
 
 const MinervaTasksPage: React.FC = () => {
     const { user, token } = useAuth() as any;
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
 
     const [selectedClass, setSelectedClass] = useState('CLASS-10A');
     const [selectedSubject, setSelectedSubject] = useState('Mathematics');
@@ -17,7 +19,27 @@ const MinervaTasksPage: React.FC = () => {
     const [exams, setExams] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'topics' | 'pending' | 'completed'>('topics');
+    
+    const initialTabParam = searchParams.get('tab');
+    const initialSubTab = (initialTabParam === 'timetable' || initialTabParam === 'tasks' || initialTabParam === 'homework') ? initialTabParam : 'homework';
+    const [taskSubTab, setTaskSubTab] = useState<'homework' | 'tasks' | 'timetable'>(initialSubTab);
+
+    useEffect(() => {
+        const tabParam = searchParams.get('tab');
+        if (tabParam === 'timetable' || tabParam === 'tasks' || tabParam === 'homework') {
+            setTaskSubTab(tabParam as any);
+        }
+    }, [searchParams]);
+
     const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+
+    // Teacher Assigned Homework & Timetable State
+    const [teacherAssignments, setTeacherAssignments] = useState<any[]>([]);
+    const [teacherTimetable, setTeacherTimetable] = useState<any[]>([]);
+    const [submittingTeacherHw, setSubmittingTeacherHw] = useState<any | null>(null);
+    const [notebookImageUrl, setNotebookImageUrl] = useState('https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=60');
+    const [isSubmittingHw, setIsSubmittingHw] = useState(false);
+    const [visionAiResult, setVisionAiResult] = useState<any | null>(null);
     
     // Interactive solving state
     const [solvingTaskId, setSolvingTaskId] = useState<string | null>(null);
@@ -41,8 +63,9 @@ const MinervaTasksPage: React.FC = () => {
     useEffect(() => {
         if (token) {
             loadTasks();
+            fetchTeacherAssignments();
         }
-    }, [token]);
+    }, [token, selectedClass]);
 
     const loadTasks = async () => {
         setLoading(true);
@@ -59,6 +82,47 @@ const MinervaTasksPage: React.FC = () => {
             console.error('Error loading tasks or exams:', err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchTeacherAssignments = async () => {
+        try {
+            const tenantOrgId = user?.tenantOrgId || (user?.schoolName ? user.schoolName.toLowerCase().replace(/\s+/g, '_') : 'mount_carmel_school');
+            const res = await axios.get(`/api/v1/teacher-workspace/assignments?tenantOrgId=${tenantOrgId}&classId=${selectedClass}`);
+            if (res.data && res.data.assignments) {
+                setTeacherAssignments(res.data.assignments);
+            }
+        } catch (e) {
+            console.warn('Could not fetch teacher assignments:', e);
+        }
+    };
+
+    const handleSubmitTeacherHw = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!submittingTeacherHw || !notebookImageUrl) return;
+        setIsSubmittingHw(true);
+        setVisionAiResult(null);
+        try {
+            const tenantOrgId = user?.tenantOrgId || (user?.schoolName ? user.schoolName.toLowerCase().replace(/\s+/g, '_') : 'mount_carmel_school');
+            const studentId = user?.id || user?._id || 'STU-10492';
+            const studentName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.name || 'Student';
+            const res = await axios.post('/api/v1/teacher-workspace/submit-homework', {
+                assignmentId: submittingTeacherHw._id || submittingTeacherHw.id,
+                tenantOrgId,
+                classId: selectedClass,
+                studentId,
+                studentName,
+                imageUrl: notebookImageUrl,
+                subject: submittingTeacherHw.subject || 'Mathematics'
+            });
+            if (res.data && res.data.submission) {
+                setVisionAiResult(res.data.submission);
+                fetchTeacherAssignments();
+            }
+        } catch (err: any) {
+            alert(`Error submitting homework: ${err.message}`);
+        } finally {
+            setIsSubmittingHw(false);
         }
     };
 
@@ -546,14 +610,36 @@ const MinervaTasksPage: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Card 2: Priority/Earliest Homework */}
+                            {/* Card 2: Priority/Earliest Homework & Teacher Assignments */}
                             <div className="bg-[#0B0915]/60 border border-white/[0.05] hover:border-amber-500/20 rounded-3xl p-5 shadow-2xl relative overflow-hidden flex flex-col justify-between">
                                 <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full blur-2xl pointer-events-none" />
                                 <div>
                                     <div className="flex justify-between items-center mb-2">
                                         <span className="text-[9px] font-black uppercase tracking-wider text-amber-400">⚠️ Priority Homework (Earliest)</span>
+                                        {teacherAssignments.length > 0 && (
+                                            <span className="text-[9px] font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">
+                                                {teacherAssignments.length} Teacher Tasks
+                                            </span>
+                                        )}
                                     </div>
-                                    {db.priorityHw ? (
+                                    {teacherAssignments.length > 0 ? (
+                                        <div>
+                                            <h4 className="text-xs font-bold text-white line-clamp-1">{teacherAssignments[0].title}</h4>
+                                            <p className="text-[10px] text-indigo-300 font-semibold line-clamp-1 mt-0.5">{teacherAssignments[0].subject} • Assigned by {teacherAssignments[0].teacherName || 'Faculty'}</p>
+                                            <p className="text-[9px] text-slate-450 mt-2 line-clamp-2 leading-relaxed italic">
+                                                "{teacherAssignments[0].description}"
+                                            </p>
+                                            <button
+                                                onClick={() => {
+                                                    setSubmittingTeacherHw(teacherAssignments[0]);
+                                                    setVisionAiResult(null);
+                                                }}
+                                                className="mt-3 w-full py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] rounded-xl flex items-center justify-center gap-1 shadow-md"
+                                            >
+                                                <Upload size={12} /> Upload Notebook Photo & Vision AI Grade
+                                            </button>
+                                        </div>
+                                    ) : db.priorityHw ? (
                                         <div>
                                             <h4 className="text-xs font-bold text-white line-clamp-1">{db.priorityHw.subject}</h4>
                                             <p className="text-[10px] text-indigo-300 font-semibold line-clamp-1 mt-0.5">{db.priorityHw.topic_title}</p>
@@ -565,57 +651,16 @@ const MinervaTasksPage: React.FC = () => {
                                         <p className="text-[10px] text-slate-500 mt-2 font-medium">No pending homework assignments!</p>
                                     )}
                                 </div>
-                                {db.priorityHw && (
-                                    <button
-                                        onClick={() => {
-                                            setActiveTab('pending');
-                                            handleOpenSolve(db.priorityHw);
-                                            // Smooth scroll down to tasks list
-                                            window.scrollTo({ top: 380, behavior: 'smooth' });
-                                        }}
-                                        className="text-[9px] font-black uppercase text-amber-400 hover:text-white transition-colors bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl mt-3 text-center self-start active:scale-95"
-                                    >
-                                        ⚡ Solve First
-                                    </button>
-                                )}
                             </div>
 
-                            {/* Card 3: Latest Homework Assigned */}
-                            <div className="bg-[#0B0915]/60 border border-white/[0.05] hover:border-pink-500/20 rounded-3xl p-5 shadow-2xl relative overflow-hidden flex flex-col justify-between">
-                                <div className="absolute top-0 right-0 w-24 h-24 bg-pink-500/5 rounded-full blur-2xl pointer-events-none" />
+                            {/* Card 3: Micro-Tasks & Self-Study */}
+                            <div className="bg-[#0B0915]/60 border border-white/[0.05] hover:border-emerald-500/20 rounded-3xl p-5 shadow-2xl relative overflow-hidden flex flex-col justify-between">
+                                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
                                 <div>
-                                    <div className="flex justify-between items-center mb-2">
-                                        <span className="text-[9px] font-black uppercase tracking-wider text-pink-400">✨ Newest Assigned</span>
-                                        {db.latestHw && (
-                                            <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${db.latestHw.submitted ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
-                                                {db.latestHw.submitted ? 'Done' : 'Pending'}
-                                            </span>
-                                        )}
-                                    </div>
-                                    {db.latestHw ? (
-                                        <div>
-                                            <h4 className="text-xs font-bold text-white line-clamp-1">{db.latestHw.subject}</h4>
-                                            <p className="text-[10px] text-indigo-300 font-semibold line-clamp-1 mt-0.5">{db.latestHw.topic_title}</p>
-                                            <p className="text-[9px] text-slate-450 mt-2 line-clamp-2 leading-relaxed italic">
-                                                "{db.latestHw.prompt}"
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        <p className="text-[10px] text-slate-500 mt-2 font-medium">No homework assigned yet.</p>
-                                    )}
+                                    <span className="text-[9px] font-black uppercase tracking-wider text-emerald-400 block mb-2">⚡ Micro-Tasks & Self-Study</span>
+                                    <div className="text-2xl font-black text-white">{db.totalSelf - db.completedSelf} <span className="text-xs text-slate-400 font-normal">Tasks Pending</span></div>
+                                    <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">Solve topic practice questions to earn XP and level up your Student Profile.</p>
                                 </div>
-                                {db.latestHw && !db.latestHw.submitted && (
-                                    <button
-                                        onClick={() => {
-                                            setActiveTab('pending');
-                                            handleOpenSolve(db.latestHw);
-                                            window.scrollTo({ top: 380, behavior: 'smooth' });
-                                        }}
-                                        className="text-[9px] font-black uppercase text-pink-400 hover:text-white transition-colors bg-pink-500/10 border border-pink-500/20 px-3 py-1.5 rounded-xl mt-3 text-center self-start active:scale-95"
-                                    >
-                                        ⚡ Solve Latest
-                                    </button>
-                                )}
                             </div>
                         </div>
                     );
@@ -633,10 +678,19 @@ const MinervaTasksPage: React.FC = () => {
                         )}
                     </button>
                     <button
+                        onClick={() => setActiveTab('teacher_hw' as any)}
+                        className={`px-6 py-3 text-xs font-black uppercase tracking-widest transition-all relative ${activeTab === ('teacher_hw' as any) ? 'text-indigo-400 font-bold' : 'text-gray-500 hover:text-gray-400'}`}
+                    >
+                        <span>🏫 School & Teacher Homework ({teacherAssignments.length})</span>
+                        {activeTab === ('teacher_hw' as any) && (
+                            <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full" />
+                        )}
+                    </button>
+                    <button
                         onClick={() => setActiveTab('pending')}
                         className={`px-6 py-3 text-xs font-black uppercase tracking-widest transition-all relative ${activeTab === 'pending' ? 'text-indigo-400' : 'text-gray-500 hover:text-gray-400'}`}
                     >
-                        <span>All Pending ({pendingTasks.length})</span>
+                        <span>All Micro Tasks ({pendingTasks.length})</span>
                         {activeTab === 'pending' && (
                             <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full" />
                         )}
@@ -797,6 +851,59 @@ const MinervaTasksPage: React.FC = () => {
                     </div>
                 )}
 
+                {/* Teacher Homework List */}
+                {activeTab === ('teacher_hw' as any) && (
+                    <div className="space-y-4">
+                        {teacherAssignments.length === 0 ? (
+                            <div className="text-center py-16 bg-[#0B0915]/30 border border-dashed border-white/5 rounded-3xl p-8 shadow-md">
+                                <FileText className="w-12 h-12 text-gray-700 mx-auto mb-4" />
+                                <h3 className="text-gray-300 font-bold text-sm mb-1">No Teacher Homework Assigned Yet</h3>
+                                <p className="text-gray-500 text-xs max-w-sm mx-auto leading-relaxed">
+                                    Assignments published by your Class Teacher for <span className="text-indigo-400 font-bold">{selectedClass}</span> will automatically appear here.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 gap-4">
+                                {teacherAssignments.map((hw, i) => (
+                                    <div key={hw._id || i} className="p-6 rounded-3xl bg-[#0B0915]/90 border border-white/10 hover:border-indigo-500/30 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
+                                        <div className="space-y-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-[9px] font-bold uppercase">
+                                                    {hw.subject || 'Homework'}
+                                                </span>
+                                                <span className="text-xs text-gray-400 font-mono">
+                                                    Due: {new Date(hw.dueDate).toLocaleDateString()}
+                                                </span>
+                                            </div>
+                                            <h3 className="text-base font-black text-white">{hw.title}</h3>
+                                            <p className="text-xs text-gray-300 leading-relaxed">{hw.description || 'Complete textbook questions and submit solution for AI grading.'}</p>
+                                            <div className="flex items-center gap-3 text-[11px] text-gray-400">
+                                                <span>Teacher: <strong className="text-white">{hw.teacherName}</strong></span>
+                                                <span>•</span>
+                                                <span>Chapter: <strong className="text-indigo-300">{hw.chapter || 'Chapter 1'}</strong></span>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
+                                            <button
+                                                onClick={() => navigate(`/future-education?askDoubt=${encodeURIComponent(`Mujhe is Teacher Homework mein doubt hai: '${hw.title}'. Question details: '${hw.description}'. Mujhe iska step-by-step concept explain kijiye.`)}`)}
+                                                className="px-4 py-3 bg-white/5 hover:bg-white/10 text-indigo-300 border border-white/10 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                                            >
+                                                <Sparkles size={14} /> Ask AI Doubt
+                                            </button>
+                                            <button
+                                                onClick={() => setSubmittingTeacherHw(hw)}
+                                                className="px-5 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 hover:opacity-90 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95"
+                                            >
+                                                <Upload size={14} /> Sync & Submit Homework
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {/* Flat Completed List */}
                 {activeTab === 'completed' && (
                     <div className="space-y-4">
@@ -814,6 +921,108 @@ const MinervaTasksPage: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {/* Teacher Homework Submission Modal */}
+            {submittingTeacherHw && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+                    <div className="bg-[#0B0915] border border-white/[0.08] rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 md:p-8 shadow-2xl relative animate-in zoom-in-95 duration-200 space-y-6">
+                        <button 
+                            onClick={() => { setSubmittingTeacherHw(null); setVisionAiResult(null); }}
+                            className="absolute top-4 right-4 p-2 bg-white/[0.03] hover:bg-white/10 border border-white/5 rounded-xl transition-all text-gray-400 hover:text-white"
+                        >
+                            <X size={14} />
+                        </button>
+
+                        <div>
+                            <span className="text-[10px] font-black uppercase text-indigo-400 tracking-wider block">Official Teacher Assignment</span>
+                            <h3 className="text-lg font-black text-white mt-1">{submittingTeacherHw.title}</h3>
+                            <p className="text-xs text-gray-400 mt-1">{submittingTeacherHw.description}</p>
+                        </div>
+
+                        {visionAiResult ? (
+                            <div className="p-5 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-black uppercase text-emerald-400 tracking-wider flex items-center gap-1.5">
+                                        <CheckCircle2 size={16} /> Vision AI Graded & Submitted!
+                                    </span>
+                                    <span className="text-lg font-black font-mono text-emerald-300">
+                                        {visionAiResult.scoreObtained} / {visionAiResult.maxScore || 10}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-gray-200 leading-relaxed font-mono bg-black/40 p-3 rounded-xl border border-white/5">
+                                    {visionAiResult.feedback}
+                                </p>
+                                <div className="flex justify-end pt-2">
+                                    <button
+                                        onClick={() => { setSubmittingTeacherHw(null); setVisionAiResult(null); }}
+                                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all"
+                                    >
+                                        Done & Sync with Teacher
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <form onSubmit={handleSubmitTeacherHw} className="space-y-4">
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase text-gray-400 mb-1.5 tracking-wider">Notebook / Handwritten Solution Photo (Upload or Camera)</label>
+                                    <div className="relative border border-dashed border-indigo-500/30 bg-indigo-950/20 rounded-2xl p-4 text-center hover:border-indigo-500/60 transition-all">
+                                        <input 
+                                            type="file"
+                                            accept="image/*,application/pdf"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) {
+                                                    const reader = new FileReader();
+                                                    reader.onload = (ev) => {
+                                                        if (ev.target?.result) {
+                                                            setNotebookImageUrl(ev.target.result as string);
+                                                        }
+                                                    };
+                                                    reader.readAsDataURL(file);
+                                                }
+                                            }}
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                        />
+                                        <Upload className="w-8 h-8 text-indigo-400 mx-auto mb-2" />
+                                        <p className="text-xs font-bold text-white">Click or Drop Notebook Photo / PDF</p>
+                                        <p className="text-[10px] text-gray-400 mt-1">Supports PNG, JPG, PDF (AI Auto-Grading ready)</p>
+                                    </div>
+                                </div>
+
+                                {notebookImageUrl && (
+                                    <div className="p-3 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-between">
+                                        <div className="flex items-center gap-3 overflow-hidden">
+                                            <img src={notebookImageUrl} alt="Solution" className="w-12 h-12 object-cover rounded-xl border border-white/10 shrink-0" />
+                                            <div>
+                                                <span className="text-xs font-bold text-white block truncate">Handwritten Notebook Solution attached</span>
+                                                <span className="text-[10px] text-emerald-400 font-mono">Ready for Vision AI evaluation</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="pt-2 flex justify-end gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSubmittingTeacherHw(null)}
+                                        className="px-4 py-2 border border-white/10 hover:bg-white/5 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition-all"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={isSubmittingHw}
+                                        className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 disabled:opacity-50 text-white font-black rounded-xl text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg"
+                                    >
+                                        {isSubmittingHw ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send size={14} />}
+                                        <span>Submit for AI Grading</span>
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* Custom Homework Modal */}
             {isCustomModalOpen && (

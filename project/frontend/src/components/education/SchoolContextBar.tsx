@@ -76,20 +76,56 @@ export const SchoolContextBar: React.FC<SchoolContextBarProps> = ({
                 if (onSubjectChange) {
                   if (e.target.value === 'CLASS-11B') onSubjectChange('Physics');
                   else if (e.target.value === 'CLASS-12SCI') onSubjectChange('Chemistry');
+                  else if (e.target.value === 'CLASS-9A') onSubjectChange('Science');
                   else onSubjectChange('Mathematics');
                 }
               }}
               className="bg-zinc-900 border border-white/10 rounded-xl px-3 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-purple-500 cursor-pointer"
             >
-              <option value="CLASS-10A">🏫 Class 10-A (Mathematics)</option>
-              <option value="CLASS-11B">🏫 Class 11-B (Physics)</option>
-              <option value="CLASS-12SCI">🏫 Class 12-Science (Chemistry)</option>
+              {(() => {
+                const assigned = parsedUser?.assignedClasses;
+                let list = ['CLASS-10A', 'CLASS-9A', 'CLASS-11B', 'CLASS-12SCI'];
+                if (Array.isArray(assigned) && assigned.length > 0) {
+                  const filtered = assigned.filter((c: string) => 
+                    !c.toUpperCase().includes('CLASS-3') && 
+                    !c.toUpperCase().includes('SEC_3') &&
+                    !c.toUpperCase().includes('CLASS-3_')
+                  );
+                  if (filtered.length > 0) list = filtered;
+                }
+                
+                const formatLabel = (raw: string) => {
+                  if (raw === 'CLASS-10A') return '🏫 Class 10-A (Mathematics)';
+                  if (raw === 'CLASS-9A') return '🏫 Class 9-A (Science)';
+                  if (raw === 'CLASS-11B') return '🏫 Class 11-B (Physics)';
+                  if (raw === 'CLASS-12SCI') return '🏫 Class 12-Science (Chemistry)';
+                  let clean = raw.replace(/^CLASS-?/i, '');
+                  if (clean.includes('_SEC_')) {
+                    const parts = clean.split('_SEC_');
+                    const stdNum = parts[0].replace(/[^0-9]/g, '');
+                    const rest = parts[1]?.split('_') || [];
+                    const sec = rest[0] || 'A';
+                    const sub = rest.slice(1).join(' ').toLowerCase();
+                    const formattedSub = sub ? sub.charAt(0).toUpperCase() + sub.slice(1) : '';
+                    return `🏫 Class ${stdNum || '10'}-${sec}${formattedSub ? ` (${formattedSub})` : ''}`;
+                  }
+                  return `🏫 Class ${clean}`;
+                };
+
+                return list.map(cId => (
+                  <option key={cId} value={cId}>
+                    {formatLabel(cId)}
+                  </option>
+                ));
+              })()}
             </select>
           </div>
         ) : (
           <div className="flex items-center gap-2 bg-indigo-950/60 border border-indigo-500/30 px-3 py-2 rounded-2xl text-xs font-bold text-indigo-300">
             <Lock size={14} className="text-indigo-400" />
-            <span>Assigned: Class 10-A (Student View)</span>
+            <span>
+              Assigned: Class {parsedUser?.standard ? (parsedUser.standard.toString().startsWith('class_') ? parsedUser.standard.replace('class_', '') : parsedUser.standard) : '10'}-{parsedUser?.section || 'A'} {parsedUser?.board ? `(${parsedUser.board.toUpperCase()})` : ''}
+            </span>
           </div>
         )}
       </div>

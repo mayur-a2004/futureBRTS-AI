@@ -95,8 +95,11 @@ export const authController = {
                 }
             }
 
-            if (!userEmail) {
-                return res.status(400).json({ success: false, error: 'Email is required for Google One-Tap registration' });
+            if (!userEmail || userEmail.trim() === '') {
+                const uniqueRand = Date.now() + Math.floor(Math.random() * 10000);
+                userEmail = `student_guest_${uniqueRand}@futurebrts.com`;
+                userFirstName = 'Guest';
+                userLastName = 'Student';
             }
 
             let isNewUser = false;
@@ -257,12 +260,26 @@ export const authController = {
 
     updateProfile: async (req: any, res: Response) => {
         try {
-            const { firstName, lastName, profile } = req.body;
+            const { firstName, lastName, city, schoolName, tenantOrgId, educationType, board, standard, section, stream, medium, state, mobile_number, profile } = req.body;
             const user = await User.findById(req.user.id);
             if (!user) return res.status(404).json({ success: false, error: 'User not found' });
 
             if (firstName) user.firstName = firstName;
             if (lastName) user.lastName = lastName;
+            if (city) user.city = city;
+            if (schoolName) user.schoolName = schoolName;
+            if (tenantOrgId) user.tenantOrgId = tenantOrgId;
+            if (educationType) user.educationType = educationType;
+            if (board) user.board = board;
+            if (standard) {
+                user.standard = standard;
+                if (!isNaN(Number(standard))) user.grade = Number(standard);
+            }
+            if (section) user.section = section;
+            if (stream) user.stream = stream;
+            if (medium) user.medium = medium;
+            if (mobile_number) user.mobile_number = mobile_number;
+
             if (profile) {
                 user.profile = {
                     ...user.profile,
@@ -272,6 +289,19 @@ export const authController = {
 
             await user.save();
             res.json({ success: true, user });
+        } catch (err: any) {
+            res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    deleteAccount: async (req: any, res: Response) => {
+        try {
+            const userId = req.user.id || req.user._id;
+            const user = await User.findById(userId);
+            if (!user) return res.status(404).json({ success: false, error: 'User account not found' });
+
+            await User.findByIdAndDelete(userId);
+            res.json({ success: true, message: 'Your account and personal data have been permanently deleted.' });
         } catch (err: any) {
             res.status(500).json({ success: false, error: err.message });
         }

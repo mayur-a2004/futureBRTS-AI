@@ -140,8 +140,12 @@ export class TeacherPortalController {
 
   static async getAttendanceReport(req: Request, res: Response): Promise<void> {
     try {
-      const orgId = (req.query.tenantOrgId as string) || (req.headers['x-tenant-org-id'] as string) || 'mount_carmel_school';
-      const classId = (req.query.classId as string) || 'CLASS-10A';
+      const user = (req as any).user;
+      const userOrgId = user?.tenantOrgId || (user?.schoolName ? user.schoolName.toLowerCase().replace(/\s+/g, '_') : null);
+      const userClassId = user?.standard ? `CLASS-${user.standard.toString().replace(/^class_/i, '').toUpperCase()}${user.section || 'A'}` : null;
+
+      const orgId = (req.query.tenantOrgId as string) || (req.headers['x-tenant-org-id'] as string) || userOrgId || 'mount_carmel_school';
+      const classId = (req.query.classId as string) || userClassId || 'CLASS-10A';
       const date = req.query.date as string;
 
       const report = await TeacherPortalService.getAttendanceReport(orgId, classId, date);
@@ -151,14 +155,35 @@ export class TeacherPortalController {
     }
   }
 
+  static async getStudentAttendanceSummary(req: Request, res: Response): Promise<void> {
+    try {
+      const user = (req as any).user;
+      const userOrgId = user?.tenantOrgId || (user?.schoolName ? user.schoolName.toLowerCase().replace(/\s+/g, '_') : null);
+      const userClassId = user?.standard ? `CLASS-${user.standard.toString().replace(/^class_/i, '').toUpperCase()}${user.section || 'A'}` : null;
+
+      const orgId = (req.query.tenantOrgId as string) || (req.headers['x-tenant-org-id'] as string) || userOrgId || 'mount_carmel_school';
+      const classId = (req.query.classId as string) || userClassId || 'CLASS-10A';
+      const studentId = (req.query.studentId as string) || user?.id || 'STU-10492';
+
+      const summary = await TeacherPortalService.getStudentAttendanceSummary(orgId, studentId, classId);
+      res.json({ success: true, summary });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
   static async syncDailySchoolData(req: Request, res: Response): Promise<void> {
     try {
       const { tenantOrgId, classId, date, teacherId, teacherName } = req.body;
-      const orgId = tenantOrgId || (req.headers['x-tenant-org-id'] as string) || 'mount_carmel_school';
+      const user = (req as any).user;
+      const userOrgId = user?.tenantOrgId || (user?.schoolName ? user.schoolName.toLowerCase().replace(/\s+/g, '_') : null);
+      const userClassId = user?.standard ? `CLASS-${user.standard.toString().replace(/^class_/i, '').toUpperCase()}${user.section || 'A'}` : null;
+
+      const orgId = tenantOrgId || (req.headers['x-tenant-org-id'] as string) || userOrgId || 'mount_carmel_school';
 
       const result = await TeacherPortalService.syncDailySchoolData({
         tenantOrgId: orgId,
-        classId: classId || 'CLASS-10A',
+        classId: classId || userClassId || 'CLASS-10A',
         date,
         teacherId,
         teacherName
@@ -171,9 +196,13 @@ export class TeacherPortalController {
 
   static async getStudentAuditTimeline(req: Request, res: Response): Promise<void> {
     try {
-      const orgId = (req.query.tenantOrgId as string) || (req.headers['x-tenant-org-id'] as string) || 'mount_carmel_school';
-      const classId = (req.query.classId as string) || 'CLASS-10A';
-      const studentId = (req.query.studentId as string) || 'STU-10492';
+      const user = (req as any).user;
+      const userOrgId = user?.tenantOrgId || (user?.schoolName ? user.schoolName.toLowerCase().replace(/\s+/g, '_') : null);
+      const userClassId = user?.standard ? `CLASS-${user.standard.toString().replace(/^class_/i, '').toUpperCase()}${user.section || 'A'}` : null;
+
+      const orgId = (req.query.tenantOrgId as string) || (req.headers['x-tenant-org-id'] as string) || userOrgId || 'mount_carmel_school';
+      const classId = (req.query.classId as string) || userClassId || 'CLASS-10A';
+      const studentId = (req.query.studentId as string) || user?.id || 'STU-10492';
       const date = req.query.date as string;
 
       const audit = await TeacherPortalService.getStudentAuditTimeline({
@@ -191,8 +220,12 @@ export class TeacherPortalController {
   // --- TIMETABLE SCHEDULER ---
   static async getTimetable(req: Request, res: Response): Promise<void> {
     try {
-      const orgId = (req.query.tenantOrgId as string) || (req.headers['x-tenant-org-id'] as string) || 'mount_carmel_school';
-      const classId = (req.query.classId as string) || 'ALL';
+      const user = (req as any).user;
+      const userOrgId = user?.tenantOrgId || (user?.schoolName ? user.schoolName.toLowerCase().replace(/\s+/g, '_') : null);
+      const userClassId = user?.standard ? `CLASS-${user.standard.toString().replace(/^class_/i, '').toUpperCase()}${user.section || 'A'}` : null;
+
+      const orgId = (req.query.tenantOrgId as string) || (req.headers['x-tenant-org-id'] as string) || userOrgId || 'mount_carmel_school';
+      const classId = (req.query.classId as string) || userClassId || 'ALL';
       const teacherId = (req.query.teacherId as string) || 'ALL';
 
       const schedule = await TeacherPortalService.getTimetable(orgId, classId, teacherId);
@@ -389,6 +422,17 @@ export class TeacherPortalController {
     try {
       const room = await TeacherPortalService.submitLiveAnswer(req.body);
       res.json({ success: true, room });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  static async clearAllData(req: Request, res: Response): Promise<void> {
+    try {
+      const orgId = (req.query.tenantOrgId as string) || (req.body?.tenantOrgId as string) || (req.headers['x-tenant-org-id'] as string);
+      const classId = (req.query.classId as string) || (req.body?.classId as string);
+      const result = await TeacherPortalService.clearAllData(orgId, classId);
+      res.json(result);
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
     }

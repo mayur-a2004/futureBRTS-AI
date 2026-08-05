@@ -53,6 +53,7 @@ const MinervaExamPage = lazy(() => import('./pages/minerva/MinervaExamPage'));
 const MinervaExamListPage = lazy(() => import('./pages/minerva/MinervaExamListPage'));
 const MinervaRoadmapsPage = lazy(() => import('./pages/minerva/MinervaRoadmapsPage'));
 const MinervaTasksPage = lazy(() => import('./pages/minerva/MinervaTasksPage'));
+const ClassTimetablePage = lazy(() => import('./pages/minerva/ClassTimetablePage'));
 const MinervaBuilderPage = lazy(() => import('./pages/minerva/MinervaBuilderPage'));
 const MinervaResultsPage = lazy(() => import('./pages/minerva/MinervaResultsPage'));
 const MinervaDashboardPage = lazy(() => import('./pages/minerva/MinervaDashboardPage'));
@@ -139,12 +140,7 @@ const OnboardingGuard = () => {
 // • Returning authenticated user → /dashboard (or /onboarding if incomplete)
 // • New guest user              → direct load into /builder (Guest AI Mode)
 const SmartRoot = () => {
-    const { isAuthenticated, loading, onboardingCompleted } = useAuth();
-    if (loading) return <NeuralLoader />;
-    if (isAuthenticated) {
-        return <Navigate to={onboardingCompleted ? '/dashboard' : '/onboarding'} replace />;
-    }
-    return <Navigate to="/builder" replace />;
+    return <Navigate to="/future-education" replace />;
 };
 
 // 🚫 PUBLIC-ONLY ROUTE: Already logged-in users should not see login/register.
@@ -417,6 +413,7 @@ function App() {
                                                             <Route path="future-education/results" element={<MinervaResultsPage />} />
                                                             <Route path="future-education/roadmaps" element={<MinervaRoadmapsPage />} />
                                                             <Route path="future-education/tasks" element={<MinervaTasksPage />} />
+                                                            <Route path="future-education/timetable" element={<ClassTimetablePage />} />
                                                             <Route path="future-education/builder" element={<MinervaBuilderPage />} />
                                                             <Route path="future-education/dashboard" element={<MinervaDashboardPage />} />
                                                             <Route path="future-education/quiz-battle" element={<MinervaQuizBattlePage />} />

@@ -7,6 +7,7 @@ import { useModal } from "@/context/ModalContext";
 import { io } from "socket.io-client";
 import { motion } from "framer-motion";
 import WelcomeTour from "@/components/shared/WelcomeTour";
+import StudentRegistrationModal from "@/components/education/StudentRegistrationModal";
 
 
 export default function Layout() {
@@ -17,10 +18,14 @@ export default function Layout() {
 
     // Onboarding welcome tour state (Disabled per user request)
     const [showWelcomeTour, setShowWelcomeTour] = useState(false);
+    const [showRegistrationModal, setShowRegistrationModal] = useState(false);
 
     useEffect(() => {
         localStorage.setItem("fbrts_welcome_tour_completed", "true");
-    }, []);
+        if (user && user.onboardingCompleted === false) {
+            setShowRegistrationModal(true);
+        }
+    }, [user]);
 
     // Session State
     const [sessions, setSessions] = useState<any[]>([]);
@@ -446,6 +451,7 @@ export default function Layout() {
         { name: "Tutor Chat", path: "/future-education", icon: <MessageSquare size={20} /> },
         { name: "Study Roadmaps", path: "/future-education/roadmaps", icon: <Map size={20} /> },
         { name: "Study Tasks", path: "/future-education/tasks", icon: <CheckSquare size={20} /> },
+        { name: "Class Timetable & Routine", path: "/future-education/timetable", icon: <Clock size={20} /> },
         { name: "1v1 Quiz Battle", path: "/future-education/quiz-battle", icon: <Swords size={20} /> },
         { name: "E-Builder", path: "/future-education/builder", icon: <Zap size={20} /> },
         { name: "Practice Exams", path: "/future-education/exams", icon: <FileText size={20} /> },
@@ -565,6 +571,13 @@ export default function Layout() {
                                     <span>{Math.round(levelProgressPercent)}% to Lv. {level + 1}</span>
                                 </div>
                             </div>
+                            <button
+                                onClick={() => navigate('/settings')}
+                                className="w-full py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 rounded-xl text-[10px] font-bold text-indigo-300 transition-all flex items-center justify-center gap-1 active:scale-95 truncate px-2"
+                                title="Change School or City Registration in Settings"
+                            >
+                                🏫 {user?.schoolName ? `${user.schoolName} (${user.city || 'City'})` : 'Edit School Registration'}
+                            </button>
                         </div>
                     )}
 

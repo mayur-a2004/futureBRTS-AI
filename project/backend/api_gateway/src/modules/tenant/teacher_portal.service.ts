@@ -58,25 +58,7 @@ export class TeacherPortalService {
     if (classId && classId !== 'ALL') filter.classId = classId;
     if (teacherId && teacherId !== 'ALL') filter.teacherId = teacherId;
 
-    let assignments = await (TeacherAssignmentModel as any).find(filter).sort({ createdAt: -1 });
-
-    // Seed default sample assignment if empty for instant visual demo
-    if (assignments.length === 0) {
-      const sample = await (TeacherAssignmentModel as any).create({
-        tenantOrgId,
-        classId: classId || 'CLASS-10A',
-        grade: 'Class 10',
-        section: 'A',
-        subject: 'Mathematics',
-        teacherId: teacherId || 'TCH-901',
-        teacherName: 'Mrs. Anjali Mehta',
-        title: 'Chapter 4 Quadratic Equations Exercises',
-        description: 'Solve Q1 to Q10 from Chapter 4 textbook and upload handwritten solution image.',
-        dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-        submissionsCount: 3
-      });
-      assignments = [sample];
-    }
+    const assignments = await (TeacherAssignmentModel as any).find(filter).sort({ createdAt: -1 });
     return assignments;
   }
 
@@ -135,37 +117,7 @@ export class TeacherPortalService {
   }
 
   static async getSubmissions(assignmentId: string): Promise<any[]> {
-    let submissions = await (HomeworkSubmissionModel as any).find({ assignmentId }).sort({ createdAt: -1 });
-
-    // Seed realistic sample student submissions if empty
-    if (submissions.length === 0) {
-      submissions = [
-        await (HomeworkSubmissionModel as any).create({
-          assignmentId,
-          tenantOrgId: 'mount_carmel_school',
-          classId: 'CLASS-10A',
-          studentId: 'STU-10492',
-          studentName: 'Aarav Sharma',
-          imageUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=60',
-          scoreObtained: 9.5,
-          maxScore: 10,
-          feedback: '✅ Excellent step-by-step solution of quadratic roots. Minor sign oversight on Q3.',
-          status: 'GRADED'
-        }),
-        await (HomeworkSubmissionModel as any).create({
-          assignmentId,
-          tenantOrgId: 'mount_carmel_school',
-          classId: 'CLASS-10A',
-          studentId: 'STU-10493',
-          studentName: 'Priya Patel',
-          imageUrl: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=600&auto=format&fit=crop&q=60',
-          scoreObtained: 8.0,
-          maxScore: 10,
-          feedback: '⚠️ Correct discriminant calculation. Work out final fraction simplification.',
-          status: 'GRADED'
-        })
-      ];
-    }
+    const submissions = await (HomeworkSubmissionModel as any).find({ assignmentId }).sort({ createdAt: -1 });
     return submissions;
   }
 
@@ -236,80 +188,57 @@ export class TeacherPortalService {
     const filter: any = { tenantOrgId, classId };
     if (date) filter.date = date;
 
-    let records = await (AttendanceRecordModel as any).find(filter).sort({ date: -1, studentName: 1 });
+    const records = await (AttendanceRecordModel as any).find(filter).sort({ date: -1, studentName: 1 });
+    return {
+      classId,
+      date: date || new Date().toISOString().split('T')[0],
+      totalEnrolled: records.length,
+      presentCount: records.filter((r: any) => r.status === 'PRESENT').length,
+      absentCount: records.filter((r: any) => r.status === 'ABSENT').length,
+      lateCount: records.filter((r: any) => r.status === 'LATE').length,
+      records
+    };
+  }
 
-    // Seed initial roster attendance if empty
-    if (records.length === 0) {
-      const todayStr = new Date().toISOString().split('T')[0];
-      const initialStudents = [
-        { studentId: 'STU-10492', studentName: 'Aarav Sharma', status: 'PRESENT' },
-        { studentId: 'STU-10493', studentName: 'Priya Patel', status: 'PRESENT' },
-        { studentId: 'STU-10494', studentName: 'Rohan Verma', status: 'ABSENT' },
-        { studentId: 'STU-10495', studentName: 'Diya Sengupta', status: 'PRESENT' },
-        { studentId: 'STU-10496', studentName: 'Kavya Shah', status: 'LATE' }
-      ];
+  static async getStudentAttendanceSummary(tenantOrgId: string, studentId: string, classId?: string): Promise<any> {
+    const filter: any = { tenantOrgId };
+    if (studentId && studentId !== 'STU-10492') filter.studentId = studentId;
+    if (classId && classId !== 'ALL') filter.classId = classId;
 
-      await this.markAttendance({
-        tenantOrgId,
-        classId,
-        grade: 'Class 10',
-        section: 'A',
-        date: todayStr,
-        records: initialStudents as any,
-        markedByTeacherId: 'TCH-901',
-        markedByTeacherName: 'Mrs. Anjali Mehta'
-      });
+    const records = await (AttendanceRecordModel as any).find(filter).sort({ date: -1 });
+    const totalWorkingDays = records.length;
+    const presentCount = records.filter((r: any) => r.status === 'PRESENT').length;
+    const absentCount = records.filter((r: any) => r.status === 'ABSENT').length;
+    const lateCount = records.filter((r: any) => r.status === 'LATE').length;
+    const leaveCount = records.filter((r: any) => r.status === 'LEAVE').length;
 
-      records = await (AttendanceRecordModel as any).find(filter).sort({ date: -1, studentName: 1 });
-    }
+    const attendanceRate = totalWorkingDays > 0 
+      ? Math.min(100, Math.round(((presentCount + lateCount * 0.8) / totalWorkingDays) * 100)) 
+      : 0;
 
-    const totalStudents = records.length;
-    const presentCount = records.filter(r => r.status === 'PRESENT').length;
-    const absentCount = records.filter(r => r.status === 'ABSENT').length;
-    const lateCount = records.filter(r => r.status === 'LATE').length;
-    const attendancePercentage = totalStudents > 0 ? Math.round(((presentCount + lateCount) / totalStudents) * 100) : 100;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayRecord = records.find((r: any) => r.date === todayStr);
 
     return {
-      date: date || new Date().toISOString().split('T')[0],
-      totalStudents,
+      totalWorkingDays,
       presentCount,
       absentCount,
       lateCount,
-      attendancePercentage,
+      leaveCount,
+      attendanceRate,
+      todayStatus: todayRecord ? todayRecord.status : 'NOT_MARKED',
+      markedByTeacherName: todayRecord?.markedByTeacherName || 'Class Teacher',
       records
     };
   }
 
   // --- 4. TIMETABLE & CLASS ROUTINE MODULE ---
-  static async getTimetable(tenantOrgId: string, classId?: string, teacherId?: string): Promise<any[]> {
+  static async getTimetableSchedule(tenantOrgId: string, classId?: string, teacherId?: string): Promise<any[]> {
     const filter: any = { tenantOrgId };
     if (classId && classId !== 'ALL') filter.classId = classId;
     if (teacherId && teacherId !== 'ALL') filter.teacherId = teacherId;
 
-    let schedule = await (TimetableScheduleModel as any).find(filter).sort({ periodNumber: 1 });
-
-    // Seed realistic weekly period routine if empty
-    if (schedule.length === 0) {
-      const sampleRoutine = [
-        { dayOfWeek: 'MONDAY', periodNumber: 1, startTime: '08:30 AM', endTime: '09:15 AM', subject: 'Mathematics', teacherId: 'TCH-901', teacherName: 'Mrs. Anjali Mehta', roomNumber: 'Room 101' },
-        { dayOfWeek: 'MONDAY', periodNumber: 2, startTime: '09:15 AM', endTime: '10:00 AM', subject: 'Physics', teacherId: 'TCH-902', teacherName: 'Mr. Rajesh Gupta', roomNumber: 'Lab 2' },
-        { dayOfWeek: 'MONDAY', periodNumber: 3, startTime: '10:15 AM', endTime: '11:00 AM', subject: 'Chemistry', teacherId: 'TCH-903', teacherName: 'Dr. Sunita Rao', roomNumber: 'Lab 1' },
-        { dayOfWeek: 'MONDAY', periodNumber: 4, startTime: '11:00 AM', endTime: '11:45 AM', subject: 'English', teacherId: 'TCH-904', teacherName: 'Mr. David Miller', roomNumber: 'Room 101' },
-        { dayOfWeek: 'TUESDAY', periodNumber: 1, startTime: '08:30 AM', endTime: '09:15 AM', subject: 'Physics', teacherId: 'TCH-902', teacherName: 'Mr. Rajesh Gupta', roomNumber: 'Lab 2' },
-        { dayOfWeek: 'TUESDAY', periodNumber: 2, startTime: '09:15 AM', endTime: '10:00 AM', subject: 'Mathematics', teacherId: 'TCH-901', teacherName: 'Mrs. Anjali Mehta', roomNumber: 'Room 101' }
-      ];
-
-      for (const item of sampleRoutine) {
-        await (TimetableScheduleModel as any).create({
-          tenantOrgId,
-          classId: classId || 'CLASS-10A',
-          grade: 'Class 10',
-          section: 'A',
-          ...item
-        });
-      }
-      schedule = await (TimetableScheduleModel as any).find(filter).sort({ periodNumber: 1 });
-    }
+    const schedule = await (TimetableScheduleModel as any).find(filter).sort({ periodNumber: 1 });
     return schedule;
   }
 
@@ -449,6 +378,10 @@ export class TeacherPortalService {
     });
 
     return examPaper;
+  }
+
+  static async getTimetable(tenantOrgId: string, classId?: string, teacherId?: string): Promise<any[]> {
+    return this.getTimetableSchedule(tenantOrgId, classId, teacherId);
   }
 
   // --- 6. PERSISTENT LIVE EXAM ROOM ENGINE ---
@@ -616,5 +549,24 @@ export class TeacherPortalService {
       await room.save();
     }
     return room;
+  }
+
+  // --- 7. PURGE & WIPE ALL TEACHER PORTAL DATA ---
+  static async clearAllData(tenantOrgId?: string, classId?: string): Promise<{ success: boolean; message: string }> {
+    const filter: any = {};
+    if (tenantOrgId && tenantOrgId !== 'ALL') filter.tenantOrgId = tenantOrgId;
+    if (classId && classId !== 'ALL') filter.classId = classId;
+
+    await (AttendanceRecordModel as any).deleteMany(filter);
+    await (TeacherAssignmentModel as any).deleteMany(filter);
+    await (HomeworkSubmissionModel as any).deleteMany(filter);
+    await (TimetableScheduleModel as any).deleteMany(filter);
+    await (TeacherExamPaperModel as any).deleteMany(filter);
+    await (LiveExamRoomModel as any).deleteMany(filter);
+
+    return {
+      success: true,
+      message: '🧹 All teacher portal DB records (attendance, assignments, submissions, timetables, exams) wiped clean.'
+    };
   }
 }

@@ -1,32 +1,42 @@
-/**
- * Sanitizes external URLs by extracting the target URL from Google search redirection wraps
- * (e.g., https://www.google.com/url?q=https://example.com/&sa=U&ved=...)
- */
-export const sanitizeExternalUrl = (url: string): string => {
-    if (!url) return url;
+export const sanitizeExternalUrl = (url: string, fallbackName?: string): string => {
+    if (!url || url.trim() === '') {
+        return fallbackName ? `https://www.google.com/search?q=${encodeURIComponent(fallbackName)}` : 'https://www.google.com';
+    }
+
+    let target = url.trim();
+    if (!/^https?:\/\//i.test(target)) {
+        if (target.startsWith('/')) {
+            target = window.location.origin + target;
+        } else {
+            target = 'https://' + target;
+        }
+    }
+
     try {
-        if (url.includes('google.com/url?') || url.includes('/url?q=')) {
-            // Ensure we have a valid protocol for URL parser
-            let parsingUrl = url;
-            if (!/^https?:\/\//i.test(url)) {
-                parsingUrl = 'https://' + url;
-            }
-            const urlObj = new URL(parsingUrl);
+        if (target.includes('google.com/url?') || target.includes('/url?q=')) {
+            const urlObj = new URL(target);
             const qParam = urlObj.searchParams.get('q');
-            if (qParam) {
+            if (qParam && /^https?:\/\//i.test(qParam)) {
                 return decodeURIComponent(qParam);
+            }
+        } else if (target.includes('google.com/search')) {
+            const urlObj = new URL(target);
+            const qParam = urlObj.searchParams.get('q');
+            if (!qParam || qParam.trim() === '') {
+                if (fallbackName) {
+                    return `https://www.google.com/search?q=${encodeURIComponent(fallbackName)}`;
+                }
             }
         }
     } catch (e) {
-        // Fallback to regex query parameter matching if URL parsing fails
-        const match = url.match(/[?&]q=([^&]+)/);
+        const match = target.match(/[?&]q=([^&]+)/);
         if (match && match[1]) {
             try {
-                return decodeURIComponent(match[1]);
-            } catch (_) {
-                return match[1];
-            }
+                const decoded = decodeURIComponent(match[1]);
+                if (/^https?:\/\//i.test(decoded)) return decoded;
+            } catch (_) {}
         }
     }
-    return url;
+
+    return target;
 };

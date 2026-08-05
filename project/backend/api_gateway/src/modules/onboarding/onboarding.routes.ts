@@ -1,15 +1,17 @@
 import { Router } from 'express';
-import { onboardingController } from './onboarding.controller';
+import { OnboardingController } from './onboarding.controller';
 import { authMiddleware } from '../../shared/middleware/auth.middleware';
 
 const router = Router();
 
-// Protected Routes
-router.post('/answer', authMiddleware, onboardingController.submitAnswer); // Legacy
-router.get('/result', authMiddleware, onboardingController.getResults); // Legacy
+// Public routes for fetching cities & schools during registration
+router.get('/cities', OnboardingController.getCities);
+router.get('/schools', OnboardingController.getSchoolsByCity);
 
-router.post('/step', authMiddleware, onboardingController.saveStep);
-router.get('/status', authMiddleware, onboardingController.getStatus);
-router.post('/complete', authMiddleware, onboardingController.complete);
+// Protected routes requiring user auth
+router.use(authMiddleware);
+router.get('/status', OnboardingController.getStatus);
+router.post('/register-school', OnboardingController.registerCustomSchool);
+router.post('/complete', OnboardingController.completeRegistration);
 
 export default router;

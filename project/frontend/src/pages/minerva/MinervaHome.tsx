@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     X, Map, CheckSquare,
     FileText, GraduationCap, Award, RefreshCw, Send,
-    Atom, Brain, Mic, Plus, Loader2,
+    Atom, Brain, Mic, Plus, Loader2, Navigation,
     Volume2, VolumeX, ChevronLeft,
     ThumbsUp, ThumbsDown, Copy, Check, RotateCw, Edit2, ExternalLink
 } from 'lucide-react';
@@ -449,11 +449,43 @@ const MinervaHome: React.FC = () => {
         fetchDueReviews();
     }, []);
 
+    const [detectingGps, setDetectingGps] = useState(false);
+
     useEffect(() => {
         if (!isSchoolStandard(standard)) {
             setBoard('N/A');
         }
     }, [standard]);
+
+    const handleDetectGpsLocation = () => {
+        if (!navigator.geolocation) {
+            alert("Geolocation is not supported by your browser");
+            return;
+        }
+        setDetectingGps(true);
+        navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+                try {
+                    const lat = pos.coords.latitude;
+                    const lon = pos.coords.longitude;
+                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+                    const data = await res.json();
+                    const detectedCity = data.address?.city || data.address?.town || data.address?.village || data.address?.state_district || data.address?.county || 'Ahmedabad';
+                    setOnboardingCity(detectedCity);
+                    fetchSchoolsForCity(detectedCity);
+                } catch (e) {
+                    console.error("GPS Reverse Geocode Error", e);
+                } finally {
+                    setDetectingGps(false);
+                }
+            },
+            (err) => {
+                setDetectingGps(false);
+                console.error("GPS Error", err);
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    };
 
     const fetchSchoolsForCity = async (cityStr: string) => {
         if (!cityStr) {
@@ -461,11 +493,20 @@ const MinervaHome: React.FC = () => {
             return;
         }
         try {
-            const res = await fetch(`/api/minerva/school/by-city?city=${encodeURIComponent(cityStr)}`);
-            const data = await res.json();
-            if (data.success) {
-                setSuggestedSchools(data.schools || []);
+            const res1 = await fetch(`/api/v1/onboarding/schools?city=${encodeURIComponent(cityStr)}`);
+            const data1 = await res1.json();
+            let schoolsList: string[] = [];
+            if (data1.success && Array.isArray(data1.schools)) {
+                schoolsList = data1.schools.map((s: any) => s.schoolName || s);
             }
+
+            const res2 = await fetch(`/api/minerva/school/by-city?city=${encodeURIComponent(cityStr)}`);
+            const data2 = await res2.json();
+            if (data2.success && Array.isArray(data2.schools)) {
+                schoolsList = Array.from(new Set([...schoolsList, ...data2.schools]));
+            }
+
+            setSuggestedSchools(schoolsList);
         } catch (e) {
             console.error('Error fetching schools for city:', e);
         }
@@ -686,6 +727,9 @@ const MinervaHome: React.FC = () => {
         }
     };
 
+    const [section, setSection] = useState('A');
+    const [stream, setStream] = useState('Science');
+
     const handleSaveOnboarding = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!studentName.trim() || !schoolName.trim() || !mobileNumber.trim()) {
@@ -694,7 +738,31 @@ const MinervaHome: React.FC = () => {
         }
         setOnboardingSubmitting(true);
         try {
-            const res = await minervaApi.updateProfile(token, {
+            const rawStandard = standard.replace(/^class_/i, '');
+            const tokenToUse = localStorage.getItem('fbrts_token') || localStorage.getItem('token') || '';
+
+            // 1. Sync Core Auth User Profile
+            await fetch('/api/auth/update-profile', {
+                method: 'PUT',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${tokenToUse}` 
+                },
+                body: JSON.stringify({
+                    firstName: studentName.split(' ')[0] || studentName,
+                    lastName: studentName.split(' ').slice(1).join(' ') || '',
+                    city: onboardingCity,
+                    schoolName,
+                    board,
+                    standard: rawStandard,
+                    section,
+                    stream,
+                    mobile_number: mobileNumber
+                })
+            });
+
+            // 2. Sync Minerva AI Profile
+            const res = await minervaApi.updateProfile(tokenToUse, {
                 name: studentName,
                 school_name: schoolName,
                 mobile_number: mobileNumber,
@@ -2092,6 +2160,40 @@ const MinervaHome: React.FC = () => {
 
                             <form onSubmit={handleSaveOnboarding} className="space-y-4 text-left">
                                 <div className="space-y-1">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">City / Location</label>
+                                        <button
+                                            type="button"
+                                            onClick={handleDetectGpsLocation}
+                                            disabled={detectingGps}
+                                            className="text-[9px] font-bold text-indigo-300 hover:text-white flex items-center gap-1 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 px-2 py-0.5 rounded-lg transition-all"
+                                        >
+                                            {detectingGps ? <Loader2 size={10} className="animate-spin" /> : <Navigation size={10} />}
+                                            {detectingGps ? 'Detecting City...' : '📍 Auto Detect GPS'}
+                                        </button>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            required
+                                            placeholder="Enter your city (e.g. Surat, Mumbai, Jaipur...)"
+                                            value={onboardingCity}
+                                            onChange={e => setOnboardingCity(e.target.value)}
+                                            autoComplete="new-password"
+                                            className="flex-1 bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none focus:border-indigo-500/40 placeholder:text-gray-700"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleDetectGpsLocation}
+                                            disabled={detectingGps}
+                                            className="px-3 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shrink-0 transition-all active:scale-95 disabled:opacity-50"
+                                        >
+                                            {detectingGps ? <Loader2 size={12} className="animate-spin" /> : <Navigation size={12} />}
+                                            GPS
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
                                     <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">Student Full Name</label>
                                     <input 
                                         type="text" 
@@ -2104,18 +2206,7 @@ const MinervaHome: React.FC = () => {
                                     />
                                 </div>
 
-                                <div className="space-y-1">
-                                    <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">City / Location</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        placeholder="Enter your city (e.g. Surat, Mumbai, Jaipur...)"
-                                        value={onboardingCity}
-                                        onChange={e => setOnboardingCity(e.target.value)}
-                                        autoComplete="new-password"
-                                        className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none focus:border-indigo-500/40 placeholder:text-gray-700"
-                                    />
-                                </div>
+
 
                                 <div className="space-y-1 relative">
                                     <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">
@@ -2185,6 +2276,21 @@ const MinervaHome: React.FC = () => {
                                             ))}
                                         </select>
                                     </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">Class Section</label>
+                                        <select 
+                                            value={section} 
+                                            onChange={e => setSection(e.target.value)}
+                                            className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none"
+                                        >
+                                            {Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i)).map(sec => (
+                                                <option key={sec} value={sec}>Section {sec}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
                                     {isSchoolStandard(standard) && (
                                         <div className="space-y-1">
                                             <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">Board / Council</label>

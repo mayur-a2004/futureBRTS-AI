@@ -1,32 +1,69 @@
-import { MapPin, Github, Linkedin, Mail, BadgeCheck, Globe, Code, Activity, Edit3, Save, ShieldCheck, GraduationCap } from "lucide-react"
+import { MapPin, Github, Linkedin, Mail, BadgeCheck, Globe, Code, Activity, Edit3, Save, ShieldCheck, GraduationCap, Navigation, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { useAuth } from "@/context/AuthContext"
 import { useState, useEffect } from "react"
 import { toast } from "react-toastify"
 import { useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
+import { BOARDS, STANDARDS } from '../minerva/MinervaQuizBattlePage'
 
 export default function Profile() {
-    const { user, setUser } = useAuth();
+    const { user, setUser, logout } = useAuth();
     const navigate = useNavigate();
     const [isEditing, setIsEditing] = useState(false);
     const [activeTab, setActiveTab] = useState<'overview' | 'academic' | 'security'>('overview');
     const [stats, setStats] = useState<any>(null);
     const [projects, setProjects] = useState<any[]>([]);
 
+    const [deletingAccount, setDeletingAccount] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [detectingGps, setDetectingGps] = useState(false);
+
     const [resendingMail, setResendingMail] = useState(false);
+
+    const handleDetectGpsLocation = () => {
+        if (!navigator.geolocation) {
+            toast.error("Geolocation is not supported by your browser");
+            return;
+        }
+        setDetectingGps(true);
+        navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+                try {
+                    const lat = pos.coords.latitude;
+                    const lon = pos.coords.longitude;
+                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+                    const data = await res.json();
+                    const detectedCity = data.address?.city || data.address?.town || data.address?.village || data.address?.state_district || data.address?.county || 'Ahmedabad';
+                    setFormData(prev => ({ ...prev, state: detectedCity }));
+                    toast.success(`📍 GPS City Detected: ${detectedCity}! 🎯`);
+                } catch (e) {
+                    toast.error("Could not resolve city name from GPS coordinates");
+                } finally {
+                    setDetectingGps(false);
+                }
+            },
+            (err) => {
+                setDetectingGps(false);
+                toast.error("Location permission denied or GPS unavailable");
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    };
 
     const [formData, setFormData] = useState({
         firstName: user?.firstName || '',
         lastName: user?.lastName || '',
         parentEmail: user?.parentDetails?.parentEmail || '',
         parentPhone: user?.parentDetails?.parentPhone || '',
-        school_name: '',
-        grade_level: 'class_10',
-        board: 'cbse',
-        state: '',
-        medium: 'english',
-        mobile_number: '',
+        school_name: user?.schoolName || '',
+        grade_level: user?.standard ? (user.standard.toString().startsWith('class_') ? user.standard : `class_${user.standard}`) : 'class_10',
+        board: user?.board || 'cbse',
+        state: user?.city || '',
+        medium: user?.medium || 'english',
+        mobile_number: user?.mobile_number || '',
+        section: user?.section || 'A',
+        stream: user?.stream || 'Science',
         profile: {
             bio: user?.profile?.bio || '',
             location: user?.profile?.location || '',
@@ -54,6 +91,14 @@ export default function Profile() {
             lastName: user?.lastName || '',
             parentEmail: user?.parentDetails?.parentEmail || '',
             parentPhone: user?.parentDetails?.parentPhone || '',
+            school_name: user?.schoolName || prev.school_name || '',
+            grade_level: user?.standard ? (user.standard.toString().startsWith('class_') ? user.standard : `class_${user.standard}`) : prev.grade_level,
+            board: user?.board || prev.board || 'cbse',
+            state: user?.city || prev.state || '',
+            medium: user?.medium || prev.medium || 'english',
+            mobile_number: user?.mobile_number || prev.mobile_number || '',
+            section: user?.section || prev.section || 'A',
+            stream: user?.stream || prev.stream || 'Science',
             profile: {
                 bio: user?.profile?.bio || '',
                 location: user?.profile?.location || '',
@@ -110,12 +155,12 @@ export default function Profile() {
                 if (minervaData.success && minervaData.profile) {
                     setFormData(prev => ({
                         ...prev,
-                        school_name: minervaData.profile.school_name || '',
-                        grade_level: minervaData.profile.grade_level || 'class_10',
-                        board: minervaData.profile.board || 'cbse',
-                        state: minervaData.profile.state || '',
-                        medium: minervaData.profile.medium || 'english',
-                        mobile_number: minervaData.profile.mobile_number || ''
+                        school_name: minervaData.profile.school_name || user?.schoolName || prev.school_name,
+                        grade_level: minervaData.profile.grade_level || (user?.standard ? (user.standard.toString().startsWith('class_') ? user.standard : `class_${user.standard}`) : prev.grade_level),
+                        board: minervaData.profile.board || user?.board || prev.board,
+                        state: minervaData.profile.state || user?.city || prev.state,
+                        medium: minervaData.profile.medium || user?.medium || prev.medium,
+                        mobile_number: minervaData.profile.mobile_number || user?.mobile_number || prev.mobile_number
                     }));
                 }
             } catch (e) {
@@ -123,11 +168,13 @@ export default function Profile() {
             }
         };
         fetchProfileData();
-    }, []);
+    }, [user]);
  
     const handleSave = async () => {
         try {
             const token = localStorage.getItem('fbrts_token');
+            
+            const rawStandard = formData.grade_level.replace('class_', '');
             
             // Save core profile
             const res = await fetch('/api/auth/update-profile', {
@@ -139,6 +186,14 @@ export default function Profile() {
                 body: JSON.stringify({
                     firstName: formData.firstName,
                     lastName: formData.lastName,
+                    city: formData.state,
+                    schoolName: formData.school_name,
+                    board: formData.board,
+                    standard: rawStandard,
+                    section: formData.section,
+                    stream: formData.stream,
+                    medium: formData.medium,
+                    mobile_number: formData.mobile_number,
                     profile: {
                         ...formData.profile,
                         skills: formData.profile.skills.split(',').map((s: string) => s.trim()).filter((s: string) => s !== '')
@@ -245,6 +300,30 @@ export default function Profile() {
             toast.error("Failed to connect to authentication server");
         } finally {
             setPasswordChanging(false);
+        }
+    };
+
+    const handleDeleteAccount = async () => {
+        setDeletingAccount(true);
+        try {
+            const token = localStorage.getItem('fbrts_token');
+            const res = await fetch('/api/auth/delete-account', {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast.success("Your account and data have been permanently deleted.");
+                if (logout) logout();
+                localStorage.clear();
+                navigate('/login', { replace: true });
+            } else {
+                toast.error(data.error || "Failed to delete account");
+            }
+        } catch (e) {
+            toast.error("Error connecting to server to delete account");
+        } finally {
+            setDeletingAccount(false);
         }
     };
 
@@ -543,92 +622,141 @@ export default function Profile() {
 
                                     <div className="grid md:grid-cols-3 gap-6">
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Standard/Grade</label>
-                                            <select
-                                                value={formData.grade_level}
-                                                onChange={(e) => setFormData({ ...formData, grade_level: e.target.value })}
-                                                className="w-full bg-[#111] border border-white/10 rounded-2xl px-4 py-3.5 text-sm text-white focus:border-indigo-500 outline-none"
-                                            >
-                                                <option value="class_6">Class 6</option>
-                                                <option value="class_7">Class 7</option>
-                                                <option value="class_8">Class 8</option>
-                                                <option value="class_9">Class 9</option>
-                                                <option value="class_10">Class 10</option>
-                                                <option value="class_11">Class 11</option>
-                                                <option value="class_12">Class 12</option>
-                                                <option value="college">College</option>
-                                                <option value="govt_exam">Govt Exam</option>
-                                            </select>
+                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Standard/Grade</label>
+                                             <select
+                                                 value={formData.grade_level}
+                                                 onChange={(e) => setFormData({ ...formData, grade_level: e.target.value })}
+                                                 className="w-full bg-[#111] border border-white/10 rounded-2xl px-4 py-3.5 text-sm text-white focus:border-indigo-500 outline-none"
+                                             >
+                                                 {STANDARDS.map(g => (
+                                                     <option key={g.id} value={g.id.startsWith('class_') ? g.id : `class_${g.id}`}>{g.name}</option>
+                                                 ))}
+                                             </select>
+                                         </div>
+
+                                         <div className="space-y-2">
+                                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Board / Council</label>
+                                              <select
+                                                  value={formData.board}
+                                                  onChange={(e) => setFormData({ ...formData, board: e.target.value })}
+                                                  className="w-full bg-[#111] border border-white/10 rounded-2xl px-4 py-3.5 text-sm text-white focus:border-indigo-500 outline-none"
+                                              >
+                                                  {BOARDS.map(b => (
+                                                      <option key={b.id} value={b.id.toLowerCase()}>{b.name}</option>
+                                                  ))}
+                                              </select>
+                                         </div>
+
+                                        <div className="space-y-2">
+                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Class Section</label>
+                                             <select
+                                                 value={formData.section}
+                                                 onChange={(e) => setFormData({ ...formData, section: e.target.value })}
+                                                 className="w-full bg-[#111] border border-white/10 rounded-2xl px-4 py-3.5 text-sm text-white focus:border-indigo-500 outline-none"
+                                             >
+                                                 <option value="A">Section A</option>
+                                                 <option value="B">Section B</option>
+                                                 <option value="C">Section C</option>
+                                                 <option value="D">Section D</option>
+                                                 <option value="E">Section E</option>
+                                             </select>
                                         </div>
 
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Board / Exam</label>
-                                            <select
-                                                value={formData.board}
-                                                onChange={(e) => setFormData({ ...formData, board: e.target.value })}
-                                                className="w-full bg-[#111] border border-white/10 rounded-2xl px-4 py-3.5 text-sm text-white focus:border-indigo-500 outline-none"
-                                            >
-                                                <option value="cbse">CBSE</option>
-                                                <option value="icse">ICSE</option>
-                                                <option value="gseb">GSEB</option>
-                                                <option value="up_board">UP Board</option>
-                                                <option value="maharashtra_ssc">Maharashtra SSC</option>
-                                                <option value="state_board">Other State Board</option>
-                                            </select>
+                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Stream / Field</label>
+                                             <select
+                                                 value={formData.stream}
+                                                 onChange={(e) => setFormData({ ...formData, stream: e.target.value })}
+                                                 className="w-full bg-[#111] border border-white/10 rounded-2xl px-4 py-3.5 text-sm text-white focus:border-indigo-500 outline-none"
+                                             >
+                                                 <option value="Science">Science (PCM/PCB)</option>
+                                                 <option value="Commerce">Commerce</option>
+                                                 <option value="Arts">Arts / Humanities</option>
+                                                 <option value="General">General Studies</option>
+                                             </select>
                                         </div>
 
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Medium</label>
-                                            <select
-                                                value={formData.medium}
-                                                onChange={(e) => setFormData({ ...formData, medium: e.target.value })}
-                                                className="w-full bg-[#111] border border-white/10 rounded-2xl px-4 py-3.5 text-sm text-white focus:border-indigo-500 outline-none"
-                                            >
-                                                <option value="english">English</option>
-                                                <option value="hindi">Hindi</option>
-                                                <option value="gujarati">Gujarati</option>
-                                                <option value="marathi">Marathi</option>
-                                            </select>
+                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Medium / Language</label>
+                                             <select
+                                                 value={formData.medium}
+                                                 onChange={(e) => setFormData({ ...formData, medium: e.target.value })}
+                                                 className="w-full bg-[#111] border border-white/10 rounded-2xl px-4 py-3.5 text-sm text-white focus:border-indigo-500 outline-none"
+                                             >
+                                                 <option value="english">English (English)</option>
+                                                 <option value="hindi">Hindi (हिंदी)</option>
+                                                 <option value="gujarati">Gujarati (ગુજરાતી)</option>
+                                                 <option value="marathi">Marathi (मराठी)</option>
+                                                 <option value="bengali">Bengali (বাংলা)</option>
+                                                 <option value="tamil">Tamil (தமிழ்)</option>
+                                                 <option value="telugu">Telugu (తెలుగు)</option>
+                                                 <option value="kannada">Kannada (કન્નડ)</option>
+                                                 <option value="malayalam">Malayalam (മലയാളം)</option>
+                                                 <option value="punjabi">Punjabi (ਪੰਜਾਬੀ)</option>
+                                                 <option value="urdu">Urdu (اردو)</option>
+                                             </select>
                                         </div>
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">City / Location</label>
-                                        <input
-                                            value={formData.state}
-                                            onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-sm focus:border-indigo-500 outline-none"
-                                            placeholder="e.g. Gandhinagar"
-                                        />
+                                        <div className="flex justify-between items-center">
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">City / Location</label>
+                                            <button
+                                                type="button"
+                                                onClick={handleDetectGpsLocation}
+                                                disabled={detectingGps}
+                                                className="text-[10px] font-bold text-indigo-300 hover:text-white flex items-center gap-1 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 px-3 py-1 rounded-xl transition-all"
+                                            >
+                                                {detectingGps ? <Loader2 size={12} className="animate-spin" /> : <Navigation size={12} />}
+                                                {detectingGps ? 'Detecting City...' : '📍 Auto Detect GPS City'}
+                                            </button>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <input
+                                                value={formData.state}
+                                                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                                                className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-sm focus:border-indigo-500 outline-none"
+                                                placeholder="e.g. Ahmedabad, Surat, Vadodara, Mumbai..."
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={handleDetectGpsLocation}
+                                                disabled={detectingGps}
+                                                className="px-4 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shrink-0 transition-all shadow-lg shadow-indigo-600/30 active:scale-95 disabled:opacity-50"
+                                            >
+                                                {detectingGps ? <Loader2 size={14} className="animate-spin" /> : <Navigation size={14} />}
+                                                GPS Location
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             ) : (
                                 <div className="grid md:grid-cols-2 gap-6 text-sm">
                                     <div className="bg-white/[0.01] p-5 rounded-[24px] border border-white/5 space-y-1">
                                         <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">School Name</span>
-                                        <span className="text-white font-extrabold block text-base">{formData.school_name || 'Not Configured'}</span>
+                                        <span className="text-white font-extrabold block text-base">{formData.school_name || user?.schoolName || 'Not Configured'}</span>
                                     </div>
                                     <div className="bg-white/[0.01] p-5 rounded-[24px] border border-white/5 space-y-1">
                                         <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">City / Location</span>
                                         <span className="text-white font-extrabold block text-base">
-                                            {formData.state ? (formData.state.charAt(0).toUpperCase() + formData.state.slice(1)) : 'Not Provided'}
+                                            {(formData.state || user?.city) ? ((formData.state || user?.city || '').charAt(0).toUpperCase() + (formData.state || user?.city || '').slice(1)) : 'Not Provided'}
                                         </span>
                                     </div>
                                     <div className="bg-white/[0.01] p-5 rounded-[24px] border border-white/5 space-y-1">
-                                        <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Board / Standard</span>
+                                        <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Board / Standard / Class</span>
                                         <span className="text-white font-extrabold block text-base uppercase">
-                                            {formData.board?.toUpperCase() || 'N/A'} • {formData.grade_level ? (formData.grade_level.startsWith('class_') ? `Class ${formData.grade_level.replace('class_', '')}` : formData.grade_level.toUpperCase()) : 'N/A'}
+                                            {(formData.board || user?.board || 'N/A').toUpperCase()} • Class {(formData.grade_level || user?.standard || '10').toString().replace(/^class_/i, '')}-{formData.section || user?.section || 'A'} {(formData.stream || user?.stream) ? `(${formData.stream || user?.stream})` : ''}
                                         </span>
                                     </div>
                                     <div className="bg-white/[0.01] p-5 rounded-[24px] border border-white/5 space-y-1">
                                         <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Medium / Language</span>
                                         <span className="text-white font-extrabold block text-base capitalize">
-                                            {formData.medium || 'English'}
+                                            {formData.medium || user?.medium || 'English'}
                                         </span>
                                     </div>
                                     <div className="bg-white/[0.01] p-5 rounded-[24px] border border-white/5 space-y-1 md:col-span-2">
                                         <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Student Mobile</span>
-                                        <span className="text-indigo-400 font-extrabold block text-base">{formData.mobile_number || 'Not Configured'}</span>
+                                        <span className="text-indigo-400 font-extrabold block text-base">{formData.mobile_number || user?.mobile_number || 'Not Configured'}</span>
                                     </div>
                                 </div>
                             )}
@@ -760,6 +888,46 @@ export default function Profile() {
                                         </Button>
                                     </div>
                                 </form>
+                            )}
+                        </div>
+
+                        {/* Danger Zone: Permanent Account Deletion Card */}
+                        <div className="bg-rose-950/20 backdrop-blur-3xl border border-rose-500/20 p-8 rounded-[40px] shadow-3xl space-y-4 md:col-span-2">
+                            <h3 className="text-xs font-black uppercase tracking-[0.3em] text-rose-400 border-b border-rose-500/20 pb-4 italic flex items-center gap-2">
+                                🚨 Danger Zone • Account Deletion
+                            </h3>
+                            <p className="text-xs text-gray-400">
+                                Permanently delete your Future BRTS account, AI learning profile, and associated platform data. This action cannot be undone.
+                            </p>
+                            
+                            {!showDeleteConfirm ? (
+                                <button
+                                    onClick={() => setShowDeleteConfirm(true)}
+                                    className="px-6 py-3 bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/40 text-rose-300 font-bold rounded-2xl text-xs transition-all flex items-center gap-2 active:scale-95"
+                                >
+                                    🗑️ Delete My Account Permanently
+                                </button>
+                            ) : (
+                                <div className="p-4 rounded-2xl bg-rose-950/50 border border-rose-500/40 space-y-3">
+                                    <div className="text-xs font-bold text-rose-200">
+                                        Are you 100% sure you want to delete your account? All progress, XP, and roadmaps will be lost forever.
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={() => setShowDeleteConfirm(false)}
+                                            className="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 font-bold rounded-xl text-xs"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={handleDeleteAccount}
+                                            disabled={deletingAccount}
+                                            className="px-6 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-xl text-xs transition-all flex items-center gap-2 shadow-lg shadow-rose-600/30 active:scale-95 disabled:opacity-50"
+                                        >
+                                            {deletingAccount ? 'Deleting Account...' : 'Yes, Delete My Account Now'}
+                                        </button>
+                                    </div>
+                                </div>
                             )}
                         </div>
                     </div>
