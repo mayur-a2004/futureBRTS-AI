@@ -54,8 +54,12 @@ export class TeacherPortalService {
   }
 
   static async getAssignments(tenantOrgId: string, classId?: string, teacherId?: string): Promise<any[]> {
-    const filter: any = { tenantOrgId };
-    if (classId && classId !== 'ALL') filter.classId = classId;
+    const filter: any = {};
+    if (tenantOrgId && tenantOrgId !== 'all') filter.tenantOrgId = tenantOrgId;
+    if (classId && classId !== 'ALL') {
+      const cleanClass = classId.replace(/^Class\s+/i, '').replace(/^CLASS-?/i, '');
+      filter.classId = { $regex: new RegExp(cleanClass, 'i') };
+    }
     if (teacherId && teacherId !== 'ALL') filter.teacherId = teacherId;
 
     const assignments = await (TeacherAssignmentModel as any).find(filter).sort({ createdAt: -1 });
@@ -184,9 +188,35 @@ export class TeacherPortalService {
     return { updatedCount };
   }
 
-  static async getAttendanceReport(tenantOrgId: string, classId: string, date?: string): Promise<any> {
-    const filter: any = { tenantOrgId, classId };
-    if (date) filter.date = date;
+  static async getAttendanceReport(tenantOrgId: string, classId: string, date?: string, range?: string): Promise<any> {
+    const filter: any = {};
+    if (tenantOrgId && tenantOrgId !== 'all') filter.tenantOrgId = tenantOrgId;
+    if (classId && classId !== 'ALL') {
+      const cleanClass = classId.replace(/^Class\s+/i, '').replace(/^CLASS-?/i, '');
+      filter.classId = { $regex: new RegExp(cleanClass, 'i') };
+    }
+
+    if (date) {
+      filter.date = date;
+    } else if (range) {
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+      if (range === 'today') {
+        filter.date = todayStr;
+      } else if (range === 'yesterday') {
+        const yest = new Date(today);
+        yest.setDate(yest.getDate() - 1);
+        filter.date = yest.toISOString().split('T')[0];
+      } else if (range === 'last7days') {
+        const d7 = new Date(today);
+        d7.setDate(d7.getDate() - 7);
+        filter.date = { $gte: d7.toISOString().split('T')[0], $lte: todayStr };
+      } else if (range === 'yearly') {
+        const y1 = new Date(today);
+        y1.setFullYear(y1.getFullYear() - 1);
+        filter.date = { $gte: y1.toISOString().split('T')[0], $lte: todayStr };
+      }
+    }
 
     const records = await (AttendanceRecordModel as any).find(filter).sort({ date: -1, studentName: 1 });
     return {
@@ -196,14 +226,40 @@ export class TeacherPortalService {
       presentCount: records.filter((r: any) => r.status === 'PRESENT').length,
       absentCount: records.filter((r: any) => r.status === 'ABSENT').length,
       lateCount: records.filter((r: any) => r.status === 'LATE').length,
+      leaveCount: records.filter((r: any) => r.status === 'LEAVE').length,
       records
     };
   }
 
-  static async getStudentAttendanceSummary(tenantOrgId: string, studentId: string, classId?: string): Promise<any> {
-    const filter: any = { tenantOrgId };
-    if (studentId && studentId !== 'STU-10492') filter.studentId = studentId;
-    if (classId && classId !== 'ALL') filter.classId = classId;
+  static async getStudentAttendanceSummary(tenantOrgId: string, studentId: string, classId?: string, range?: string): Promise<any> {
+    const filter: any = {};
+    if (tenantOrgId && tenantOrgId !== 'all') filter.tenantOrgId = tenantOrgId;
+    if (studentId) filter.studentId = studentId;
+    if (classId && classId !== 'ALL') {
+      const cleanClass = classId.replace(/^Class\s+/i, '').replace(/^CLASS-?/i, '');
+      filter.classId = { $regex: new RegExp(cleanClass, 'i') };
+    }
+
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+
+    if (range) {
+      if (range === 'today') {
+        filter.date = todayStr;
+      } else if (range === 'yesterday') {
+        const yest = new Date(today);
+        yest.setDate(yest.getDate() - 1);
+        filter.date = yest.toISOString().split('T')[0];
+      } else if (range === 'last7days') {
+        const d7 = new Date(today);
+        d7.setDate(d7.getDate() - 7);
+        filter.date = { $gte: d7.toISOString().split('T')[0], $lte: todayStr };
+      } else if (range === 'yearly') {
+        const y1 = new Date(today);
+        y1.setFullYear(y1.getFullYear() - 1);
+        filter.date = { $gte: y1.toISOString().split('T')[0], $lte: todayStr };
+      }
+    }
 
     const records = await (AttendanceRecordModel as any).find(filter).sort({ date: -1 });
     const totalWorkingDays = records.length;
@@ -216,7 +272,6 @@ export class TeacherPortalService {
       ? Math.min(100, Math.round(((presentCount + lateCount * 0.8) / totalWorkingDays) * 100)) 
       : 0;
 
-    const todayStr = new Date().toISOString().split('T')[0];
     const todayRecord = records.find((r: any) => r.date === todayStr);
 
     return {

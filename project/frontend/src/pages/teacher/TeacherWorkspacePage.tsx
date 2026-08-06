@@ -258,9 +258,7 @@ export const TeacherWorkspacePage: React.FC = () => {
     }
     return [
       { id: 'CLASS-10A', name: 'Class 10-A (Mathematics)' },
-      { id: 'CLASS-9A', name: 'Class 9-A (Science)' },
-      { id: 'CLASS-11B', name: 'Class 11-B (Physics)' },
-      { id: 'CLASS-12SCI', name: 'Class 12 Science (Chemistry)' }
+      { id: 'CLASS-11B', name: 'Class 11-B (Physics)' }
     ];
   });
   const [selectedClass, setSelectedClass] = useState(() => classList[0]?.id || 'CLASS-10A');
@@ -668,14 +666,17 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
     }
   };
 
-  const getOfficialSyllabusForCombo = (std: string, subj: string) => {
+  const getOfficialSyllabusForCombo = (std: string, subj: string, board?: string) => {
     const stdLower = (std || '').toLowerCase();
     const subjLower = (subj || '').toLowerCase();
+    const activeBoard = (board || '').trim();
+
+    let chapters: any[] = [];
 
     // 1. Direct exact combo key match
     const comboKey = `${std}_${subj}`;
     if (OFFICIAL_BOARD_SYLLABUS_INDEX[comboKey]) {
-      return OFFICIAL_BOARD_SYLLABUS_INDEX[comboKey].chapters;
+      chapters = OFFICIAL_BOARD_SYLLABUS_INDEX[comboKey].chapters;
     }
 
     // 2. Class 12 Commerce - Statistics
@@ -835,13 +836,29 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
       ];
     }
 
-    // 18. Generic subject-aware fallback (Gujarati & Board Synced)
-    return [
-      { id: 1, title: `પ્રકરણ ૧: ${subj} - મૂળભૂત સિદ્ધાંતો અને વિષય પ્રવેશ (Core Fundamentals)`, duration: '5 Lectures', subtopics: [`${subj} નો પરિચય અને મૂળભૂત વ્યાખ્યાઓ`, 'પાયાની સંકલ્પનાઓ', 'મુખ્ય લક્ષણો અને હેતુઓ'], pdfUrl: 'https://ncert.nic.in/textbook/pdf/jemh101.pdf' },
-      { id: 2, title: `પ્રકરણ ૨: ${subj} - સત્તાવાર બોર્ડ વિશ્લેષણ અને સિદ્ધાંત મોડેલ`, duration: '6 Lectures', subtopics: ['સિદ્ધાંતિક મોડેલ', 'મૂળભૂત નિયમો અને વ્યાખ્યાઓ', 'સ્વાધ્યાય પ્રશ્નોત્તરી'], pdfUrl: 'https://ncert.nic.in/textbook/pdf/jemh102.pdf' },
-      { id: 3, title: `પ્રકરણ ૩: ${subj} - વ્યવહારુ ઉપયોગો અને કેસ સ્ટડી`, duration: '6 Lectures', subtopics: ['રોજિંદા જીવનમાં ઉપયોગ', 'બોર્ડ પરીક્ષાના અગત્યના પ્રશ્નો', 'સહ-સંબંધિત ઉદાહરણો'], pdfUrl: 'https://ncert.nic.in/textbook/pdf/jemh103.pdf' },
-      { id: 4, title: `પ્રકરણ ૪: ${subj} - વ્યાપક પુનરાવર્તન અને સ્વાધ્યાય`, duration: '5 Lectures', subtopics: ['એકમ વારંવારિતા', 'મોડેલ પ્રશ્નપત્ર સોલ્યુશન', 'સ્વ-મૂલ્યાંકન સોલ્યુશન'], pdfUrl: 'https://ncert.nic.in/textbook/pdf/jemh104.pdf' }
-    ];
+    // Format chapters to strictly match activeBoard if selected
+    if (activeBoard && activeBoard !== 'cbse' && activeBoard !== 'ncert') {
+      const boardUpper = activeBoard.toUpperCase();
+      const boardLabelMap: Record<string, string> = {
+        gseb: 'GSEB Gujarat State Board',
+        bseb: 'BSEB Bihar State Board',
+        upmsp: 'UP Board (UPMSP)',
+        msbshse: 'Maharashtra State Board (Balbharati)',
+        icse: 'CISCE (ICSE Board)',
+        kseeb: 'Karnataka State Board (KSEEB)',
+        tn: 'Tamil Nadu State Board',
+        wbbse: 'West Bengal Board (WBBSE)'
+      };
+      const boardName = boardLabelMap[activeBoard.toLowerCase()] || `${boardUpper} Official Board`;
+
+      return chapters.map(ch => ({
+        ...ch,
+        title: ch.title.replace(/^Chapter\s+\d+:/i, (match: string) => `${match} [${boardName}]`),
+        boardName
+      }));
+    }
+
+    return chapters;
   };
 
   // Comprehensive Standard → Subject Resolver (covers ALL Class 1-12, Higher Ed, Entrance Exams)

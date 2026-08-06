@@ -27,16 +27,18 @@ export const ClassTimetablePage: React.FC = () => {
 
     const daysList = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'All'] as const;
 
+    const [attendanceRange, setAttendanceRange] = useState<'all' | 'today' | 'yesterday' | 'last7days' | 'yearly'>('all');
+
     useEffect(() => {
         fetchTimetableAndAttendance();
-    }, [selectedClass]);
+    }, [selectedClass, attendanceRange]);
 
     const fetchTimetableAndAttendance = async () => {
         setLoading(true);
         try {
             const [ttRes, attRes] = await Promise.all([
                 axios.get(`/api/v1/teacher-workspace/timetable?tenantOrgId=${tenantOrgId}&classId=${selectedClass}`),
-                axios.get(`/api/v1/teacher-workspace/student-attendance-summary?tenantOrgId=${tenantOrgId}&studentId=${studentId}&classId=${selectedClass}`)
+                axios.get(`/api/v1/teacher-workspace/student-attendance-summary?tenantOrgId=${tenantOrgId}&studentId=${studentId}&classId=${selectedClass}&range=${attendanceRange}`)
             ]);
 
             if (ttRes.data && ttRes.data.schedule) {
@@ -148,6 +150,30 @@ export const ClassTimetablePage: React.FC = () => {
                         )}
                     </div>
                 )}
+
+                {/* 📊 ATTENDANCE DATE RANGE FILTER BAR */}
+                <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-black/60 border border-white/10 overflow-x-auto">
+                    <span className="text-[10px] font-black uppercase text-indigo-400 tracking-widest shrink-0">Attendance Date Filter:</span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        {[
+                            { id: 'all', label: 'All Time' },
+                            { id: 'today', label: 'Today' },
+                            { id: 'yesterday', label: 'Yesterday' },
+                            { id: 'last7days', label: 'Last 7 Days' },
+                            { id: 'yearly', label: 'Yearly' }
+                        ].map(rf => (
+                            <button
+                                key={rf.id}
+                                onClick={() => setAttendanceRange(rf.id as any)}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                                    attendanceRange === rf.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-white/5 text-gray-400 hover:text-white border border-white/5'
+                                }`}
+                            >
+                                {rf.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
 
                 {/* 📊 ATTENDANCE SUMMARY STATS CARDS */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
