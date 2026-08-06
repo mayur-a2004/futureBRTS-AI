@@ -326,8 +326,11 @@ export default function TeacherDashboardPage() {
     const handleTeacherLogout = () => {
         localStorage.removeItem('fbrts_teacher_token');
         localStorage.removeItem('fbrts_teacher_user');
+        localStorage.removeItem('fbrts_token');
+        localStorage.removeItem('fbrts_user');
         setTeacherToken(null);
         setTeacherUser(null);
+        setAuthTab('LOGIN');
         setView('DASHBOARD');
     };
 
@@ -838,6 +841,31 @@ export default function TeacherDashboardPage() {
                         ) : (
                             // 2. TEACHER LOGGED IN COMMAND HUB DASHBOARD
                             <div className="space-y-8">
+                                <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-950/80 via-zinc-950 to-purple-950/80 border border-purple-500/30 flex items-center justify-between shadow-xl">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-9 h-9 rounded-xl bg-purple-600/30 border border-purple-400/40 flex items-center justify-center text-purple-300 font-bold text-sm">
+                                            👨‍🏫
+                                        </div>
+                                        <div>
+                                            <div className="text-xs font-black text-white flex items-center gap-2">
+                                                <span>{teacherUser?.firstName} {teacherUser?.lastName}</span>
+                                                <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[9px] font-bold border border-purple-500/30">Verified Teacher</span>
+                                            </div>
+                                            <div className="text-[10px] text-gray-400">
+                                                {teacherUser?.teacherDetails?.schoolName || teacherUser?.schoolName || 'Mount Carmel High School'} • ID: {teacherUser?.teacherDetails?.teacherId || teacherUser?.teacherId || 'TCH-101'}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={handleTeacherLogout}
+                                        className="px-3.5 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+                                    >
+                                        <LogOut size={14} className="text-rose-400" />
+                                        <span>Log Out Teacher Account</span>
+                                    </button>
+                                </div>
+
                                 <TeacherWorkspacePage />
                             </div>
                         )}
