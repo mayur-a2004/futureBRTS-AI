@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { minervaApi } from '../../api/minerva.api';
 import { ChevronLeft, BookOpen, Plus, Sparkles, Compass, X, Trash2, GraduationCap, Globe, Layers, Calendar, FileText } from 'lucide-react';
+import axios from 'axios';
 import { BOARDS, INDIAN_LANGUAGES } from './MinervaQuizBattlePage';
 import { SchoolContextBar } from '../../components/education/SchoolContextBar';
 
@@ -117,7 +118,7 @@ const HIGHER_ED_DEGREE_MAP: Record<string, { id: string; name: string }[]> = {
 const ALL_LANGUAGES = INDIAN_LANGUAGES;
 
 export const MinervaRoadmapsPage: React.FC = () => {
-    const { token } = useAuth() as any;
+    const { token, user } = useAuth() as any;
     const navigate = useNavigate();
     
     const [courses, setCourses] = useState<any[]>([]);
@@ -127,25 +128,7 @@ export const MinervaRoadmapsPage: React.FC = () => {
     // Modal Tab Mode: 'school' (Tab 1: School/College 1-12 & Higher Ed) vs 'custom' (Tab 2: Out of Course)
     const [modalTab, setModalTab] = useState<'school' | 'custom'>('school');
 
-    const [teacherRoadmapChapters, setTeacherRoadmapChapters] = useState<any[]>(() => {
-        const savedActive = localStorage.getItem('teacher_active_roadmap_chapters');
-        if (savedActive !== null) {
-            try {
-                const parsed = JSON.parse(savedActive);
-                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            } catch (e) {}
-        }
-        const savedList = localStorage.getItem('saved_teacher_roadmaps');
-        if (savedList !== null) {
-            try {
-                const parsed = JSON.parse(savedList);
-                if (Array.isArray(parsed) && parsed.length > 0 && Array.isArray(parsed[0].chapters)) {
-                    return parsed[0].chapters;
-                }
-            } catch (e) {}
-        }
-        return [];
-    });
+    const [teacherRoadmapChapters, setTeacherRoadmapChapters] = useState<any[]>([]);
 
     const [selectedClass, setSelectedClass] = useState('CLASS-10A');
     // School / Syllabus Roadmap Form States
@@ -195,6 +178,11 @@ export const MinervaRoadmapsPage: React.FC = () => {
             const res = await minervaApi.getSessions(token);
             if (res.success) {
                 setCourses(res.sessions || []);
+            }
+            const tenantOrgId = (user as any)?.tenantOrgId || ((user as any)?.schoolName ? (user as any).schoolName.toLowerCase().replace(/\s+/g, '_') : 'mount_carmel_school');
+            const roadmapRes = await axios.get(`/api/v1/teacher-workspace/assignments?tenantOrgId=${tenantOrgId}&classId=${selectedClass}`);
+            if (roadmapRes.data && roadmapRes.data.assignments) {
+                setTeacherRoadmapChapters(roadmapRes.data.assignments);
             }
         } catch (err) {
             console.error('Error loading courses:', err);

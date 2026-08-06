@@ -270,38 +270,10 @@ export const TeacherWorkspacePage: React.FC = () => {
   const [selectedStudentAudit, setSelectedStudentAudit] = useState<any | null>(null);
 
   // Multiple Teacher Roadmaps State (Published vs Draft)
-  const [savedRoadmapsList, setSavedRoadmapsList] = useState<any[]>(() => {
-    const saved = localStorage.getItem('saved_teacher_roadmaps');
-    if (saved !== null) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      } catch (e) {
-        console.warn('Failed to parse saved_teacher_roadmaps from localStorage:', e);
-      }
-    }
-    return [];
-  });
+  const [savedRoadmapsList, setSavedRoadmapsList] = useState<any[]>([]);
 
-  useEffect(() => {
-    localStorage.setItem('saved_teacher_roadmaps', JSON.stringify(savedRoadmapsList));
-  }, [savedRoadmapsList]);
-
-  // Timetable State Persisted
-  const [timetableList, setTimetableList] = useState<any[]>(() => {
-    const saved = localStorage.getItem('teacher_workspace_timetable');
-    if (saved !== null) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      } catch (e) {}
-    }
-    return [];
-  });
-
-  useEffect(() => {
-    localStorage.setItem('teacher_workspace_timetable', JSON.stringify(timetableList));
-  }, [timetableList]);
+  // Timetable State Persisted via MongoDB
+  const [timetableList, setTimetableList] = useState<any[]>([]);
 
   const [activeRoadmapId, setActiveRoadmapId] = useState<string>('');
   const [selectedChapterDetail, setSelectedChapterDetail] = useState<any | null>(null);
@@ -351,52 +323,13 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
 ];
 
   // 🗓️ 1-Year Academic Calendar Events (National/International Festivals, Birthdays, Exams)
-  const [academicYearCalendarEvents, setAcademicYearCalendarEvents] = useState<any[]>(() => {
-    const saved = localStorage.getItem('teacher_workspace_calendar_events');
-    if (saved !== null) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      } catch (e) {}
-    }
-    return [];
-  });
-
-  useEffect(() => {
-    localStorage.setItem('teacher_workspace_calendar_events', JSON.stringify(academicYearCalendarEvents));
-  }, [academicYearCalendarEvents]);
+  const [academicYearCalendarEvents, setAcademicYearCalendarEvents] = useState<any[]>(FULL_YEAR_MASTER_CALENDAR_EVENTS);
 
   // 🤖 Autonomous Absentee Proxy Assignment Roster (With Reason Notes)
-  const [aiProxyList, setAiProxyList] = useState<any[]>(() => {
-    const saved = localStorage.getItem('teacher_workspace_proxy_list');
-    if (saved !== null) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      } catch (e) {}
-    }
-    return [];
-  });
-
-  useEffect(() => {
-    localStorage.setItem('teacher_workspace_proxy_list', JSON.stringify(aiProxyList));
-  }, [aiProxyList]);
+  const [aiProxyList, setAiProxyList] = useState<any[]>([]);
 
   // 📝 Multi-Standard Exam Schedule & Invigilation Matrix State
-  const [examSchedulesList, setExamSchedulesList] = useState<any[]>(() => {
-    const saved = localStorage.getItem('teacher_workspace_exam_schedules');
-    if (saved !== null) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      } catch (e) {}
-    }
-    return [];
-  });
-
-  useEffect(() => {
-    localStorage.setItem('teacher_workspace_exam_schedules', JSON.stringify(examSchedulesList));
-  }, [examSchedulesList]);
+  const [examSchedulesList, setExamSchedulesList] = useState<any[]>([]);
 
   // Add Exam Schedule Modal Form States
   const [showAddExamScheduleModal, setShowAddExamScheduleModal] = useState<boolean>(false);
@@ -421,20 +354,7 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
   const [editingPeriodIdx, setEditingPeriodIdx] = useState<number | null>(null);
 
   // ✍️ Topic Progress Remark & AI Velocity Pacing Engine State
-  const [periodRemarksMap, setPeriodRemarksMap] = useState<Record<string, { status: 'COMPLETED' | 'IN_PROGRESS' | 'PENDING'; note: string; date: string }>>(() => {
-    const saved = localStorage.getItem('teacher_workspace_period_remarks');
-    if (saved !== null) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (typeof parsed === 'object') return parsed;
-      } catch (e) {}
-    }
-    return {};
-  });
-
-  useEffect(() => {
-    localStorage.setItem('teacher_workspace_period_remarks', JSON.stringify(periodRemarksMap));
-  }, [periodRemarksMap]);
+  const [periodRemarksMap, setPeriodRemarksMap] = useState<Record<string, { status: 'COMPLETED' | 'IN_PROGRESS' | 'PENDING'; note: string; date: string }>>({});
 
   const [selectedPeriodForRemark, setSelectedPeriodForRemark] = useState<any | null>(null);
   const [remarkStatus, setRemarkStatus] = useState<'COMPLETED' | 'IN_PROGRESS' | 'PENDING'>('COMPLETED');
