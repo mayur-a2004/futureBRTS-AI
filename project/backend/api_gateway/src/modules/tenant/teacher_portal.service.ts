@@ -289,12 +289,54 @@ export class TeacherPortalService {
 
   // --- 4. TIMETABLE & CLASS ROUTINE MODULE ---
   static async getTimetableSchedule(tenantOrgId: string, classId?: string, teacherId?: string): Promise<any[]> {
-    const filter: any = { tenantOrgId };
-    if (classId && classId !== 'ALL') filter.classId = classId;
+    const filter: any = {};
+    if (tenantOrgId && tenantOrgId !== 'all') filter.tenantOrgId = tenantOrgId;
+    if (classId && classId !== 'ALL') {
+      const cleanClass = classId.replace(/^Class\s+/i, '').replace(/^CLASS-?/i, '');
+      filter.classId = { $regex: new RegExp(cleanClass, 'i') };
+    }
     if (teacherId && teacherId !== 'ALL') filter.teacherId = teacherId;
 
     const schedule = await (TimetableScheduleModel as any).find(filter).sort({ periodNumber: 1 });
     return schedule;
+  }
+
+  // --- 4A. CALENDAR & EVENT MODULE ---
+  static async addCalendarEvent(params: any): Promise<any> {
+    return await (SchoolCalendarEventModel as any).create(params);
+  }
+
+  static async getCalendarEvents(tenantOrgId: string, classId?: string): Promise<any[]> {
+    const filter: any = {};
+    if (tenantOrgId && tenantOrgId !== 'all') filter.tenantOrgId = tenantOrgId;
+    if (classId && classId !== 'ALL') {
+      const cleanClass = classId.replace(/^Class\s+/i, '').replace(/^CLASS-?/i, '');
+      filter.$or = [{ classId: 'ALL' }, { classId: { $regex: new RegExp(cleanClass, 'i') } }];
+    }
+    return await (SchoolCalendarEventModel as any).find(filter).sort({ date: 1 });
+  }
+
+  static async deleteCalendarEvent(eventId: string): Promise<any> {
+    return await (SchoolCalendarEventModel as any).findByIdAndDelete(eventId);
+  }
+
+  // --- 4B. EXAM SCHEDULE MODULE ---
+  static async addExamSchedule(params: any): Promise<any> {
+    return await (SchoolExamScheduleModel as any).create(params);
+  }
+
+  static async getExamSchedules(tenantOrgId: string, classId?: string): Promise<any[]> {
+    const filter: any = {};
+    if (tenantOrgId && tenantOrgId !== 'all') filter.tenantOrgId = tenantOrgId;
+    if (classId && classId !== 'ALL') {
+      const cleanClass = classId.replace(/^Class\s+/i, '').replace(/^CLASS-?/i, '');
+      filter.classId = { $regex: new RegExp(cleanClass, 'i') };
+    }
+    return await (SchoolExamScheduleModel as any).find(filter).sort({ examDate: 1 });
+  }
+
+  static async deleteExamSchedule(examId: string): Promise<any> {
+    return await (SchoolExamScheduleModel as any).findByIdAndDelete(examId);
   }
 
   // --- 4B. DAILY END-OF-SCHOOL AUTO-SYNC ENGINE ---

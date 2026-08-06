@@ -30,6 +30,16 @@ router.get('/student-attendance-summary', TeacherPortalController.getStudentAtte
 router.post('/sync-daily-data', teacherOnlyGuard, TeacherPortalController.syncDailySchoolData);
 router.get('/student-audit', TeacherPortalController.getStudentAuditTimeline);
 
+// Calendar & Events
+router.post('/calendar/event', teacherOnlyGuard, TeacherPortalController.addCalendarEvent);
+router.get('/calendar/events', TeacherPortalController.getCalendarEvents);
+router.delete('/calendar/event/:id', teacherOnlyGuard, TeacherPortalController.deleteCalendarEvent);
+
+// Exam Schedules
+router.post('/exam-schedule', teacherOnlyGuard, TeacherPortalController.addExamSchedule);
+router.get('/exam-schedules', TeacherPortalController.getExamSchedules);
+router.delete('/exam-schedule/:id', teacherOnlyGuard, TeacherPortalController.deleteExamSchedule);
+
 // Timetable Schedule
 router.get('/timetable', TeacherPortalController.getTimetable);
 

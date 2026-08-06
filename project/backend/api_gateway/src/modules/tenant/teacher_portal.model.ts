@@ -238,9 +238,73 @@ const LiveExamRoomSchema = new Schema(
   { timestamps: true }
 );
 
+// 7. Master Academic Calendar & Event Schema
+export interface ISchoolCalendarEvent extends Document {
+  tenantOrgId: string;
+  classId: string;
+  title: string;
+  date: string;
+  category: string; // 'SPORTS_DAY' | 'EMERGENCY_HOLIDAY' | 'NATIONAL_FESTIVAL' | 'EXAM' | 'CELEBRATION'
+  scope: string;
+  status: string;
+  impact?: string;
+  createdByTeacherId?: string;
+}
+
+const SchoolCalendarEventSchema = new Schema<ISchoolCalendarEvent>(
+  {
+    tenantOrgId: { type: String, required: true, index: true },
+    classId: { type: String, default: 'ALL', index: true },
+    title: { type: String, required: true },
+    date: { type: String, required: true, index: true },
+    category: { type: String, default: 'CELEBRATION' },
+    scope: { type: String, default: 'ALL_SCHOOL' },
+    status: { type: String, default: 'SCHEDULED' },
+    impact: { type: String, default: '' },
+    createdByTeacherId: { type: String, default: '' }
+  },
+  { timestamps: true }
+);
+
+// 8. Exam Schedule / Timetable Schema
+export interface ISchoolExamSchedule extends Document {
+  tenantOrgId: string;
+  classId: string;
+  examName: string;
+  subject: string;
+  examDate: string;
+  startTime: string;
+  endTime: string;
+  totalMarks: number;
+  passingMarks: number;
+  syllabusTopics: string;
+  roomNumber: string;
+  invigilatorName: string;
+}
+
+const SchoolExamScheduleSchema = new Schema<ISchoolExamSchedule>(
+  {
+    tenantOrgId: { type: String, required: true, index: true },
+    classId: { type: String, required: true, index: true },
+    examName: { type: String, required: true },
+    subject: { type: String, required: true },
+    examDate: { type: String, required: true },
+    startTime: { type: String, default: '09:00 AM' },
+    endTime: { type: String, default: '12:00 PM' },
+    totalMarks: { type: Number, default: 100 },
+    passingMarks: { type: Number, default: 35 },
+    syllabusTopics: { type: String, default: '' },
+    roomNumber: { type: String, default: 'Hall 1' },
+    invigilatorName: { type: String, default: 'Class Teacher' }
+  },
+  { timestamps: true }
+);
+
 export const TeacherAssignmentModel = mongoose.models.TeacherAssignment || mongoose.model<ITeacherAssignment>('TeacherAssignment', TeacherAssignmentSchema);
 export const HomeworkSubmissionModel = mongoose.models.HomeworkSubmission || mongoose.model<IHomeworkSubmission>('HomeworkSubmission', HomeworkSubmissionSchema);
 export const AttendanceRecordModel = mongoose.models.AttendanceRecord || mongoose.model<IAttendanceRecord>('AttendanceRecord', AttendanceRecordSchema);
 export const TimetableScheduleModel = mongoose.models.TimetableSchedule || mongoose.model<ITimetableSchedule>('TimetableSchedule', TimetableScheduleSchema);
 export const TeacherExamPaperModel = mongoose.models.TeacherExamPaper || mongoose.model<IExamPaper>('TeacherExamPaper', ExamPaperSchema);
 export const LiveExamRoomModel = mongoose.models.LiveExamRoom || mongoose.model<ILiveExamRoom>('LiveExamRoom', LiveExamRoomSchema);
+export const SchoolCalendarEventModel = mongoose.models.SchoolCalendarEvent || mongoose.model<ISchoolCalendarEvent>('SchoolCalendarEvent', SchoolCalendarEventSchema);
+export const SchoolExamScheduleModel = mongoose.models.SchoolExamSchedule || mongoose.model<ISchoolExamSchedule>('SchoolExamSchedule', SchoolExamScheduleSchema);

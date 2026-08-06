@@ -16,10 +16,12 @@ export const ClassTimetablePage: React.FC = () => {
     const [selectedClass, setSelectedClass] = useState(initialClass);
     const [selectedSubject, setSelectedSubject] = useState('Mathematics');
     const [selectedDay, setSelectedDay] = useState<'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'All'>('Monday');
-    const [viewMode, setViewMode] = useState<'routine' | 'attendance'>('routine');
+    const [viewMode, setViewMode] = useState<'routine' | 'attendance' | 'calendar' | 'exams'>('routine');
     
     const [timetableList, setTimetableList] = useState<any[]>([]);
     const [attendanceData, setAttendanceData] = useState<any>(null);
+    const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
+    const [examSchedules, setExamSchedules] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     const tenantOrgId = user?.tenantOrgId || (user?.schoolName ? user.schoolName.toLowerCase().replace(/\s+/g, '_') : 'mount_carmel_school');
@@ -36,9 +38,11 @@ export const ClassTimetablePage: React.FC = () => {
     const fetchTimetableAndAttendance = async () => {
         setLoading(true);
         try {
-            const [ttRes, attRes] = await Promise.all([
+            const [ttRes, attRes, calRes, examRes] = await Promise.all([
                 axios.get(`/api/v1/teacher-workspace/timetable?tenantOrgId=${tenantOrgId}&classId=${selectedClass}`),
-                axios.get(`/api/v1/teacher-workspace/student-attendance-summary?tenantOrgId=${tenantOrgId}&studentId=${studentId}&classId=${selectedClass}&range=${attendanceRange}`)
+                axios.get(`/api/v1/teacher-workspace/student-attendance-summary?tenantOrgId=${tenantOrgId}&studentId=${studentId}&classId=${selectedClass}&range=${attendanceRange}`),
+                axios.get(`/api/v1/teacher-workspace/calendar/events?tenantOrgId=${tenantOrgId}&classId=${selectedClass}`),
+                axios.get(`/api/v1/teacher-workspace/exam-schedules?tenantOrgId=${tenantOrgId}&classId=${selectedClass}`)
             ]);
 
             if (ttRes.data && ttRes.data.schedule) {
@@ -47,6 +51,14 @@ export const ClassTimetablePage: React.FC = () => {
 
             if (attRes.data && attRes.data.summary) {
                 setAttendanceData(attRes.data.summary);
+            }
+
+            if (calRes.data && calRes.data.events) {
+                setCalendarEvents(calRes.data.events);
+            }
+
+            if (examRes.data && examRes.data.schedules) {
+                setExamSchedules(examRes.data.schedules);
             }
         } catch (err) {
             console.warn('Could not fetch timetable or attendance:', err);
@@ -103,22 +115,38 @@ export const ClassTimetablePage: React.FC = () => {
                     </div>
 
                     {/* Mode Toggle Buttons */}
-                    <div className="flex items-center gap-2 p-1.5 bg-[#0B0915] border border-white/10 rounded-2xl shrink-0">
+                    <div className="flex items-center gap-2 p-1.5 bg-[#0B0915] border border-white/10 rounded-2xl shrink-0 overflow-x-auto">
                         <button
                             onClick={() => setViewMode('routine')}
-                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
                                 viewMode === 'routine' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-gray-400 hover:text-white'
                             }`}
                         >
-                            <Clock size={14} /> Full Day Timetable
+                            <Clock size={14} /> Timetable
                         </button>
                         <button
                             onClick={() => setViewMode('attendance')}
-                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
                                 viewMode === 'attendance' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30' : 'text-gray-400 hover:text-white'
                             }`}
                         >
-                            <UserCheck size={14} /> Attendance Report
+                            <UserCheck size={14} /> Attendance Log
+                        </button>
+                        <button
+                            onClick={() => setViewMode('calendar')}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                                viewMode === 'calendar' ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30' : 'text-gray-400 hover:text-white'
+                            }`}
+                        >
+                            <Calendar size={14} /> School Calendar & Events
+                        </button>
+                        <button
+                            onClick={() => setViewMode('exams')}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                                viewMode === 'exams' ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/30' : 'text-gray-400 hover:text-white'
+                            }`}
+                        >
+                            <FileText size={14} /> Exam Schedule
                         </button>
                     </div>
                 </div>
@@ -367,6 +395,84 @@ export const ClassTimetablePage: React.FC = () => {
                                     </table>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* VIEW MODE 3: SCHOOL MASTER CALENDAR & EVENTS */}
+                {viewMode === 'calendar' && (
+                    <div className="space-y-6">
+                        <div className="p-6 rounded-3xl border border-white/10 bg-[#0B0915]/80 space-y-4">
+                            <h3 className="text-base font-black text-white flex items-center gap-2">
+                                <Calendar className="w-5 h-5 text-purple-400" /> Master School Academic Calendar & Event Announcements
+                            </h3>
+                            <p className="text-xs text-gray-400">
+                                Live updates on Holidays, Sports Days, Cultural Events, and Emergency Announcements published by School Teachers.
+                            </p>
+
+                            {calendarEvents.length === 0 ? (
+                                <div className="p-12 text-center text-gray-500 text-xs font-mono">
+                                    No special events or holidays currently published for Class {selectedClass}.
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {calendarEvents.map((ev: any, idx: number) => (
+                                        <div key={ev._id || idx} className="p-4 rounded-2xl bg-black/40 border border-white/10 flex flex-col justify-between gap-2">
+                                            <div className="flex items-center justify-between">
+                                                <span className="px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[9px] font-bold border border-purple-500/30">
+                                                    {ev.category || 'EVENT'}
+                                                </span>
+                                                <span className="text-[10px] font-mono text-gray-400">{ev.date}</span>
+                                            </div>
+                                            <h4 className="text-sm font-bold text-white mt-1">{ev.title}</h4>
+                                            {ev.impact && (
+                                                <p className="text-xs text-gray-400 bg-white/5 p-2 rounded-xl border border-white/5">
+                                                    💡 {ev.impact}
+                                                </p>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* VIEW MODE 4: EXAM SCHEDULE TIMETABLE */}
+                {viewMode === 'exams' && (
+                    <div className="space-y-6">
+                        <div className="p-6 rounded-3xl border border-white/10 bg-[#0B0915]/80 space-y-4">
+                            <h3 className="text-base font-black text-white flex items-center gap-2">
+                                <FileText className="w-5 h-5 text-amber-400" /> Published Board & School Exam Timetables
+                            </h3>
+                            <p className="text-xs text-gray-400">
+                                Official datesheets, room seating matrix, and syllabus coverage for Class {selectedClass}.
+                            </p>
+
+                            {examSchedules.length === 0 ? (
+                                <div className="p-12 text-center text-gray-500 text-xs font-mono">
+                                    No exam schedules currently published by Teachers for Class {selectedClass}.
+                                </div>
+                            ) : (
+                                <div className="divide-y divide-white/5 rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
+                                    {examSchedules.map((ex: any, idx: number) => (
+                                        <div key={ex._id || idx} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:bg-white/[0.02]">
+                                            <div>
+                                                <div className="text-xs font-black text-amber-300 uppercase tracking-widest">{ex.examName}</div>
+                                                <h4 className="text-base font-bold text-white mt-0.5">{ex.subject}</h4>
+                                                <div className="text-xs text-gray-400 mt-1">
+                                                    Room: <span className="text-white font-mono">{ex.roomNumber}</span> • Invigilator: <span className="text-gray-300">{ex.invigilatorName}</span>
+                                                </div>
+                                            </div>
+                                            <div className="text-left md:text-right shrink-0">
+                                                <div className="text-sm font-bold text-white font-mono">{ex.examDate}</div>
+                                                <div className="text-xs text-indigo-300 font-mono">{ex.startTime} - {ex.endTime}</div>
+                                                <div className="text-[10px] text-gray-400 mt-0.5">Total Marks: {ex.totalMarks} (Pass: {ex.passingMarks})</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

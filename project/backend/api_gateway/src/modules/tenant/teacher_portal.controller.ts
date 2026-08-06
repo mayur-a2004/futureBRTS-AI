@@ -235,6 +235,76 @@ export class TeacherPortalController {
     }
   }
 
+  // --- CALENDAR & EVENTS ---
+  static async addCalendarEvent(req: Request, res: Response): Promise<void> {
+    try {
+      const event = await TeacherPortalService.addCalendarEvent(req.body);
+      res.json({ success: true, event });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  static async getCalendarEvents(req: Request, res: Response): Promise<void> {
+    try {
+      const user = (req as any).user;
+      const userOrgId = user?.tenantOrgId || (user?.schoolName ? user.schoolName.toLowerCase().replace(/\s+/g, '_') : null);
+      const userClassId = user?.standard ? `CLASS-${user.standard.toString().replace(/^class_/i, '').toUpperCase()}${user.section || 'A'}` : null;
+
+      const orgId = (req.query.tenantOrgId as string) || userOrgId || 'mount_carmel_school';
+      const classId = (req.query.classId as string) || userClassId || 'ALL';
+
+      const events = await TeacherPortalService.getCalendarEvents(orgId, classId);
+      res.json({ success: true, events });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  static async deleteCalendarEvent(req: Request, res: Response): Promise<void> {
+    try {
+      await TeacherPortalService.deleteCalendarEvent(req.params.id);
+      res.json({ success: true, id: req.params.id });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  // --- EXAM SCHEDULES ---
+  static async addExamSchedule(req: Request, res: Response): Promise<void> {
+    try {
+      const schedule = await TeacherPortalService.addExamSchedule(req.body);
+      res.json({ success: true, schedule });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  static async getExamSchedules(req: Request, res: Response): Promise<void> {
+    try {
+      const user = (req as any).user;
+      const userOrgId = user?.tenantOrgId || (user?.schoolName ? user.schoolName.toLowerCase().replace(/\s+/g, '_') : null);
+      const userClassId = user?.standard ? `CLASS-${user.standard.toString().replace(/^class_/i, '').toUpperCase()}${user.section || 'A'}` : null;
+
+      const orgId = (req.query.tenantOrgId as string) || userOrgId || 'mount_carmel_school';
+      const classId = (req.query.classId as string) || userClassId || 'ALL';
+
+      const schedules = await TeacherPortalService.getExamSchedules(orgId, classId);
+      res.json({ success: true, schedules });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  static async deleteExamSchedule(req: Request, res: Response): Promise<void> {
+    try {
+      await TeacherPortalService.deleteExamSchedule(req.params.id);
+      res.json({ success: true, id: req.params.id });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
   // --- AI EXAM PAPER GENERATOR ---
   static async generateExamPaper(req: Request, res: Response): Promise<void> {
     try {
