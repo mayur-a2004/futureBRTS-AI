@@ -19,7 +19,7 @@ const cleanOptionText = (opt: string, letter: string): string => {
 
 const MinervaLearnPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
-    const { token } = useAuth() as any;
+    const { token, user } = useAuth() as any;
     const navigate = useNavigate();
     const [showSmartBoard, setShowSmartBoard] = useState(false);
 
@@ -69,6 +69,52 @@ const MinervaLearnPage: React.FC = () => {
     };
     const [memoryTrick, setMemoryTrick] = useState('');
     const [boardNote, setBoardNote] = useState('');
+
+    // AI Text-Quoted Doubt Drawer States
+    const [showDoubtDrawer, setShowDoubtDrawer] = useState(false);
+    const [quotedTextSnippet, setQuotedTextSnippet] = useState('');
+    const [studentDoubtQuery, setStudentDoubtQuery] = useState('');
+    const [doubtAnswers, setDoubtAnswers] = useState<{ role: string; content: string }[]>([]);
+    const [doubtLoading, setDoubtLoading] = useState(false);
+    const [showEmbeddedPdf, setShowEmbeddedPdf] = useState(true);
+
+    const handleAskDoubtOnConcept = (conceptText: string, conceptTitle?: string) => {
+        const titleHeader = conceptTitle || (node?.title ? node.title : 'Current Concept');
+        const snippet = `[Topic: ${titleHeader}]\n"${(conceptText || '').substring(0, 400).trim()}"`;
+        setQuotedTextSnippet(snippet);
+        setShowDoubtDrawer(true);
+    };
+
+    const handleSendDoubtQuery = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        if (!studentDoubtQuery.trim()) return;
+
+        const qText = studentDoubtQuery.trim();
+        const userMsg = `${quotedTextSnippet}\n-----------------------------------\nStudent Question: ${qText}`;
+        const newHistory = [...doubtAnswers, { role: 'user', content: qText }];
+        setDoubtAnswers(newHistory);
+        setStudentDoubtQuery('');
+        setDoubtLoading(true);
+
+        try {
+            const board = (user as any)?.board || 'CBSE';
+            const std = (user as any)?.standard || '10';
+            const med = (user as any)?.medium || 'English';
+            const prompt = `You are a friendly AI Tutor. Solve the student's doubt based on the exact quoted textbook snippet:\n\n${userMsg}\n\nStudent Board: ${board}, Class: ${std}, Medium: ${med}. Provide a step-by-step 100% accurate explanation without any OCR errors.`;
+
+            const res = await minervaApi.sendChat(token, prompt, undefined, undefined, false, false);
+            if (res.success && res.reply) {
+                setDoubtAnswers([...newHistory, { role: 'assistant', content: res.reply }]);
+                speakText(res.reply.substring(0, 250));
+            } else {
+                setDoubtAnswers([...newHistory, { role: 'assistant', content: 'Could not fetch doubt explanation. Please try again.' }]);
+            }
+        } catch (err) {
+            setDoubtAnswers([...newHistory, { role: 'assistant', content: 'Network error connecting to AI Tutor.' }]);
+        } finally {
+            setDoubtLoading(false);
+        }
+    };
     
     // AI Oral Viva States
     const [vivaState, setVivaState] = useState<'idle' | 'listening' | 'feedback' | 'evaluating'>('idle');
@@ -934,7 +980,65 @@ const MinervaLearnPage: React.FC = () => {
                                     {getDisplayText()}
                                 </ReactMarkdown>
                             )}
+
+                            {/* 💡 1-Click "Ask AI Doubt on This Concept" Action Bar */}
+                            <div className="mt-6 pt-4 border-t border-white/10 flex flex-wrap items-center justify-between gap-3">
+                                <div className="flex items-center gap-2 text-xs text-gray-400">
+                                    <Sparkles size={14} className="text-amber-400" />
+                                    <span>Have a doubt on this concept? Extract exact text snippet & ask AI:</span>
+                                </div>
+                                <button
+                                    onClick={() => handleAskDoubtOnConcept(getDisplayText(), node?.title)}
+                                    className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-2xl text-xs font-bold transition-all shadow-lg flex items-center gap-2 cursor-pointer"
+                                >
+                                    <MessageSquare size={14} />
+                                    <span>💡 Ask AI Doubt on This Concept</span>
+                                </button>
+                            </div>
                         </div>
+                    </div>
+                )}
+
+                {/* 📖 Official Board Textbook Live Embedded PDF Reader Box */}
+                {view !== 'viva' && node?.title && (
+                    <div className="bg-indigo-950/20 border border-indigo-500/30 rounded-3xl p-6 shadow-2xl backdrop-blur-md space-y-4">
+                        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 flex items-center justify-center font-bold">
+                                    📖
+                                </div>
+                                <div>
+                                    <h2 className="font-black text-sm text-white">Official Board Textbook PDF Reader ({node?.title})</h2>
+                                    <p className="text-[10px] text-indigo-300 font-semibold">100% Board &amp; Medium Aligned Textbook Pages side-by-side with AI</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <a
+                                    href={`/api/v1/minerva/chapter-pdf/download?chapterTitle=${encodeURIComponent(node.title)}&board=${encodeURIComponent((user as any)?.board || 'CBSE')}&standard=${encodeURIComponent((user as any)?.standard || '10')}&subject=${encodeURIComponent(node.subject || 'Mathematics')}&medium=${encodeURIComponent((user as any)?.medium || 'English')}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1"
+                                >
+                                    📥 Download PDF ↗
+                                </a>
+                                <button
+                                    onClick={() => setShowEmbeddedPdf(!showEmbeddedPdf)}
+                                    className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all"
+                                >
+                                    {showEmbeddedPdf ? 'Hide PDF Box' : '📄 Open Live PDF Reader'}
+                                </button>
+                            </div>
+                        </div>
+
+                        {showEmbeddedPdf && (
+                            <div className="space-y-3">
+                                <iframe
+                                    src={`/api/v1/minerva/chapter-pdf/download?chapterTitle=${encodeURIComponent(node.title)}&board=${encodeURIComponent((user as any)?.board || 'CBSE')}&standard=${encodeURIComponent((user as any)?.standard || '10')}&subject=${encodeURIComponent(node.subject || 'Mathematics')}&medium=${encodeURIComponent((user as any)?.medium || 'English')}#toolbar=1`}
+                                    title={`Official Textbook PDF - ${node.title}`}
+                                    className="w-full h-[520px] rounded-2xl bg-white border border-white/10 shadow-2xl"
+                                />
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -1364,13 +1468,88 @@ const MinervaLearnPage: React.FC = () => {
                 )}
             </div>
 
-            {/* AI Touch Smart Board Canvas Overlay */}
-            <MinervaWhiteboardCanvas
-                isOpen={showSmartBoard}
-                onClose={() => setShowSmartBoard(false)}
-                initialTitle={node?.title || 'Topic Solution'}
-                solutionSteps={parseMessageToSmartBoardSteps(node?.explanation_detailed || node?.explanation_simple || '', node?.title || 'Topic Solution').steps}
-            />
+            {/* 🤖 Slide-Over AI Tutor Chat Drawer (Text-Quoted Doubt Resolution) */}
+            {showDoubtDrawer && (
+                <div className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-sm transition-opacity">
+                    <div className="w-full max-w-lg bg-[#080514] border-l border-indigo-500/30 h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-300">
+                        {/* Drawer Header */}
+                        <div className="p-4 border-b border-white/10 flex items-center justify-between bg-indigo-950/40">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-xl bg-purple-600/20 text-purple-400 border border-purple-500/30 flex items-center justify-center font-bold">
+                                    🤖
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-xs text-white">AI Tutor Doubt Resolution</h3>
+                                    <p className="text-[10px] text-gray-400 font-medium">100% Zero-Mismatch Text Snippet Quoted Context</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowDoubtDrawer(false)}
+                                className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all text-xs"
+                            >
+                                ✖
+                            </button>
+                        </div>
+
+                        {/* Quoted Snippet Context Box */}
+                        <div className="p-4 bg-indigo-950/20 border-b border-white/10 space-y-2">
+                            <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block">📌 Quoted Textbook Content Snippet:</span>
+                            <div className="p-3 rounded-xl bg-black/60 border border-indigo-500/20 text-xs font-mono text-indigo-200 max-h-36 overflow-y-auto leading-relaxed whitespace-pre-wrap">
+                                {quotedTextSnippet || '[No snippet selected]'}
+                            </div>
+                        </div>
+
+                        {/* Chat History */}
+                        <div className="flex-1 p-4 overflow-y-auto space-y-4 text-xs font-mono">
+                            {doubtAnswers.length === 0 ? (
+                                <div className="text-center py-12 text-gray-500 space-y-2">
+                                    <MessageSquare className="mx-auto text-indigo-400 opacity-60" size={32} />
+                                    <p className="font-semibold text-gray-400">Ask your question below about this exact snippet!</p>
+                                    <p className="text-[10px]">AI will provide a step-by-step resolution without any OCR errors.</p>
+                                </div>
+                            ) : (
+                                doubtAnswers.map((msg, mIdx) => (
+                                    <div key={mIdx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                                        <div className={`p-3.5 rounded-2xl max-w-[90%] text-xs leading-relaxed ${
+                                            msg.role === 'user' 
+                                                ? 'bg-indigo-600 text-white rounded-br-none shadow-md' 
+                                                : 'bg-white/5 border border-white/10 text-gray-200 rounded-bl-none shadow-md'
+                                        }`}>
+                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                                {msg.content}
+                                            </ReactMarkdown>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                            {doubtLoading && (
+                                <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold py-2 animate-pulse">
+                                    <Loader2 className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                                    <span>AI Tutor is analyzing quoted snippet...</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Input Box */}
+                        <form onSubmit={handleSendDoubtQuery} className="p-4 border-t border-white/10 bg-black/40 flex items-center gap-2">
+                            <input
+                                type="text"
+                                value={studentDoubtQuery}
+                                onChange={e => setStudentDoubtQuery(e.target.value)}
+                                placeholder="Puchein: Is line ko simple Hindi/Gujarati me samjhao..."
+                                className="flex-1 bg-zinc-900 border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white placeholder-gray-500 outline-none focus:border-indigo-500"
+                            />
+                            <button
+                                type="submit"
+                                disabled={doubtLoading || !studentDoubtQuery.trim()}
+                                className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-2xl text-xs font-bold transition-all shadow-md cursor-pointer disabled:opacity-50"
+                            >
+                                Send 🚀
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

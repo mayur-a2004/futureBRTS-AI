@@ -273,6 +273,110 @@ export const MinervaRoadmapsPage: React.FC = () => {
         }
     };
 
+    // Helper: Dynamic Official Textbook Chapters based on Subject and Grade Level
+    const getSubjectChapterList = (subjectName: string, grade: string): string[] => {
+        const subLower = (subjectName || '').toLowerCase();
+        if (subLower.includes('math')) {
+            return [
+                'Chapter 1: Real Numbers & Euclid Lemma',
+                'Chapter 2: Polynomials & Algebraic Identities',
+                'Chapter 3: Pair of Linear Equations in Two Variables',
+                'Chapter 4: Quadratic Equations & Factorization',
+                'Chapter 5: Arithmetic Progressions (AP)',
+                'Chapter 6: Triangles & Similarity Theorems',
+                'Chapter 7: Coordinate Geometry & Distance Formula',
+                'Chapter 8: Introduction to Trigonometry',
+                'Chapter 9: Heights and Distances (Trigonometry Applications)',
+                'Chapter 10: Circles & Tangents',
+                'Chapter 11: Areas Related to Circles',
+                'Chapter 12: Surface Areas and Volumes',
+                'Chapter 13: Statistics (Mean, Median, Mode)',
+                'Chapter 14: Probability & Random Experiments'
+            ];
+        } else if (subLower.includes('physic')) {
+            return [
+                'Chapter 1: Units, Measurements & Error Analysis',
+                'Chapter 2: Motion in a Straight Line & Kinematics',
+                'Chapter 3: Motion in a Plane & Vectors',
+                'Chapter 4: Laws of Motion & Friction',
+                'Chapter 5: Work, Energy and Power',
+                'Chapter 6: System of Particles & Rotational Dynamics',
+                'Chapter 7: Gravitation & Orbital Velocity',
+                'Chapter 8: Electrostatics & Electric Charges',
+                'Chapter 9: Electric Potential & Capacitance',
+                'Chapter 10: Current Electricity & Ohm\'s Law',
+                'Chapter 11: Magnetic Effects of Electric Current',
+                'Chapter 12: Electromagnetic Induction & AC Circuits',
+                'Chapter 13: Ray Optics & Optical Instruments',
+                'Chapter 14: Wave Optics & Interference',
+                'Chapter 15: Dual Nature of Radiation, Atoms & Nuclei'
+            ];
+        } else if (subLower.includes('chemist')) {
+            return [
+                'Chapter 1: Chemical Reactions and Equations',
+                'Chapter 2: Acids, Bases and Salts',
+                'Chapter 3: Metals and Non-Metals',
+                'Chapter 4: Carbon and Its Compounds (Organic Basics)',
+                'Chapter 5: Structure of Atom & Quantum Numbers',
+                'Chapter 6: Chemical Bonding & Molecular Structure',
+                'Chapter 7: Chemical Thermodynamics & Energetics',
+                'Chapter 8: Chemical Equilibrium & Le Chatelier Principle',
+                'Chapter 9: Redox Reactions & Electrochemistry',
+                'Chapter 10: Chemical Kinetics & Reaction Rates',
+                'Chapter 11: Coordination Compounds & Isomerism',
+                'Chapter 12: Organic Compounds & Functional Groups'
+            ];
+        } else if (subLower.includes('bio') || subLower.includes('scien')) {
+            return [
+                'Chapter 1: Chemical Reactions & Equations',
+                'Chapter 2: Acids, Bases and Salts',
+                'Chapter 3: Metals and Non-Metals',
+                'Chapter 4: Life Processes (Nutrition, Respiration, Transportation, Excretion)',
+                'Chapter 5: Control and Coordination in Organisms',
+                'Chapter 6: How do Organisms Reproduce?',
+                'Chapter 7: Heredity and Genetic Evolution',
+                'Chapter 8: Light - Reflection and Refraction',
+                'Chapter 9: Human Eye and Colourful World',
+                'Chapter 10: Electricity & Electric Circuits',
+                'Chapter 11: Magnetic Effects of Electric Current',
+                'Chapter 12: Our Environment & Ecosystems'
+            ];
+        } else if (subLower.includes('social') || subLower.includes('histor') || subLower.includes('geo')) {
+            return [
+                'Chapter 1: The Rise of Nationalism in Europe',
+                'Chapter 2: Nationalism in India & Freedom Movement',
+                'Chapter 3: Resources and Land Development',
+                'Chapter 4: Forest, Wildlife & Water Resources',
+                'Chapter 5: Agriculture & Major Crops',
+                'Chapter 6: Minerals, Energy Resources & Manufacturing',
+                'Chapter 7: Power Sharing & Federalism',
+                'Chapter 8: Gender, Religion and Caste in Politics',
+                'Chapter 9: Economic Development & National Income',
+                'Chapter 10: Sectors of the Indian Economy',
+                'Chapter 11: Money, Banking and Credit Systems'
+            ];
+        } else if (subLower.includes('data') || subLower.includes('programming') || subLower.includes('computer') || subLower.includes('c++') || subLower.includes('java') || subLower.includes('python')) {
+            return [
+                'Unit 1: Programming Fundamentals & Logic Development',
+                'Unit 2: Object-Oriented Programming (OOP) Principles',
+                'Unit 3: Data Structures (Arrays, Linked Lists, Stacks, Queues)',
+                'Unit 4: Trees, Binary Search Trees & Graph Algorithms',
+                'Unit 5: Sorting & Searching Algorithms (Bubble, Quick, Merge)',
+                'Unit 6: Database Management Systems (DBMS) & SQL Queries',
+                'Unit 7: Operating Systems & Process Management',
+                'Unit 8: Computer Networks & TCP/IP Protocols'
+            ];
+        } else {
+            return [
+                'Chapter 1: Fundamental Principles & Core Concepts',
+                'Chapter 2: Theoretical Framework & Key Definitions',
+                'Chapter 3: Advanced Methods & Analytical Techniques',
+                'Chapter 4: Practical Applications & Solved Examples',
+                'Chapter 5: Case Studies & Exercise Problem Set'
+            ];
+        }
+    };
+
     // Helper: Dynamic Subjects based on Grade Level, Selected Degree Branch AND Semester
     const getSubjectOptions = (): string[] => {
         // Higher Ed Branching Logic
@@ -757,17 +861,46 @@ export const MinervaRoadmapsPage: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {/* Specific Chapter input if Single Chapter mode selected */}
+                                    {/* Specific Chapter Dropdown / Input if Single Chapter mode selected */}
                                     {scopeType === 'single_chapter' && (
                                         <div>
-                                            <label className="text-[9px] text-gray-400 font-bold uppercase tracking-wider mb-1.5 block">Unit / Chapter Name</label>
-                                            <input
-                                                type="text"
-                                                value={specificChapter}
-                                                onChange={e => setSpecificChapter(e.target.value)}
-                                                placeholder="e.g. Unit 1: Data Structures and Complexity Analysis"
-                                                className="w-full bg-[#030209] border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500/50"
-                                            />
+                                            <div className="flex items-center justify-between mb-1.5">
+                                                <label className="text-[9px] text-gray-400 font-bold uppercase tracking-wider block">Select Official Curriculum Unit / Chapter</label>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (specificChapter.startsWith('Custom: ')) {
+                                                            setSpecificChapter('');
+                                                        } else {
+                                                            setSpecificChapter('Custom: ');
+                                                        }
+                                                    }}
+                                                    className="text-[9px] text-indigo-400 hover:underline font-bold"
+                                                >
+                                                    {specificChapter.startsWith('Custom: ') ? '📋 Select from Chapter List' : '✍️ Enter Custom Topic'}
+                                                </button>
+                                            </div>
+
+                                            {specificChapter.startsWith('Custom: ') ? (
+                                                <input
+                                                    type="text"
+                                                    value={specificChapter.replace(/^Custom:\s*/, '')}
+                                                    onChange={e => setSpecificChapter(`Custom: ${e.target.value}`)}
+                                                    placeholder="e.g. Unit 1: Advanced Data Structures & Graph Algorithms"
+                                                    className="w-full bg-[#030209] border border-indigo-500/40 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500"
+                                                />
+                                            ) : (
+                                                <select
+                                                    value={specificChapter}
+                                                    onChange={e => setSpecificChapter(e.target.value)}
+                                                    className="w-full bg-[#030209] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-indigo-500/50"
+                                                >
+                                                    <option value="">-- Select Chapter --</option>
+                                                    {getSubjectChapterList(selectedSubject, gradeLevel).map((ch, cIdx) => (
+                                                        <option key={cIdx} value={ch}>{ch}</option>
+                                                    ))}
+                                                </select>
+                                            )}
                                         </div>
                                     )}
 
@@ -897,37 +1030,26 @@ export const MinervaRoadmapsPage: React.FC = () => {
 
                             {viewPdfDocument ? (
                                 <div className="space-y-3 pt-2">
-                                    <div className="w-full h-80 rounded-2xl bg-black/60 border border-white/10 p-4 overflow-y-auto space-y-3 text-xs font-mono text-gray-300">
-                                        <div className="p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/20 text-indigo-200 flex items-center justify-between">
-                                            <span>Official {board} Class {gradeLevel} Textbook PDF ({language} Medium)</span>
-                                            <a 
-                                                href={`/api/v1/minerva/chapter-pdf/download?chapterTitle=${encodeURIComponent(selectedChapterDetail.title)}&board=${encodeURIComponent(board)}&standard=${encodeURIComponent(gradeLevel)}&subject=${encodeURIComponent(selectedSubject)}&medium=${encodeURIComponent(language)}&subtopics=${encodeURIComponent((selectedChapterDetail.subtopics || []).join(','))}`}
-                                                target="_blank" 
-                                                rel="noreferrer"
-                                                className="underline text-indigo-400 font-bold"
-                                            >
-                                                Download Full PDF Document ↗
-                                            </a>
-                                        </div>
-                                        <p className="leading-relaxed">
-                                            <strong>Chapter Focus:</strong> {selectedChapterDetail.title} introduces key definitions, step-by-step proofs, solved textbook examples, and practice exercises tailored for {board} Class {gradeLevel} ({selectedSubject} in {language} medium).
-                                        </p>
-                                        <div className="space-y-1 bg-[#05030a] p-3 rounded-xl border border-white/5">
-                                            <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block">Subtopic Concept Modules:</span>
-                                            {(selectedChapterDetail.subtopics || []).map((sub: string, i: number) => (
-                                                <div key={i} className="text-gray-300 text-[11px]">
-                                                    • <strong>Module {i+1}:</strong> {sub} (Direct Board Numerical & Definition)
-                                                </div>
-                                            ))}
-                                        </div>
-                                        <div className="p-3 rounded-xl bg-emerald-950/20 border border-emerald-500/20 text-emerald-300">
-                                            ✅ Includes Official Board Exam Weightage: 8 Marks (Section A, B & C)
-                                        </div>
+                                    <div className="p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/20 text-indigo-200 flex items-center justify-between text-xs font-bold">
+                                        <span>📖 Live Interactive PDF View — {board} Class {gradeLevel} ({language.toUpperCase()} Medium)</span>
+                                        <a 
+                                            href={`/api/v1/minerva/chapter-pdf/download?chapterTitle=${encodeURIComponent(selectedChapterDetail.title)}&board=${encodeURIComponent(board)}&standard=${encodeURIComponent(gradeLevel)}&subject=${encodeURIComponent(selectedSubject)}&medium=${encodeURIComponent(language)}&subtopics=${encodeURIComponent((selectedChapterDetail.subtopics || []).join(','))}`}
+                                            target="_blank" 
+                                            rel="noreferrer"
+                                            className="underline text-emerald-400 font-bold flex items-center gap-1"
+                                        >
+                                            📥 Open Full PDF in New Tab ↗
+                                        </a>
                                     </div>
+                                    <iframe 
+                                        src={`/api/v1/minerva/chapter-pdf/download?chapterTitle=${encodeURIComponent(selectedChapterDetail.title)}&board=${encodeURIComponent(board)}&standard=${encodeURIComponent(gradeLevel)}&subject=${encodeURIComponent(selectedSubject)}&medium=${encodeURIComponent(language)}&subtopics=${encodeURIComponent((selectedChapterDetail.subtopics || []).join(','))}#toolbar=1`}
+                                        title={`Official PDF for ${selectedChapterDetail.title}`}
+                                        className="w-full h-[450px] rounded-2xl bg-white border border-white/10 shadow-2xl"
+                                    />
                                 </div>
                             ) : (
                                 <p className="text-[11px] text-gray-400">
-                                    Click <strong>"Preview PDF Content"</strong> or <strong>"Download PDF ↗"</strong> to generate and download the exact {board} Class {gradeLevel} textbook PDF in {language} medium.
+                                    Click <strong>"Preview PDF Content"</strong> or <strong>"Download PDF ↗"</strong> to generate and view the exact {board} Class {gradeLevel} textbook PDF in {language} medium.
                                 </p>
                             )}
                         </div>
