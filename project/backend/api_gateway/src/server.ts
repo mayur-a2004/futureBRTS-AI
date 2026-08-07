@@ -122,8 +122,9 @@ console.log('✅ Routes Mounted: /api/war-room');
 
 // 🎓 MINERVA & FUTURE EDUCATION OS MODULE
 app.use('/api/minerva', minervaRoutes);
+app.use('/api/v1/minerva', minervaRoutes);
 app.use('/api/future-education', minervaRoutes);
-console.log('✅ Routes Mounted: /api/minerva & /api/future-education');
+console.log('✅ Routes Mounted: /api/minerva, /api/v1/minerva & /api/future-education');
 
 import examGeneratorRoutes from './modules/exam_generator/exam_generator.routes';
 app.use('/api/exam', examGeneratorRoutes);

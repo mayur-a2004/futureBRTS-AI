@@ -1,7 +1,7 @@
-import { MapPin, Github, Linkedin, Mail, BadgeCheck, Globe, Code, Activity, Edit3, Save, ShieldCheck, GraduationCap, Navigation, Loader2 } from "lucide-react"
+import { MapPin, Github, Linkedin, Mail, BadgeCheck, Globe, Code, Activity, Edit3, Save, ShieldCheck, GraduationCap, Navigation, Loader2, Upload, Camera, Image as ImageIcon, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { useAuth } from "@/context/AuthContext"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { toast } from "react-toastify"
 import { useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
@@ -14,6 +14,27 @@ export default function Profile() {
     const [activeTab, setActiveTab] = useState<'overview' | 'academic' | 'security'>('overview');
     const [stats, setStats] = useState<any>(null);
     const [projects, setProjects] = useState<any[]>([]);
+
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error("Image file size should be less than 5MB");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (uploadEvent) => {
+            const base64Url = uploadEvent.target?.result as string;
+            setFormData(prev => ({ ...prev, avatarUrl: base64Url }));
+            setIsEditing(true);
+            toast.success("📷 Photo selected! Click 'Save Sync' to save your profile photo. 🚀");
+        };
+        reader.readAsDataURL(file);
+    };
 
     const [deletingAccount, setDeletingAccount] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -370,7 +391,15 @@ export default function Profile() {
                 </div>
 
                 <div className="px-8 flex flex-col md:flex-row items-end -mt-20 gap-8 relative z-10">
-                    <div className="group relative cursor-pointer" onClick={() => setIsEditing(true)}>
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileUpload}
+                        accept="image/*"
+                        className="hidden"
+                    />
+
+                    <div className="group relative cursor-pointer" onClick={() => fileInputRef.current?.click()}>
                         <div className="w-40 h-40 rounded-[40px] border-8 border-[#0A0A0A] bg-gray-900 flex items-center justify-center overflow-hidden shadow-3xl transform transition-transform group-hover:scale-105">
                             {(formData.avatarUrl || user?.avatarUrl || user?.avatar) ? (
                                 <img
@@ -385,8 +414,9 @@ export default function Profile() {
                                 </div>
                             )}
                         </div>
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-[40px]">
-                            <Edit3 className="text-white" size={24} />
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center rounded-[40px] text-white gap-1.5 p-2 text-center">
+                            <Camera className="text-cyan-400 animate-bounce" size={28} />
+                            <span className="text-[10px] font-black uppercase tracking-wider text-cyan-300">Click to Select Photo</span>
                         </div>
                     </div>
 
@@ -662,15 +692,42 @@ export default function Profile() {
                                         </span>
                                     </div>
 
-                                    {/* Profile Avatar Photo URL */}
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Profile Photo Avatar URL (Image Link)</label>
-                                        <input
-                                            value={formData.avatarUrl}
-                                            onChange={(e) => setFormData({ ...formData, avatarUrl: e.target.value })}
-                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-sm focus:border-indigo-500 outline-none font-mono"
-                                            placeholder="https://example.com/my-photo.jpg"
-                                        />
+                                    {/* Profile Avatar Photo Uploader & Image Link */}
+                                    <div className="p-5 rounded-2xl bg-black/40 border border-indigo-500/30 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-[10px] font-black text-indigo-300 uppercase tracking-widest flex items-center gap-1.5">
+                                                <Camera size={14} className="text-cyan-400" /> Profile Photo (Upload File or Enter Image Link)
+                                            </label>
+                                            <button
+                                                type="button"
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-cyan-600/30 transition-all active:scale-95 cursor-pointer"
+                                            >
+                                                <Upload size={14} /> 📁 Choose Photo File
+                                            </button>
+                                        </div>
+
+                                        <div className="flex flex-col sm:flex-row items-center gap-3">
+                                            {formData.avatarUrl && (
+                                                <div className="relative w-14 h-14 rounded-2xl overflow-hidden border-2 border-cyan-400 shrink-0 bg-gray-900">
+                                                    <img src={formData.avatarUrl} alt="Preview" className="w-full h-full object-cover" />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setFormData({ ...formData, avatarUrl: '' })}
+                                                        className="absolute inset-0 bg-black/70 opacity-0 hover:opacity-100 flex items-center justify-center text-rose-400 transition-opacity"
+                                                        title="Remove Photo"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            )}
+                                            <input
+                                                value={formData.avatarUrl}
+                                                onChange={(e) => setFormData({ ...formData, avatarUrl: e.target.value })}
+                                                className="flex-1 w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-xs font-mono text-cyan-200 focus:border-indigo-500 outline-none"
+                                                placeholder="Or paste image URL (e.g. https://example.com/photo.jpg)"
+                                            />
+                                        </div>
                                     </div>
 
                                     <div className="grid md:grid-cols-2 gap-6">

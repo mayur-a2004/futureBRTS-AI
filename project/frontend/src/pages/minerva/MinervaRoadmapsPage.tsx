@@ -154,7 +154,15 @@ export const MinervaRoadmapsPage: React.FC = () => {
         if (token) {
             loadCourses();
         }
-    }, [token]);
+        if (user) {
+            if (user.board) setBoard(user.board.toUpperCase());
+            if (user.standard) {
+                const stdStr = user.standard.toString().replace(/^class_/i, '');
+                setGradeLevel(stdStr);
+            }
+            if (user.medium) setLanguage(user.medium.toLowerCase());
+        }
+    }, [token, user]);
 
     // When gradeLevel changes, sync degree options and subjects
     useEffect(() => {
