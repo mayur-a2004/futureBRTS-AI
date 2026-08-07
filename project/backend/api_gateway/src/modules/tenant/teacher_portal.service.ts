@@ -4,7 +4,10 @@ import {
   AttendanceRecordModel, 
   TimetableScheduleModel, 
   TeacherExamPaperModel,
-  LiveExamRoomModel
+  LiveExamRoomModel,
+  SchoolCalendarEventModel,
+  SchoolExamScheduleModel,
+  SchoolRollNoConfigModel
 } from './teacher_portal.model';
 import { VisionHomeworkCheckerService } from '../homework/vision_homework_checker.service';
 import { TenantUserModel } from './tenant_user.model';
@@ -665,5 +668,108 @@ export class TeacherPortalService {
       success: true,
       message: '🧹 All teacher portal DB records (attendance, assignments, submissions, timetables, exams) wiped clean.'
     };
+  }
+
+  // --- 8. CLASS ROSTER & CUSTOM ROLL/GR NUMBER MANAGEMENT ---
+  static async getClassStudentsRoster(tenantOrgId: string, classId: string) {
+    const cleanClass = classId.replace(/^Class\s+/i, '').replace(/^CLASS-?/i, '');
+    const classRegex = new RegExp(cleanClass, 'i');
+
+    const students = await TenantUserModel.find({
+      tenantOrgId: tenantOrgId || { $exists: true },
+      $or: [
+        { classId: classRegex },
+        { assignedClasses: classRegex }
+      ]
+    }).lean();
+
+    // Sort students numerically by rollNumber, fallback to name
+    return students.sort((a: any, b: any) => {
+      const numA = parseInt(a.rollNumber || '99999', 10);
+      const numB = parseInt(b.rollNumber || '99999', 10);
+      if (!isNaN(numA) && !isNaN(numB) && numA !== numB) return numA - numB;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  static async getRollNoConfig(tenantOrgId: string, classId: string) {
+    let config = await (SchoolRollNoConfigModel as any).findOne({ tenantOrgId, classId });
+    if (!config) {
+      config = await (SchoolRollNoConfigModel as any).create({
+        tenantOrgId,
+        classId,
+        prefix: '12-ER-',
+        yearCode: '2026',
+        startingSequence: 1001,
+        currentSequence: 1000,
+        autoGenerate: true
+      });
+    }
+    return config;
+  }
+
+  static async updateRollNoConfig(params: {
+    tenantOrgId: string;
+    classId: string;
+    prefix?: string;
+    yearCode?: string;
+    startingSequence?: number;
+    autoGenerate?: boolean;
+  }) {
+    const config = await (SchoolRollNoConfigModel as any).findOneAndUpdate(
+      { tenantOrgId: params.tenantOrgId, classId: params.classId },
+      { $set: params },
+      { new: true, upsert: true }
+    );
+    return config;
+  }
+
+  static async updateStudentSchoolProfile(params: {
+    externalId: string;
+    tenantOrgId: string;
+    name: string;
+    email?: string;
+    isSchoolStudent: boolean;
+    schoolName?: string;
+    classId?: string;
+    rollNumber?: string;
+    enrollmentNo?: string;
+  }) {
+    let finalRollNo = params.rollNumber || '';
+    let finalEnrollmentNo = params.enrollmentNo || '';
+
+    // If school student and auto-gen enabled, auto-generate if empty
+    if (params.isSchoolStudent && params.schoolName && params.classId) {
+      const tenantOrgId = params.schoolName.toLowerCase().replace(/\s+/g, '_');
+      const config = await this.getRollNoConfig(tenantOrgId, params.classId);
+
+      if (config.autoGenerate && !finalEnrollmentNo) {
+        config.currentSequence += 1;
+        await config.save();
+        finalEnrollmentNo = `${config.prefix}${config.yearCode}-${config.currentSequence}`;
+      }
+    }
+
+    const updatedUser = await TenantUserModel.findOneAndUpdate(
+      { externalId: params.externalId },
+      {
+        $set: {
+          tenantOrgId: params.isSchoolStudent && params.schoolName ? params.schoolName.toLowerCase().replace(/\s+/g, '_') : 'independent_student',
+          name: params.name,
+          email: params.email || '',
+          role: 'STUDENT',
+          isSchoolStudent: params.isSchoolStudent,
+          schoolName: params.schoolName || '',
+          classId: params.classId || '',
+          rollNumber: finalRollNo,
+          enrollmentNo: finalEnrollmentNo,
+          grade: params.classId || '',
+          assignedClasses: [params.classId || 'CLASS-10A']
+        }
+      },
+      { new: true, upsert: true }
+    );
+
+    return updatedUser;
   }
 }

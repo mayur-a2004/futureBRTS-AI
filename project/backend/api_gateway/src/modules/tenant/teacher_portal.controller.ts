@@ -507,4 +507,48 @@ export class TeacherPortalController {
       res.status(500).json({ success: false, error: err.message });
     }
   }
+
+  // --- CLASS ROSTER & CUSTOM ROLL/GR NO CONTROLLERS ---
+  static async getClassStudentsRoster(req: Request, res: Response): Promise<void> {
+    try {
+      const user = (req as any).user;
+      const userOrgId = user?.tenantOrgId || (user?.schoolName ? user.schoolName.toLowerCase().replace(/\s+/g, '_') : null);
+      const orgId = (req.query.tenantOrgId as string) || (req.headers['x-tenant-org-id'] as string) || userOrgId || 'mount_carmel_school';
+      const classId = (req.query.classId as string) || 'CLASS-10A';
+
+      const students = await TeacherPortalService.getClassStudentsRoster(orgId, classId);
+      res.json({ success: true, students, count: students.length });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  static async getRollNoConfig(req: Request, res: Response): Promise<void> {
+    try {
+      const orgId = (req.query.tenantOrgId as string) || 'mount_carmel_school';
+      const classId = (req.query.classId as string) || 'CLASS-10A';
+      const config = await TeacherPortalService.getRollNoConfig(orgId, classId);
+      res.json({ success: true, config });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  static async updateRollNoConfig(req: Request, res: Response): Promise<void> {
+    try {
+      const config = await TeacherPortalService.updateRollNoConfig(req.body);
+      res.json({ success: true, config });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  static async updateStudentSchoolProfile(req: Request, res: Response): Promise<void> {
+    try {
+      const user = await TeacherPortalService.updateStudentSchoolProfile(req.body);
+      res.json({ success: true, user });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  }
 }

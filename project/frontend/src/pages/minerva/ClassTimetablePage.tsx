@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { ChevronLeft, Clock, Calendar, UserCheck, ShieldCheck, Sparkles, CheckCircle2, AlertCircle, MapPin, User, FileText, Check, Award } from 'lucide-react';
+import { ChevronLeft, Clock, Calendar, UserCheck, ShieldCheck, Sparkles, CheckCircle2, AlertCircle, MapPin, User, FileText, Check, Award, Users } from 'lucide-react';
 import axios from 'axios';
 import { SchoolContextBar } from '../../components/education/SchoolContextBar';
 
@@ -16,12 +16,13 @@ export const ClassTimetablePage: React.FC = () => {
     const [selectedClass, setSelectedClass] = useState(initialClass);
     const [selectedSubject, setSelectedSubject] = useState('Mathematics');
     const [selectedDay, setSelectedDay] = useState<'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'All'>('Monday');
-    const [viewMode, setViewMode] = useState<'routine' | 'attendance' | 'calendar' | 'exams'>('routine');
+    const [viewMode, setViewMode] = useState<'routine' | 'attendance' | 'calendar' | 'exams' | 'classmates'>('routine');
     
     const [timetableList, setTimetableList] = useState<any[]>([]);
     const [attendanceData, setAttendanceData] = useState<any>(null);
     const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
     const [examSchedules, setExamSchedules] = useState<any[]>([]);
+    const [classmates, setClassmates] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     const tenantOrgId = user?.tenantOrgId || (user?.schoolName ? user.schoolName.toLowerCase().replace(/\s+/g, '_') : 'mount_carmel_school');
@@ -38,34 +39,26 @@ export const ClassTimetablePage: React.FC = () => {
     const fetchTimetableAndAttendance = async () => {
         setLoading(true);
         try {
-            const [ttRes, attRes, calRes, examRes] = await Promise.all([
+            const [ttRes, attRes, calRes, examRes, rosterRes] = await Promise.all([
                 axios.get(`/api/v1/teacher-workspace/timetable?tenantOrgId=${tenantOrgId}&classId=${selectedClass}`),
                 axios.get(`/api/v1/teacher-workspace/student-attendance-summary?tenantOrgId=${tenantOrgId}&studentId=${studentId}&classId=${selectedClass}&range=${attendanceRange}`),
                 axios.get(`/api/v1/teacher-workspace/calendar/events?tenantOrgId=${tenantOrgId}&classId=${selectedClass}`),
-                axios.get(`/api/v1/teacher-workspace/exam-schedules?tenantOrgId=${tenantOrgId}&classId=${selectedClass}`)
+                axios.get(`/api/v1/teacher-workspace/exam-schedules?tenantOrgId=${tenantOrgId}&classId=${selectedClass}`),
+                axios.get(`/api/v1/teacher-workspace/class-roster?tenantOrgId=${tenantOrgId}&classId=${selectedClass}`)
             ]);
 
-            if (ttRes.data && ttRes.data.schedule) {
-                setTimetableList(ttRes.data.schedule);
-            }
-
-            if (attRes.data && attRes.data.summary) {
-                setAttendanceData(attRes.data.summary);
-            }
-
-            if (calRes.data && calRes.data.events) {
-                setCalendarEvents(calRes.data.events);
-            }
-
-            if (examRes.data && examRes.data.schedules) {
-                setExamSchedules(examRes.data.schedules);
-            }
+            if (ttRes.data && ttRes.data.schedule) setTimetableList(ttRes.data.schedule);
+            if (attRes.data) setAttendanceData(attRes.data);
+            if (calRes.data && calRes.data.events) setCalendarEvents(calRes.data.events);
+            if (examRes.data && examRes.data.schedules) setExamSchedules(examRes.data.schedules);
+            if (rosterRes.data && rosterRes.data.students) setClassmates(rosterRes.data.students);
         } catch (err) {
-            console.warn('Could not fetch timetable or attendance:', err);
+            console.error('Error fetching timetable/attendance:', err);
         } finally {
             setLoading(false);
         }
     };
+
 
     // Filter timetable by day
     const filteredTimetable = selectedDay === 'All'
@@ -147,6 +140,14 @@ export const ClassTimetablePage: React.FC = () => {
                             }`}
                         >
                             <FileText size={14} /> Exam Schedule
+                        </button>
+                        <button
+                            onClick={() => setViewMode('classmates')}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                                viewMode === 'classmates' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/30' : 'text-gray-400 hover:text-white'
+                            }`}
+                        >
+                            <Users size={14} /> Classmates Hub ({classmates.length})
                         </button>
                     </div>
                 </div>
@@ -468,6 +469,49 @@ export const ClassTimetablePage: React.FC = () => {
                                                 <div className="text-sm font-bold text-white font-mono">{ex.examDate}</div>
                                                 <div className="text-xs text-indigo-300 font-mono">{ex.startTime} - {ex.endTime}</div>
                                                 <div className="text-[10px] text-gray-400 mt-0.5">Total Marks: {ex.totalMarks} (Pass: {ex.passingMarks})</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* VIEW MODE 5: CLASSMATES HUB ROSTER */}
+                {viewMode === 'classmates' && (
+                    <div className="space-y-6">
+                        <div className="p-6 rounded-3xl border border-white/10 bg-[#0B0915]/80 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-base font-black text-white flex items-center gap-2">
+                                        <Users className="w-5 h-5 text-cyan-400" /> Registered Classmates Roster & Student Directory
+                                    </h3>
+                                    <p className="text-xs text-gray-400 mt-0.5">
+                                        Live student roll list registered under <span className="font-bold text-white">{selectedClass}</span>
+                                    </p>
+                                </div>
+                                <span className="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-mono text-xs font-bold">
+                                    {classmates.length} Classmates Linked
+                                </span>
+                            </div>
+
+                            {classmates.length === 0 ? (
+                                <div className="p-12 text-center text-gray-500 text-xs font-mono">
+                                    No enrolled classmates registered under Class {selectedClass} yet.
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {classmates.map((st: any, idx: number) => (
+                                        <div key={st._id || idx} className="p-4 rounded-2xl bg-black/40 border border-white/10 flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center justify-center font-mono font-bold text-sm shrink-0">
+                                                {st.rollNumber ? `#${st.rollNumber}` : `STU`}
+                                            </div>
+                                            <div className="overflow-hidden">
+                                                <h4 className="text-sm font-bold text-white truncate">{st.name}</h4>
+                                                <div className="text-[10px] text-gray-400 font-mono truncate mt-0.5">
+                                                    {st.enrollmentNo ? `GR: ${st.enrollmentNo}` : `ID: ${st.externalId || 'Registered'}`}
+                                                </div>
                                             </div>
                                         </div>
                                     ))}

@@ -62,4 +62,10 @@ router.post('/clear-all-data', teacherOnlyGuard, TeacherPortalController.clearAl
 router.post('/auth/register', TeacherPortalController.registerTeacher);
 router.post('/auth/login', TeacherPortalController.loginTeacher);
 
+// Class Roster & Custom Roll Number Configuration
+router.get('/class-roster', TeacherPortalController.getClassStudentsRoster);
+router.get('/rollno-config', TeacherPortalController.getRollNoConfig);
+router.post('/rollno-config', teacherOnlyGuard, TeacherPortalController.updateRollNoConfig);
+router.post('/student-school-profile', TeacherPortalController.updateStudentSchoolProfile);
+
 export default router;

@@ -300,6 +300,30 @@ const SchoolExamScheduleSchema = new Schema<ISchoolExamSchedule>(
   { timestamps: true }
 );
 
+// 9. School Custom Roll No & GR No Config Schema
+export interface ISchoolRollNoConfig extends Document {
+  tenantOrgId: string;
+  classId: string;
+  prefix: string;
+  yearCode: string;
+  startingSequence: number;
+  currentSequence: number;
+  autoGenerate: boolean;
+}
+
+const SchoolRollNoConfigSchema = new Schema<ISchoolRollNoConfig>(
+  {
+    tenantOrgId: { type: String, required: true, index: true },
+    classId: { type: String, required: true, index: true },
+    prefix: { type: String, default: '12-ER-' },
+    yearCode: { type: String, default: '2026' },
+    startingSequence: { type: Number, default: 1001 },
+    currentSequence: { type: Number, default: 1000 },
+    autoGenerate: { type: Boolean, default: true }
+  },
+  { timestamps: true }
+);
+
 export const TeacherAssignmentModel = mongoose.models.TeacherAssignment || mongoose.model<ITeacherAssignment>('TeacherAssignment', TeacherAssignmentSchema);
 export const HomeworkSubmissionModel = mongoose.models.HomeworkSubmission || mongoose.model<IHomeworkSubmission>('HomeworkSubmission', HomeworkSubmissionSchema);
 export const AttendanceRecordModel = mongoose.models.AttendanceRecord || mongoose.model<IAttendanceRecord>('AttendanceRecord', AttendanceRecordSchema);
@@ -308,3 +332,4 @@ export const TeacherExamPaperModel = mongoose.models.TeacherExamPaper || mongoos
 export const LiveExamRoomModel = mongoose.models.LiveExamRoom || mongoose.model<ILiveExamRoom>('LiveExamRoom', LiveExamRoomSchema);
 export const SchoolCalendarEventModel = mongoose.models.SchoolCalendarEvent || mongoose.model<ISchoolCalendarEvent>('SchoolCalendarEvent', SchoolCalendarEventSchema);
 export const SchoolExamScheduleModel = mongoose.models.SchoolExamSchedule || mongoose.model<ISchoolExamSchedule>('SchoolExamSchedule', SchoolExamScheduleSchema);
+export const SchoolRollNoConfigModel = mongoose.models.SchoolRollNoConfig || mongoose.model<ISchoolRollNoConfig>('SchoolRollNoConfig', SchoolRollNoConfigSchema);

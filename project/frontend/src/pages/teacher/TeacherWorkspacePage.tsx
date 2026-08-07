@@ -275,6 +275,29 @@ export const TeacherWorkspacePage: React.FC = () => {
   // Timetable State Persisted via MongoDB
   const [timetableList, setTimetableList] = useState<any[]>([]);
 
+  // Real-Time Class Roster & Roll/GR Number Config State
+  const [classRosterStudents, setClassRosterStudents] = useState<any[]>([]);
+  const [showRollNoConfigModal, setShowRollNoConfigModal] = useState<boolean>(false);
+  const [configPrefix, setConfigPrefix] = useState<string>('12-ER-');
+  const [configYearCode, setConfigYearCode] = useState<string>('2026');
+  const [configStartingSeq, setConfigStartingSeq] = useState<number>(1001);
+  const [configAutoGenerate, setConfigAutoGenerate] = useState<boolean>(true);
+
+  useEffect(() => {
+    const fetchClassRoster = async () => {
+      try {
+        const tenantOrgId = (teacherUser as any)?.tenantOrgId || ((teacherUser as any)?.schoolName ? (teacherUser as any).schoolName.toLowerCase().replace(/\s+/g, '_') : 'mount_carmel_school');
+        const res = await axios.get(`/api/v1/teacher-workspace/class-roster?tenantOrgId=${tenantOrgId}&classId=${selectedClass}`);
+        if (res.data && res.data.students) {
+          setClassRosterStudents(res.data.students);
+        }
+      } catch (e) {
+        console.warn('Could not fetch class roster:', e);
+      }
+    };
+    fetchClassRoster();
+  }, [selectedClass, teacherUser]);
+
   const [activeRoadmapId, setActiveRoadmapId] = useState<string>('');
   const [selectedChapterDetail, setSelectedChapterDetail] = useState<any | null>(null);
   const [activeDetailTab, setActiveDetailTab] = useState<'story' | 'theory' | 'video' | 'task'>('story');

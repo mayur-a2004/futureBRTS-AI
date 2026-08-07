@@ -12,6 +12,11 @@ export interface ITenantUser extends Document {
   subject?: string;
   assignedClasses?: string[];
   assignedSubjects?: string[];
+  isSchoolStudent?: boolean;
+  schoolName?: string;
+  classId?: string;
+  rollNumber?: string;
+  enrollmentNo?: string;
   queriesUsed: number;
   lastActive: Date;
   status: 'ACTIVE' | 'SUSPENDED';
@@ -34,6 +39,11 @@ const TenantUserSchema = new Schema<ITenantUser>(
     subject: { type: String, default: '' },
     assignedClasses: { type: [String], default: ['CLASS-10A', 'CLASS-11B'] },
     assignedSubjects: { type: [String], default: ['Mathematics', 'Science'] },
+    isSchoolStudent: { type: Boolean, default: false },
+    schoolName: { type: String, default: '' },
+    classId: { type: String, default: '' },
+    rollNumber: { type: String, default: '' },
+    enrollmentNo: { type: String, default: '' },
     queriesUsed: { type: Number, default: 0 },
     lastActive: { type: Date, default: Date.now },
     status: { type: String, enum: ['ACTIVE', 'SUSPENDED'], default: 'ACTIVE' }
