@@ -28,7 +28,7 @@ export class TeacherPortalController {
         mode: mode || 'AI_GEN',
         rubric: rubric || '',
         teacherId: teacherId || 'TCH-901',
-        teacherName: teacherName || 'Mrs. Anjali Mehta',
+        teacherName: teacherName || 'Faculty Teacher',
         title,
         description: description || '',
         dueDate: dueDate ? new Date(dueDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
@@ -130,7 +130,7 @@ export class TeacherPortalController {
         date: todayStr,
         records,
         markedByTeacherId: markedByTeacherId || 'TCH-901',
-        markedByTeacherName: markedByTeacherName || 'Mrs. Anjali Mehta'
+        markedByTeacherName: markedByTeacherName || 'Class Teacher'
       });
       res.json({ success: true, date: todayStr, updatedCount: result.updatedCount });
     } catch (err: any) {
@@ -323,7 +323,7 @@ export class TeacherPortalController {
         examTitle,
         totalMarks: totalMarks || 50,
         durationMinutes: durationMinutes || 60,
-        teacherName: teacherName || 'Mrs. Anjali Mehta'
+        teacherName: teacherName || 'Faculty Teacher'
       });
       res.json({ success: true, examPaper });
     } catch (err: any) {

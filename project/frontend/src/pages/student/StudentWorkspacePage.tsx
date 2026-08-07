@@ -281,7 +281,7 @@ export const StudentWorkspacePage: React.FC = () => {
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 text-[10px] font-bold uppercase">
-                            {hw.subject} • Assigned by {hw.teacherName || 'Mrs. Anjali Mehta'}
+                            {hw.subject} • Assigned by {hw.teacherName || 'Class Teacher'}
                           </span>
                           {isExpired ? (
                             <span className="px-2.5 py-1 rounded-lg bg-red-500/20 text-red-300 border border-red-500/30 text-[10px] font-bold uppercase">

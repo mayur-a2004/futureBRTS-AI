@@ -387,11 +387,11 @@ export class TeacherPortalService {
 
     // Period-by-Period Timeline
     const periods = [
-      { periodNumber: 1, startTime: '08:30 AM', endTime: '09:15 AM', subject: 'Mathematics', teacherName: 'Mrs. Anjali Mehta', roomNumber: 'Room 101', status: 'PRESENT' },
+      { periodNumber: 1, startTime: '08:30 AM', endTime: '09:15 AM', subject: 'Mathematics', teacherName: 'Faculty Teacher', roomNumber: 'Room 101', status: 'PRESENT' },
       { periodNumber: 2, startTime: '09:15 AM', endTime: '10:00 AM', subject: 'Physics', teacherName: 'Mr. Rajesh Gupta', roomNumber: 'Lab 2', status: 'PRESENT' },
       { periodNumber: 3, startTime: '10:15 AM', endTime: '11:00 AM', subject: 'Chemistry', teacherName: 'Dr. Sunita Rao', roomNumber: 'Lab 1', status: studentId === 'STU-10494' ? 'ABSENT' : 'PRESENT' },
       { periodNumber: 4, startTime: '11:00 AM', endTime: '11:45 AM', subject: 'English', teacherName: 'Mr. David Miller', roomNumber: 'Room 101', status: studentId === 'STU-10496' ? 'LATE' : 'PRESENT' },
-      { periodNumber: 5, startTime: '12:30 PM', endTime: '01:15 PM', subject: 'Computer Applications', teacherName: 'Mrs. Anjali Mehta', roomNumber: 'Lab 3', status: 'PRESENT' },
+      { periodNumber: 5, startTime: '12:30 PM', endTime: '01:15 PM', subject: 'Computer Applications', teacherName: 'Faculty Teacher', roomNumber: 'Lab 3', status: 'PRESENT' },
       { periodNumber: 6, startTime: '01:15 PM', endTime: '02:00 PM', subject: 'Social Science', teacherName: 'Mr. Vikram Shah', roomNumber: 'Room 101', status: 'PRESENT' }
     ];
 
@@ -473,7 +473,7 @@ export class TeacherPortalService {
       examTitle: params.examTitle,
       durationMinutes: duration,
       totalMarks: marks,
-      teacherName: params.teacherName || 'Mrs. Anjali Mehta',
+      teacherName: params.teacherName || 'Faculty Teacher',
       questions
     });
 
@@ -508,7 +508,7 @@ export class TeacherPortalService {
       tenantOrgId: params.tenantOrgId || 'mount_carmel_school',
       classId: params.classId || 'CLASS-10A',
       hostTeacherId: params.hostTeacherId || 'TCH-901',
-      hostTeacherName: params.hostTeacherName || 'Mrs. Anjali Mehta',
+      hostTeacherName: params.hostTeacherName || 'Faculty Teacher',
       board: params.board || 'CBSE',
       standard: params.standard || '10',
       subject: params.subject || 'Science',
@@ -540,7 +540,7 @@ export class TeacherPortalService {
         tenantOrgId: 'mount_carmel_school',
         classId: 'CLASS-10A',
         hostTeacherId: 'TCH-901',
-        hostTeacherName: 'Mrs. Anjali Mehta',
+        hostTeacherName: 'Faculty Teacher',
         board: 'CBSE',
         standard: '10',
         subject: 'Science',
