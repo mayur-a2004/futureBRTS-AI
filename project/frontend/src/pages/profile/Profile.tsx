@@ -64,6 +64,10 @@ export default function Profile() {
         mobile_number: user?.mobile_number || '',
         section: user?.section || 'A',
         stream: user?.stream || 'Science',
+        rollNumber: user?.rollNumber || '',
+        enrollmentNo: user?.enrollmentNo || '',
+        isSchoolStudent: user?.isSchoolStudent ?? true,
+        avatarUrl: user?.avatarUrl || user?.avatar || '',
         profile: {
             bio: user?.profile?.bio || '',
             location: user?.profile?.location || '',
@@ -99,6 +103,10 @@ export default function Profile() {
             mobile_number: user?.mobile_number || prev.mobile_number || '',
             section: user?.section || prev.section || 'A',
             stream: user?.stream || prev.stream || 'Science',
+            rollNumber: user?.rollNumber || prev.rollNumber || '',
+            enrollmentNo: user?.enrollmentNo || prev.enrollmentNo || '',
+            isSchoolStudent: user?.isSchoolStudent ?? prev.isSchoolStudent ?? true,
+            avatarUrl: user?.avatarUrl || user?.avatar || prev.avatarUrl || '',
             profile: {
                 bio: user?.profile?.bio || '',
                 location: user?.profile?.location || '',
@@ -194,6 +202,11 @@ export default function Profile() {
                     stream: formData.stream,
                     medium: formData.medium,
                     mobile_number: formData.mobile_number,
+                    rollNumber: formData.rollNumber,
+                    enrollmentNo: formData.enrollmentNo,
+                    isSchoolStudent: formData.isSchoolStudent,
+                    avatarUrl: formData.avatarUrl,
+                    avatar: formData.avatarUrl,
                     profile: {
                         ...formData.profile,
                         skills: formData.profile.skills.split(',').map((s: string) => s.trim()).filter((s: string) => s !== '')
@@ -201,6 +214,26 @@ export default function Profile() {
                 })
             });
             const data = await res.json();
+
+            // Save School Roster Profile Sync
+            const classId = `CLASS-${rawStandard.toUpperCase()}${formData.section.toUpperCase()}`;
+            await fetch('/api/v1/teacher-workspace/student-school-profile', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    externalId: user?.id || user?._id || 'STU-10492',
+                    tenantOrgId: formData.isSchoolStudent && formData.school_name ? formData.school_name.toLowerCase().replace(/\s+/g, '_') : 'independent_student',
+                    name: `${formData.firstName} ${formData.lastName}`.trim(),
+                    email: user?.email || '',
+                    isSchoolStudent: formData.isSchoolStudent,
+                    schoolName: formData.school_name,
+                    classId,
+                    rollNumber: formData.rollNumber,
+                    enrollmentNo: formData.enrollmentNo
+                })
+            });
 
             // Save parent details
             const parentRes = await fetch('/api/minerva/parent/details', {
@@ -339,9 +372,18 @@ export default function Profile() {
                 <div className="px-8 flex flex-col md:flex-row items-end -mt-20 gap-8 relative z-10">
                     <div className="group relative cursor-pointer" onClick={() => setIsEditing(true)}>
                         <div className="w-40 h-40 rounded-[40px] border-8 border-[#0A0A0A] bg-gray-900 flex items-center justify-center overflow-hidden shadow-3xl transform transition-transform group-hover:scale-105">
-                            <div className="w-full h-full bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 flex items-center justify-center text-white font-black text-6xl uppercase italic select-none shadow-inner">
-                                {user?.firstName?.[0] || 'U'}
-                            </div>
+                            {(formData.avatarUrl || user?.avatarUrl || user?.avatar) ? (
+                                <img
+                                    src={formData.avatarUrl || user?.avatarUrl || user?.avatar}
+                                    alt="Profile Avatar"
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => { (e.target as any).style.display = 'none'; }}
+                                />
+                            ) : (
+                                <div className="w-full h-full bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 flex items-center justify-center text-white font-black text-6xl uppercase italic select-none shadow-inner">
+                                    {user?.firstName?.[0] || 'U'}
+                                </div>
+                            )}
                         </div>
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-[40px]">
                             <Edit3 className="text-white" size={24} />
@@ -599,6 +641,38 @@ export default function Profile() {
 
                             {isEditing ? (
                                 <div className="space-y-6">
+                                    {/* 🏫 Dual Mode Toggle & Avatar URL */}
+                                    <div className="p-4 rounded-2xl bg-indigo-950/30 border border-indigo-500/30 flex flex-col md:flex-row items-center justify-between gap-4">
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="checkbox"
+                                                id="profileIsSchoolStudent"
+                                                checked={formData.isSchoolStudent}
+                                                onChange={(e) => setFormData({ ...formData, isSchoolStudent: e.target.checked })}
+                                                className="w-5 h-5 accent-indigo-500 rounded cursor-pointer"
+                                            />
+                                            <label htmlFor="profileIsSchoolStudent" className="text-xs font-bold text-white cursor-pointer select-none">
+                                                🏫 Enrolled School Student (Roster & Timetable Sync Active)
+                                            </label>
+                                        </div>
+                                        <span className={`text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full border ${
+                                            formData.isSchoolStudent ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                                        }`}>
+                                            {formData.isSchoolStudent ? 'School Sync On' : 'Independent Self-Study'}
+                                        </span>
+                                    </div>
+
+                                    {/* Profile Avatar Photo URL */}
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Profile Photo Avatar URL (Image Link)</label>
+                                        <input
+                                            value={formData.avatarUrl}
+                                            onChange={(e) => setFormData({ ...formData, avatarUrl: e.target.value })}
+                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-sm focus:border-indigo-500 outline-none font-mono"
+                                            placeholder="https://example.com/my-photo.jpg"
+                                        />
+                                    </div>
+
                                     <div className="grid md:grid-cols-2 gap-6">
                                         <div className="space-y-2">
                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">School / Academy Name</label>
@@ -616,6 +690,28 @@ export default function Profile() {
                                                 onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })}
                                                 className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-sm focus:border-indigo-500 outline-none"
                                                 placeholder="e.g. 9876543210"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* 🆔 Roll Number & Enrollment GR Number inputs */}
+                                    <div className="grid md:grid-cols-2 gap-6 bg-cyan-950/20 p-5 rounded-2xl border border-cyan-500/30">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-cyan-300 uppercase tracking-widest ml-1">Class Roll Number (e.g. 14, 02)</label>
+                                            <input
+                                                value={formData.rollNumber}
+                                                onChange={(e) => setFormData({ ...formData, rollNumber: e.target.value })}
+                                                className="w-full bg-black/60 border border-cyan-500/40 rounded-2xl px-4 py-3.5 text-sm font-bold font-mono text-cyan-200 focus:border-cyan-400 outline-none"
+                                                placeholder="e.g. 14"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-cyan-300 uppercase tracking-widest ml-1">Enrollment / GR Number (e.g. 12-ER-2026-1001)</label>
+                                            <input
+                                                value={formData.enrollmentNo}
+                                                onChange={(e) => setFormData({ ...formData, enrollmentNo: e.target.value })}
+                                                className="w-full bg-black/60 border border-cyan-500/40 rounded-2xl px-4 py-3.5 text-sm font-bold font-mono text-cyan-200 focus:border-cyan-400 outline-none"
+                                                placeholder="e.g. 12-ER-2026-1001"
                                             />
                                         </div>
                                     </div>
@@ -733,9 +829,27 @@ export default function Profile() {
                             ) : (
                                 <div className="grid md:grid-cols-2 gap-6 text-sm">
                                     <div className="bg-white/[0.01] p-5 rounded-[24px] border border-white/5 space-y-1">
-                                        <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">School Name</span>
-                                        <span className="text-white font-extrabold block text-base">{formData.school_name || user?.schoolName || 'Not Configured'}</span>
+                                        <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">School Name & Mode</span>
+                                        <span className="text-white font-extrabold block text-base flex items-center gap-2">
+                                            {formData.school_name || user?.schoolName || 'Not Configured'}
+                                            <span className={`text-[9px] px-2 py-0.5 rounded-full border ${
+                                                formData.isSchoolStudent ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                                            }`}>
+                                                {formData.isSchoolStudent ? 'School Student' : 'Self Study'}
+                                            </span>
+                                        </span>
                                     </div>
+
+                                    {/* 🆔 Roll Number & Enrollment GR Number Displays */}
+                                    <div className="bg-cyan-950/20 p-5 rounded-[24px] border border-cyan-500/30 space-y-1">
+                                        <span className="text-[9px] font-black text-cyan-300 uppercase tracking-widest">Class Roll No & GR Number</span>
+                                        <div className="text-cyan-200 font-extrabold block text-base font-mono flex items-center gap-3">
+                                            <span>Roll #{formData.rollNumber || user?.rollNumber || 'Not Set'}</span>
+                                            <span className="text-gray-500">•</span>
+                                            <span>GR: {formData.enrollmentNo || user?.enrollmentNo || 'Auto'}</span>
+                                        </div>
+                                    </div>
+
                                     <div className="bg-white/[0.01] p-5 rounded-[24px] border border-white/5 space-y-1">
                                         <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">City / Location</span>
                                         <span className="text-white font-extrabold block text-base">
@@ -754,7 +868,7 @@ export default function Profile() {
                                             {formData.medium || user?.medium || 'English'}
                                         </span>
                                     </div>
-                                    <div className="bg-white/[0.01] p-5 rounded-[24px] border border-white/5 space-y-1 md:col-span-2">
+                                    <div className="bg-white/[0.01] p-5 rounded-[24px] border border-white/5 space-y-1">
                                         <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Student Mobile</span>
                                         <span className="text-indigo-400 font-extrabold block text-base">{formData.mobile_number || user?.mobile_number || 'Not Configured'}</span>
                                     </div>

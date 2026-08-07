@@ -260,25 +260,30 @@ export const authController = {
 
     updateProfile: async (req: any, res: Response) => {
         try {
-            const { firstName, lastName, city, schoolName, tenantOrgId, educationType, board, standard, section, stream, medium, state, mobile_number, profile } = req.body;
+            const { firstName, lastName, city, schoolName, tenantOrgId, educationType, board, standard, section, stream, medium, state, mobile_number, rollNumber, enrollmentNo, isSchoolStudent, avatarUrl, avatar, profile } = req.body;
             const user = await User.findById(req.user.id);
             if (!user) return res.status(404).json({ success: false, error: 'User not found' });
 
-            if (firstName) user.firstName = firstName;
-            if (lastName) user.lastName = lastName;
-            if (city) user.city = city;
-            if (schoolName) user.schoolName = schoolName;
-            if (tenantOrgId) user.tenantOrgId = tenantOrgId;
-            if (educationType) user.educationType = educationType;
-            if (board) user.board = board;
-            if (standard) {
+            if (firstName !== undefined) user.firstName = firstName;
+            if (lastName !== undefined) user.lastName = lastName;
+            if (city !== undefined) user.city = city;
+            if (schoolName !== undefined) user.schoolName = schoolName;
+            if (tenantOrgId !== undefined) user.tenantOrgId = tenantOrgId;
+            if (educationType !== undefined) user.educationType = educationType;
+            if (board !== undefined) user.board = board;
+            if (standard !== undefined) {
                 user.standard = standard;
                 if (!isNaN(Number(standard))) user.grade = Number(standard);
             }
-            if (section) user.section = section;
-            if (stream) user.stream = stream;
-            if (medium) user.medium = medium;
-            if (mobile_number) user.mobile_number = mobile_number;
+            if (section !== undefined) user.section = section;
+            if (stream !== undefined) user.stream = stream;
+            if (medium !== undefined) user.medium = medium;
+            if (mobile_number !== undefined) user.mobile_number = mobile_number;
+            if (rollNumber !== undefined) user.rollNumber = rollNumber;
+            if (enrollmentNo !== undefined) user.enrollmentNo = enrollmentNo;
+            if (isSchoolStudent !== undefined) user.isSchoolStudent = isSchoolStudent;
+            if (avatarUrl !== undefined) user.avatarUrl = avatarUrl;
+            if (avatar !== undefined) user.avatar = avatar;
 
             if (profile) {
                 user.profile = {

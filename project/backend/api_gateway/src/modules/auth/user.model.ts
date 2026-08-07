@@ -21,6 +21,11 @@ export interface IUser extends Document {
     stream?: string;           // e.g. "Science", "Commerce", "Arts"
     medium?: string;           // e.g. "english", "hindi", "gujarati"
     mobile_number?: string;
+    rollNumber?: string;       // e.g. "14"
+    enrollmentNo?: string;     // e.g. "12-ER-2026-1001"
+    isSchoolStudent?: boolean;
+    avatarUrl?: string;
+    avatar?: string;
     branch?: string;
     semester?: string;
     provider: 'local' | 'google' | 'github';
@@ -112,6 +117,11 @@ const UserSchema: Schema = new Schema({
     stream: { type: String, default: 'Science' },
     medium: { type: String, default: 'english' },
     mobile_number: { type: String, default: '' },
+    rollNumber: { type: String, default: '' },
+    enrollmentNo: { type: String, default: '' },
+    isSchoolStudent: { type: Boolean, default: true },
+    avatarUrl: { type: String, default: '' },
+    avatar: { type: String, default: '' },
     branch: { type: String, default: '' },
     semester: { type: String, default: '' },
     provider: { type: String, enum: ['local', 'google', 'github'], default: 'local' },
