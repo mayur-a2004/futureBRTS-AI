@@ -6,6 +6,7 @@ import { businessHackerService } from './businessHacker.service';
 import { financialTickerService } from './financialTicker.service';
 import { omniGroundingService } from './omniGrounding.service';
 import { liveWebSearchService } from './liveWebSearch.service';
+import { liveIntelligenceService } from './liveIntelligence.service';
 
 
 // System Prompts
@@ -1773,6 +1774,35 @@ CURRENT MODE: ${activeMode.toUpperCase()}
                 console.warn('[LiveWebSearch] Non-fatal error:', webErr.message);
             }
 
+            // 🧠 LIVE INTELLIGENCE LAYER — Multi-source Search, Fact-check, Live Feeds
+            try {
+                // Detect query type for appropriate live data
+                const isBusinessQuery = businessHackerService.isBusinessHackerQuery(userMessage);
+                const isNewsQuery = businessHackerService.isNewsQuery(userMessage);
+                const isTickerQuery = financialTickerService.isTickerQuery(userMessage);
+                const isAcademicQuery = /\b(research|paper|study|journal|academic|phd|peer.review|citation|doi|arxiv|pubmed)\b/i.test(userMessage);
+                const isGovtQuery = /\b(govt|government|policy|regulation|act|bill|parliament|lok.sabha|rajya.sabha|pib|rbi|sebi|ministry)\b/i.test(userMessage);
+                const isStockQuery = isTickerQuery || /\b(stock|share|nse|bse|sensex|nifty|portfolio|mutual.fund|ipo)\b/i.test(userMessage);
+
+                // Extract stock symbols if present
+                const stockSymbols = userMessage.match(/\b([A-Z]{2,5}\.NS|[A-Z]{2,5}\.BO|RELIANCE|TCS|INFY|HDFC|ICICI|SBI|BAJAJ|MARUTI|TATA|WIPRO|HCL|LT|AXIS|KOTAK)\b/gi) || [];
+
+                const intelligenceContext = await liveIntelligenceService.buildContextInjection(userMessage, {
+                    includeNews: isNewsQuery || isBusinessQuery,
+                    includeStocks: isStockQuery,
+                    includeAcademic: isAcademicQuery,
+                    includeGovt: isGovtQuery,
+                    symbols: [...new Set(stockSymbols)].slice(0, 5)
+                });
+
+                if (intelligenceContext) {
+                    contextInjection += intelligenceContext;
+                    console.log(`🧠 [LiveIntelligence] Injected multi-source context for "${userMessage.substring(0, 30)}"`);
+                }
+            } catch (intelErr: any) {
+                console.warn('[LiveIntelligence] Non-fatal error:', intelErr.message);
+            }
+
             if (businessHackerService.isNewsQuery(userMessage)) {
                 try {
                     const liveNews = await businessHackerService.fetchLiveNews();
@@ -1997,6 +2027,35 @@ CURRENT MODE: ${activeMode.toUpperCase()}
                 }
             } catch (webErr: any) {
                 console.warn('[LiveWebSearch] Non-fatal error:', webErr.message);
+            }
+
+            // 🧠 LIVE INTELLIGENCE LAYER — Multi-source Search, Fact-check, Live Feeds
+            try {
+                // Detect query type for appropriate live data
+                const isBusinessQuery = businessHackerService.isBusinessHackerQuery(userMessage);
+                const isNewsQuery = businessHackerService.isNewsQuery(userMessage);
+                const isTickerQuery = financialTickerService.isTickerQuery(userMessage);
+                const isAcademicQuery = /\b(research|paper|study|journal|academic|phd|peer.review|citation|doi|arxiv|pubmed)\b/i.test(userMessage);
+                const isGovtQuery = /\b(govt|government|policy|regulation|act|bill|parliament|lok.sabha|rajya.sabha|pib|rbi|sebi|ministry)\b/i.test(userMessage);
+                const isStockQuery = isTickerQuery || /\b(stock|share|nse|bse|sensex|nifty|portfolio|mutual.fund|ipo)\b/i.test(userMessage);
+
+                // Extract stock symbols if present
+                const stockSymbols = userMessage.match(/\b([A-Z]{2,5}\.NS|[A-Z]{2,5}\.BO|RELIANCE|TCS|INFY|HDFC|ICICI|SBI|BAJAJ|MARUTI|TATA|WIPRO|HCL|LT|AXIS|KOTAK)\b/gi) || [];
+
+                const intelligenceContext = await liveIntelligenceService.buildContextInjection(userMessage, {
+                    includeNews: isNewsQuery || isBusinessQuery,
+                    includeStocks: isStockQuery,
+                    includeAcademic: isAcademicQuery,
+                    includeGovt: isGovtQuery,
+                    symbols: [...new Set(stockSymbols)].slice(0, 5)
+                });
+
+                if (intelligenceContext) {
+                    contextInjection += intelligenceContext;
+                    console.log(`🧠 [LiveIntelligence] Injected multi-source context for "${userMessage.substring(0, 30)}"`);
+                }
+            } catch (intelErr: any) {
+                console.warn('[LiveIntelligence] Non-fatal error:', intelErr.message);
             }
 
             if (businessHackerService.isNewsQuery(userMessage)) {

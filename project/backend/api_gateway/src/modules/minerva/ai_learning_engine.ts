@@ -13,6 +13,7 @@ import { businessHackerService } from '../../shared/services/businessHacker.serv
 import { financialTickerService } from '../../shared/services/financialTicker.service';
 import { omniGroundingService } from '../../shared/services/omniGrounding.service';
 import { liveWebSearchService } from '../../shared/services/liveWebSearch.service';
+import { liveIntelligenceService } from '../../shared/services/liveIntelligence.service';
 
 /**
  * Fast-path detector for casual greetings, short social messages & acknowledgments.
@@ -518,9 +519,39 @@ export const executeProductionLearningEngine = async (
         content: m.content
     }));
 
+    // 🧠 LIVE INTELLIGENCE LAYER — Education-focused real-time data injection
+    let liveIntelligenceContext = '';
+    try {
+        const isNewsQuery = /\b(latest|news|current|today|recent|update|announced|declared)\b/i.test(message);
+        const isAcademicQuery = /\b(research|paper|study|journal|phd|peer.review|citation|doi|arxiv|pubmed|new.discovery|breakthrough)\b/i.test(message);
+        const isExamQuery = /\b(exam|board|cbse|icse|neet|jee|upsc|ssc|banking|railway|result|admit.card|syllabus.change)\b/i.test(message);
+        const isGovtQuery = /\b(govt|government|policy|scheme|yojana|ministry|pib|press.release|notification|circular)\b/i.test(message);
+
+        const intelligenceContext = await liveIntelligenceService.buildContextInjection(message, {
+            includeNews: isNewsQuery || isExamQuery,
+            includeStocks: false,
+            includeAcademic: isAcademicQuery,
+            includeGovt: isGovtQuery || isExamQuery,
+            symbols: []
+        });
+
+        if (intelligenceContext) {
+            liveIntelligenceContext = intelligenceContext;
+            console.log(`🧠 [Minerva AI Engine LiveIntelligence] Injected education context for "${message.substring(0, 30)}"`);
+        }
+    } catch (intelErr: any) {
+        console.warn('[Minerva AI Engine LiveIntelligence] Non-fatal error:', intelErr.message);
+    }
+
     // Build final user message — multipart if image is provided (Gemini Vision)
     let userMessageContent: any;
-    const textPart = `Student message: "${message}"nStudent Grade: ${studentProfile?.grade_level || 'unknown'}nStudent Board: ${studentProfile?.board || 'unknown'}`;
+    let textPart = `Student message: "${message}"\nStudent Grade: ${studentProfile?.grade_level || 'unknown'}\nStudent Board: ${studentProfile?.board || 'unknown'}`;
+
+    // Inject live intelligence context if available
+    if (liveIntelligenceContext) {
+        textPart += `\n\n${liveIntelligenceContext}`;
+    }
+
     if (imageBase64 && imageMimeType) {
         userMessageContent = [
             {
@@ -529,7 +560,7 @@ export const executeProductionLearningEngine = async (
             },
             {
                 type: 'text',
-                text: rawQuery ? `Student Question about this image: "${rawQuery}"nStudent Grade: ${studentProfile?.grade_level || 'unknown'}nStudent Board: ${studentProfile?.board || 'unknown'}` : textPart
+                text: rawQuery ? `Student Question about this image: "${rawQuery}"\nStudent Grade: ${studentProfile?.grade_level || 'unknown'}\nStudent Board: ${studentProfile?.board || 'unknown'}` : textPart
             }
         ];
     } else {

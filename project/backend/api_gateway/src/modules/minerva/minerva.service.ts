@@ -1,5 +1,6 @@
 // Minerva AI Service — All AI calls for the education system
 import { getProviderResponse } from '../../shared/services/openai.service';
+import { liveIntelligenceService } from '../../shared/services/liveIntelligence.service';
 import MinervaNeuralMemory from './models/minerva_neural_memory.model';
 import MinervaLabCache from './models/minerva_lab_cache.model';
 import MinervaSketchfabCache from './models/minerva_sketchfab_cache.model';
@@ -1087,6 +1088,29 @@ export const getMinervaChat = async (
     // Handle / Quick Actions (e.g. /scan, /quiz, /roadmap)
     if (message.toLowerCase().startsWith('/scan') || message.toLowerCase().includes('/isko scan')) {
         extraCommandContext += `\n[ACTION TRIGGER: SCAN & OCR ANALYSIS] - Perform full OCR and step-by-step problem solution.\n`;
+    }
+
+    // 🧠 LIVE INTELLIGENCE LAYER — Education-focused real-time data
+    try {
+        const isNewsQuery = /\b(latest|news|current|today|recent|update|announced|declared)\b/i.test(message);
+        const isAcademicQuery = /\b(research|paper|study|journal|phd|peer.review|citation|doi|arxiv|pubmed|new.discovery|breakthrough)\b/i.test(message);
+        const isExamQuery = /\b(exam|board|cbse|icse|neet|jee|upsc|ssc|banking|railway|result|admit.card|syllabus.change)\b/i.test(message);
+        const isGovtQuery = /\b(govt|government|policy|scheme|yojana|ministry|pib|press.release|notification|circular)\b/i.test(message);
+
+        const intelligenceContext = await liveIntelligenceService.buildContextInjection(message, {
+            includeNews: isNewsQuery || isExamQuery,
+            includeStocks: false,
+            includeAcademic: isAcademicQuery,
+            includeGovt: isGovtQuery || isExamQuery,
+            symbols: []
+        });
+
+        if (intelligenceContext) {
+            extraCommandContext += `\n\n${intelligenceContext}\n`;
+            console.log(`🧠 [Minerva LiveIntelligence] Injected education context for "${message.substring(0, 30)}"`);
+        }
+    } catch (intelErr: any) {
+        console.warn('[Minerva LiveIntelligence] Non-fatal error:', intelErr.message);
     }
 
     const formattedHistory = (chatHistory || []).slice(-24).map((m: any) => ({
