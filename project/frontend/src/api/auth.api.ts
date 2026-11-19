@@ -62,5 +62,16 @@ export const authApi = {
 
     githubLogin: () => {
         window.location.href = `${BASE_URL}/github`;
+    },
+
+    updateStudentProfile: async (token: string, updateData: any) => {
+        return await safeFetch(`${BASE_URL}/student-profile`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updateData)
+        });
     }
 };

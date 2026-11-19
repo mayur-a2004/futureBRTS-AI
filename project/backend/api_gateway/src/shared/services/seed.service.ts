@@ -66,6 +66,10 @@ export const seedService = {
                 console.log("👤 Default Admin Profile Provisioned.");
             }
 
+            // 5. Seed Official Government Curriculum Database
+            const { seedOfficialCurriculumDatabase } = require('../../modules/minerva/services/seed_official_curriculum');
+            await seedOfficialCurriculumDatabase();
+
             console.log("✅ Seeding Completed Successfully.");
         } catch (err) {
             console.error("❌ Seeding Error:", err);

@@ -87,87 +87,13 @@ Format:
                 explanation: q.explanation || 'Refer to textbook concepts for detailed solution.'
             }));
 
-            // Pad with fallback questions if AI returned fewer than totalQuestions
-            if (mapped.length < totalQuestions) {
-                const diff = totalQuestions - mapped.length;
-                for (let i = 0; i < diff; i++) {
-                    const idx = mapped.length;
-                    mapped.push({
-                        question_number: idx + 1,
-                        question: `Practice Concept Question ${idx + 1}: What is the primary characteristic or key property of ${topic}?`,
-                        options: [
-                            `Option A: Direct application and analysis of ${topic}`,
-                            `Option B: Theoretical definition and secondary rules of ${topic}`,
-                            `Option C: Practical experiment and real-world implementation of ${topic}`,
-                            `Option D: None of the above options`
-                        ],
-                        correctAnswer: 0,
-                        marks: 1,
-                        topic,
-                        explanation: `Please review standard ${subject} textbook chapters on ${topic} to master this concept.`
-                    });
-                }
-            }
             return mapped.slice(0, totalQuestions);
         }
     } catch (err: any) {
         logger.error(`[LiveExamController] AI question generation error: ${err.message}`);
     }
 
-    // Dynamic Fallback questions if AI call fails
-    const fallbackTypes = [
-        `What is the primary practical application of ${topic} in real life?`,
-        `Which of the following best defines the fundamental mechanism of ${topic}?`,
-        `If we double the active variables of ${topic}, what is the expected result on the system?`,
-        `Identify the key scientist or mathematical formula associated with ${topic}.`,
-        `Which of the following is an incorrect statement regarding ${topic}?`,
-        `How does standard ${subject} research utilize ${topic} to solve modern industry problems?`,
-        `Select the option that represents the correct dimensional unit or standard notation for ${topic}.`
-    ];
-
-    const fallbackOptions = [
-        [
-            `It helps in optimizing efficiency and system throughput.`,
-            `It acts as a static insulator preventing charge loss.`,
-            `It reduces chemical reactivity under normal atmospheric pressure.`,
-            `It has no practical value and is purely theoretical.`
-        ],
-        [
-            `A process where energy remains conserved while structural transformation occurs.`,
-            `A temporary state of static equilibrium with zero entropy.`,
-            `The rate of change of momentum under gravitational constant.`,
-            `None of the above definitions are accurate.`
-        ],
-        [
-            `The output value will increase proportionally under linear scale.`,
-            `The output value will decrease exponentially by a power of two.`,
-            `The system will experience instant thermal breakdown.`,
-            `No significant change will occur in the system parameters.`
-        ],
-        [
-            `The governing equation follows inverse-square proportions.`,
-            `The constant of proportionality is equal to absolute zero.`,
-            `It is independent of physical temperature or medium.`,
-            `It follows standard logarithmic scaling rules.`
-        ]
-    ];
-
-    return Array.from({ length: totalQuestions }).map((_, idx) => {
-        const typeIdx = (idx + Math.floor(Math.random() * 7)) % fallbackTypes.length;
-        const optIdx = (idx + Math.floor(Math.random() * 4)) % fallbackOptions.length;
-        const questionText = `${topic} Concept Check (Q-${idx + 1}): ${fallbackTypes[typeIdx]}`;
-        const options = fallbackOptions[optIdx];
-        
-        return {
-            question_number: idx + 1,
-            question: questionText,
-            options,
-            correctAnswer: 0,
-            marks: 1,
-            topic,
-            explanation: `Standard educational concept evaluation for ${topic}. Please check standard school chapters on ${subject} to learn more about this.`
-        };
-    });
+    return [];
 };
 
 export const liveExamController = {

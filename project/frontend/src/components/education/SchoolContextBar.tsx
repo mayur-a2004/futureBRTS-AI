@@ -149,15 +149,17 @@ export const SchoolContextBar: React.FC<SchoolContextBarProps> = ({
               </span>
             </div>
 
-            {/* 👨‍🏫 Faculty Portal Login Button */}
-            <button
-              onClick={() => window.location.href = '/future-education/teacher'}
-              className="px-3.5 py-2 rounded-2xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-              title="Faculty / Teacher Login & Register Portal"
-            >
-              <GraduationCap size={14} className="text-purple-400" />
-              <span>Teacher Portal ↗</span>
-            </button>
+            {/* 👨‍🏫 Faculty Portal Link Button (Only for Teachers) */}
+            {(parsedUser?.role === 'TEACHER' || parsedUser?.role === 'teacher' || parsedUser?.isTeacher) && (
+              <button
+                onClick={() => window.location.href = '/future-education/teacher'}
+                className="px-3.5 py-2 rounded-2xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                title="Faculty / Teacher Portal"
+              >
+                <GraduationCap size={14} className="text-purple-400" />
+                <span>Teacher Portal ↗</span>
+              </button>
+            )}
           </div>
         )}
       </div>

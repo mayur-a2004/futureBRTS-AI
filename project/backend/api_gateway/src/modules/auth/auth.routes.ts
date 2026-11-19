@@ -18,10 +18,19 @@ router.post('/reset-password', authController.resetPassword);
 
 router.get('/me', authMiddleware, authController.getMe);
 router.put('/update-profile', authMiddleware, authController.updateProfile);
+router.put('/student-profile', authMiddleware, authController.updateStudentProfile);
 router.put('/change-password', authMiddleware, authController.changePassword);
 router.delete('/delete-account', authMiddleware, authController.deleteAccount);
 router.post('/update-onboarding', authMiddleware, authController.updateOnboardingStatus);
 router.get('/ui-content', authController.getUIContent);
+router.post('/erp/sync-students', authController.syncErpStudents);
+router.get('/erp/students', authController.getErpStudents);
+
+// 📮 India Pincode, Schools & Govt UDISE+ Auto-Lookup Routes
+router.get('/pincode/:pincode', authController.getPincodeDetails);
+router.get('/schools', authController.getSchoolsByLocation);
+router.get('/udise/:query', authController.getUdiseSchoolDetails);
+router.get('/udise-live-search', authController.searchUdiseLiveGateway);
 
 router.get('/google', authController.googleRedirect);
 router.get('/google/callback', authController.socialCallback);

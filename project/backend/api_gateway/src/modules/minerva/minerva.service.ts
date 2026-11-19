@@ -857,8 +857,14 @@ Language Mode: ${studentProfile?.language_preference || 'english'}
 ====================================
 🎭 DEEP STUDY TEACHER IDENTITY (ULTRA LEGEND TEACHER, PROFESSOR, & FRIEND)
 ====================================
-You are in **DEEP STUDY MODE** — the student wants to learn with full peace, full detail, full patience.
-You are their **Ultra Legend Teacher, Professor, and a close Friend** designed by Mayur Savaliya.
+You are MINERVA — the Official Curriculum Intelligence Engine of Future Education OS and the student's **Ultra Legend Teacher, Professor, and close Friend** designed by Mayur Savaliya.
+
+====================================
+🏛️ OFFICIAL CURRICULUM INTELLIGENCE ENGINE & AUTHORITATIVE SOURCES
+====================================
+1. OFFICIAL SOURCES ONLY: Provide educational guidance using ONLY official education authorities (NCERT, CBSE Academic, DIKSHA, ePathshala, NIOS, CISCE, SCERT Gujarat/Balbharati/UP/MP/State Boards).
+2. STRICTLY FORBIDDEN SOURCES: NEVER use or reference unofficial educational sites (Byju's, Vedantu, Physics Wallah, Wikipedia, Toppr, Careers360, Testbook, Doubtnut, Quora, Blogs, Medium, AI-generated unverified syllabus).
+3. ANTI-HALLUCINATION: Never invent chapter names, syllabus, or exercises. Explain strictly according to official government textbooks. If an official source is unavailable, state clearly: "Official government textbook unavailable. No educational content generated."
 Imagine: The student is sitting at their study table. And you — their most caring, most brilliant professor and friend — sat down right next to them and said: "Ab koi tension nahi. Ek ek cheez basic se advance tak makkhan clear karenge."
 
 You explain everything in a sweet, encouraging, chilled-out, and high-energy manner ("Master Blaster" style).
@@ -1145,6 +1151,479 @@ Do NOT include any extra text or reasoning. Return ONLY the JSON array.`
 // ─────────────────────────────────────────────
 // 3. GENERATE ROADMAP from topic/content
 // ─────────────────────────────────────────────
+export const getOfficialTextbookChapters = (subject: string, grade: string): string[] => {
+    const subLower = (subject || '').toLowerCase();
+    const is12th = grade.startsWith('12') || grade === '12' || grade.includes('12');
+    const is11th = grade.startsWith('11') || grade === '11' || grade.includes('11');
+
+    if (subLower.includes('gujarat') || subLower.includes('ગુજરાતી')) {
+        if (is12th) {
+            return [
+                'Chapter 1: ક્રોધી સ્વભાવને જીતવો ને (પદ - ગંગાસતી)',
+                'Chapter 2: કુસુમનું કઠણ તપ (નવલકથાખંડ - ગોવર્ધનરામ ત્રિપાઠી)',
+                'Chapter 3: એમ ઉગાર્યો ચંદ્રહાસ (આખ્યાનખંડ - પ્રેમાનંદ)',
+                'Chapter 4: સત્યાગ્રહાશ્રમ (આત્મકથાખંડ - વિનોબા ભાબે)',
+                'Chapter 5: થીગડું (વાર્તા - સુરેશ જોષી)',
+                'Chapter 6: ઉછીનું માંગનારાઓ (હાસ્ય નિબંધ - નટવરલાલ બૂચ)',
+                'Chapter 7: શ્યામ રંગ સમીપે (પદ - દયારામ)',
+                'Chapter 8: અમરનાથની યાત્રાએ (પ્રવાસ નિબંધ - વિનોદિની નીલકંઠ)',
+                'Chapter 9: ભવના અબોલા (લોકગીત)',
+                'Chapter 10: યુધિષ્ઠિર યુદ્ધવિષાદ (નાટ્યાંશ - ઉમાશંકર જોશી)',
+                'Chapter 11: ઉર્મિલા (ખંડકાવ્ય - કવિ કાન્ત)',
+                'Chapter 12: પુંજા મેજરની લગની (વાર્તા - રઘુવીર ચૌધરી)',
+                'Chapter 13: મહાત્માના માણસ (વાર્તા - ધીરુબેન પટેલ)',
+                'Chapter 14: છેલ્લું દર્શન (સોનેટ - નિરંજન ભગત)',
+                'Chapter 15: ધોરણ 12 ગુજરાતી વ્યાકરણ & લેખન (સંયોજકો, વાક્યરૂપાંતર, વિચારવિસ્તાર)'
+            ];
+        } else {
+            return [
+                'Chapter 1: જાગને જાદવા (પદ - નરસિંહ મહેતા)',
+                'Chapter 2: ખરી મા (વાર્તા - મહાશ્વેતા દેવી)',
+                'Chapter 3: નાવિક વળતો બોલિયો (પદ - ભાલણ)',
+                'Chapter 4: પોસ્ટ ઑફિસ (વાર્તા - ધૂમકેતુ)',
+                'Chapter 5: પરાજયની જીત (ખંડકાવ્ય - સુરેશ જોષી)',
+                'Chapter 6: સુન્દરીની શોધ (આત્મકથાખંડ - જયશંકર \'સુન્દરી\')',
+                'Chapter 7: વનમાં ચાંદલિયો ઊગ્યો (લોકગીત)',
+                'Chapter 8: બુરાઈના દ્વાર પરથી (નવલિકા - ઝવેરચંદ મેઘાણી)',
+                'Chapter 9: ચક્રવાકમિથુન (ખંડકાવ્ય - કાન્ત)',
+                'Chapter 10: બે લઘુકથાઓ (ઠેસ & સાચો રસ્તો)',
+                'Chapter 11: ભવિષ્યવેત્તા (હાસ્ય વાર્તા)',
+                'Chapter 12: ધોરણ 11 ગુજરાતી વ્યાકરણ & લેખન (સમાસ, કહેવતો, વિચારવિસ્તાર)'
+            ];
+        }
+    }
+
+    if (subLower.includes('account')) {
+        if (is12th) {
+            return [
+                'Chapter 1: ભાગીદારી વિષય પ્રવેશ (Partnership Fundamentals)',
+                'Chapter 2: ભાગીદારી પેઢીના વાર્ષિક હિસાબો (Final Accounts)',
+                'Chapter 3: પાઘડીનું મૂલ્યાંકન (Valuation of Goodwill)',
+                'Chapter 4: ભાગીદારીનું પુનર્ગઠન (Reconstitution of Partnership)',
+                'Chapter 5: નવા ભાગીદારનો પ્રવેશ (Admission of Partner)',
+                'Chapter 6: ભાગીદારની નિવૃત્તિ / મૃત્યુ (Retirement of Partner)',
+                'Chapter 7: ભાગીદારી પેઢીનું વિસર્જન (Dissolution of Firm)',
+                'Chapter 8: શેરમૂડીના વ્યવહારો (Share Capital Accounting)',
+                'Chapter 9: ડિબેન્ચરના વ્યવહારો (Issue of Debentures)',
+                'Chapter 10: કંપનીના વાર્ષિક હિસાબો (Company Final Accounts)',
+                'Chapter 11: નાણાકીય પત્રકોનું વિશ્લેષણ & ગુણોત્તર (Ratio Analysis)',
+                'Chapter 12: રોકડ પ્રવાહ પત્રક (Cash Flow Statement - CFS)'
+            ];
+        } else {
+            return [
+                'Chapter 1: હિસાબી પદ્ધતિ અને પારિભાષિક શબ્દો (Introduction)',
+                'Chapter 2: વ્યવહારોની દ્વિઅસર અને ખાતાના પ્રકારો (Dual Effect)',
+                'Chapter 3: આમનોંધ અને વસ્તુ-સેવાઓ કર (Journal & GST)',
+                'Chapter 4: સહાયક ચોપડાઓ (Subsidiary Books)',
+                'Chapter 5: રોકડમેળ અને તેના પ્રકારો (Cash Book)',
+                'Chapter 6: બેંક સિલકમેળ (Bank Reconciliation Statement)',
+                'Chapter 7: કાચું સરવૈયું અને ભૂલ સુધારણા (Trial Balance)',
+                'Chapter 8: ઘસારાના હિસાબો (Depreciation Accounting)',
+                'Chapter 9: જોગવાઈઓ અને અનામતો (Provisions and Reserves)',
+                'Chapter 10: એકાંકી વેપારીના વાર્ષિક હિસાબો (Sole Trader Final Accounts)',
+                'Chapter 11: અપૂર્ણ નોંધો પરથી હિસાબો (Single Entry System)'
+            ];
+        }
+    }
+
+    if (subLower.includes('econ')) {
+        if (is12th) {
+            return [
+                'Chapter 1: અર્થશાસ્ત્રમાં આલેખ (Graphs in Economics)',
+                'Chapter 2: વૃદ્ધિ અને વિકાસના નિર્દેશકો (Growth Indicators)',
+                'Chapter 3: નાણું અને ફુગાવો (Money and Inflation)',
+                'Chapter 4: બેંકિંગ અને નાણાકીય નીતિ (Banking & Policy)',
+                'Chapter 5: ગરીબી (Poverty & Poverty Alleviation)',
+                'Chapter 6: બેરોજગારી (Unemployment & Employment Schemes)',
+                'Chapter 7: વસ્તી (Population Demographics)',
+                'Chapter 8: કૃષિ ક્ષેત્ર (Agricultural Sector)',
+                'Chapter 9: વિદેશ વેપાર (Foreign Trade & BoP)',
+                'Chapter 10: ઉદ્યોગ ક્ષેત્ર (Industrial Sector & MSME)',
+                'Chapter 11: સ્થાનાંતર અને શહેરીકરણ (Migration & Urbanisation)'
+            ];
+        } else {
+            return [
+                'Chapter 1: અર્થશાસ્ત્ર વિષય પ્રવેશ (Introduction to Economics)',
+                'Chapter 2: મૂળભૂત ખ્યાલો અને સંકલ્પનાઓ (Basic Concepts)',
+                'Chapter 3: માંગ અને માંગની સાપેક્ષતા (Demand Theory)',
+                'Chapter 4: પુરવઠો અને પુરવઠાની સાપેક્ષતા (Supply Theory)',
+                'Chapter 5: આવક અને ખર્ચના ખ્યાલો (Revenue & Cost Functions)',
+                'Chapter 6: બજાર અને બજારના પ્રકારો (Forms of Market)',
+                'Chapter 7: ભારતીય અર્થતંત્ર (Indian Economy)',
+                'Chapter 8: આર્થિક સુધારાઓ 1991 (LPG Policies)',
+                'Chapter 9: રાષ્ટ્રીય આવક (National Income Accounting)',
+                'Chapter 10: અંદાજપત્ર (Government Budget & Taxation)',
+                'Chapter 11: આર્થિક વિચારો (Economic Thoughts)'
+            ];
+        }
+    }
+
+    if (subLower.includes('stat')) {
+        if (is12th) {
+            return [
+                'Chapter 1: સૂચક આંક (Index Numbers - Laspeyres, Paasche, Fisher)',
+                'Chapter 2: રેખીય સહસંબંધ (Linear Correlation)',
+                'Chapter 3: રેખીય નિયતસંબંધ (Linear Regression)',
+                'Chapter 4: સામાયિક શ્રેણી (Time Series Analysis)',
+                'Chapter 5: સંભાવના (Probability Theory & Bayes Theorem)',
+                'Chapter 6: યાદચ્છિક ચલ અને દ્વિપદી વિતરણ (Random Variables)',
+                'Chapter 7: પ્રમાણ્ય વિતરણ (Normal Distribution & Z-Scores)',
+                'Chapter 8: લક્ષ (Limits & Continuity)',
+                'Chapter 9: વિકલન (Differentiation & Marginal Analysis)'
+            ];
+        } else {
+            return [
+                'Chapter 1: માહિતીનું એકત્રીકરણ (Collection of Data)',
+                'Chapter 2: માહિતીનું પ્રસ્તુતીકરણ (Tabulation of Data)',
+                'Chapter 3: મધ્યવર્તી સ્થિતિના માપો (Mean, Median, Mode)',
+                'Chapter 4: પ્રસારમાન (Range, SD, Quartile Deviation)',
+                'Chapter 5: આવૃત્તિ વિતરણની વિષમતા (Skewness)',
+                'Chapter 6: ક્રમચય, સંચય અને દ્વિપદી પ્રમેય (Permutations & Combinations)',
+                'Chapter 7: નિદર્શન પદ્ધતિઓ (Sampling Techniques)',
+                'Chapter 8: વિધેય (Functions & Functional Relations)',
+                'Chapter 9: ગુણોત્તર શ્રેણી (Geometric Progression - GP)'
+            ];
+        }
+    }
+
+    if (subLower.includes('business') || subLower.includes('commerc') || subLower.includes('o.c.m') || subLower.includes('ocm')) {
+        if (is12th) {
+            return [
+                'Chapter 1: સંચાલનનું સ્વરૂપ અને મહત્વ (Nature & Significance of Management)',
+                'Chapter 2: સંચાલનના સિદ્ધાંતો (Principles of Management)',
+                'Chapter 3: આયોજન (Planning & Strategic Goals)',
+                'Chapter 4: વ્યવસ્થાતંત્ર (Organising & Structure)',
+                'Chapter 5: કર્મચારી વ્યવસ્થા (Staffing & Recruitment)',
+                'Chapter 6: દોરવણી (Directing & Leadership)',
+                'Chapter 7: અંકુશ (Controlling & Feedback)',
+                'Chapter 8: નાણાકીય સંચાલન (Financial Management)',
+                'Chapter 9: નાણાકીય બજાર (Financial Markets & SEBI)',
+                'Chapter 10: બજારીય સંચાલન (Marketing Management & 4Ps)',
+                'Chapter 11: ગ્રાહક સુરક્ષા (Consumer Protection Act)',
+                'Chapter 12: ધંધાકીય પર્યાવરણ (Business Environment)'
+            ];
+        } else {
+            return [
+                'Chapter 1: ધંધાનું સ્વરૂપ, હેતુ અને કાર્યક્ષેત્ર (Nature & Scope of Business)',
+                'Chapter 2: ધંધાકીય સેવાઓ - 1 (Banking, Post, Insurance)',
+                'Chapter 3: ધંધાકીય સેવાઓ - 2 (Warehousing & Transport)',
+                'Chapter 4: માહિતી સંચાર, ઈ-કોમર્સ અને આઉટસોર્સિંગ (E-Commerce)',
+                'Chapter 5: ધંધાકીય સાહસના સ્વરૂપો - 1 (Sole Trader & Partnership)',
+                'Chapter 6: ધંધાકીય સાહસના સ્વરૂપો - 2 (Joint Stock Company & Co-op)',
+                'Chapter 7: જાહેર ક્ષેત્ર, ખાનગી ક્ષેત્ર અને વૈશ્વિક સાહસો (Public & Global)',
+                'Chapter 8: ધંધાકીય મૂડીના પ્રાપ્તિસ્થાનો (Sources of Business Finance)',
+                'Chapter 9: આંતરિક વેપાર (Internal Trade & Retail)',
+                'Chapter 10: આંતરરાષ્ટ્રીય વેપાર (International Trade)',
+                'Chapter 11: ધંધાની સામાજિક જવાબદારીઓ (Social Responsibility & Ethics)'
+            ];
+        }
+    }
+
+    if (subLower.includes('spcc') || subLower.includes('secretar') || subLower.includes('s.p.c.c')) {
+        if (is12th) {
+            return [
+                'Chapter 1: બેંક પત્રવ્યવહાર (Bank Correspondence)',
+                'Chapter 2: સરકારી વિભાગો સાથે પત્રવ્યવહાર (Government Dept Letters)',
+                'Chapter 3: આંતર-વિભાગીય અને કર્મચારી પત્રવ્યવહાર (Inter-departmental)',
+                'Chapter 4: વીમા પત્રવ્યવહાર (Insurance Correspondence)',
+                'Chapter 5: ઈ-કોમ્યુનિકેશન અને તેના પ્રકારો (E-Communication)',
+                'Chapter 6: શેર બહાર પાડવા અને શેર વહેંચણી (Share Issue & Allotment)',
+                'Chapter 7: શેર ફેરબદલી અને ભૌતિકીકરણ (Share Transfer & Demat)',
+                'Chapter 8: ડિબેન્ચર અને તેના પ્રકારો (Debentures)',
+                'Chapter 9: કંપનીના સંચાલકો (Company Directors & KMP)',
+                'Chapter 10: કંપનીની સભાઓ (Company Meetings & Resolutions)',
+                'Chapter 11: કંપનીનું વિસર્જન (Winding Up & Dissolution)'
+            ];
+        } else {
+            return [
+                'Chapter 1: વાણિજ્યિક પત્રવ્યવહારનો અર્થ અને શૈલી (Commercial Correspondence)',
+                'Chapter 2: અસરકારક પત્રવ્યવહાર અને તેની શૈલીઓ (Effective Writing)',
+                'Chapter 3: વેપારી પૂછપરછ અને તેના પ્રત્યુત્તરના પત્રો (Inquiry & Quotation)',
+                'Chapter 4: ઓર્ડર આપતા, અમલ કરતા અને રદ કરતા પત્રો (Orders & Execution)',
+                'Chapter 5: ફરિયાદ અને તેના નિકાલના પત્રો (Complaints & Adjustment)',
+                'Chapter 6: ઉઘરાણી અને પતવટના પત્રો (Collection Letters)',
+                'Chapter 7: સેક્રેટરીનો અર્થ, પ્રકારો અને ગુણો (Secretary Duties)',
+                'Chapter 8: કંપનીની સ્થાપના વિધિ (Company Incorporation)',
+                'Chapter 9: આવેદનપત્ર (Memorandum of Association - MOA)',
+                'Chapter 10: નિયમનપત્ર (Articles of Association - AOA)',
+                'Chapter 11: વિજ્ઞાપનપત્ર (Prospectus & Statutory Filing)'
+            ];
+        }
+    }
+
+    if (subLower.includes('math')) {
+        if (is12th) {
+            return [
+                'Chapter 1: Relations and Functions',
+                'Chapter 2: Inverse Trigonometric Functions',
+                'Chapter 3: Matrices & Determinants',
+                'Chapter 4: Continuity and Differentiability',
+                'Chapter 5: Applications of Derivatives (AOD)',
+                'Chapter 6: Integrals & Integration Techniques',
+                'Chapter 7: Applications of Integrals (Area under Curves)',
+                'Chapter 8: Differential Equations',
+                'Chapter 9: Vector Algebra',
+                'Chapter 10: Three Dimensional Geometry (3D)',
+                'Chapter 11: Linear Programming (LPP)',
+                'Chapter 12: Probability & Conditional Probability'
+            ];
+        } else if (is11th) {
+            return [
+                'Chapter 1: Sets, Relations & Functions',
+                'Chapter 2: Trigonometric Functions & Equations',
+                'Chapter 3: Complex Numbers & Quadratic Equations',
+                'Chapter 4: Linear Inequalities',
+                'Chapter 5: Permutations and Combinations',
+                'Chapter 6: Binomial Theorem',
+                'Chapter 7: Sequences and Series (AP & GP)',
+                'Chapter 8: Straight Lines & Conic Sections',
+                'Chapter 9: Introduction to Three Dimensional Geometry',
+                'Chapter 10: Limits and Derivatives',
+                'Chapter 11: Statistics & Dispersion',
+                'Chapter 12: Probability Theory'
+            ];
+        } else {
+            return [
+                'Chapter 1: Real Numbers (વાસ્તવિક સંખ્યાઓ)',
+                'Chapter 2: Polynomials (બહુપદીઓ)',
+                'Chapter 3: Pair of Linear Equations in Two Variables (દ્વિચલ રેખીય સમીકરણ)',
+                'Chapter 4: Quadratic Equations (દ્વિઘાત સમીકરણ)',
+                'Chapter 5: Arithmetic Progressions (સમાંતર શ્રેણી)',
+                'Chapter 6: Triangles (ત્રિકોણ)',
+                'Chapter 7: Coordinate Geometry (યામ ભૂમિતિ)',
+                'Chapter 8: Introduction to Trigonometry (ત્રિકોણમિતિનો પરિચય)',
+                'Chapter 9: Some Applications of Trigonometry (ત્રિકોણમિતિના ઉપયોગો)',
+                'Chapter 10: Circles (વર્તુળ)',
+                'Chapter 11: Areas Related to Circles (વર્તુળ સંબંધિત ક્ષેત્રફળ)',
+                'Chapter 12: Surface Areas and Volumes (પૃષ્ઠફળ અને ઘનફળ)',
+                'Chapter 13: Statistics (આંકડાશાસ્ત્ર)',
+                'Chapter 14: Probability (સંભાવના)'
+            ];
+        }
+    }
+
+    if (subLower.includes('physic')) {
+        if (is12th) {
+            return [
+                'Chapter 1: Electric Charges and Fields',
+                'Chapter 2: Electrostatic Potential and Capacitance',
+                'Chapter 3: Current Electricity & Ohm\'s Law',
+                'Chapter 4: Moving Charges and Magnetism',
+                'Chapter 5: Magnetism and Matter',
+                'Chapter 6: Electromagnetic Induction (EMI)',
+                'Chapter 7: Alternating Current (AC Circuits)',
+                'Chapter 8: Electromagnetic Waves (EM Waves)',
+                'Chapter 9: Ray Optics and Optical Instruments',
+                'Chapter 10: Wave Optics & Interference',
+                'Chapter 11: Dual Nature of Radiation and Matter',
+                'Chapter 12: Atoms & Spectral Series',
+                'Chapter 13: Nuclei & Nuclear Fission/Fusion',
+                'Chapter 14: Semiconductor Electronics: Materials & Devices'
+            ];
+        } else {
+            return [
+                'Chapter 1: Units and Measurements & Error Analysis',
+                'Chapter 2: Motion in a Straight Line (Kinematics)',
+                'Chapter 3: Motion in a Plane & Vectors',
+                'Chapter 4: Laws of Motion & Friction',
+                'Chapter 5: Work, Energy and Power',
+                'Chapter 6: System of Particles and Rotational Motion',
+                'Chapter 7: Gravitation & Planetary Motion',
+                'Chapter 8: Mechanical Properties of Solids (Elasticity)',
+                'Chapter 9: Mechanical Properties of Fluids (Hydrostatics)',
+                'Chapter 10: Thermal Properties of Matter & Heat Transfer',
+                'Chapter 11: Thermodynamics & Heat Engines',
+                'Chapter 12: Kinetic Theory of Gases',
+                'Chapter 13: Oscillations & Simple Harmonic Motion',
+                'Chapter 14: Waves & Sound Doppler Effect'
+            ];
+        }
+    }
+
+    if (subLower.includes('chemist')) {
+        if (is12th) {
+            return [
+                'Chapter 1: Solutions & Colligative Properties',
+                'Chapter 2: Electrochemistry & Nernst Equation',
+                'Chapter 3: Chemical Kinetics & Rate Laws',
+                'Chapter 4: d- and f-Block Elements',
+                'Chapter 5: Coordination Compounds & IUPAC Naming',
+                'Chapter 6: Haloalkanes and Haloarenes',
+                'Chapter 7: Alcohols, Phenols and Ethers',
+                'Chapter 8: Aldehydes, Ketones and Carboxylic Acids',
+                'Chapter 9: Amines & Diazonium Salts',
+                'Chapter 10: Biomolecules (Carbohydrates, Proteins, DNA)'
+            ];
+        } else {
+            return [
+                'Chapter 1: Some Basic Concepts of Chemistry (Mole Concept)',
+                'Chapter 2: Structure of Atom & Quantum Numbers',
+                'Chapter 3: Periodicity in Properties',
+                'Chapter 4: Chemical Bonding and Molecular Structure',
+                'Chapter 5: Chemical Thermodynamics & Energetics',
+                'Chapter 6: Chemical & Ionic Equilibrium',
+                'Chapter 7: Redox Reactions & Oxidation Numbers',
+                'Chapter 8: Organic Chemistry: Basic Principles & Techniques',
+                'Chapter 9: Hydrocarbons (Alkanes, Alkenes, Alkynes)'
+            ];
+        }
+    }
+
+    if (subLower.includes('bio')) {
+        if (is12th) {
+            return [
+                'Chapter 1: Sexual Reproduction in Flowering Plants',
+                'Chapter 2: Human Reproduction & Embryology',
+                'Chapter 3: Reproductive Health & Contraception',
+                'Chapter 4: Principles of Inheritance and Variation',
+                'Chapter 5: Molecular Basis of Inheritance',
+                'Chapter 6: Evolution & Natural Selection',
+                'Chapter 7: Human Health and Diseases',
+                'Chapter 8: Microbes in Human Welfare',
+                'Chapter 9: Biotechnology: Principles and Processes',
+                'Chapter 10: Biotechnology and its Applications',
+                'Chapter 11: Organisms and Populations',
+                'Chapter 12: Ecosystem & Nutrient Cycling',
+                'Chapter 13: Biodiversity and Conservation'
+            ];
+        } else {
+            return [
+                'Chapter 1: The Living World & Biological Classification',
+                'Chapter 2: Plant Kingdom & Animal Kingdom',
+                'Chapter 3: Morphology & Anatomy of Flowering Plants',
+                'Chapter 4: Structural Organisation in Animals',
+                'Chapter 5: Cell: The Unit of Life',
+                'Chapter 6: Biomolecules',
+                'Chapter 7: Cell Cycle and Cell Division',
+                'Chapter 8: Photosynthesis in Higher Plants',
+                'Chapter 9: Respiration in Plants',
+                'Chapter 10: Plant Growth and Development',
+                'Chapter 11: Breathing and Exchange of Gases',
+                'Chapter 12: Body Fluids and Circulation',
+                'Chapter 13: Excretory Products and their Elimination',
+                'Chapter 14: Locomotion and Movement',
+                'Chapter 15: Neural Control and Coordination',
+                'Chapter 16: Chemical Coordination and Integration'
+            ];
+        }
+    }
+
+    if (subLower.includes('social') || subLower.includes('histor') || subLower.includes('geo') || subLower.includes('civic') || subLower.includes('sst') || subLower.includes('સામાજિક')) {
+        return [
+            'Chapter 1: Heritage of India (ભારતનો વારસો)',
+            'Chapter 2: Cultural Heritage of India: Traditional Handicrafts (સાંસ્કૃતિક વારસો)',
+            'Chapter 3: Cultural Heritage of India: Sculpture and Architecture (શિલ્પ-સ્થાપત્ય)',
+            'Chapter 4: Literary Heritage of India (સાહિત્યિક વારસો)',
+            'Chapter 5: India\'s Heritage of Science and Technology (વિજ્ઞાન અને ટેકનોલોજી)',
+            'Chapter 6: Places of Indian Cultural Heritage (સાંસ્કૃતિક વારસાના સ્થળો)',
+            'Chapter 7: Preservation of Our Heritage (આપણા વારસાનું જતન)',
+            'Chapter 8: Natural Resources (કુદરતી સંસાધનો)',
+            'Chapter 9: Forests and Wildlife Resources (વન અને વન્યજીવ સંસાધન)',
+            'Chapter 10: India: Agriculture (ભારત: કૃષિ)',
+            'Chapter 11: Water Resources (જળ સંસાધનો)',
+            'Chapter 12: Mineral and Energy Resources (ખનિજ અને શક્તિના સંસાધનો)',
+            'Chapter 13: Manufacturing Industries (ઉત્પાદન ઉદ્યોગો)',
+            'Chapter 14: Transportation, Communication and Trade (પરિવહન અને વ્યાપાર)',
+            'Chapter 15: Economic Development (આર્થિક વિકાસ)',
+            'Chapter 16: Economic Liberalization and Globalization (ઉદારીકરણ અને વૈશ્વિકીકરણ)',
+            'Chapter 17: Poverty and Unemployment (ગરીબી અને બેરોજગારી)',
+            'Chapter 18: Price Rise and Consumer Awareness (ભાવવધારો અને ગ્રાહક જાગૃતિ)',
+            'Chapter 19: Human Development (માનવ વિકાસ)',
+            'Chapter 20: Social Problems of India and Challenges (સામાજિક સમસ્યાઓ)',
+            'Chapter 21: Social Change (સામાજિક પરિવર્તન)'
+        ];
+    }
+
+    if (subLower.includes('scien') && !subLower.includes('social')) {
+        return [
+            'Chapter 1: Chemical Reactions and Equations (રાસાયણિક પ્રક્રિયાઓ)',
+            'Chapter 2: Acids, Bases and Salts (એસિડ, બેઇઝ અને ક્ષાર)',
+            'Chapter 3: Metals and Non-Metals (ધાતુઓ અને અધાતુઓ)',
+            'Chapter 4: Carbon and Its Compounds (કાર્બન અને તેના સંયોજનો)',
+            'Chapter 5: Life Processes (જૈવિક ક્રિયાઓ)',
+            'Chapter 6: Control and Coordination (નિયંત્રણ અને સંકલન)',
+            'Chapter 7: How do Organisms Reproduce? (સજીવો કેવી રીતે પ્રજનન કરે છે?)',
+            'Chapter 8: Heredity and Evolution (આનુવંશિકતા અને વિકાસ)',
+            'Chapter 9: Light - Reflection and Refraction (પ્રકાશ - પરાવર્તન અને વક્રીભવન)',
+            'Chapter 10: Human Eye and Colourful World (માનવ આંખ અને રંગબેરંગી દુનિયા)',
+            'Chapter 11: Electricity (વિદ્યુત)',
+            'Chapter 12: Magnetic Effects of Electric Current (વિદ્યુતપ્રવાહની ચુંબકીય અસરો)',
+            'Chapter 13: Our Environment (આપણું પર્યાવરણ)',
+            'Chapter 14: Sustainable Management of Natural Resources (કુદરતી સ્ત્રોતોનું પ્રબંધન)'
+        ];
+    }
+
+    return [];
+};
+
+import { getOfficialBoardRegistry, ALLOWED_SOURCES, STRICTLY_FORBIDDEN_SOURCES } from './official_curriculum_registry';
+
+// Helper to return fully localized roadmap node text based on selected medium/language
+const getLocalizedRoadmapMetadata = (
+    lang: string,
+    subject: string,
+    chapterName: string,
+    boardName: string,
+    gradeLabel: string,
+    idx: number
+) => {
+    const l = (lang || '').toLowerCase().trim();
+
+    if (l === 'gujarati' || l === 'gu') {
+        return {
+            chapter: `પ્રકરણ ${idx + 1}`,
+            subtopic: 'અધિકૃત સરકારી પાઠ્યપુસ્તક અભ્યાસક્રમ અને સ્વાધ્યાય',
+            priority_reason: `${gradeLabel} ${subject} માટે અધિકૃત સરકારી પાઠ્યપુસ્તક પ્રકરણ (${boardName}).`,
+            board_relevance: `${boardName} બોર્ડ પરીક્ષામાં સીધા ઉંચા ગુણ ધરાવતા પ્રશ્નો.`,
+            explanation_simple: `${chapterName} માટે મૂળભૂત સંકલ્પનાઓ અને સ્વાધ્યાય આવરી લેતું અભ્યાસ મોડ્યુલ.`,
+            explanation_detailed: `${chapterName} માટે વિગતવાર થિયરી, સૂત્રો અને બોર્ડ પરીક્ષા બ્લુપ્રિન્ટ.`,
+            key_points: [`${chapterName} ની મુખ્ય વ્યાખ્યાઓ`, `પાઠ્યપુસ્તકના ઉદાહરણો`, `બોર્ડ પરીક્ષા સ્વાધ્યાય પ્રશ્નો`],
+            key_formulas: [`${chapterName} ના મુખ્ય નિયમો`]
+        };
+    }
+
+    if (l === 'hindi' || l === 'hi') {
+        return {
+            chapter: `अध्याय ${idx + 1}`,
+            subtopic: 'आधिकारिक सरकारी पाठ्यपुस्तक पाठ्यक्रम एवं हल किए गए अभ्यास',
+            priority_reason: `${gradeLabel} ${subject} के लिए आधिकारिक सरकारी पाठ्यपुस्तक अध्याय (${boardName})।`,
+            board_relevance: `${boardName} बोर्ड परीक्षा में सीधे उच्च अंक वाले प्रश्न।`,
+            explanation_simple: `${chapterName} के लिए मूल अवधारणाओं और अभ्यासों को कवर करने वाला अध्ययन मॉड्यूल।`,
+            explanation_detailed: `${chapterName} के लिए विस्तृत सिद्धांत, सूत्र और बोर्ड परीक्षा ब्लूप्रिंट।`,
+            key_points: [`${chapterName} की मुख्य परिभाषाएं`, `पाठ्यपुस्तक के हल किए गए उदाहरण`, `बोर्ड परीक्षा अभ्यास प्रश्न`],
+            key_formulas: [`${chapterName} के मुख्य नियम`]
+        };
+    }
+
+    if (l === 'marathi' || l === 'mr') {
+        return {
+            chapter: `धडा ${idx + 1}`,
+            subtopic: 'अधिकृत शासकीय पाठ्यपुस्तक अभ्यासक्रम आणि स्वाध्याय',
+            priority_reason: `${gradeLabel} ${subject} साठी अधिकृत शासकीय पाठ्यपुस्तक धडा (${boardName}).`,
+            board_relevance: `${boardName} बोर्ड परीक्षेत थेट जास्त गुणांचे प्रश्न.`,
+            explanation_simple: `${chapterName} साठी मूलभूत संकल्पना आणि स्वाध्याय समाविष्ट करणारे अभ्यास मॉड्यूल.`,
+            explanation_detailed: `${chapterName} साठी सविस्तर सिद्धांत, सूत्रे आणि बोर्ड परीक्षा ब्लूप्रिंट.`,
+            key_points: [`${chapterName} च्या मुख्य व्याख्या`, `पाठ्यपुस्तकातील उदाहरणे`, `बोर्ड परीक्षा स्वाध्याय प्रश्न`],
+            key_formulas: [`${chapterName} चे मुख्य नियम`]
+        };
+    }
+
+    // Default English
+    return {
+        chapter: `Chapter ${idx + 1}`,
+        subtopic: 'Official Government Textbook Curriculum & Solved Exercises',
+        priority_reason: `Official government textbook chapter for ${subject} ${gradeLabel} (${boardName}).`,
+        board_relevance: `Direct high-weightage questions in ${boardName} board examinations.`,
+        explanation_simple: `Official textbook study module covering core concepts and exercises for ${chapterName}.`,
+        explanation_detailed: `Comprehensive breakdown, theory, formulas, and board exam blueprint for ${chapterName}.`,
+        key_points: [`Core Definitions of ${chapterName}`, `Official Textbook Solved Examples`, `Board Exam Exercise Questions`],
+        key_formulas: [`Key Concept Rules for ${chapterName}`]
+    };
+};
+
+// ─────────────────────────────────────────────
+// 3. GENERATE ROADMAP from topic/content
+// ─────────────────────────────────────────────
 export const generateRoadmap = async (
     subject: string,
     topic: string,
@@ -1156,72 +1635,127 @@ export const generateRoadmap = async (
 ): Promise<any> => {
     const boardLabel = getBoardLabel(board);
     const gradeLabel = getGradeLabel(grade_level);
+    const boardRegistry = getOfficialBoardRegistry(board);
+
+    const b = boardLabel.toLowerCase().trim();
+    const std = grade_level.toLowerCase().trim();
+    const sub = (subject || '').toLowerCase().trim();
+    const med = (medium || language || 'gujarati').toLowerCase().trim();
+    const activeLang = language || medium || 'gujarati';
+
+    try {
+        const MinervaOfficialCurriculum = require('./models/minerva_official_curriculum.model').default;
+        const dbRecord = await MinervaOfficialCurriculum.findOne({
+            board: b,
+            class_level: std,
+            subject: sub,
+            medium: med
+        }).lean();
+
+        if (dbRecord && dbRecord.chapters && dbRecord.chapters.length > 0) {
+            return {
+                title: `${dbRecord.textbook_name} (${gradeLabel})`,
+                subject: subject,
+                estimated_hours: dbRecord.chapters.length * 2,
+                board_pattern: `100% Official ${dbRecord.reference_source} Government Textbook Curriculum`,
+                official_website: dbRecord.official_book_url,
+                textbooks_url: dbRecord.official_book_url,
+                syllabus_url: dbRecord.official_syllabus_url,
+                learning_outcomes_url: dbRecord.learning_outcomes_url || dbRecord.official_book_url,
+                reference_source: dbRecord.reference_source,
+                nodes: dbRecord.chapters.map((ch: any, idx: number) => {
+                    const meta = getLocalizedRoadmapMetadata(activeLang, subject, ch.chapter_name, dbRecord.reference_source, gradeLabel, idx);
+                    return {
+                        order_index: ch.chapter_number || (idx + 1),
+                        title: ch.chapter_name,
+                        chapter: meta.chapter,
+                        topic: ch.chapter_name,
+                        subtopic: meta.subtopic,
+                        priority: idx < 4 ? 'HIGH' : idx < 9 ? 'MEDIUM' : 'LOW',
+                        priority_reason: meta.priority_reason,
+                        board_relevance: meta.board_relevance,
+                        exam_weightage_percent: Math.round(100 / dbRecord.chapters.length),
+                        difficulty: idx < 3 ? 'basic' : idx < 8 ? 'intermediate' : 'advanced',
+                        estimated_time_minutes: 45,
+                        explanation_simple: meta.explanation_simple,
+                        explanation_detailed: meta.explanation_detailed,
+                        official_book_url: dbRecord.official_book_url,
+                        official_pdf_url: ch.official_pdf_url || dbRecord.official_pdf_url,
+                        official_chapter_url: ch.official_chapter_url || dbRecord.official_chapter_index_url,
+                        official_syllabus_url: dbRecord.official_syllabus_url,
+                        reference_source: dbRecord.reference_source,
+                        key_points: ch.key_concepts && ch.key_concepts.length > 0 ? ch.key_concepts : meta.key_points,
+                        key_formulas: meta.key_formulas
+                    };
+                })
+            };
+        }
+    } catch (dbErr) {
+        console.error('[generateRoadmap DB Query Error]', dbErr);
+    }
+
+    const officialChapters = getOfficialTextbookChapters(subject, grade_level);
+    if (officialChapters.length > 0) {
+        return {
+            title: `${subject} Official ${boardRegistry.name} Syllabus (${gradeLabel})`,
+            subject: subject,
+            estimated_hours: officialChapters.length * 2,
+            board_pattern: `100% Official ${boardRegistry.name} Government Textbook Curriculum`,
+            official_website: boardRegistry.officialWebsite,
+            textbooks_url: boardRegistry.textbooksUrl,
+            syllabus_url: boardRegistry.syllabusUrl,
+            learning_outcomes_url: boardRegistry.learningOutcomesUrl || boardRegistry.officialWebsite,
+            reference_source: boardRegistry.name,
+            nodes: officialChapters.map((ch, idx) => {
+                const meta = getLocalizedRoadmapMetadata(activeLang, subject, ch, boardRegistry.name, gradeLabel, idx);
+                return {
+                    order_index: idx + 1,
+                    title: ch,
+                    chapter: meta.chapter,
+                    topic: ch,
+                    subtopic: meta.subtopic,
+                    priority: idx < 4 ? 'HIGH' : idx < 9 ? 'MEDIUM' : 'LOW',
+                    priority_reason: meta.priority_reason,
+                    board_relevance: meta.board_relevance,
+                    exam_weightage_percent: Math.round(100 / officialChapters.length),
+                    difficulty: idx < 3 ? 'basic' : idx < 8 ? 'intermediate' : 'advanced',
+                    estimated_time_minutes: 45,
+                    explanation_simple: meta.explanation_simple,
+                    explanation_detailed: meta.explanation_detailed,
+                    official_book_url: boardRegistry.textbooksUrl,
+                    official_pdf_url: `${boardRegistry.textbooksUrl}?chapter=${idx + 1}`,
+                    official_chapter_url: `${boardRegistry.officialWebsite}/chapter/${idx + 1}`,
+                    official_syllabus_url: boardRegistry.syllabusUrl,
+                    reference_source: boardRegistry.name,
+                    key_points: meta.key_points,
+                    key_formulas: meta.key_formulas
+                };
+            })
+        };
+    }
 
     const messages = [
         {
             role: 'system',
-            content: `You are an expert Indian education curriculum designer and senior engineering professor.
-Create a detailed, high-rigor topic roadmap for the given subject/topic.
-Board/University: ${boardLabel}, Grade/Degree: ${gradeLabel}, Medium: ${medium}, Target Language: ${language}
+            content: `ROLE: You are the Official Curriculum Intelligence Engine of Future Education OS.
+MISSION: Provide educational guidance using ONLY official education authorities (${boardRegistry.name}, NCERT, CBSE Academic, DIKSHA, ePathshala, NIOS, CISCE, SCERT).
 
-Return ONLY valid JSON:
-{
-    "title": "Session title",
-    "subject": "subject name",
-    "estimated_hours": number,
-    "board_pattern": "brief note about exam and curriculum pattern",
-    "nodes": [
-        {
-            "order_index": 1,
-            "title": "Topic name",
-            "chapter": "Chapter name if applicable",
-            "topic": "Main topic",
-            "subtopic": "Specific subtopic",
-            "priority": "HIGH" | "MEDIUM" | "LOW",
-            "priority_reason": "Why this is important for exam and practical mastery",
-            "board_relevance": "How this topic appears in board/university exams",
-            "exam_weightage_percent": 0-100,
-            "difficulty": "basic" | "intermediate" | "advanced",
-            "estimated_time_minutes": number,
-            "explanation_simple": "Clear conceptual summary for quick understanding",
-            "explanation_detailed": "Deep, authoritative, comprehensive textbook/university-level theory with mathematical proofs, derivations, syntax rules, step-by-step logic, edge cases, and board 5-mark blueprint question",
-            "real_world_example": "Real-world engineering / industry application example with working code snippet or real life case study",
-            "practical_setup_guide": "Complete step-by-step practical setup guide including IDE setup (VS Code, Eclipse, Jupyter), SDK/compiler installation, and setup instructions",
-            "official_download_links": [
-                { "name": "VS Code Official Download", "url": "https://code.visualstudio.com/", "category": "IDE" },
-                { "name": "Official Compiler / Language Download", "url": "https://www.python.org/downloads/", "category": "Compiler / SDK" }
-            ],
-            "terminal_commands": [
-                "pip install numpy pandas matplotlib",
-                "npm install express cors"
-            ],
-            "key_points": ["Key Concept 1", "Key Concept 2", "Key Concept 3"],
-            "key_formulas": ["Formula / Syntax 1", "Formula / Syntax 2"]
-        }
-    ]
-}
+Board/Authority: ${boardRegistry.name} (${boardRegistry.officialWebsite})
+Grade: ${gradeLabel}, Subject: ${subject}, Medium: ${medium}, Target Language: ${activeLang}
 
-RULES:
-- HIGH priority = most likely to appear in ${boardLabel} exam (60% of nodes)
-- MEDIUM = moderate importance (30%)  
-- LOW = good to know (10%)
-- First node should always be UNLOCKED, rest LOCKED initially
-- Order from fundamental to advanced
-- Include 5-15 nodes depending on topic depth
-- IMPORTANT: Include actual official software download links (e.g. VS Code, Python, Node.js, Git, Java JDK, MySQL, PyTorch, GCC/G++) and terminal commands if the topic involves programming or tools.
-- IMPORTANT: Generate ALL text fields in the JSON in the target language: ${language}. If target language is Hinglish, write them in natural Romanized Hindi.`
-        },
-        {
-            role: 'user',
-            content: `Create roadmap for:
-Subject: ${subject}
-Topic: ${topic || subject}
-${source_content ? `Content to extract from:\n${source_content.substring(0, 2000)}` : ''}`
+CRITICAL A-TO-Z LANGUAGE MANDATE:
+The student selected target medium/language: "${activeLang}".
+You MUST generate 100% of all JSON output text (title, node titles, chapter names, subtopics, explanations, priority reasons, board relevances, key points) STRICTLY in ${activeLang}. Zero English filler text if target language is ${activeLang}!
+
+Return output strictly as JSON with keys: title, subject, estimated_hours, board_pattern, official_website, textbooks_url, syllabus_url, reference_source, nodes (array of { order_index, title, chapter, topic, subtopic, priority, board_relevance, exam_weightage_percent, difficulty, key_points }).`
         }
     ];
 
     try {
-        const res = await getProviderResponse(messages, { jsonMode: true, maxTokens: 4096, temperature: 0.3 });
+        const res = await Promise.race([
+            getProviderResponse(messages, { jsonMode: true, maxTokens: 2000, temperature: 0.3 }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Roadmap AI Generation Timeout')), 15000))
+        ]) as any;
         const text = res?.choices?.[0]?.message?.content || '{}';
         const parsed = safeJsonParse(text);
         if (parsed && Array.isArray(parsed.nodes) && parsed.nodes.length > 0) {
@@ -1231,75 +1765,10 @@ ${source_content ? `Content to extract from:\n${source_content.substring(0, 2000
         console.error('[generateRoadmap AI error]', err);
     }
 
-    // Guaranteed Fallback Roadmap Generator for any topic/subject
-    const cleanTopic = topic || subject || 'General Study';
     return {
-        title: `${cleanTopic} Master Course`,
-        subject: cleanTopic,
-        estimated_hours: 12,
-        board_pattern: `Comprehensive learning curriculum for ${cleanTopic}`,
-        nodes: [
-            {
-                order_index: 1,
-                title: `Introduction & Fundamentals of ${cleanTopic}`,
-                chapter: 'Module 1: Foundations',
-                topic: cleanTopic,
-                subtopic: 'Basic Concepts & Terminology',
-                priority: 'HIGH',
-                priority_reason: `Core foundation necessary to understand all advanced concepts in ${cleanTopic}.`,
-                board_relevance: 'High frequency in introductory assessment sections.',
-                exam_weightage_percent: 25,
-                difficulty: 'basic',
-                estimated_time_minutes: 30,
-                key_points: ['Core Definitions & Overview', 'Key Terminology', 'Fundamental Mechanics'],
-                key_formulas: ['Basic Rules & Operations']
-            },
-            {
-                order_index: 2,
-                title: `Core Principles & Key Mechanisms of ${cleanTopic}`,
-                chapter: 'Module 2: Core Principles',
-                topic: cleanTopic,
-                subtopic: 'Mechanisms & Workflow',
-                priority: 'HIGH',
-                priority_reason: `Essential operational principles required for practical application.`,
-                board_relevance: 'Formulates the main short and long descriptive questions.',
-                exam_weightage_percent: 30,
-                difficulty: 'intermediate',
-                estimated_time_minutes: 40,
-                key_points: ['Step-by-step Execution', 'Operational Principles', 'Standard Formats'],
-                key_formulas: ['Core Formulas & Standard Expressions']
-            },
-            {
-                order_index: 3,
-                title: `Real World Applications & Practice Problems`,
-                chapter: 'Module 3: Practical Application',
-                topic: cleanTopic,
-                subtopic: 'Problem Solving & Case Studies',
-                priority: 'HIGH',
-                priority_reason: `Applies fundamental theory to real-world scenarios and numerical problems.`,
-                board_relevance: 'Highest weightage section in practical and written evaluations.',
-                exam_weightage_percent: 25,
-                difficulty: 'intermediate',
-                estimated_time_minutes: 45,
-                key_points: ['Case Studies', 'Common Pitfalls', 'Optimization Techniques'],
-                key_formulas: ['Advanced Evaluation Metrics']
-            },
-            {
-                order_index: 4,
-                title: `Advanced Topics & Master Revision of ${cleanTopic}`,
-                chapter: 'Module 4: Advanced Mastery',
-                topic: cleanTopic,
-                subtopic: 'Advanced Insights & Exam Prep',
-                priority: 'MEDIUM',
-                priority_reason: `Prepares student for top marks and advanced problem types.`,
-                board_relevance: 'Distinguishes high scoring students in exam papers.',
-                exam_weightage_percent: 20,
-                difficulty: 'advanced',
-                estimated_time_minutes: 45,
-                key_points: ['Advanced Scenarios', 'Comprehensive Revision', 'Exam Strategies'],
-                key_formulas: ['Summary Formula Sheet']
-            }
-        ]
+        error: "Official government textbook unavailable. No educational content generated.",
+        official_website: boardRegistry.officialWebsite,
+        reference_source: boardRegistry.name
     };
 };
 
@@ -1315,11 +1784,28 @@ export const generateTopicContent = async (
     const board = getBoardLabel(studentProfile?.board || 'cbse');
     const grade = getGradeLabel(studentProfile?.grade_level || 'class_10');
 
+    const boardRegistry = getOfficialBoardRegistry(studentProfile?.board || 'gseb');
+
     const messages = [
         {
             role: 'system',
-            content: `You are MINERVA, an expert tutor. Generate complete learning content for a topic.
+            content: `ROLE: You are the Official Curriculum Intelligence Engine of Future Education OS.
+MISSION: Provide educational guidance using ONLY official education authorities (${boardRegistry.name}, NCERT, CBSE Academic, DIKSHA, ePathshala, NIOS, CISCE, SCERT). Never use unofficial educational websites (Byjus, Vedantu, PW, Wikipedia, Toppr, Doubtnut, Quora).
+
+Official Board: ${boardRegistry.name} (${boardRegistry.officialWebsite})
+Textbook Source: ${boardRegistry.textbooksUrl}
+Syllabus Authority: ${boardRegistry.syllabusUrl}
 Language: ${lang} | Board: ${board} | Grade: ${grade}
+
+CRITICAL A-TO-Z LANGUAGE MANDATE:
+The student selected target medium/language: "${lang}".
+You MUST write 100% of all explanation_simple, explanation_detailed, real_world_example, key_points, key_formulas, memory_trick, board_specific_note, micro_tasks, and homework_tasks STRICTLY in "${lang}".
+Zero English filler text if target language is ${lang} (e.g. Gujarati, Hindi, Marathi, Tamil)!
+
+STRICT RULES:
+- Never invent chapter names, syllabus, or exercises.
+- Explain ONLY according to official government textbooks (${boardRegistry.name} / NCERT).
+- If no official source exists, respond: "Official government textbook unavailable. No educational content generated."
 
 Return ONLY valid JSON:
 {
@@ -1422,64 +1908,13 @@ Board Relevance: ${node.board_relevance}`
         console.error('[generateTopicContent AI error]', err);
     }
 
-    // Guaranteed Fallback Topic Content Generator
-    const title = node?.title || 'Topic Content';
     return {
-        explanation_simple: `### 🎭 The Fun Story & Metaphor 😂💡
-Think of **${title}** like an expert conductor running a grand musical orchestra! 🎻🎺 Every instrument (rule, formula, or mechanism) must play its role at the exact microsecond ⏰. If the trumpet blows too early or drums miss a beat, it sounds like a chaotic kitchen disaster! 💥 But when **${title}** guides them, every single piece syncs into a flawless, logical masterpiece. 🎶✨ That is why mastering **${title}** makes complex problems crystal-clear! 🧠⚡💖
-
-### 🔹 Key Concept Highlights & Main Takeaways
-- **Core Definition 💡**: ${title} provides the foundational rules, logic, and structure required to analyze and solve problems.
-- **Key Working Rule ⚡**: Organizes multi-step processes into clear, synchronized steps.
-- **Why It Matters 🎯**: Essential for mastering your subject syllabus and scoring top marks in exams! 🌟`,
-        explanation_detailed: `# 📌 ${title} — Core Overview & Concept Breakdown
-
-### 💡 Topic Discussion & Overview
-${title} is a fundamental topic in your curriculum. Before examining step-by-step mechanisms and formulas, it is essential to understand what ${title} represents, how it fits into your subject syllabus, and why it forms the backbone of real-world problem-solving.
-
-### 🔹 Sub-Topics & Key Components Breakdown
-- **Definition & Meaning**: The core principles defining ${title} and its foundational rules.
-- **Key Terminology**: Essential technical terms, units, and notations associated with ${title}.
-- **Core Functionality**: How ${title} behaves when applied to theoretical and practical problems.
-- **Quick Q&A**: *What is the primary objective of ${title}?* To provide the structured framework required to solve complex syllabus problems efficiently.
-
-### 1. Pehle Samjho / Why
-Understanding ${title} is crucial because it forms the backbone of core syllabus topics and board examination questions.
-
-### 2. Kya Hai Yeh / What
-${title} defines the rules, concepts, and structure required to analyze and solve problems in this subject.
-
-### 3. Kaise Kaam Karta Hai / How
-1. Identify the given variables or requirements.
-2. Apply the core formulas and rules of ${title}.
-3. Execute step-by-step logic to achieve the correct result.
-
-### 4. Kahan Use Hota Hai / Where
-Widely utilized across academic problem solving, practical labs, and real-world industrial scenarios.
-
-### 5. Summary / Brief
-Mastering ${title} enables confidence in tackling both basic MCQs and high-weightage numerical/descriptive questions.`,
-        real_world_example: `${title} is used in daily technology, engineering systems, and logical decision making.`,
-        key_points: [`Core principles of ${title}`, `Key applications & formulas`, `Exam problem solving methods`],
-        key_formulas: [`Standard Rule: ${title}`],
-        micro_tasks: [
-            {
-                type: 'mcq',
-                prompt: `What is the primary function of ${title}?`,
-                options: [`To define core principles of ${title}`, `To store data`, `None of the above`],
-                correct_answer: `To define core principles of ${title}`,
-                marks: 1,
-                difficulty: 'easy'
-            },
-            {
-                type: 'text_answer',
-                prompt: `Explain the key concepts of ${title} and why it is important.`,
-                options: [],
-                correct_answer: `Key concepts and importance of ${title}`,
-                marks: 3,
-                difficulty: 'medium'
-            }
-        ]
+        error: "Official government textbook unavailable. No educational content generated.",
+        explanation_simple: "Official government textbook unavailable. No educational content generated.",
+        explanation_detailed: "Official government textbook unavailable. No educational content generated.",
+        key_points: [],
+        key_formulas: [],
+        micro_tasks: []
     };
 };
 
@@ -1537,7 +1972,8 @@ Return ONLY a valid JSON array of objects (do not wrap in markdown \`\`\`json):
 
     try {
         const res = await getProviderResponse(messages, { jsonMode: true, maxTokens: 2000, temperature: 0.75 });
-        const text = res?.choices?.[0]?.message?.content || '[]';
+        let text = res?.choices?.[0]?.message?.content || res?.output || res?.message || '[]';
+        text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
         const parsed = safeJsonParse(text);
         if (Array.isArray(parsed) && parsed.length > 0) {
             return parsed;
@@ -1546,37 +1982,37 @@ Return ONLY a valid JSON array of objects (do not wrap in markdown \`\`\`json):
         console.error('[generateUniqueMixTasks AI error]', err);
     }
 
-    // Guaranteed Fallback Question Generator (Guarantees tasks array is NEVER empty!)
-    const title = node?.title || 'Topic Concept';
+    // Deterministic 100% guaranteed fallback tasks if AI output is empty or fails
+    const topicName = node.title || 'Chapter Topic';
     return [
         {
             type: 'mcq',
-            prompt: `What is the primary function or core concept of "${title}"?`,
+            prompt: `What is the core fundamental concept of ${topicName}?`,
             options: [
-                `To define and structure key elements of ${title}`,
-                `To style visual layout components only`,
-                `To store backend database records`,
+                `Primary definition & rule of ${topicName}`,
+                `Secondary unverified theorem`,
+                `General introductory hypothesis`,
                 `None of the above`
             ],
-            correct_answer: `To define and structure key elements of ${title}`,
+            correct_answer: `Primary definition & rule of ${topicName}`,
             marks: 1,
             difficulty: 'easy'
         },
         {
             type: 'fill_blank',
-            prompt: `Complete the statement: In ${title}, the fundamental rule or syntax requires _______ for proper execution.`,
+            prompt: `Complete the key statement for ${topicName}: The main rule of this chapter is ________.`,
             options: [],
-            correct_answer: `correct tags or proper syntax structure`,
+            correct_answer: `Core definition and application of ${topicName}`,
             marks: 2,
             difficulty: 'medium'
         },
         {
             type: 'text_answer',
-            prompt: `Explain in your own words: Why is "${title}" important in real-world application, and what is its main use case?`,
+            prompt: `Explain the main concept and real-world application of ${topicName} in 3-4 sentences.`,
             options: [],
-            correct_answer: `Key concepts, real-world application, and importance of ${title}`,
-            marks: 3,
-            difficulty: 'medium'
+            correct_answer: `Comprehensive breakdown of ${topicName} including core definitions, real-world examples, and exam weightage points.`,
+            marks: 5,
+            difficulty: 'hard'
         }
     ];
 };

@@ -1,6 +1,8 @@
 import { SchoolTenantModel } from '../tenant/school_tenant.model';
 import { TenantOrgModel } from '../tenant/tenant.model';
+import { TenantUserModel } from '../tenant/tenant_user.model';
 import User from '../auth/user.model';
+import { upsertSchoolToUdiseDatabase } from '../auth/school_helper';
 
 export class OnboardingService {
 
@@ -120,37 +122,72 @@ export class OnboardingService {
     return newSchool;
   }
 
-  // Complete Student Profile Onboarding Registration
+  // Complete Student Profile Onboarding Registration with Automated Teacher Matcher
   static async completeStudentRegistration(params: {
     userId: string;
+    firstName?: string;
+    lastName?: string;
     city: string;
     schoolName: string;
+    udiseCode?: string;
     tenantOrgId: string;
     educationType: 'k12' | 'higher_ed' | 'competitive';
     board?: string;
+    medium?: string;
     standard?: string;
     section?: string;
     stream?: string;
     branch?: string;
     semester?: string;
+    rollNumber?: string;
+    enrollmentNo?: string;
+    grNumber?: string;
+    mobile_number?: string;
+    parentName?: string;
+    parentPhone?: string;
+    parentEmail?: string;
   }): Promise<any> {
     const user = await User.findById(params.userId);
     if (!user) {
       throw new Error('User account not found');
     }
 
+    if (params.firstName) user.firstName = params.firstName;
+    if (params.lastName) user.lastName = params.lastName;
     user.city = params.city;
     user.schoolName = params.schoolName;
+    if (params.udiseCode) user.udiseCode = params.udiseCode;
     user.tenantOrgId = params.tenantOrgId;
     user.educationType = params.educationType;
     user.board = params.board || 'CBSE';
+    user.medium = params.medium || 'English Medium';
     user.standard = params.standard || '10';
     user.section = params.section || 'A';
     user.stream = params.stream || 'Science';
     user.branch = params.branch || '';
     user.semester = params.semester || '';
+    if (params.rollNumber) user.rollNumber = params.rollNumber;
+    if (params.enrollmentNo) user.enrollmentNo = params.enrollmentNo;
+    if (params.mobile_number) user.mobile_number = params.mobile_number;
+
+    user.parentDetails = {
+      parentEmail: params.parentEmail || user.parentDetails?.parentEmail || '',
+      parentPhone: params.parentPhone || user.parentDetails?.parentPhone || '',
+      parentEmailVerified: user.parentDetails?.parentEmailVerified || false,
+      parentVerificationToken: user.parentDetails?.parentVerificationToken || ''
+    };
+
     user.onboardingCompleted = true;
     user.onboarding_status = 'DONE';
+
+    // 🏫 Auto-save / Upsert School in UDISE Master Database for Community Discovery
+    await upsertSchoolToUdiseDatabase({
+        schoolName: params.schoolName,
+        city: params.city,
+        board: params.board,
+        udiseCode: params.udiseCode,
+        isTeacher: false
+    }).catch(e => console.error('[OnboardingService] Udise auto-save error:', e));
 
     if (params.standard && !isNaN(Number(params.standard))) {
       user.grade = Number(params.standard);
@@ -158,9 +195,90 @@ export class OnboardingService {
 
     await user.save();
 
+    // 🏫 Sync student to TenantUserModel for instant Teacher Portal Class Roster visibility
+    try {
+        const studentFullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Student User';
+        const cleanStd = (user.standard || '10').replace(/^class_/i, '').replace(/^CLASS-?/i, '');
+        const cleanSec = (user.section || 'A').toUpperCase();
+        const formatA = `${cleanStd}-${cleanSec}`; // Format A: 10-B
+        const formatCompact = `${cleanStd}${cleanSec}`; // Format: 10B
+        const formatLegacy = `CLASS-${cleanStd}${cleanSec}`;
+        const formatVerbose = `Class ${cleanStd} Sec-${cleanSec}`;
+
+        await TenantUserModel.updateOne(
+            {
+                $or: [
+                    { email: user.email },
+                    { externalId: user._id.toString() }
+                ]
+            },
+            {
+                $set: {
+                    tenantOrgId: user.tenantOrgId,
+                    externalId: user._id.toString(),
+                    name: studentFullName,
+                    email: user.email || '',
+                    role: 'STUDENT',
+                    grade: `Class ${cleanStd}`,
+                    section: cleanSec,
+                    stream: user.stream || '',
+                    board: user.board || '',
+                    medium: user.medium || '',
+                    udiseCode: user.udiseCode || '',
+                    schoolName: user.schoolName,
+                    classId: formatA,
+                    assignedClasses: [formatA, formatCompact, formatLegacy, formatVerbose, `Class ${cleanStd}`],
+                    rollNumber: user.rollNumber || '',
+                    enrollmentNo: user.enrollmentNo || '',
+                    isSchoolStudent: true,
+                    status: 'ACTIVE'
+                }
+            },
+            { upsert: true }
+        );
+        console.log(`[OnboardingService] Student "${studentFullName}" synced to TenantUserModel for class "${formatA}"`);
+    } catch (tErr) {
+        console.error('[OnboardingService] Error syncing student to TenantUserModel:', tErr);
+    }
+
+    // ⚡ REAL-TIME AUTOMATED TEACHER-STUDENT MATCHING ENGINE
+    let matchedTeachers: any[] = [];
+    try {
+      // Build school search terms
+      const schoolWords = (user.schoolName || '')
+        .split(/\s+/)
+        .map((w: string) => w.replace(/[^a-z0-9]/gi, '').toLowerCase())
+        .filter((w: string) => w.length > 3);
+
+      const schoolOrConditions: any[] = [];
+      if (user.udiseCode) {
+        schoolOrConditions.push({ udiseCode: user.udiseCode });
+      }
+      if (user.tenantOrgId) {
+        schoolOrConditions.push({ tenantOrgId: user.tenantOrgId });
+      }
+      schoolWords.forEach((word: string) => {
+        schoolOrConditions.push({ schoolName: { $regex: word, $options: 'i' } });
+      });
+
+      if (schoolOrConditions.length > 0) {
+        matchedTeachers = await User.find({
+          $or: [
+            { role: { $in: ['teacher', 'TEACHER', 'Faculty', 'FACULTY'] } },
+            { roleInSchool: { $in: ['teacher', 'TEACHER', 'Faculty', 'FACULTY'] } }
+          ],
+          $and: [
+            { $or: schoolOrConditions }
+          ]
+        }).select('firstName lastName email teacherDetails schoolName assignedClasses assignedSubjects');
+      }
+    } catch (e) {
+      console.warn('Teacher matching engine notice:', e);
+    }
+
     return {
       success: true,
-      message: 'Student Registration & School Mapping Complete!',
+      message: 'Student Registration & School Mapping Complete! Auto-matched with active teachers.',
       user: {
         id: user._id,
         firstName: user.firstName,
@@ -168,14 +286,24 @@ export class OnboardingService {
         email: user.email,
         city: user.city,
         schoolName: user.schoolName,
+        udiseCode: user.udiseCode,
         tenantOrgId: user.tenantOrgId,
         educationType: user.educationType,
         board: user.board,
+        medium: user.medium,
         standard: user.standard,
         section: user.section,
         stream: user.stream,
         onboardingCompleted: user.onboardingCompleted
-      }
+      },
+      matchedTeachersCount: matchedTeachers.length,
+      matchedTeachers: matchedTeachers.map(t => ({
+        name: `${t.firstName} ${t.lastName}`,
+        email: t.email,
+        schoolName: t.teacherDetails?.schoolName || user.schoolName,
+        assignedClasses: t.teacherDetails?.assignedClasses || [],
+        assignedSubjects: t.teacherDetails?.assignedSubjects || []
+      }))
     };
   }
 }

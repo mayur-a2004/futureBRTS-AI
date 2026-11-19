@@ -22,8 +22,10 @@ export default function Layout() {
 
     useEffect(() => {
         localStorage.setItem("fbrts_welcome_tour_completed", "true");
-        if (user && user.onboardingCompleted === false) {
+        if (user && user.onboardingCompleted === false && user.onboarding_status !== 'DONE') {
             setShowRegistrationModal(true);
+        } else {
+            setShowRegistrationModal(false);
         }
     }, [user]);
 
@@ -458,7 +460,12 @@ export default function Layout() {
         { name: "Academic Results", path: "/future-education/results", icon: <Award size={20} /> },
         { name: "Teacher & Parent Hub", path: "/future-education/teacher-dashboard", icon: <GraduationCap size={20} /> },
         { name: "Exit Student OS", path: "/dashboard", icon: <LogOut size={20} /> },
-    ] : [
+    ].filter(item => {
+        if (item.name === "Teacher & Parent Hub") {
+            return user?.role === 'TEACHER' || user?.role === 'teacher' || user?.isTeacher;
+        }
+        return true;
+    }) : [
         { name: "Dashboard", path: "/dashboard", icon: <LayoutDashboard size={20} /> },
         { name: "Future Education OS", path: "/future-education", icon: <GraduationCap size={20} /> },
         { name: "Builder", path: "/builder", icon: <Zap size={20} /> },

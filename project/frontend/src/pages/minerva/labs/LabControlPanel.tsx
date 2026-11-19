@@ -29,32 +29,43 @@ export const LabControlPanel: React.FC<LabControlPanelProps> = ({
 
   return (
     <div className="w-full flex-shrink-0 flex flex-col bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl">
-      {/* Tab Navigation */}
-      <div className="flex flex-shrink-0 border-b border-zinc-800 overflow-x-auto visible-scrollbar">
-        {availableLayers.map((layer) => {
-          const isActive = activeLayer === layer;
-          return (
-            <button
-              key={layer}
-              onClick={() => onLayerChange(layer)}
-              className={`flex-shrink-0 px-4 md:px-5 py-3.5 text-center transition-all duration-300 relative font-medium text-xs md:text-sm flex items-center justify-center gap-1.5 whitespace-nowrap ${
-                isActive
-                  ? 'text-zinc-50 font-bold bg-zinc-800/40'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/10'
-              }`}
-            >
-              <span>{LAYER_ICONS[layer]}</span>
-              <span>{LAYER_LABELS[layer]}</span>
-              
-              {isActive && (
-                <div
-                  className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full transition-all duration-300"
-                  style={{ backgroundColor: colors.accent }}
-                />
-              )}
-            </button>
-          );
-        })}
+      {/* Tab Navigation & Full Screen Lab Action */}
+      <div className="flex flex-shrink-0 border-b border-zinc-800 overflow-x-auto visible-scrollbar justify-between items-center pr-3">
+        <div className="flex items-center">
+          {availableLayers.map((layer) => {
+            const isActive = activeLayer === layer;
+            return (
+              <button
+                key={layer}
+                onClick={() => onLayerChange(layer)}
+                className={`flex-shrink-0 px-4 md:px-5 py-3.5 text-center transition-all duration-300 relative font-medium text-xs md:text-sm flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                  isActive
+                    ? 'text-zinc-50 font-bold bg-zinc-800/40'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/10'
+                }`}
+              >
+                <span>{LAYER_ICONS[layer]}</span>
+                <span>{LAYER_LABELS[layer]}</span>
+                
+                {isActive && (
+                  <div
+                    className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full transition-all duration-300"
+                    style={{ backgroundColor: colors.accent }}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        <a
+          href="/future-education/virtual-lab"
+          target="_blank"
+          rel="noreferrer"
+          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-indigo-600 hover:opacity-90 text-white rounded-xl text-xs font-bold transition-all shadow-md shrink-0"
+        >
+          🖵 Full-Screen 3D Lab ↗
+        </a>
       </div>
 
       {/* Embedded Voice Controls Bar — only on Explain/Text tab */}

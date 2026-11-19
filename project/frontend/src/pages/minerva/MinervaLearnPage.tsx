@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { minervaApi } from '../../api/minerva.api';
-import { ChevronLeft, BookOpen, Sparkles, Youtube, Lightbulb, Play, Check, MessageSquare, Zap, Mic, Volume2, VolumeX, RefreshCw, PenTool, ExternalLink, Terminal } from 'lucide-react';
+import { ChevronLeft, BookOpen, Sparkles, Youtube, Lightbulb, Play, Check, MessageSquare, Zap, Mic, Volume2, VolumeX, RefreshCw, PenTool, ExternalLink, Terminal, FlaskConical } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import MinervaWhiteboardCanvas from '../../components/chat/MinervaWhiteboardCanvas';
@@ -41,7 +41,7 @@ const MinervaLearnPage: React.FC = () => {
         const titleMatch = (node?.title || '').toLowerCase();
         const subjectMatch = (node?.subject || '').toLowerCase();
         return titleMatch.includes('chemistry') || titleMatch.includes('chemical') || titleMatch.includes('h2o') || titleMatch.includes('water') || titleMatch.includes('reaction') || 
-               subjectMatch.includes('chemistry') || subjectMatch.includes('science');
+               subjectMatch.includes('chemistry') || (subjectMatch.includes('science') && !subjectMatch.includes('social'));
     };
 
     const showMathLab = () => {
@@ -49,6 +49,82 @@ const MinervaLearnPage: React.FC = () => {
         const subjectMatch = (node?.subject || '').toLowerCase();
         return titleMatch.includes('math') || titleMatch.includes('equation') || titleMatch.includes('graph') || titleMatch.includes('slope') || titleMatch.includes('geometry') ||
                subjectMatch.includes('math') || subjectMatch.includes('statistics') || subjectMatch.includes('algebra');
+    };
+
+    const getEducationalTopicVisuals = (n: any) => {
+        if (!n) return { primaryUrl: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=900&auto=format&fit=crop', aiPrompt: 'educational illustration', label: 'Official Textbook Visual' };
+        const rawTitle = (n.title || '').toLowerCase();
+        const rawTopic = (n.topic || n.subject || '').toLowerCase();
+
+        // 1. Accounting / Commerce / Finance / Business
+        if (rawTitle.includes('હિસાબી') || rawTitle.includes('account') || rawTopic.includes('account') || rawTopic.includes('commerce') || rawTopic.includes('stat') || rawTitle.includes('business') || rawTitle.includes('finance') || rawTitle.includes('વેપાર')) {
+            return {
+                primaryUrl: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=900&auto=format&fit=crop',
+                aiPrompt: 'business accounting ledger, financial balance sheet, company accounts chart, vector infographic, clean educational diagram',
+                label: 'Business Accounting & Financial Ledger Visual'
+            };
+        }
+
+        // 2. Chemistry / Chemical Science
+        if (rawTitle.includes('chem') || rawTopic.includes('chem') || rawTitle.includes('acid') || rawTitle.includes('element') || rawTitle.includes('reaction') || rawTitle.includes('atom') || rawTitle.includes('રસાયણ')) {
+            return {
+                primaryUrl: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=900&auto=format&fit=crop',
+                aiPrompt: 'chemistry laboratory beaker experiment, molecular structure, scientific diagram',
+                label: 'Chemistry Molecular Laboratory Visual'
+            };
+        }
+
+        // 3. Physics / Natural Science
+        if (rawTitle.includes('physic') || rawTopic.includes('physic') || rawTitle.includes('force') || rawTitle.includes('motion') || rawTitle.includes('light') || rawTitle.includes('electricity') || rawTitle.includes('magnet') || rawTitle.includes('ભૌતિક')) {
+            return {
+                primaryUrl: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=900&auto=format&fit=crop',
+                aiPrompt: 'physics optics experiment, magnetic field lines, vector physics schematic, dark background',
+                label: 'Physics Optics & Mechanics Visual'
+            };
+        }
+
+        // 4. Biology / Life Science / EVS
+        if (rawTitle.includes('bio') || rawTopic.includes('bio') || rawTitle.includes('cell') || rawTitle.includes('plant') || rawTitle.includes('dna') || rawTitle.includes('evs') || rawTitle.includes('આસપાસ') || rawTitle.includes('જીવ')) {
+            return {
+                primaryUrl: 'https://images.unsplash.com/photo-1530026405186-ed1f139313f8?w=900&auto=format&fit=crop',
+                aiPrompt: 'biology cell membrane structure, plant anatomy, microscope visual diagram',
+                label: 'Biological Cell Structure & Plant Anatomy Visual'
+            };
+        }
+
+        // 5. Mathematics / Geometry / Algebra
+        if (rawTitle.includes('math') || rawTopic.includes('math') || rawTitle.includes('algebra') || rawTitle.includes('geometry') || rawTitle.includes('triangle') || rawTitle.includes('number') || rawTitle.includes('ગણિત')) {
+            return {
+                primaryUrl: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?w=900&auto=format&fit=crop',
+                aiPrompt: 'mathematics geometry grid, coordinate axes, calculus algebra equations chart',
+                label: 'Mathematical Geometry & Coordinate Visual'
+            };
+        }
+
+        // 6. Social Science / History / Geography
+        if (rawTitle.includes('histor') || rawTitle.includes('geograph') || rawTopic.includes('social') || rawTitle.includes('સામાજિક') || rawTitle.includes('civic') || rawTitle.includes('polit') || rawTitle.includes('ઈતિહાસ')) {
+            return {
+                primaryUrl: 'https://images.unsplash.com/photo-1447069387593-a5de0862481e?w=900&auto=format&fit=crop',
+                aiPrompt: 'historical world map, antique geographic globe, social science timeline diagram',
+                label: 'Historical Geography & Topography Map Visual'
+            };
+        }
+
+        // 7. Language / Literature (Gujarati, Hindi, English, Sanskrit, Marathi)
+        if (rawTitle.includes('gujarati') || rawTitle.includes('hindi') || rawTitle.includes('english') || rawTitle.includes('sanskrit') || rawTopic.includes('literat') || rawTopic.includes('sahitya') || rawTitle.includes('ગુજરાતી')) {
+            return {
+                primaryUrl: 'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?w=900&auto=format&fit=crop',
+                aiPrompt: 'literature open classical book manuscript, library study desk, ink pen educational illustration',
+                label: 'Classic Literature & Language Grammar Visual'
+            };
+        }
+
+        // Default Educational Visual
+        return {
+            primaryUrl: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=900&auto=format&fit=crop',
+            aiPrompt: 'educational textbook study illustration, clean vector visual diagram',
+            label: 'Official Textbook Chapter Concept Visual'
+        };
     };
 
     const [node, setNode] = useState<any>(null);
@@ -714,19 +790,30 @@ const MinervaLearnPage: React.FC = () => {
                         </div>
 
                         {/* Dynamic AI Viva Illustration */}
-                        {node?.title && (
-                            <div className="mt-4 mb-2 rounded-2xl overflow-hidden border border-cyan-500/10 shadow-lg relative group">
-                                <img
-                                    src={`https://image.pollinations.ai/prompt/${encodeURIComponent(`conceptual diagram for oral viva exam on ${node.title}, scientific illustration, dark background, glowing neon lines, educational poster style`)  }?width=800&height=260&nologo=true&seed=${encodeURIComponent('viva-' + node.title)}`}
-                                    alt={`Viva visual for ${node.title}`}
-                                    className="w-full h-36 object-cover opacity-80 transition-opacity duration-300 group-hover:opacity-100"
-                                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                                />
-                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent px-3 py-2">
-                                    <span className="text-[10px] text-cyan-400/70 font-bold uppercase tracking-wider">📸 Topic Visual — {node.title}</span>
+                        {node?.title && (() => {
+                            const vis = getEducationalTopicVisuals(node);
+                            return (
+                                <div className="mt-4 mb-2 rounded-2xl overflow-hidden border border-cyan-500/10 shadow-lg relative group">
+                                    <img
+                                        src={vis.primaryUrl}
+                                        alt={`Viva visual for ${node.title}`}
+                                        className="w-full h-36 object-cover opacity-80 transition-opacity duration-300 group-hover:opacity-100"
+                                        onError={(e) => {
+                                            const img = e.target as HTMLImageElement;
+                                            if (!img.dataset.retried) {
+                                                img.dataset.retried = 'true';
+                                                img.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(vis.aiPrompt)}?width=800&height=260&nologo=true&seed=viva`;
+                                            } else {
+                                                img.style.display = 'none';
+                                            }
+                                        }}
+                                    />
+                                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent px-3 py-2">
+                                        <span className="text-[10px] text-cyan-400/70 font-bold uppercase tracking-wider">📸 {vis.label} — {node.title}</span>
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            );
+                        })()}
 
                         {/* Interactive Waveform / Dialog space */}
                         <div className="flex-1 flex flex-col items-center justify-center py-6 text-center w-full">
@@ -894,30 +981,33 @@ const MinervaLearnPage: React.FC = () => {
                         </div>
 
                         {/* Dynamic AI Topic Illustration — High Accuracy Topic Visual */}
-                        {node?.title && (
-                            <div className="mb-5 rounded-2xl overflow-hidden border border-white/5 shadow-xl relative group bg-black/40">
-                                <img
-                                    src={`https://image.pollinations.ai/prompt/${encodeURIComponent(`${node.title} ${node.topic || ''} technical textbook visual diagram, schematic infographic illustration, high quality, crisp details, clean educational vector style`)}?width=800&height=360&nologo=true&seed=${encodeURIComponent(node.title)}`}
-                                    alt={`Visual illustration of ${node.title}`}
-                                    className="w-full h-52 object-cover transition-transform duration-500 group-hover:scale-105"
-                                    onError={(e) => {
-                                        const img = e.target as HTMLImageElement;
-                                        if (!img.dataset.retried) {
-                                            img.dataset.retried = 'true';
-                                            img.src = `https://source.unsplash.com/800x360/?${encodeURIComponent(node.title + ' ' + (node.topic || ''))}`;
-                                        } else {
-                                            img.style.display = 'none';
-                                        }
-                                    }}
-                                />
-                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-4 py-3">
-                                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                                        <Sparkles size={10} className="text-indigo-400" />
-                                        100% Topic Visual Diagram — {node.title}
-                                    </span>
+                        {node?.title && (() => {
+                            const vis = getEducationalTopicVisuals(node);
+                            return (
+                                <div className="mb-5 rounded-2xl overflow-hidden border border-white/5 shadow-xl relative group bg-black/40">
+                                    <img
+                                        src={vis.primaryUrl}
+                                        alt={`Visual illustration of ${node.title}`}
+                                        className="w-full h-52 object-cover transition-transform duration-500 group-hover:scale-105"
+                                        onError={(e) => {
+                                            const img = e.target as HTMLImageElement;
+                                            if (!img.dataset.retried) {
+                                                img.dataset.retried = 'true';
+                                                img.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(vis.aiPrompt)}?width=800&height=360&nologo=true&seed=minerva`;
+                                            } else {
+                                                img.style.display = 'none';
+                                            }
+                                        }}
+                                    />
+                                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-4 py-3">
+                                        <span className="text-[10px] text-gray-300 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                                            <Sparkles size={10} className="text-indigo-400" />
+                                            {vis.label} — {node.title}
+                                        </span>
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            );
+                        })()}
 
                         <div className="text-slate-200 text-base md:text-[16.5px] leading-relaxed font-medium prose prose-invert max-w-none space-y-4 [&_p]:mb-5 [&_p]:text-base [&_p]:md:text-[16.5px] [&_p]:leading-[1.85] [&_p]:whitespace-pre-wrap [&_p]:break-words [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-4 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-4 [&_strong]:text-white [&_strong]:font-bold [&_code]:bg-white/10 [&_code]:px-2 [&_code]:py-1 [&_code]:rounded [&_code]:text-indigo-300 [&_code]:font-mono [&_code]:text-sm [&_code]:whitespace-pre-wrap [&_code]:break-words">
                             {translating ? (
@@ -1008,18 +1098,33 @@ const MinervaLearnPage: React.FC = () => {
                                     📖
                                 </div>
                                 <div>
-                                    <h2 className="font-black text-sm text-white">Official Board Textbook PDF Reader ({node?.title})</h2>
-                                    <p className="text-[10px] text-indigo-300 font-semibold">100% Board &amp; Medium Aligned Textbook Pages side-by-side with AI</p>
+                                    <div className="flex items-center gap-2">
+                                        <h2 className="font-black text-sm text-white">Official Board Textbook PDF Reader ({node?.title})</h2>
+                                        <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full text-[10px] font-bold">
+                                            🏛️ Verified Govt Authority
+                                        </span>
+                                    </div>
+                                    <p className="text-[10px] text-indigo-300 font-semibold">Source: {node?.reference_source || 'Official SCERT / NCERT / DIKSHA Portal'} • 100% Board &amp; Medium Aligned</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                {(node?.official_book_url || node?.official_pdf_url) && (
+                                    <a
+                                        href={node?.official_pdf_url || node?.official_book_url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1"
+                                    >
+                                        🌐 Open Official Govt Textbook Portal ↗
+                                    </a>
+                                )}
                                 <a
-                                    href={`/api/v1/minerva/chapter-pdf/download?chapterTitle=${encodeURIComponent(node.title)}&board=${encodeURIComponent((user as any)?.board || 'CBSE')}&standard=${encodeURIComponent((user as any)?.standard || '10')}&subject=${encodeURIComponent(node.subject || 'Mathematics')}&medium=${encodeURIComponent((user as any)?.medium || 'English')}`}
+                                    href={`/api/v1/minerva/chapter-pdf/download?direct=true&chapterTitle=${encodeURIComponent(node.title)}&board=${encodeURIComponent(node.board || (user as any)?.board || 'GSEB')}&standard=${encodeURIComponent(node.grade_level || (user as any)?.standard || '10')}&subject=${encodeURIComponent(node.subject || (user as any)?.selectedSubject || 'Mathematics')}&medium=${encodeURIComponent(node.medium || (user as any)?.medium || 'Gujarati')}`}
                                     target="_blank"
                                     rel="noreferrer"
                                     className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1"
                                 >
-                                    📥 Download PDF ↗
+                                    📥 Download Official PDF ↗
                                 </a>
                                 <button
                                     onClick={() => setShowEmbeddedPdf(!showEmbeddedPdf)}
@@ -1033,14 +1138,35 @@ const MinervaLearnPage: React.FC = () => {
                         {showEmbeddedPdf && (
                             <div className="space-y-3">
                                 <iframe
-                                    src={`/api/v1/minerva/chapter-pdf/download?chapterTitle=${encodeURIComponent(node.title)}&board=${encodeURIComponent((user as any)?.board || 'CBSE')}&standard=${encodeURIComponent((user as any)?.standard || '10')}&subject=${encodeURIComponent(node.subject || 'Mathematics')}&medium=${encodeURIComponent((user as any)?.medium || 'English')}#toolbar=1`}
-                                    title={`Official Textbook PDF - ${node.title}`}
+                                    src={`/api/v1/minerva/chapter-pdf/download?chapterTitle=${encodeURIComponent(node.title)}&board=${encodeURIComponent(node.board || (user as any)?.board || 'GSEB')}&standard=${encodeURIComponent(node.grade_level || (user as any)?.standard || '10')}&subject=${encodeURIComponent(node.subject || (user as any)?.selectedSubject || 'Mathematics')}&medium=${encodeURIComponent(node.medium || (user as any)?.medium || 'Gujarati')}#toolbar=1`}
+                                    title={`Official Board Textbook PDF - ${node.title}`}
                                     className="w-full h-[520px] rounded-2xl bg-white border border-white/10 shadow-2xl"
                                 />
                             </div>
                         )}
                     </div>
                 )}
+
+                {/* Full-Screen 3D Interactive Open Virtual Lab Suite Launch Banner */}
+                <div className="p-4 rounded-3xl bg-gradient-to-r from-indigo-950/60 via-purple-950/40 to-slate-950/60 border border-indigo-500/30 flex items-center justify-between gap-4 flex-wrap shadow-2xl">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
+                            <FlaskConical size={20} />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-black text-white">Full-Screen 3D Interactive Virtual Open Lab Suite</h3>
+                            <p className="text-xs text-indigo-200">Class 11/12 Science &amp; Higher Engineering Stream Practicals &amp; Open Sandbox</p>
+                        </div>
+                    </div>
+                    <a
+                        href="/future-education/virtual-lab"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-xs rounded-2xl shadow-lg flex items-center gap-1.5 transition-all"
+                    >
+                        🧪 Open Full-Screen 3D Virtual Lab ↗
+                    </a>
+                </div>
 
                 {/* Visual Simulation labs for Science & Maths */}
                 {view !== 'viva' && showChemistryLab() && <ChemistryLab />}

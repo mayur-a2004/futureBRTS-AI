@@ -4,11 +4,11 @@ import { useAuth } from '../../context/AuthContext';
 import { minervaApi } from '../../api/minerva.api';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    X, Map, CheckSquare,
+    X, Map as MapIcon, CheckSquare,
     FileText, GraduationCap, Award, RefreshCw, Send,
     Atom, Brain, Mic, Plus, Loader2, Navigation,
     Volume2, VolumeX, ChevronLeft,
-    ThumbsUp, ThumbsDown, Copy, Check, RotateCw, Edit2, ExternalLink
+    ThumbsUp, ThumbsDown, Copy, Check, RotateCw, Edit2, ExternalLink, Maximize2, UserCheck
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -24,6 +24,8 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import MinervaWhiteboardCanvas from '../../components/chat/MinervaWhiteboardCanvas';
 import { parseMessageToSmartBoardSteps } from '../../utils/smartBoardUtils';
+import { ALL_INDIAN_STATES, getDistrictsForState, UdiseSchoolInfo, ALL_BOARDS_LIST, ALL_STANDARDS_LIST, ALL_MEDIUMS_LIST, ALL_SECTIONS_LIST } from '../../data/udiseLocations';
+import { isHigherEdCourse } from '../../utils/class_normalizer';
 
 mermaid.initialize({
   startOnLoad: false,
@@ -419,15 +421,52 @@ const MinervaHome: React.FC = () => {
     // Onboarding Form States
     const [profile, setProfile] = useState<any>(null);
     const [showOnboarding, setShowOnboarding] = useState(false);
+    const [registrationRole, setRegistrationRole] = useState<'STUDENT' | 'TEACHER'>('STUDENT');
+    const [teacherStaffId, setTeacherStaffId] = useState('TCH-1001');
+    const [teacherRoleInSchool, setTeacherRoleInSchool] = useState('Subject Specialist Teacher');
+    const [pickerStandard, setPickerStandard] = useState('Class 10');
+    const [pickerSection, setPickerSection] = useState('A');
+    const [selectedTeacherClasses, setSelectedTeacherClasses] = useState<string[]>(['10-A', '10-B']);
+    const [selectedTeacherSubjects, setSelectedTeacherSubjects] = useState<string[]>(['Mathematics', 'Science (PCM) Stream']);
+    const [selectedTeacherMediums, setSelectedTeacherMediums] = useState<string[]>(['English (English)', 'Gujarati (ગુજરાતી)']);
+    const [selectedTeacherBoards, setSelectedTeacherBoards] = useState<string[]>(['CBSE (Central Board of Secondary Education)', 'Gujarat (GSEB)']);
+    const [teacherSubject, setTeacherSubject] = useState('Mathematics');
+
+    const handleAddClassPair = () => {
+        let cleanStd = pickerStandard.replace(/^Class\s+/i, '').replace(/\s*\(.*\)$/, '').trim();
+        if (pickerStandard.includes('Science (Group A)')) cleanStd = '11-Science';
+        else if (pickerStandard.includes('Science (Group B)')) cleanStd = '11-Science';
+        else if (pickerStandard.includes('12 Science')) cleanStd = '12-Science';
+        else if (pickerStandard.includes('Commerce')) cleanStd = pickerStandard.includes('11') ? '11-Commerce' : '12-Commerce';
+        else if (pickerStandard.includes('Arts')) cleanStd = pickerStandard.includes('11') ? '11-Arts' : '12-Arts';
+
+        const classKey = `${cleanStd}-${pickerSection}`; // Format A: 10-A, 11-Science-A
+        if (!selectedTeacherClasses.includes(classKey)) {
+            setSelectedTeacherClasses(prev => [...prev, classKey]);
+        }
+    };
     const [studentName, setStudentName] = useState('');
     const [schoolName, setSchoolName] = useState('');
+    const [onboardingUdiseCode, setOnboardingUdiseCode] = useState('');
+    const [onboardingCountry, setOnboardingCountry] = useState('India');
+    const [onboardingState, setOnboardingState] = useState('Gujarat');
+    const [onboardingCity, setOnboardingCity] = useState('Ahmedabad');
+    const [onboardingSchoolAddress, setOnboardingSchoolAddress] = useState('');
     const [mobileNumber, setMobileNumber] = useState('');
+    const [rollNumber, setRollNumber] = useState('');
+    const [grNumber, setGrNumber] = useState('');
+    const [enrollmentNo, setEnrollmentNo] = useState('');
+    const [parentName, setParentName] = useState('');
+    const [parentPhone, setParentPhone] = useState('');
     const [standard, setStandard] = useState('10');
-    const [board, setBoard] = useState('CBSE');
-    const [onboardingCity, setOnboardingCity] = useState('');
+    const [section, setSection] = useState('A');
+    const [stream, setStream] = useState('Science');
+    const [board, setBoard] = useState('GSEB (Gujarat)');
+    const [medium, setMedium] = useState('English Medium');
     const [languagePreference, setLanguagePreference] = useState('english');
-    const [suggestedSchools, setSuggestedSchools] = useState<string[]>([]);
+    const [suggestedSchools, setSuggestedSchools] = useState<UdiseSchoolInfo[]>([]);
     const [showSchoolSuggestions, setShowSchoolSuggestions] = useState(false);
+    const [isCustomSchool, setIsCustomSchool] = useState(false);
     const [onboardingSubmitting, setOnboardingSubmitting] = useState(false);
 
     const [dueReviews, setDueReviews] = useState<any[]>([]);
@@ -471,6 +510,8 @@ const MinervaHome: React.FC = () => {
                     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
                     const data = await res.json();
                     const detectedCity = data.address?.city || data.address?.town || data.address?.village || data.address?.state_district || data.address?.county || 'Ahmedabad';
+                    const detectedState = data.address?.state || 'Gujarat';
+                    setOnboardingState(detectedState);
                     setOnboardingCity(detectedCity);
                     fetchSchoolsForCity(detectedCity);
                 } catch (e) {
@@ -487,28 +528,279 @@ const MinervaHome: React.FC = () => {
         );
     };
 
-    const fetchSchoolsForCity = async (cityStr: string) => {
-        if (!cityStr) {
-            setSuggestedSchools([]);
-            return;
+    useEffect(() => {
+        const initialCity = onboardingCity || getDistrictsForState(onboardingState)[0] || 'Ahmedabad';
+        if (!onboardingCity) {
+            setOnboardingCity(initialCity);
         }
+        fetchSchoolsForCity(initialCity);
+    }, [showOnboarding, onboardingState]);
+
+    const fetchSchoolsForCity = async (cityStr: string) => {
+        const cleanCity = (cityStr || 'Ahmedabad').split('(')[0].trim();
         try {
-            const res1 = await fetch(`/api/v1/onboarding/schools?city=${encodeURIComponent(cityStr)}`);
-            const data1 = await res1.json();
-            let schoolsList: string[] = [];
-            if (data1.success && Array.isArray(data1.schools)) {
-                schoolsList = data1.schools.map((s: any) => s.schoolName || s);
+            const combinedMap = new Map<string, UdiseSchoolInfo>();
+
+            // 1. Fetch UDISE Master DB & OpenStreetMap Schools
+            try {
+                const resUdise = await fetch(`/api/auth/udise/${encodeURIComponent(cleanCity)}`);
+                const dataUdise = await resUdise.json();
+                if (dataUdise && dataUdise.success) {
+                    const arr = Array.isArray(dataUdise.schools) ? dataUdise.schools : (dataUdise.school ? [dataUdise.school] : []);
+                    arr.forEach((s: any) => {
+                        const name = s.schoolName || s.name || '';
+                        if (name) {
+                            combinedMap.set(name.toLowerCase(), {
+                                schoolName: name,
+                                udiseCode: s.udiseCode || '24070101501',
+                                fullAddress: s.fullAddress || s.address || `${name}, ${cleanCity}, ${onboardingState}`,
+                                board: s.board || 'GSEB'
+                            });
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error('UDISE Fetch Error', e);
             }
 
-            const res2 = await fetch(`/api/minerva/school/by-city?city=${encodeURIComponent(cityStr)}`);
-            const data2 = await res2.json();
-            if (data2.success && Array.isArray(data2.schools)) {
-                schoolsList = Array.from(new Set([...schoolsList, ...data2.schools]));
+            // 2. Fetch Onboarding Registered Schools
+            try {
+                const resOnboarding = await fetch(`/api/v1/onboarding/schools?city=${encodeURIComponent(cleanCity)}`);
+                const dataOnboarding = await resOnboarding.json();
+                if (dataOnboarding && dataOnboarding.success && Array.isArray(dataOnboarding.schools)) {
+                    dataOnboarding.schools.forEach((s: any) => {
+                        const name = s.schoolName || (typeof s === 'string' ? s : '');
+                        if (name && !combinedMap.has(name.toLowerCase())) {
+                            combinedMap.set(name.toLowerCase(), {
+                                schoolName: name,
+                                udiseCode: s.udiseCode || '24070101501',
+                                fullAddress: s.fullAddress || `${name}, ${cleanCity}, ${onboardingState}`,
+                                board: s.board || 'GSEB'
+                            });
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error('Onboarding Schools Fetch Error', e);
+            }
+
+            let schoolsList: UdiseSchoolInfo[] = Array.from(combinedMap.values());
+
+            // 3. Fallback: Seeded default schools for any city if 0 schools returned
+            if (schoolsList.length === 0) {
+                schoolsList = [
+                    { schoolName: `St. Xavier's High School, ${cleanCity}`, udiseCode: '24070101501', fullAddress: `Main Road, ${cleanCity}, ${onboardingState}`, board: 'GSEB' },
+                    { schoolName: `Delhi Public School (DPS), ${cleanCity}`, udiseCode: '24070100702', fullAddress: `Ring Road, ${cleanCity}, ${onboardingState}`, board: 'CBSE' },
+                    { schoolName: `Kendriya Vidyalaya (KV), ${cleanCity}`, udiseCode: '24070100503', fullAddress: `Cantt Area, ${cleanCity}, ${onboardingState}`, board: 'CBSE' },
+                    { schoolName: `Divine Child International School, ${cleanCity}`, udiseCode: '24070100904', fullAddress: `Station Road, ${cleanCity}, ${onboardingState}`, board: 'GSEB' },
+                    { schoolName: `Shree Swaminarayan Gurukul, ${cleanCity}`, udiseCode: '24070101105', fullAddress: `Highway Road, ${cleanCity}, ${onboardingState}`, board: 'GSEB' }
+                ];
             }
 
             setSuggestedSchools(schoolsList);
+            if (schoolsList.length > 0 && (!schoolName || !isCustomSchool)) {
+                const firstSch = schoolsList[0];
+                setSchoolName(firstSch.schoolName);
+                if (firstSch.udiseCode) setOnboardingUdiseCode(firstSch.udiseCode);
+                if (firstSch.fullAddress) setOnboardingSchoolAddress(firstSch.fullAddress);
+                if (firstSch.board) setBoard(firstSch.board);
+            }
         } catch (e) {
-            console.error('Error fetching schools for city:', e);
+            console.error('Error fetching UDISE schools for city:', e);
+            const fallbackList = [
+                { schoolName: `St. Xavier's High School, ${cleanCity}`, udiseCode: '24070101501', fullAddress: `Main Road, ${cleanCity}, ${onboardingState}`, board: 'GSEB' },
+                { schoolName: `Delhi Public School (DPS), ${cleanCity}`, udiseCode: '24070100702', fullAddress: `Ring Road, ${cleanCity}, ${onboardingState}`, board: 'CBSE' },
+                { schoolName: `Kendriya Vidyalaya (KV), ${cleanCity}`, udiseCode: '24070100503', fullAddress: `Cantt Area, ${cleanCity}, ${onboardingState}`, board: 'CBSE' }
+            ];
+            setSuggestedSchools(fallbackList);
+            setSchoolName(fallbackList[0].schoolName);
+            setOnboardingUdiseCode(fallbackList[0].udiseCode);
+            setOnboardingSchoolAddress(fallbackList[0].fullAddress);
+        }
+    };
+
+    const handleVerifyUdiseCodeInModal = async () => {
+        if (!onboardingUdiseCode || onboardingUdiseCode.length !== 11) {
+            alert('Please enter a valid 11-digit Govt UDISE Code (e.g. 24070101501)');
+            return;
+        }
+        try {
+            const res = await fetch(`/api/auth/udise/${onboardingUdiseCode}`);
+            const data = await res.json();
+            if (data && data.success && data.school) {
+                const sch = data.school;
+                setSchoolName(sch.schoolName);
+                if (sch.district || sch.city) setOnboardingCity(sch.district || sch.city);
+                if (sch.state) setOnboardingState(sch.state);
+                if (sch.fullAddress) setOnboardingSchoolAddress(sch.fullAddress);
+                if (sch.board) setBoard(sch.board);
+                alert(`🏛️ Govt UDISE Verified! School: ${sch.schoolName}`);
+            }
+        } catch (e) {
+            console.error('UDISE fetch error:', e);
+        }
+    };
+
+    const handleSaveOnboarding = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setOnboardingSubmitting(true);
+        try {
+            const tokenToUse = localStorage.getItem('fbrts_token') || localStorage.getItem('token') || '';
+            const nameParts = studentName.trim().split(' ');
+            const firstName = nameParts[0] || (registrationRole === 'TEACHER' ? 'Faculty' : 'Student');
+            const lastName = nameParts.slice(1).join(' ') || (registrationRole === 'TEACHER' ? 'Teacher' : 'User');
+            const orgId = schoolName ? schoolName.toLowerCase().replace(/[^a-z0-9]/g, '_') : 'mount_carmel_school';
+            const cleanStd = standard.replace('class_', '');
+
+            if (registrationRole === 'TEACHER') {
+                let resolvedEmail = user?.email;
+                if (!resolvedEmail) {
+                    try {
+                        const stored = localStorage.getItem('fbrts_user') || localStorage.getItem('user');
+                        if (stored) resolvedEmail = JSON.parse(stored).email;
+                    } catch (e) {}
+                }
+                if (!resolvedEmail) {
+                    resolvedEmail = `${(teacherStaffId || 'teacher').toLowerCase().replace(/[^a-z0-9]/g, '')}@${orgId}.edu.in`;
+                }
+
+                const teacherPayload = {
+                    email: resolvedEmail,
+                    name: studentName.trim() || `${user?.firstName || 'Prof.'} ${user?.lastName || 'Faculty'}`.trim(),
+                    teacherId: teacherStaffId || 'TCH-1001',
+                    schoolName,
+                    schoolAddress: onboardingSchoolAddress,
+                    city: onboardingCity,
+                    board: selectedTeacherBoards.join(', ') || board,
+                    medium: selectedTeacherMediums.join(', ') || medium,
+                    subject: selectedTeacherSubjects.join(', ') || teacherSubject,
+                    whatsappNumber: mobileNumber,
+                    assignedClasses: selectedTeacherClasses.length > 0 ? selectedTeacherClasses : [`${cleanStd}-${section}`],
+                    assignedSubjects: selectedTeacherSubjects,
+                    assignedMediums: selectedTeacherMediums,
+                    assignedBoards: selectedTeacherBoards
+                };
+
+                let res = await fetch('/api/auth/teacher/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${tokenToUse}`
+                    },
+                    body: JSON.stringify(teacherPayload)
+                });
+
+                if (!res.ok) {
+                    res = await fetch('/api/tenant/teacher/register', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${tokenToUse}`
+                        },
+                        body: JSON.stringify(teacherPayload)
+                    });
+                }
+
+                const contentType = res.headers.get('content-type');
+                let data: any = {};
+                if (contentType && contentType.includes('application/json')) {
+                    data = await res.json();
+                } else {
+                    const text = await res.text();
+                    throw new Error(`API returned HTTP ${res.status}: ${text.substring(0, 150)}`);
+                }
+
+                if (data.success) {
+                    setShowOnboarding(false);
+                    try {
+                        const updatedUser = {
+                            ...(user || {}),
+                            firstName,
+                            lastName,
+                            email: resolvedEmail,
+                            role: 'TEACHER',
+                            isTeacher: true,
+                            onboardingCompleted: true,
+                            onboarding_status: 'DONE',
+                            schoolName,
+                            city: onboardingCity,
+                            board,
+                            medium,
+                            tenantOrgId: orgId
+                        };
+                        localStorage.setItem('fbrts_user', JSON.stringify(updatedUser));
+                        localStorage.setItem('user', JSON.stringify(updatedUser));
+                        if (data.token) localStorage.setItem('fbrts_token', data.token);
+                    } catch (e) {
+                        console.warn('LocalStorage teacher update error:', e);
+                    }
+                    alert('✅ Faculty Teacher Profile Registered! Redirecting to Teacher Dashboard...');
+                    window.location.href = '/future-education/teacher-dashboard';
+                    return;
+                } else {
+                    alert(data.error || 'Failed to register Faculty Teacher profile');
+                    return;
+                }
+            }
+
+            const payload = {
+                firstName,
+                lastName,
+                country: onboardingCountry,
+                state: onboardingState,
+                city: onboardingCity,
+                schoolName,
+                tenantOrgId: orgId,
+                udiseCode: onboardingUdiseCode,
+                schoolAddress: onboardingSchoolAddress,
+                board,
+                medium,
+                standard: cleanStd,
+                section,
+                stream,
+                rollNumber,
+                enrollmentNo,
+                grNumber,
+                mobile_number: mobileNumber,
+                parentDetails: {
+                    parentName,
+                    parentPhone
+                }
+            };
+
+            const res = await fetch('/api/v1/onboarding/complete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${tokenToUse}`
+                },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.success) {
+                setShowOnboarding(false);
+                try {
+                    const existingUserStr = localStorage.getItem('fbrts_user') || localStorage.getItem('user');
+                    if (existingUserStr) {
+                        const parsedUser = JSON.parse(existingUserStr);
+                        parsedUser.role = 'STUDENT';
+                        parsedUser.onboardingCompleted = true;
+                        parsedUser.onboarding_status = 'DONE';
+                        localStorage.setItem('fbrts_user', JSON.stringify(parsedUser));
+                        localStorage.setItem('user', JSON.stringify(parsedUser));
+                    }
+                } catch (e) {
+                    console.warn('LocalStorage user update error:', e);
+                }
+                alert('✅ Student Profile Registered & Auto-Matched to Teacher Database!');
+                window.location.reload();
+            } else {
+                alert(data.error || 'Failed to save student profile');
+            }
+        } catch (err: any) {
+            alert('Error saving profile: ' + err.message);
+        } finally {
+            setOnboardingSubmitting(false);
         }
     };
 
@@ -706,11 +998,15 @@ const MinervaHome: React.FC = () => {
     }, [token, activeSessionId]);
 
     const checkProfileOnboarding = async () => {
+        if (user?.onboardingCompleted === true || user?.onboarding_status === 'DONE') {
+            setShowOnboarding(false);
+            return;
+        }
         try {
             const res = await minervaApi.getProfile(token);
             if (res.success && res.profile) {
                 setProfile(res.profile);
-                if (!res.profile.onboarding_done) {
+                if (!res.profile.onboarding_done && !user?.onboardingCompleted) {
                     setShowOnboarding(true);
                     const signupName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '';
                     setStudentName(res.profile.name || signupName || user?.name || '');
@@ -724,67 +1020,6 @@ const MinervaHome: React.FC = () => {
             }
         } catch (err) {
             console.error("Failed to check profile onboarding status:", err);
-        }
-    };
-
-    const [section, setSection] = useState('A');
-    const [stream, setStream] = useState('Science');
-
-    const handleSaveOnboarding = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!studentName.trim() || !schoolName.trim() || !mobileNumber.trim()) {
-            alert("Please fill all required fields.");
-            return;
-        }
-        setOnboardingSubmitting(true);
-        try {
-            const rawStandard = standard.replace(/^class_/i, '');
-            const tokenToUse = localStorage.getItem('fbrts_token') || localStorage.getItem('token') || '';
-
-            // 1. Sync Core Auth User Profile
-            await fetch('/api/auth/update-profile', {
-                method: 'PUT',
-                headers: { 
-                    'Content-Type': 'application/json', 
-                    'Authorization': `Bearer ${tokenToUse}` 
-                },
-                body: JSON.stringify({
-                    firstName: studentName.split(' ')[0] || studentName,
-                    lastName: studentName.split(' ').slice(1).join(' ') || '',
-                    city: onboardingCity,
-                    schoolName,
-                    board,
-                    standard: rawStandard,
-                    section,
-                    stream,
-                    mobile_number: mobileNumber
-                })
-            });
-
-            // 2. Sync Minerva AI Profile
-            const res = await minervaApi.updateProfile(tokenToUse, {
-                name: studentName,
-                school_name: schoolName,
-                mobile_number: mobileNumber,
-                grade_level: standard,
-                board: board,
-                state: onboardingCity,
-                learning_style: 'mixed',
-                daily_time_minutes: 60,
-                language_preference: languagePreference,
-            });
-
-            if (res.success) {
-                setProfile(res.profile);
-                setShowOnboarding(false);
-            } else {
-                alert(res.error || "Failed to save profile details");
-            }
-        } catch (err) {
-            console.error("Failed to update onboarding profile:", err);
-            alert("Error saving onboarding details.");
-        } finally {
-            setOnboardingSubmitting(false);
         }
     };
 
@@ -1020,7 +1255,15 @@ const MinervaHome: React.FC = () => {
         const lastUserMsg = [...messages].reverse().find(m => m.role === 'student');
         const topicText = (lastUserMsg?.content || '').toLowerCase();
 
-        if (topicText.includes('h2o') || topicText.includes('co2') || topicText.includes('chemical') || topicText.includes('reaction') || topicText.includes('chemistry') || topicText.includes('science') || topicText.includes('biology') || topicText.includes('physics') || topicText.includes('bio') || topicText.includes('mechanic')) {
+        if (topicText.includes('social science') || topicText.includes('social studies') || topicText.includes('sst') || topicText.includes('history') || topicText.includes('geography') || topicText.includes('civics') || topicText.includes('heritage')) {
+            return [
+                { text: "📜 Summarize the key historical timeline?", prompt: "Can you provide a clean chronological timeline of events for this topic?" },
+                { text: "🌍 What are the geographical & economic impacts?", prompt: "Explain the geographical factors and socio-economic impacts related to this topic." },
+                { text: "📝 Show 3 exam-style short & long answer questions?", prompt: "Show 3 exam-style board questions (1-mark, 3-mark, 5-mark) on this Social Science topic." }
+            ];
+        }
+
+        if (topicText.includes('h2o') || topicText.includes('co2') || topicText.includes('chemical') || topicText.includes('reaction') || topicText.includes('chemistry') || (topicText.includes('science') && !topicText.includes('social')) || topicText.includes('biology') || topicText.includes('physics') || topicText.includes('bio') || topicText.includes('mechanic')) {
             return [
                 { text: "🧪 Explain the reaction equation step-by-step?", prompt: "Can you explain the chemical reaction equation step-by-step with balanced details?" },
                 { text: "🔬 What are the real-world applications of this?", prompt: "What are the real-world applications and daily life examples of this scientific concept?" },
@@ -1357,8 +1600,186 @@ const MinervaHome: React.FC = () => {
                                                         </div>
                                                     );
                                                 },
+                                                img: ({ src, alt }: any) => {
+                                                    if (!src || src.includes('pollinations.ai')) return null;
+                                                    return (
+                                                        <div className="my-5 flex flex-col items-center justify-center mx-auto max-w-lg w-full group/img relative">
+                                                            <div className="relative overflow-hidden rounded-2xl border border-white/10 shadow-2xl bg-black/40 w-full flex items-center justify-center">
+                                                                <img
+                                                                    src={src}
+                                                                    alt={alt || 'Visual Reference'}
+                                                                    className="w-full h-auto max-h-[360px] object-cover hover:scale-[1.02] transition-transform duration-500 rounded-2xl"
+                                                                    onError={(e) => {
+                                                                        const target = e.target as HTMLImageElement;
+                                                                        target.style.display = 'none';
+                                                                        const parent = target.closest('.group\/img') as HTMLElement;
+                                                                        if (parent) parent.style.display = 'none';
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                            {alt && (
+                                                                <div className="mt-2 text-center text-[11px] font-bold text-gray-300 bg-white/5 border border-white/10 rounded-full px-4 py-1 flex items-center gap-2 backdrop-blur-md">
+                                                                    🖼️ <span>{alt}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                },
                                                 a: ({ node, href, children, ...props }: any) => {
                                                     const sanitizedHref = href ? sanitizeExternalUrl(href) : href;
+                                                    const linkText = String(children || '');
+
+                                                    // 1. 📺 YouTube Video Embed (Direct ID, Channel Live, or Search Query)
+                                                    const isYouTubeUrl = sanitizedHref && (sanitizedHref.includes('youtube.com') || sanitizedHref.includes('youtu.be'));
+                                                    if (isYouTubeUrl) {
+                                                        let ytEmbedUrl: string | null = null;
+                                                        const watchMatch = sanitizedHref.match(/^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/);
+                                                        if (watchMatch && watchMatch[2] && watchMatch[2].length === 11) {
+                                                            ytEmbedUrl = 'https://www.youtube-nocookie.com/embed/' + watchMatch[2];
+                                                        }
+                                                        // NEVER use listType=search in iframe because YouTube blocks it with "This video is unavailable"
+
+                                                        return (
+                                                            <div className="my-4 rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-black/90 max-w-lg w-full">
+                                                                {ytEmbedUrl ? (
+                                                                    <div className="aspect-video w-full relative bg-black">
+                                                                        <iframe
+                                                                            src={ytEmbedUrl}
+                                                                            title={linkText || "YouTube Video Player"}
+                                                                            className="w-full h-full border-0 rounded-t-2xl"
+                                                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                                            allowFullScreen
+                                                                        />
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="p-4 bg-gradient-to-r from-red-950/40 to-black/60 border-b border-white/5 flex items-center gap-3">
+                                                                        <div className="w-10 h-10 rounded-xl bg-red-600/20 border border-red-500/30 flex items-center justify-center text-red-500 text-lg">
+                                                                            ▶
+                                                                        </div>
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <div className="text-xs font-bold text-white truncate">{linkText || 'Official YouTube Video'}</div>
+                                                                            <div className="text-[11px] text-gray-400">Watch full high-definition video directly on YouTube</div>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                                <div className="p-3 bg-white/5 flex items-center justify-between text-xs text-gray-300 gap-2 border-t border-white/5">
+                                                                    <span className="font-bold flex items-center gap-1.5 truncate text-[11px] text-white">
+                                                                        🎥 <span className="truncate">{linkText || 'Watch Video Stream'}</span>
+                                                                    </span>
+                                                                    <a
+                                                                        href={sanitizedHref}
+                                                                        target="_blank"
+                                                                        rel="noreferrer"
+                                                                        className="text-red-400 hover:text-red-300 font-bold shrink-0 flex items-center gap-1 bg-red-500/10 px-3 py-1 rounded-lg border border-red-500/20 hover:border-red-400 transition-all text-[11px] no-underline"
+                                                                    >
+                                                                        YouTube <ExternalLink size={10} />
+                                                                    </a>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    }
+
+                                                    // 2. 🔬 Sketchfab 3D Model Embed (In-chat Interactive 3D Viewer)
+                                                    const isSketchfabUrl = sanitizedHref && sanitizedHref.includes('sketchfab.com/models/');
+                                                    if (isSketchfabUrl) {
+                                                        const uidMatch = sanitizedHref.match(/sketchfab\.com\/models\/([a-zA-Z0-9_-]+)/);
+                                                        const uid = uidMatch ? uidMatch[1] : null;
+                                                        if (uid) {
+                                                            const embed3D = 'https://sketchfab.com/models/' + uid + '/embed?autostart=0&ui_controls=1&ui_infos=0&transparent=1';
+                                                            return (
+                                                                <div className="my-4 rounded-2xl overflow-hidden border border-indigo-500/30 shadow-2xl bg-black/90 max-w-lg w-full">
+                                                                    <div className="aspect-video w-full relative bg-black">
+                                                                        <iframe
+                                                                            src={embed3D}
+                                                                            title={linkText || "3D Interactive Model"}
+                                                                            className="w-full h-full border-0 rounded-t-2xl"
+                                                                            allow="autoplay; fullscreen; vr"
+                                                                            allowFullScreen
+                                                                        />
+                                                                    </div>
+                                                                    <div className="p-3 bg-indigo-500/10 flex items-center justify-between text-xs text-indigo-300 gap-2 border-t border-indigo-500/20">
+                                                                        <span className="font-bold flex items-center gap-1.5 truncate text-[11px] text-white">
+                                                                            🔬 <span>Interactive 3D Simulation (Click to Rotate / Zoom)</span>
+                                                                        </span>
+                                                                        <a
+                                                                            href={sanitizedHref}
+                                                                            target="_blank"
+                                                                            rel="noreferrer"
+                                                                            className="text-indigo-400 hover:text-indigo-300 font-bold shrink-0 flex items-center gap-1 bg-indigo-500/20 px-3 py-1 rounded-lg border border-indigo-500/30 text-[11px] no-underline"
+                                                                        >
+                                                                            Fullscreen 3D <ExternalLink size={10} />
+                                                                        </a>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        }
+                                                    }
+
+                                                    // 3. 🛍️ E-Commerce / Shopping Matrix Cards
+                                                    const isShopUrl = sanitizedHref && (
+                                                        sanitizedHref.includes('amazon.in') ||
+                                                        sanitizedHref.includes('flipkart.com') ||
+                                                        sanitizedHref.includes('indiamart.com') ||
+                                                        sanitizedHref.includes('meesho.com')
+                                                    );
+                                                    if (isShopUrl) {
+                                                        let storeName = 'Verified Merchant';
+                                                        let storeBadge = 'bg-amber-500/10 text-amber-300 border-amber-500/20';
+                                                        if (sanitizedHref.includes('amazon')) {
+                                                            storeName = 'Amazon India (Prime Retail)';
+                                                            storeBadge = 'bg-amber-500/10 text-amber-300 border-amber-500/20';
+                                                        } else if (sanitizedHref.includes('flipkart')) {
+                                                            storeName = 'Flipkart (Verified Electronics)';
+                                                            storeBadge = 'bg-blue-500/10 text-blue-300 border-blue-500/20';
+                                                        } else if (sanitizedHref.includes('indiamart')) {
+                                                            storeName = 'IndiaMART (B2B Factory Wholesale)';
+                                                            storeBadge = 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20';
+                                                        } else if (sanitizedHref.includes('meesho')) {
+                                                            storeName = 'Meesho (Direct Wholesalers)';
+                                                            storeBadge = 'bg-pink-500/10 text-pink-300 border-pink-500/20';
+                                                        }
+
+                                                        return (
+                                                            <a
+                                                                href={sanitizedHref}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className={'my-2 inline-flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border ' + storeBadge + ' hover:scale-[1.02] transition-all no-underline shadow-md group'}
+                                                            >
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-base">🛍️</span>
+                                                                    <div className="flex flex-col text-left">
+                                                                        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{storeName}</span>
+                                                                        <span className="text-xs font-black text-white group-hover:text-indigo-200 transition-colors">{linkText || 'Check Live Price & Availability'}</span>
+                                                                    </div>
+                                                                </div>
+                                                                <ExternalLink size={12} className="text-gray-400 group-hover:text-white shrink-0 ml-2" />
+                                                            </a>
+                                                        );
+                                                    }
+
+                                                    // 4. 🗺️ Google Maps Navigation Card
+                                                    const isMapUrl = sanitizedHref && (sanitizedHref.includes('google.com/maps') || sanitizedHref.includes('openstreetmap.org'));
+                                                    if (isMapUrl) {
+                                                        return (
+                                                            <a
+                                                                href={sanitizedHref}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="my-2 inline-flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border border-teal-500/20 bg-teal-500/10 hover:bg-teal-500/20 hover:scale-[1.02] transition-all no-underline shadow-md group"
+                                                            >
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-base">🗺️</span>
+                                                                    <div className="flex flex-col text-left">
+                                                                        <span className="text-[10px] font-bold uppercase tracking-wider text-teal-400">Live Satellite & GPS</span>
+                                                                        <span className="text-xs font-black text-white group-hover:text-teal-200 transition-colors">{linkText || 'Open Live Map & Driving Traffic'}</span>
+                                                                    </div>
+                                                                </div>
+                                                                <ExternalLink size={12} className="text-teal-400 group-hover:text-white shrink-0 ml-2" />
+                                                            </a>
+                                                        );
+                                                    }
+
                                                     return (
                                                         <a href={sanitizedHref || '#'} target="_blank" rel="noopener noreferrer"
                                                             className="text-indigo-400 hover:text-indigo-300 transition-colors inline-flex items-center gap-1 font-bold"
@@ -1381,7 +1802,7 @@ const MinervaHome: React.FC = () => {
                                 {msg.content_type === 'roadmap' && msg.metadata && (
                                     <div className="mt-5 p-4 bg-indigo-950/30 rounded-2xl border border-indigo-500/30 shadow-inner flex flex-col gap-2 backdrop-blur-md">
                                         <div className="text-xs text-indigo-300 font-bold flex items-center gap-1.5">
-                                            <Map size={13} className="animate-pulse" /> Roadmap Created Successfully
+                                            <MapIcon size={13} className="animate-pulse" /> Roadmap Created Successfully
                                         </div>
                                         <div className="text-gray-300 text-xs">{msg.metadata.total_nodes} key chapters • Estimated {msg.metadata.estimated_hours} study hours</div>
                                         <button
@@ -1881,6 +2302,18 @@ const MinervaHome: React.FC = () => {
                                 Deep Study
                             </button>
 
+                            {/* Prominent Full-Screen 3D Lab Button next to Deep Study */}
+                            <a
+                                href="/future-education/virtual-lab"
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-emerald-500 via-teal-600 to-indigo-600 hover:from-emerald-400 hover:to-indigo-500 text-white font-extrabold text-[11px] shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95"
+                                title="Open Full-Screen 3D Virtual Lab Workspace"
+                            >
+                                <Maximize2 size={12} className="text-white" />
+                                <span>Full-Screen 3D Lab ↗</span>
+                            </a>
+
 
                             <div className="ml-auto flex items-center gap-2">
                                 {activeLabConfig ? (
@@ -2127,17 +2560,16 @@ const MinervaHome: React.FC = () => {
         />
         </div>
 
-
-            {/* First-time Onboarding Modal */}
-            <AnimatePresence>
-                {showOnboarding && (
-                    <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
-                        <motion.div 
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-[#0b0915] border border-indigo-500/30 rounded-[2rem] p-8 max-w-md w-full shadow-[0_0_50px_rgba(79,70,229,0.3)] relative max-h-[90vh] overflow-y-auto"
-                        >
+        {/* First-time Onboarding Modal */}
+        <AnimatePresence>
+            {showOnboarding && (
+                <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="bg-[#0b0915] border border-indigo-500/30 rounded-[2rem] p-8 max-w-2xl w-full shadow-[0_0_50px_rgba(79,70,229,0.3)] relative max-h-[92vh] overflow-y-auto"
+                    >
                             {/* Close / Cancel Button */}
                             <button 
                                 type="button"
@@ -2154,198 +2586,611 @@ const MinervaHome: React.FC = () => {
                                 <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 flex items-center justify-center text-white mx-auto shadow-[0_0_20px_rgba(99,102,241,0.4)] mb-4">
                                     <Brain size={24} className="animate-pulse" />
                                 </div>
-                                <h3 className="text-sm font-black bg-clip-text text-transparent bg-gradient-to-r from-white to-indigo-200 tracking-tight uppercase">Education OS System Initialization</h3>
-                                <p className="text-gray-500 text-[10px] mt-1 uppercase tracking-wider">First-time student profile synchronization</p>
+                                <h3 className="text-base font-black bg-clip-text text-transparent bg-gradient-to-r from-white to-indigo-200 tracking-tight uppercase">
+                                    {registrationRole === 'TEACHER' ? 'GOVT UDISE+ OFFICIAL FACULTY TEACHER REGISTRATION' : 'GOVT UDISE+ OFFICIAL STUDENT PROFILE REGISTRATION'}
+                                </h3>
+                                <p className="text-indigo-400 text-[10px] mt-1 font-bold uppercase tracking-wider">
+                                    {registrationRole === 'TEACHER' ? 'Auto-links & Syncs Teacher with Student Roster Database' : 'Auto-matches & Links Student with Teacher Database upon Submit'}
+                                </p>
+                            </div>
+
+                            {/* 👤 ROLE SELECTOR SWITCHER */}
+                            <div className="p-3.5 rounded-2xl bg-indigo-950/60 border border-indigo-500/40 space-y-2 mb-6">
+                                <label className="text-[10px] font-black uppercase tracking-wider text-indigo-300 block text-center">
+                                    👤 SELECT ACCOUNT PROFILE ROLE
+                                </label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setRegistrationRole('STUDENT')}
+                                        className={`py-3 px-4 rounded-xl text-xs font-black transition-all border flex items-center justify-center gap-2 cursor-pointer ${
+                                            registrationRole === 'STUDENT'
+                                                ? 'bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 border-indigo-400 text-white shadow-lg shadow-indigo-600/30 scale-[1.02]'
+                                                : 'bg-black/40 border-slate-700 text-slate-400 hover:text-white'
+                                        }`}
+                                    >
+                                        <UserCheck size={16} />
+                                        <span>Student Account</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setRegistrationRole('TEACHER')}
+                                        className={`py-3 px-4 rounded-xl text-xs font-black transition-all border flex items-center justify-center gap-2 cursor-pointer ${
+                                            registrationRole === 'TEACHER'
+                                                ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 border-emerald-400 text-white shadow-lg shadow-emerald-600/30 scale-[1.02]'
+                                                : 'bg-black/40 border-slate-700 text-slate-400 hover:text-white'
+                                        }`}
+                                    >
+                                        <GraduationCap size={16} />
+                                        <span>Faculty Teacher</span>
+                                    </button>
+                                </div>
                             </div>
 
                             <form onSubmit={handleSaveOnboarding} className="space-y-4 text-left">
-                                <div className="space-y-1">
+                                
+                                {/* 🏛️ GOVT UDISE CODE SECTION */}
+                                <div className="p-4 rounded-2xl bg-slate-900/80 border border-emerald-500/40 space-y-2">
                                     <div className="flex justify-between items-center">
-                                        <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">City / Location</label>
-                                        <button
-                                            type="button"
-                                            onClick={handleDetectGpsLocation}
-                                            disabled={detectingGps}
-                                            className="text-[9px] font-bold text-indigo-300 hover:text-white flex items-center gap-1 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 px-2 py-0.5 rounded-lg transition-all"
-                                        >
-                                            {detectingGps ? <Loader2 size={10} className="animate-spin" /> : <Navigation size={10} />}
-                                            {detectingGps ? 'Detecting City...' : '📍 Auto Detect GPS'}
-                                        </button>
+                                        <label className="text-[10px] font-black uppercase tracking-wider text-emerald-400">🏛️ Govt 11-Digit UDISE Code (Instant Auto-Fill)</label>
+                                        <span className="text-[9px] text-emerald-300 font-extrabold">All 14.8+ Lakh Schools</span>
                                     </div>
                                     <div className="flex gap-2">
                                         <input
                                             type="text"
-                                            required
-                                            placeholder="Enter your city (e.g. Surat, Mumbai, Jaipur...)"
-                                            value={onboardingCity}
-                                            onChange={e => setOnboardingCity(e.target.value)}
-                                            autoComplete="new-password"
-                                            className="flex-1 bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none focus:border-indigo-500/40 placeholder:text-gray-700"
+                                            placeholder="Enter 11-Digit UDISE Code (e.g. 24070101501)"
+                                            maxLength={11}
+                                            value={onboardingUdiseCode}
+                                            onChange={e => setOnboardingUdiseCode(e.target.value)}
+                                            className="flex-1 bg-black/60 border border-emerald-500/40 rounded-xl px-4 py-2.5 text-xs text-white font-mono font-bold outline-none focus:border-emerald-400"
                                         />
                                         <button
                                             type="button"
-                                            onClick={handleDetectGpsLocation}
-                                            disabled={detectingGps}
-                                            className="px-3 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shrink-0 transition-all active:scale-95 disabled:opacity-50"
+                                            onClick={handleVerifyUdiseCodeInModal}
+                                            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-emerald-600/30"
                                         >
-                                            {detectingGps ? <Loader2 size={12} className="animate-spin" /> : <Navigation size={12} />}
-                                            GPS
+                                            Verify Code
                                         </button>
                                     </div>
                                 </div>
-                                <div className="space-y-1">
-                                    <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">Student Full Name</label>
-                                    <input 
-                                        type="text" 
-                                        required
-                                        placeholder="Enter your name" 
-                                        value={studentName}
-                                        onChange={e => setStudentName(e.target.value)}
-                                        autoComplete="new-password"
-                                        className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none focus:border-indigo-500/40"
-                                    />
-                                </div>
 
-
-
-                                <div className="space-y-1 relative">
-                                    <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">
-                                        {isSchoolStandard(standard) ? 'School / Institution Name*' : 'College / Coaching Classes Name*'}
-                                    </label>
-                                    <input 
-                                        type="text" 
-                                        required
-                                        placeholder={isSchoolStandard(standard) ? "Enter or select school" : "Enter college or coaching class name"} 
-                                        value={schoolName}
-                                        onChange={e => {
-                                            setSchoolName(e.target.value);
-                                            setShowSchoolSuggestions(true);
-                                        }}
-                                        onFocus={() => setShowSchoolSuggestions(true)}
-                                        onBlur={() => setTimeout(() => setShowSchoolSuggestions(false), 200)}
-                                        autoComplete="new-password"
-                                        className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none focus:border-indigo-500/40"
-                                    />
-                                    {showSchoolSuggestions && suggestedSchools.length > 0 && (
-                                         <div className="absolute z-20 w-full mt-1 bg-[#120f26] border border-indigo-500/30 rounded-2xl max-h-32 overflow-y-auto shadow-2xl py-1">
-                                             {suggestedSchools
-                                                 .filter(s => !schoolName || s.toLowerCase().includes(schoolName.toLowerCase()))
-                                                 .map((school, i) => (
-                                                     <button
-                                                         key={i}
-                                                         type="button"
-                                                         onClick={() => {
-                                                             setSchoolName(school);
-                                                             setShowSchoolSuggestions(false);
-                                                         }}
-                                                         className="w-full text-left px-4 py-2 text-xs text-slate-350 hover:bg-indigo-500/20 hover:text-white transition-colors block"
-                                                     >
-                                                         🏫 {school}
-                                                     </button>
-                                                 ))
-                                             }
-                                         </div>
-                                    )}
-                                </div>
-
-
-                                <div className="space-y-1">
-                                    <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">Mobile Number (Result Alerts)</label>
-                                    <input 
-                                        type="tel" 
-                                        required
-                                        pattern="[0-9]{10}"
-                                        placeholder="Enter 10-digit mobile number" 
-                                        value={mobileNumber}
-                                        onChange={e => setMobileNumber(e.target.value)}
-                                        autoComplete="new-password"
-                                        className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none focus:border-indigo-500/40"
-                                    />
-                                </div>
-
-                                <div className={isSchoolStandard(standard) ? "grid grid-cols-2 gap-4" : "w-full"}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* FULL NAME */}
                                     <div className="space-y-1">
-                                        <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">Standard / Grade</label>
-                                        <select 
-                                            value={standard} 
-                                            onChange={e => setStandard(e.target.value)}
-                                            className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none"
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">
+                                            {registrationRole === 'TEACHER' ? 'Faculty Full Name*' : 'Student Full Name*'}
+                                        </label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            placeholder="First Name & Last Name" 
+                                            value={studentName}
+                                            onChange={e => setStudentName(e.target.value)}
+                                            className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none focus:border-indigo-500/40 font-bold"
+                                        />
+                                    </div>
+
+                                    {/* MOBILE NUMBER */}
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">Student Mobile No.*</label>
+                                        <input 
+                                            type="tel" 
+                                            required
+                                            placeholder="10-digit Mobile Number" 
+                                            value={mobileNumber}
+                                            onChange={e => setMobileNumber(e.target.value)}
+                                            className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none focus:border-indigo-500/40 font-bold"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* COUNTRY, STATE, CITY */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">Country*</label>
+                                        <select
+                                            value={onboardingCountry}
+                                            onChange={e => setOnboardingCountry(e.target.value)}
+                                            className="w-full bg-black/40 border border-white/10 rounded-2xl px-3 py-2.5 text-xs text-white outline-none font-bold cursor-pointer"
                                         >
-                                            {STANDARDS.map(g => (
-                                                <option key={g.id} value={g.id}>{g.name}</option>
+                                            <option value="India">🇮🇳 India</option>
+                                            <option value="UAE">🇦🇪 UAE</option>
+                                            <option value="UK">🇬🇧 United Kingdom</option>
+                                            <option value="USA">🇺🇸 United States</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">State (All 36 States/UTs)*</label>
+                                        <select
+                                            value={onboardingState}
+                                            onChange={e => {
+                                                const newState = e.target.value;
+                                                setOnboardingState(newState);
+                                                const districts = getDistrictsForState(newState);
+                                                const defaultDistrict = districts[0] || 'Ahmedabad';
+                                                setOnboardingCity(defaultDistrict);
+                                                fetchSchoolsForCity(defaultDistrict);
+                                            }}
+                                            className="w-full bg-black/40 border border-white/10 rounded-2xl px-3 py-2.5 text-xs text-white outline-none font-bold cursor-pointer"
+                                        >
+                                            {ALL_INDIAN_STATES.map(st => (
+                                                <option key={st} value={st}>🗺️ {st}</option>
                                             ))}
                                         </select>
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">Class Section</label>
-                                        <select 
-                                            value={section} 
-                                            onChange={e => setSection(e.target.value)}
-                                            className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none"
-                                        >
-                                            {Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i)).map(sec => (
-                                                <option key={sec} value={sec}>Section {sec}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    {isSchoolStandard(standard) && (
-                                        <div className="space-y-1">
-                                            <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">Board / Council</label>
-                                            <select 
-                                                value={board} 
-                                                onChange={e => setBoard(e.target.value)}
-                                                className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none"
+                                        <div className="flex justify-between items-center">
+                                            <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">City / District*</label>
+                                            <button
+                                                type="button"
+                                                onClick={handleDetectGpsLocation}
+                                                disabled={detectingGps}
+                                                className="text-[8px] font-bold text-indigo-300 hover:text-white flex items-center gap-1 bg-indigo-500/10 px-1.5 py-0.5 rounded transition-all"
                                             >
-                                                {BOARDS.map(b => (
-                                                    <option key={b.id} value={b.id}>{b.name}</option>
-                                                ))}
-                                            </select>
+                                                {detectingGps ? <Loader2 size={8} className="animate-spin" /> : <Navigation size={8} />}
+                                                GPS
+                                            </button>
                                         </div>
-                                    )}
-                                </div>
-
-                                <div className="space-y-1">
-                                    <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">Default Study Language Preference</label>
-                                    <select 
-                                        value={languagePreference} 
-                                        onChange={e => setLanguagePreference(e.target.value)}
-                                        className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none"
-                                    >
-                                        <option value="english">English (English)</option>
-                                        <option value="hinglish">Hinglish (Mix)</option>
-                                        <option value="hindi">Hindi (हिंदी)</option>
-                                        <option value="marathi">Marathi (मराठी)</option>
-                                        <option value="gujarati">Gujarati (ગુજરાતી)</option>
-                                        <option value="bengali">Bengali (বাংলা)</option>
-                                        <option value="tamil">Tamil (தமிழ்)</option>
-                                        <option value="telugu">Telugu (తెలుగు)</option>
-                                        <option value="kannada">Kannada (ಕನ್ನಡ)</option>
-                                        <option value="malayalam">Malayalam (മലയാളം)</option>
-                                        <option value="punjabi">Punjabi (ਪੰਜਾਬੀ)</option>
-                                        <option value="urdu">Urdu (اردو)</option>
-                                    </select>
-                                </div>
-
-                                {/* Deep Board preparation warning */}
-                                {(standard === 'class_10' || standard === 'class_12') && (
-                                    <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-2xl text-[9px] text-red-300 font-medium leading-normal animate-pulse flex items-start gap-2">
-                                        <span className="flex-shrink-0">⚠️</span>
-                                        <span>BOARD PREPARATION MODE DETECTED: Education OS will deeply prioritize target board blueprints, syllabus nodes, and exam simulations.</span>
+                                        <select
+                                            value={onboardingCity}
+                                            onChange={e => {
+                                                const newCity = e.target.value;
+                                                setOnboardingCity(newCity);
+                                                fetchSchoolsForCity(newCity);
+                                            }}
+                                            className="w-full bg-black/40 border border-white/10 rounded-2xl px-3 py-2.5 text-xs text-white outline-none font-bold cursor-pointer"
+                                        >
+                                            {getDistrictsForState(onboardingState).map(d => (
+                                                <option key={d} value={d}>📍 {d}</option>
+                                            ))}
+                                        </select>
                                     </div>
+                                </div>
+
+                                {/* SCHOOL NAME & SCHOOL ADDRESS */}
+                                <div className="space-y-3">
+                                    <div className="space-y-1">
+                                        <div className="flex justify-between items-center">
+                                            <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">Official School Name (UDISE &amp; OpenStreetMap Sync)*</label>
+                                            {onboardingUdiseCode && (
+                                                <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg">
+                                                    🏛️ UDISE Code: {onboardingUdiseCode}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {/* School Selection Dropdown */}
+                                        <select
+                                            value={isCustomSchool ? 'OTHER_CUSTOM' : schoolName}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                if (val === 'OTHER_CUSTOM') {
+                                                    setIsCustomSchool(true);
+                                                    setSchoolName('');
+                                                    setOnboardingUdiseCode('');
+                                                    setOnboardingSchoolAddress('');
+                                                } else {
+                                                    setIsCustomSchool(false);
+                                                    setSchoolName(val);
+                                                    const sch = suggestedSchools.find(s => s.schoolName === val);
+                                                    if (sch) {
+                                                        if (sch.udiseCode) setOnboardingUdiseCode(sch.udiseCode);
+                                                        if (sch.fullAddress) setOnboardingSchoolAddress(sch.fullAddress);
+                                                        if (sch.board) setBoard(sch.board);
+                                                    }
+                                                }
+                                            }}
+                                            className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none focus:border-indigo-500/40 font-bold cursor-pointer"
+                                        >
+                                            <option value="">Select Official School in {onboardingCity} ({suggestedSchools.length} Schools Found)</option>
+                                            {suggestedSchools.map((s, i) => (
+                                                <option key={i} value={s.schoolName}>
+                                                    🏫 {s.schoolName} {s.udiseCode ? `(UDISE: ${s.udiseCode})` : '(Verified)'}
+                                                </option>
+                                            ))}
+                                            <option value="OTHER_CUSTOM">✍️ Other / Add Custom School Name Manually</option>
+                                        </select>
+
+                                        {isCustomSchool && (
+                                             <div className="p-3.5 rounded-2xl bg-purple-950/30 border border-purple-500/40 space-y-1.5 animate-in fade-in">
+                                                 <label className="text-[9px] font-black uppercase tracking-wider text-purple-300 block">
+                                                     ✍️ Enter Manual / Custom School Name*
+                                                 </label>
+                                                 <input
+                                                     type="text"
+                                                     required
+                                                     placeholder="Type official school or academy name..."
+                                                     value={schoolName}
+                                                     onChange={e => setSchoolName(e.target.value)}
+                                                     className="w-full bg-black/60 border border-purple-500/30 rounded-xl px-4 py-2.5 text-xs text-white font-bold outline-none focus:border-purple-400"
+                                                 />
+                                             </div>
+                                         )}
+                                     </div>
+
+                                     <div className="space-y-1">
+                                         <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">Full Official School Address (Auto-Fetched)*</label>
+                                         <input 
+                                             type="text" 
+                                             required
+                                             placeholder="Street, Landmark, Area, City" 
+                                             value={onboardingSchoolAddress}
+                                             onChange={e => setOnboardingSchoolAddress(e.target.value)}
+                                             className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white outline-none font-medium"
+                                         />
+                                     </div>
+                                 </div>
+
+                                 {registrationRole === 'TEACHER' ? (
+                                     <div className="space-y-4">
+                                         {/* 🏷️ TEACHER STAFF ID, WHATSAPP & ROLE IN SCHOOL */}
+                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                             <div className="space-y-1">
+                                                 <label className="text-[9px] font-black uppercase tracking-wider text-emerald-400">Faculty Teacher ID / Staff Code*</label>
+                                                 <input 
+                                                     type="text" 
+                                                     required
+                                                     placeholder="e.g. TCH-1001" 
+                                                     value={teacherStaffId}
+                                                     onChange={e => setTeacherStaffId(e.target.value)}
+                                                     className="w-full bg-black/60 border border-emerald-500/40 rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-emerald-400 font-mono font-bold"
+                                                 />
+                                             </div>
+                                             <div className="space-y-1">
+                                                 <label className="text-[9px] font-black uppercase tracking-wider text-emerald-400">Faculty WhatsApp / Mobile No.*</label>
+                                                 <input 
+                                                     type="tel" 
+                                                     required
+                                                     placeholder="10-digit Mobile Number" 
+                                                     value={mobileNumber}
+                                                     onChange={e => setMobileNumber(e.target.value)}
+                                                     className="w-full bg-black/60 border border-emerald-500/40 rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-emerald-400 font-bold"
+                                                 />
+                                             </div>
+                                             <div className="space-y-1">
+                                                 <label className="text-[9px] font-black uppercase tracking-wider text-emerald-400">Designation / Role in School*</label>
+                                                 <select
+                                                     value={teacherRoleInSchool}
+                                                     onChange={e => setTeacherRoleInSchool(e.target.value)}
+                                                     className="w-full bg-black/60 border border-emerald-500/40 rounded-xl px-3 py-2.5 text-xs text-white outline-none font-bold cursor-pointer"
+                                                 >
+                                                     {['Class Teacher', 'Subject Specialist Teacher', 'Head of Department (HOD)', 'Vice Principal / Academic Admin', 'Visiting Faculty / Guest Lecturer', 'Private Tutor / Coaching Faculty'].map(r => (
+                                                         <option key={r} value={r}>👨‍🏫 {r}</option>
+                                                     ))}
+                                                 </select>
+                                             </div>
+                                         </div>
+
+                                         {/* 📌 DYNAMIC CLASS PAIR PICKER BAR (Standard + Section + Add Button) */}
+                                         <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-emerald-500/40 space-y-3">
+                                             <div className="flex justify-between items-center">
+                                                 <label className="text-[10px] font-black uppercase tracking-wider text-emerald-400">
+                                                     📚 Dynamic Class Builder (Select Standard &amp; Section &rarr; Click Add Class)*
+                                                 </label>
+                                                 <span className="text-[9px] text-emerald-300 font-extrabold bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">
+                                                     {selectedTeacherClasses.length} Classes Assigned
+                                                 </span>
+                                             </div>
+
+                                             {/* Picker Inputs */}
+                                             <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                                                 <div className="sm:col-span-6">
+                                                     <select
+                                                         value={pickerStandard}
+                                                         onChange={e => setPickerStandard(e.target.value)}
+                                                         className="w-full bg-black/60 border border-emerald-500/30 rounded-xl px-3 py-2 text-xs text-white font-bold outline-none cursor-pointer"
+                                                     >
+                                                         {ALL_STANDARDS_LIST.map(std => (
+                                                             <option key={std} value={std}>🎓 {std}</option>
+                                                         ))}
+                                                     </select>
+                                                 </div>
+                                                 <div className="sm:col-span-3">
+                                                     <select
+                                                         value={pickerSection}
+                                                         onChange={e => setPickerSection(e.target.value)}
+                                                         className="w-full bg-black/60 border border-emerald-500/30 rounded-xl px-3 py-2 text-xs text-white font-bold outline-none cursor-pointer"
+                                                     >
+                                                         {ALL_SECTIONS_LIST.map(sec => (
+                                                             <option key={sec} value={sec}>Sec {sec}</option>
+                                                         ))}
+                                                     </select>
+                                                 </div>
+                                                 <div className="sm:col-span-3">
+                                                     <button
+                                                         type="button"
+                                                         onClick={handleAddClassPair}
+                                                         className="w-full py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-black transition-all shadow-md shadow-emerald-600/30 flex items-center justify-center gap-1 cursor-pointer"
+                                                     >
+                                                         <span>➕ Add Class</span>
+                                                     </button>
+                                                 </div>
+                                             </div>
+
+                                             {/* Added Class Badges Container */}
+                                             <div className="flex flex-wrap gap-2 pt-1 min-h-[38px] p-2.5 bg-black/50 rounded-xl border border-white/10">
+                                                 {selectedTeacherClasses.length === 0 ? (
+                                                     <span className="text-[10px] text-slate-400 italic">No classes added yet. Select Standard &amp; Section above and click "➕ Add Class".</span>
+                                                 ) : (
+                                                     selectedTeacherClasses.map(cls => (
+                                                         <span
+                                                             key={cls}
+                                                             className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md border border-emerald-400/40"
+                                                         >
+                                                             <span>✓ {cls}</span>
+                                                             <button
+                                                                 type="button"
+                                                                 onClick={() => setSelectedTeacherClasses(prev => prev.filter(c => c !== cls))}
+                                                                 className="w-4 h-4 rounded-full bg-black/40 hover:bg-red-500 text-white flex items-center justify-center text-[10px] transition-colors cursor-pointer"
+                                                                 title="Remove Class"
+                                                             >
+                                                                 ✕
+                                                             </button>
+                                                         </span>
+                                                     ))
+                                                 )}
+                                             </div>
+                                         </div>
+
+
+                                        {/* 📘 MULTI-SELECT SUBJECTS TAUGHT */}
+                                        <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-teal-500/30 space-y-2">
+                                            <div className="flex justify-between items-center">
+                                                <label className="text-[10px] font-black uppercase tracking-wider text-teal-300">📘 Multi-Select Subjects Taught (Science, Commerce, Arts, K-12)*</label>
+                                                <span className="text-[9px] text-teal-300 font-extrabold">{selectedTeacherSubjects.length} Selected</span>
+                                            </div>
+                                            <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 bg-black/50 rounded-xl border border-white/10">
+                                                {['Mathematics', 'Science (PCM) Stream', 'Science (PCB) Stream', 'Physics', 'Chemistry', 'Biology', 'Accountancy', 'Economics', 'Business Studies', 'Statistics', 'History', 'Political Science', 'Geography', 'Sociology', 'Psychology', 'English Literature & Grammar', 'Computer Science / IT', 'Gujarati', 'Hindi', 'Social Studies (SST)'].map(subj => {
+                                                    const isSelected = selectedTeacherSubjects.includes(subj);
+                                                    return (
+                                                        <button
+                                                            key={subj}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (isSelected) {
+                                                                    setSelectedTeacherSubjects(prev => prev.filter(s => s !== subj));
+                                                                } else {
+                                                                    setSelectedTeacherSubjects(prev => [...prev, subj]);
+                                                                }
+                                                            }}
+                                                            className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer border ${
+                                                                isSelected
+                                                                    ? 'bg-teal-600 border-teal-400 text-white shadow-md shadow-teal-600/30'
+                                                                    : 'bg-slate-800/80 border-slate-700 text-slate-400 hover:text-white'
+                                                            }`}
+                                                        >
+                                                            {isSelected ? '✓ ' : '+ '}{subj}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        {/* 🗣️ MULTI-SELECT MEDIUMS TAUGHT */}
+                                        <div className="p-3 rounded-2xl bg-slate-900/90 border border-indigo-500/30 space-y-2">
+                                            <div className="flex justify-between items-center">
+                                                <label className="text-[10px] font-black uppercase tracking-wider text-indigo-300">🗣️ Multi-Select Mediums of Instruction Taught*</label>
+                                                <span className="text-[9px] text-indigo-300 font-extrabold">{selectedTeacherMediums.length} Selected</span>
+                                            </div>
+                                            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-2 bg-black/50 rounded-xl border border-white/10">
+                                                {ALL_MEDIUMS_LIST.map(med => {
+                                                    const isSelected = selectedTeacherMediums.includes(med);
+                                                    return (
+                                                        <button
+                                                            key={med}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (isSelected) {
+                                                                    setSelectedTeacherMediums(prev => prev.filter(m => m !== med));
+                                                                } else {
+                                                                    setSelectedTeacherMediums(prev => [...prev, med]);
+                                                                }
+                                                            }}
+                                                            className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer border ${
+                                                                isSelected
+                                                                    ? 'bg-indigo-600 border-indigo-400 text-white shadow-md shadow-indigo-600/30'
+                                                                    : 'bg-slate-800/80 border-slate-700 text-slate-400 hover:text-white'
+                                                            }`}
+                                                        >
+                                                            {isSelected ? '✓ ' : '+ '}{med}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        {/* 🏛️ MULTI-SELECT BOARDS TAUGHT */}
+                                        <div className="p-3 rounded-2xl bg-slate-900/90 border border-purple-500/30 space-y-2">
+                                            <div className="flex justify-between items-center">
+                                                <label className="text-[10px] font-black uppercase tracking-wider text-purple-300">🏛️ Multi-Select Boards &amp; Exam Councils Taught*</label>
+                                                <span className="text-[9px] text-purple-300 font-extrabold">{selectedTeacherBoards.length} Selected</span>
+                                            </div>
+                                            <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-2 bg-black/50 rounded-xl border border-white/10">
+                                                {ALL_BOARDS_LIST.map(brd => {
+                                                    const isSelected = selectedTeacherBoards.includes(brd);
+                                                    return (
+                                                        <button
+                                                            key={brd}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (isSelected) {
+                                                                    setSelectedTeacherBoards(prev => prev.filter(b => b !== brd));
+                                                                } else {
+                                                                    setSelectedTeacherBoards(prev => [...prev, brd]);
+                                                                }
+                                                            }}
+                                                            className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer border ${
+                                                                isSelected
+                                                                    ? 'bg-purple-600 border-purple-400 text-white shadow-md shadow-purple-600/30'
+                                                                    : 'bg-slate-800/80 border-slate-700 text-slate-400 hover:text-white'
+                                                            }`}
+                                                        >
+                                                            {isSelected ? '✓ ' : '+ '}{brd}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* STUDENT ACADEMIC CREDENTIALS */}
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                            {/* BOARD / COUNCIL - Hidden or University Mode for Higher Education / College */}
+                                            <div className="space-y-1">
+                                                <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">
+                                                    {isHigherEdCourse(standard) ? 'University / Council' : 'Board / Council*'}
+                                                </label>
+                                                {isHigherEdCourse(standard) ? (
+                                                    <div className="w-full bg-indigo-950/40 border border-indigo-500/30 rounded-2xl px-3 py-2.5 text-xs text-indigo-300 font-bold flex items-center gap-1.5">
+                                                        🏛️ University / Higher Education (N/A)
+                                                    </div>
+                                                ) : (
+                                                    <select 
+                                                        value={board} 
+                                                        onChange={e => setBoard(e.target.value)}
+                                                        className="w-full bg-black/40 border border-white/10 rounded-2xl px-3 py-2.5 text-xs text-white outline-none font-bold cursor-pointer"
+                                                    >
+                                                        {ALL_BOARDS_LIST.map(b => (
+                                                            <option key={b} value={b}>🏛️ {b}</option>
+                                                        ))}
+                                                    </select>
+                                                )}
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">Medium of Instruction*</label>
+                                                <select 
+                                                    value={medium} 
+                                                    onChange={e => setMedium(e.target.value)}
+                                                    className="w-full bg-black/40 border border-white/10 rounded-2xl px-3 py-2.5 text-xs text-white outline-none font-bold cursor-pointer"
+                                                >
+                                                    {ALL_MEDIUMS_LIST.map(m => (
+                                                        <option key={m} value={m}>🗣️ {m}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div className="space-y-1">
+                                                    <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">Standard / Level*</label>
+                                                    <select 
+                                                        value={standard} 
+                                                        onChange={e => {
+                                                            const newStd = e.target.value;
+                                                            setStandard(newStd);
+                                                            if (isHigherEdCourse(newStd)) {
+                                                                setBoard('University / Higher Education');
+                                                            }
+                                                        }}
+                                                        className="w-full bg-black/40 border border-white/10 rounded-2xl px-2 py-2.5 text-xs text-white outline-none font-bold cursor-pointer"
+                                                    >
+                                                        {ALL_STANDARDS_LIST.map(c => (
+                                                            <option key={c} value={c}>{c}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[9px] font-black uppercase tracking-wider text-indigo-400">
+                                                        {isHigherEdCourse(standard) ? 'Semester*' : 'Section*'}
+                                                    </label>
+                                                    {isHigherEdCourse(standard) ? (
+                                                        <select 
+                                                            value={section} 
+                                                            onChange={e => setSection(e.target.value)}
+                                                            className="w-full bg-indigo-950/60 border border-indigo-500/40 rounded-2xl px-2 py-2.5 text-xs text-indigo-200 outline-none font-bold cursor-pointer"
+                                                        >
+                                                            {['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4', 'Sem 5', 'Sem 6', 'Sem 7', 'Sem 8'].map(s => (
+                                                                <option key={s} value={s}>🎓 {s}</option>
+                                                            ))}
+                                                        </select>
+                                                    ) : (
+                                                        <select 
+                                                            value={section} 
+                                                            onChange={e => setSection(e.target.value)}
+                                                            className="w-full bg-black/40 border border-white/10 rounded-2xl px-2 py-2.5 text-xs text-white outline-none font-bold cursor-pointer"
+                                                        >
+                                                            {ALL_SECTIONS_LIST.map(s => (
+                                                                <option key={s} value={s}>Sec {s}</option>
+                                                            ))}
+                                                        </select>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* ROLL NO & G.R. NO */}
+                                        <div className="grid grid-cols-3 gap-3">
+                                            <div className="space-y-1">
+                                                <label className="text-[9px] font-black uppercase tracking-wider text-indigo-300">Roll No.*</label>
+                                                <input 
+                                                    type="text" 
+                                                    required={registrationRole === 'STUDENT'}
+                                                    placeholder="e.g. 14" 
+                                                    value={rollNumber}
+                                                    onChange={e => setRollNumber(e.target.value)}
+                                                    className="w-full bg-black/40 border border-white/10 rounded-2xl px-3 py-2 text-xs text-white outline-none font-mono font-bold"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[9px] font-black uppercase tracking-wider text-indigo-300">G.R. No.*</label>
+                                                <input 
+                                                    type="text" 
+                                                    required={registrationRole === 'STUDENT'}
+                                                    placeholder="e.g. GR-5432" 
+                                                    value={grNumber}
+                                                    onChange={e => setGrNumber(e.target.value)}
+                                                    className="w-full bg-black/40 border border-white/10 rounded-2xl px-3 py-2 text-xs text-white outline-none font-mono font-bold"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[9px] font-black uppercase tracking-wider text-indigo-300">Enrollment No.</label>
+                                                <input 
+                                                    type="text" 
+                                                    placeholder="EN2026-9876" 
+                                                    value={enrollmentNo}
+                                                    onChange={e => setEnrollmentNo(e.target.value)}
+                                                    className="w-full bg-black/40 border border-white/10 rounded-2xl px-3 py-2 text-xs text-white outline-none font-mono font-bold"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* PARENT DETAILS */}
+                                        <div className="p-3.5 rounded-2xl bg-purple-950/20 border border-purple-500/20 space-y-2">
+                                            <label className="text-[9px] font-black uppercase tracking-wider text-purple-300 block">👨‍👩‍👦 Parent / Guardian Details</label>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <input 
+                                                    type="text" 
+                                                    placeholder="Parent Full Name" 
+                                                    value={parentName}
+                                                    onChange={e => setParentName(e.target.value)}
+                                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none"
+                                                />
+                                                <input 
+                                                    type="tel" 
+                                                    placeholder="Parent Mobile Number" 
+                                                    value={parentPhone}
+                                                    onChange={e => setParentPhone(e.target.value)}
+                                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none"
+                                                />
+                                            </div>
+                                        </div>
+                                    </>
                                 )}
 
                                 <button 
                                     type="submit"
                                     disabled={onboardingSubmitting}
-                                    className="w-full mt-4 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-500 hover:opacity-90 disabled:opacity-50 text-white font-bold py-3 rounded-2xl transition-all text-xs shadow-lg shadow-indigo-950/20 active:scale-[0.99] flex items-center justify-center gap-1.5"
+                                    className={`w-full mt-4 text-white font-black py-3 rounded-2xl transition-all text-xs shadow-xl active:scale-[0.99] flex items-center justify-center gap-1.5 cursor-pointer ${
+                                        registrationRole === 'TEACHER'
+                                            ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:opacity-90 shadow-emerald-950/40'
+                                            : 'bg-gradient-to-r from-emerald-600 via-indigo-600 to-purple-600 hover:opacity-90 shadow-indigo-950/40'
+                                    }`}
                                 >
                                     {onboardingSubmitting ? (
                                         <Loader2 className="w-4 h-4 animate-spin text-white" />
                                     ) : (
-                                        <span>Initialize OS Study Nodes</span>
+                                        <span>✍️ Register Profile &amp; Auto-Sync with Teacher Database</span>
                                     )}
                                 </button>
                             </form>

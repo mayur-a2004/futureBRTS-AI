@@ -55,24 +55,41 @@ export class OnboardingController {
         return;
       }
 
-      const { city, schoolName, tenantOrgId, educationType, board, standard, section, stream, branch, semester } = req.body;
-      if (!city || !schoolName || !tenantOrgId) {
-        res.status(400).json({ success: false, error: 'City, School Name, and Tenant Org ID are required' });
+      let { 
+        city, schoolName, udiseCode, tenantOrgId, educationType, board, medium, standard, section, stream, branch, semester,
+        firstName, lastName, rollNumber, enrollmentNo, grNumber, mobile_number, parentName, parentPhone, parentEmail
+      } = req.body;
+
+      const effectiveTenantOrgId = tenantOrgId || (schoolName ? schoolName.toLowerCase().replace(/[^a-z0-9]/g, '_') : 'default_school');
+
+      if (!city || !schoolName) {
+        res.status(400).json({ success: false, error: 'City and School Name are required' });
         return;
       }
 
       const result = await OnboardingService.completeStudentRegistration({
         userId,
+        firstName,
+        lastName,
         city,
         schoolName,
-        tenantOrgId,
+        udiseCode,
+        tenantOrgId: effectiveTenantOrgId,
         educationType: educationType || 'k12',
         board,
+        medium,
         standard,
         section,
         stream,
         branch,
-        semester
+        semester,
+        rollNumber,
+        enrollmentNo,
+        grNumber,
+        mobile_number,
+        parentName,
+        parentPhone,
+        parentEmail
       });
 
       res.json(result);

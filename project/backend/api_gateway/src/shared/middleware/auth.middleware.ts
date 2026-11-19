@@ -4,6 +4,8 @@ import { logger } from '../utils/logger';
 import User from '../../modules/auth/user.model';
 import SystemSettings from '../../modules/admin/settings.model';
 
+const lockdownCache = { lastChecked: 0, value: false };
+
 export const authMiddleware = async (req: any, res: Response, next: NextFunction) => {
     const systemKey = req.headers['x-system-key'];
     const internalSecret = process.env.SYSTEM_INTERNAL_KEY || 'titan_internal_secret_2024';
@@ -27,10 +29,19 @@ export const authMiddleware = async (req: any, res: Response, next: NextFunction
             return res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
         }
 
-        // 🚨 EMERGENCY LOCKDOWN CHECK
+        // 🚨 EMERGENCY LOCKDOWN CHECK (Cached in-memory for 30s to prevent DB bottleneck)
         if (user.role !== 'admin') {
-            const sysLock = await SystemSettings.findOne({ key: 'EMERGENCY_LOCKDOWN' });
-            if (sysLock && (sysLock.value === 'true' || sysLock.value === true)) {
+            const now = Date.now();
+            if (!lockdownCache.lastChecked || (now - lockdownCache.lastChecked > 30000)) {
+                try {
+                    const sysLock = await SystemSettings.findOne({ key: 'EMERGENCY_LOCKDOWN' }).lean();
+                    lockdownCache.value = sysLock ? (sysLock.value === 'true' || sysLock.value === true) : false;
+                    lockdownCache.lastChecked = now;
+                } catch (e) {
+                    lockdownCache.value = false;
+                }
+            }
+            if (lockdownCache.value) {
                 return res.status(503).json({
                     success: false,
                     emergencyLockdown: true,

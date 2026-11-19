@@ -136,10 +136,18 @@ app.use('/api/v1/tenant', tenantRoutes);
 console.log('✅ Routes Mounted: /api/tenant & /api/v1/tenant');
 
 import teacherPortalRoutes from './modules/tenant/teacher_portal.routes';
+import { copilotRouter } from './modules/copilot/erp_copilot.controller';
+import { connectErpDB } from './config/erp_db.connection';
+
+connectErpDB();
+
 app.use('/api/v1/teacher-workspace', teacherPortalRoutes);
 app.use('/api/auth/teacher', teacherPortalRoutes);
 app.use('/api/v1/onboarding', onboardingRoutes);
 app.use('/api/onboarding', onboardingRoutes);
+app.use('/api/v1/copilot', copilotRouter);
+app.use('/api/copilot', copilotRouter);
+console.log('✅ Routes Mounted: /api/v1/copilot & /api/copilot (ERP AI Copilot Dual-DB)');
 console.log('✅ Routes Mounted: /api/v1/onboarding & /api/onboarding');
 
 // 🤖 EMBEDDABLE FUTURE AI ASSISTANT WEB SDK FOR SCHOOL ERP INTEGRATION
@@ -402,15 +410,74 @@ app.post('/api/guest/chat', async (req, res) => {
         }
         const userContent = userContentParts.length === 1 ? userPrompt : userContentParts;
 
+        // Fast-Path Gatekeeper for Guest Mode: Casual Greetings & Short Pleasantries
+        const cleanPrompt = userPrompt.trim().toLowerCase().replace(/[!?.,;:]+$/, "");
+        const isCasual = /^(hi|hello|hlo|hey|hyy?|heyy+|hola|namaste|pranam|kese ho|kaise ho|how are you|how r u|kya haal|kya haal hai|sup|what\'?s up|thank ?you|thanks?|thx|dhanyawad|shukriya|ok|okay|done|got it|noted|alright|all right|perfect|understood|bye|goodbye|see you|tata|good morning|good afternoon|good evening|good night|yo)$/i.test(cleanPrompt) || (cleanPrompt.length <= 3 && !/^\d+$/.test(cleanPrompt) && !/^[+\-*/^=<>]+$/.test(cleanPrompt));
+        if (isCasual && (!attachments || attachments.length === 0)) {
+            let greeting = "Hello! I am FutureBuilder Titan — your senior business strategist, technology architect, and co-founder partner. How can I assist with your venture, product, or market expansion today?";
+            if (/^(thank ?you|thanks?|thx|dhanyawad|shukriya)$/i.test(cleanPrompt)) {
+                greeting = "You are very welcome! What strategic initiative or build should we tackle next?";
+            } else if (/^(ok|okay|done|got it|noted|alright|all right|perfect|understood)$/i.test(cleanPrompt)) {
+                greeting = "Understood. Ready whenever you want to proceed with the next strategic step.";
+            } else if (/^(how are you|how r u|kese ho|kaise ho)$/i.test(cleanPrompt)) {
+                greeting = "Operating at peak strategic capacity. What venture, market opportunity, or architecture shall we dive into today?";
+            } else if (/^(bye|goodbye|see you|tata)$/i.test(cleanPrompt)) {
+                greeting = "Farewell! Feel free to reconnect anytime you are ready to build, scale, or analyze new market opportunities.";
+            }
+            res.json({
+                success: true,
+                response: greeting + "\n\n||SUGGESTIONS_JSON|| [\"Analyze Market Competitors\", \"Draft Business Model & Unit Economics\", \"Generate Full-Stack Architecture\"]"
+            });
+            return;
+        }
+
         const { getProviderResponse } = require('./shared/services/openai.service');
+        const { businessHackerService } = require('./shared/services/businessHacker.service');
+        const { financialTickerService } = require('./shared/services/financialTicker.service');
+        const { omniGroundingService } = require('./shared/services/omniGrounding.service');
+
+        let guestTickerPrompt = '';
+        if (financialTickerService.isTickerQuery(userPrompt)) {
+            try {
+                const ticker = await financialTickerService.fetchLiveTicker(userPrompt);
+                if (ticker) {
+                    guestTickerPrompt = '\n' + financialTickerService.buildTickerPrompt(ticker);
+                }
+            } catch (tickErr: any) {
+                console.warn('[Guest Chat Ticker Error]', tickErr.message);
+            }
+        }
+
+        let guestOmniPrompt = '';
+        try {
+            guestOmniPrompt = await omniGroundingService.buildOmniGroundingPrompt(userPrompt);
+        } catch (omniErr: any) {
+            console.warn('[Guest Chat Omni Error]', omniErr.message);
+        }
+        let guestLiveNewsPrompt = '';
+        if (businessHackerService.isNewsQuery(userPrompt)) {
+            try {
+                const liveNews = await businessHackerService.fetchLiveNews();
+                if (liveNews?.promptSnippet) {
+                    guestLiveNewsPrompt = '\n' + liveNews.promptSnippet;
+                }
+            } catch (newsErr: any) {
+                console.warn('[Guest Chat LiveNews Error]', newsErr.message);
+            }
+        }
         const formattedMessages = [
             {
                 role: 'system',
-                content: `You are Future BRTS AI — an elite, 10X human senior tech co-founder & elder brother ('Bhai') for guest users.
-Be super warm, intelligent, logical, and helpful.
-If asked for code, output 90%+ accurate complete code.
-If asked for news/videos/products, output YouTube links (e.g. [Watch Video](https://www.youtube.com/watch?v=...)), Amazon/Flipkart product pills, and verified domain sources.
-EVERY response MUST end with ||SUGGESTIONS_JSON|| ["Action 1", "Action 2", "Action 3"].`
+                content: `You are FutureBuilder Titan — a Centennial Industry Titan, Elite Business Hacker, and Enterprise Lead Architect with the strategic wisdom of 100 years of global business, trade, and engineering.
+CORE PRINCIPLES:
+1. **LANGUAGE PRIORITY**: DEFAULT IS IMPECCABLE, EXECUTIVE-GRADE STANDARD ENGLISH. Only switch to Hindi/Hinglish/Gujarati if the user explicitly asks ("hindi me samjhao", "hindi me bolo") or writes in Hindi script. NEVER use random Japanese, Chinese, or broken Unicode characters.
+2. **DELIVER TRUTH & RIGOR**: Provide high-IQ, battle-tested strategic insights, unit economics, competitor reconnaissance, and realistic execution steps. Zero generic corporate fluff, zero fake motivation.
+3. **TASK ADAPTABILITY**:
+   - For emails/letters: Provide the exact, professional copy ready to send (Subject, Salutation, High-impact Body, CTA, Sign-off).
+   - For code: Deliver 100% production-ready, complete modular code with zero placeholders or omissions.
+   - For case studies / theses / strategy: Structure with executive summary, market dynamics, unit economics, competitive advantages, and a 30-60-90 day execution roadmap.
+4. **FORMATTING**: Use bold headings, clean bullet points, and Markdown tables for multi-factor comparisons.
+EVERY response MUST end with ||SUGGESTIONS_JSON|| ["Action 1", "Action 2", "Action 3"] on the very last line.${guestTickerPrompt}${guestLiveNewsPrompt}${guestOmniPrompt ? '\n' + guestOmniPrompt : ''}`
             },
             ...(Array.isArray(history) ? history.slice(-6).map((h: any) => ({
                 role: h.role === 'user' ? 'user' : 'assistant',

@@ -30,12 +30,10 @@ const MinervaDashboardPage: React.FC = () => {
     const [selectedStudent, setSelectedStudent] = useState<any>(null);
 
     useEffect(() => {
-        if (token) {
-            loadDashboardData(activeRange);
-        }
+        loadDashboardData(activeRange);
 
         const handleRefreshStats = () => {
-            if (token) loadDashboardData(activeRange);
+            loadDashboardData(activeRange);
         };
 
         window.addEventListener('future-education-refresh-stats', handleRefreshStats);
@@ -48,52 +46,54 @@ const MinervaDashboardPage: React.FC = () => {
         const targetRange = range || activeRange;
         setLoading(true);
         try {
-            const profileRes = await minervaApi.getProfile(token);
-            if (profileRes.success) {
-                setProfile(profileRes.profile);
-            }
-            
-            const statsData = await minervaApi.getStats(token, targetRange);
-            if (statsData.success) {
-                setStats((prev: any) => ({
-                    ...prev,
-                    total_exams_taken: statsData.stats.total_exams || 0,
-                    activeRoadmaps: statsData.stats.active_roadmaps || 0,
-                    averageScore: statsData.stats.avg_exam_score || 85,
-                    streak: statsData.stats.study_streak ?? 0,
-                    weeklyMinutes: statsData.stats.weeklyMinutes || [0, 0, 0, 0, 0, 0, 0],
-                    chartData: statsData.stats.chartData || [],
-                    pending_homework: statsData.stats.pending_homework || 0
-                }));
-            }
-
-            // Fetch due reviews
-            const reviewsRes = await minervaApi.getDueReviews(token);
-            if (reviewsRes.success) {
-                setDueReviews(reviewsRes.due_nodes || []);
-            }
-
-            // Fetch leaderboard
-            const leaderboardRes = await minervaApi.getLeaderboard(token);
-            if (leaderboardRes.success) {
-                setLeaderboard(leaderboardRes.leaderboard || []);
-            }
-
-            // Fetch battle stats
-            try {
-                const res = await fetch('/api/minerva/battle/my-stats', {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                const d = await res.json();
-                if (d.success) {
-                    setBattleProfile(d.profile);
-                    setBattleHistory(d.recentBattles || []);
+            if (token) {
+                const profileRes = await minervaApi.getProfile(token);
+                if (profileRes.success) {
+                    setProfile(profileRes.profile);
                 }
-            } catch (battleErr) {
-                console.error("Error loading battle stats:", battleErr);
+                
+                const statsData = await minervaApi.getStats(token, targetRange);
+                if (statsData.success) {
+                    setStats((prev: any) => ({
+                        ...prev,
+                        total_exams_taken: statsData.stats.total_exams || 0,
+                        activeRoadmaps: statsData.stats.active_roadmaps || 0,
+                        averageScore: statsData.stats.avg_exam_score || 85,
+                        streak: statsData.stats.study_streak ?? 0,
+                        weeklyMinutes: statsData.stats.weeklyMinutes || [0, 0, 0, 0, 0, 0, 0],
+                        chartData: statsData.stats.chartData || [],
+                        pending_homework: statsData.stats.pending_homework || 0
+                    }));
+                }
+
+                // Fetch due reviews
+                const reviewsRes = await minervaApi.getDueReviews(token);
+                if (reviewsRes.success) {
+                    setDueReviews(reviewsRes.due_nodes || []);
+                }
+
+                // Fetch leaderboard
+                const leaderboardRes = await minervaApi.getLeaderboard(token);
+                if (leaderboardRes.success) {
+                    setLeaderboard(leaderboardRes.leaderboard || []);
+                }
+
+                // Fetch battle stats
+                try {
+                    const res = await fetch('/api/minerva/battle/my-stats', {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    const d = await res.json();
+                    if (d.success) {
+                        setBattleProfile(d.profile);
+                        setBattleHistory(d.recentBattles || []);
+                    }
+                } catch (battleErr) {
+                    console.warn("Could not fetch battle stats:", battleErr);
+                }
             }
         } catch (err) {
-            console.error("Error loading dashboard metrics:", err);
+            console.error("Dashboard error:", err);
         } finally {
             setLoading(false);
         }

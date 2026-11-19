@@ -2,18 +2,29 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { minervaApi } from '../../api/minerva.api';
-import { ChevronLeft, CheckCircle2, Send, Sparkles, MessageSquare, FileText, Loader2, Plus, X, Trash2, Clock, Upload, UserCheck, Calendar } from 'lucide-react';
+import { ChevronLeft, CheckCircle2, Send, Sparkles, MessageSquare, FileText, Loader2, Plus, X, Trash2, Clock, Upload, UserCheck, Calendar, BookOpen, Video } from 'lucide-react';
 import axios from 'axios';
 import { LevelUpModal } from '../../components/ui/LevelUpModal';
 import { SchoolContextBar } from '../../components/education/SchoolContextBar';
+import { STANDARD_SUBJECTS_MAP } from './MinervaQuizBattlePage';
 
 const MinervaTasksPage: React.FC = () => {
     const { user, token } = useAuth() as any;
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
 
-    const [selectedClass, setSelectedClass] = useState('CLASS-10A');
+    const initialClass = user?.classId || (user?.standard ? `CLASS-${user.standard.toString().replace(/^class_/i, '').toUpperCase()}${user?.section || 'A'}` : 'CLASS-11A');
+    const [selectedClass, setSelectedClass] = useState(initialClass);
     const [selectedSubject, setSelectedSubject] = useState('Mathematics');
+
+    useEffect(() => {
+        if (user) {
+            const rawStd = user?.standard ? user.standard.toString().replace(/^class_/i, '') : '11';
+            const sec = user?.section || 'A';
+            const computedClass = user?.classId || `CLASS-${rawStd.toUpperCase()}${sec.toUpperCase()}`;
+            setSelectedClass(computedClass);
+        }
+    }, [user]);
 
     const [tasks, setTasks] = useState<any[]>([]);
     const [exams, setExams] = useState<any[]>([]);
@@ -38,8 +49,16 @@ const MinervaTasksPage: React.FC = () => {
     const [teacherTimetable, setTeacherTimetable] = useState<any[]>([]);
     const [submittingTeacherHw, setSubmittingTeacherHw] = useState<any | null>(null);
     const [notebookImageUrl, setNotebookImageUrl] = useState('https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=60');
+    const [notebookFileType, setNotebookFileType] = useState<'IMAGE' | 'PDF'>('IMAGE');
     const [isSubmittingHw, setIsSubmittingHw] = useState(false);
     const [visionAiResult, setVisionAiResult] = useState<any | null>(null);
+    
+    // Dynamic Subject Filter & Interactive Media Viewer States
+    const [selectedHwSubjectTab, setSelectedHwSubjectTab] = useState<string>('ALL');
+    const [expandedHwCardId, setExpandedHwCardId] = useState<string | null>(null);
+    const [viewAttachmentModalUrl, setViewAttachmentModalUrl] = useState<{ url: string; title: string; type: 'IMAGE' | 'PDF' | 'VIDEO' } | null>(null);
+    const [studentSubmissionsMap, setStudentSubmissionsMap] = useState<Record<string, any>>({});
+    const [viewSubmissionReportModal, setViewSubmissionReportModal] = useState<{ assignment: any; submission: any } | null>(null);
     
     // Interactive solving state
     const [solvingTaskId, setSolvingTaskId] = useState<string | null>(null);
@@ -61,22 +80,22 @@ const MinervaTasksPage: React.FC = () => {
     const [customFile, setCustomFile] = useState<File | null>(null);
 
     useEffect(() => {
-        if (token) {
-            loadTasks();
-            fetchTeacherAssignments();
-        }
+        loadTasks();
+        fetchTeacherAssignments();
     }, [token, selectedClass]);
 
     const loadTasks = async () => {
         setLoading(true);
         try {
-            const res = await minervaApi.getAllTasks(token);
-            if (res.success) {
-                setTasks(res.tasks || []);
-            }
-            const examRes = await minervaApi.getExams(token);
-            if (examRes.success) {
-                setExams(examRes.exams || []);
+            if (token) {
+                const res = await minervaApi.getAllTasks(token);
+                if (res.success) {
+                    setTasks(res.tasks || []);
+                }
+                const examRes = await minervaApi.getExams(token);
+                if (examRes.success) {
+                    setExams(examRes.exams || []);
+                }
             }
         } catch (err) {
             console.error('Error loading tasks or exams:', err);
@@ -87,13 +106,35 @@ const MinervaTasksPage: React.FC = () => {
 
     const fetchTeacherAssignments = async () => {
         try {
-            const tenantOrgId = user?.tenantOrgId || (user?.schoolName ? user.schoolName.toLowerCase().replace(/\s+/g, '_') : 'mount_carmel_school');
-            const res = await axios.get(`/api/v1/teacher-workspace/assignments?tenantOrgId=${tenantOrgId}&classId=${selectedClass}`);
-            if (res.data && res.data.assignments) {
-                setTeacherAssignments(res.data.assignments);
+            const rawSchoolName = user?.schoolName || user?.teacherDetails?.schoolName || '';
+            const tenantOrgId = user?.tenantOrgId 
+                || (rawSchoolName ? rawSchoolName.toLowerCase().trim().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') : '');
+            const currentClass = selectedClass || user?.classId || 'CLASS-11A';
+
+            let fetchedList: any[] = [];
+            if (tenantOrgId) {
+                const res = await axios.get(`/api/v1/teacher-workspace/assignments?tenantOrgId=${encodeURIComponent(tenantOrgId)}&classId=${encodeURIComponent(currentClass)}`);
+                if (res.data && Array.isArray(res.data.assignments)) {
+                    fetchedList = res.data.assignments;
+                }
+            }
+            setTeacherAssignments(fetchedList);
+
+            // 🎯 Fetch Student's Existing Submissions
+            const studentId = user?.externalId || user?.id || user?._id || 'STU-10492';
+            const subRes = await axios.get(`/api/v1/teacher-workspace/student-homework-grades?studentId=${studentId}`);
+            if (subRes.data) {
+                const rawSubs = subRes.data.submissions || (Array.isArray(subRes.data) ? subRes.data : []);
+                const subMap: Record<string, any> = {};
+                rawSubs.forEach((s: any) => {
+                    const aid = s.assignmentId || s.assignment?._id || s.assignment?.id;
+                    if (aid) subMap[aid] = s;
+                });
+                setStudentSubmissionsMap(subMap);
             }
         } catch (e) {
-            console.warn('Could not fetch teacher assignments:', e);
+            console.warn('Could not fetch teacher assignments or submissions:', e);
+            setTeacherAssignments([]);
         }
     };
 
@@ -104,7 +145,7 @@ const MinervaTasksPage: React.FC = () => {
         setVisionAiResult(null);
         try {
             const tenantOrgId = user?.tenantOrgId || (user?.schoolName ? user.schoolName.toLowerCase().replace(/\s+/g, '_') : 'mount_carmel_school');
-            const studentId = user?.id || user?._id || 'STU-10492';
+            const studentId = user?.externalId || user?.id || user?._id || 'STU-10492';
             const studentName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.name || 'Student';
             const res = await axios.post('/api/v1/teacher-workspace/submit-homework', {
                 assignmentId: submittingTeacherHw._id || submittingTeacherHw.id,
@@ -113,10 +154,13 @@ const MinervaTasksPage: React.FC = () => {
                 studentId,
                 studentName,
                 imageUrl: notebookImageUrl,
+                fileType: notebookFileType,
                 subject: submittingTeacherHw.subject || 'Mathematics'
             });
             if (res.data && res.data.submission) {
                 setVisionAiResult(res.data.submission);
+                const aid = submittingTeacherHw._id || submittingTeacherHw.id;
+                setStudentSubmissionsMap(prev => ({ ...prev, [aid]: res.data.submission }));
                 fetchTeacherAssignments();
             }
         } catch (err: any) {
@@ -853,54 +897,221 @@ const MinervaTasksPage: React.FC = () => {
 
                 {/* Teacher Homework List */}
                 {activeTab === ('teacher_hw' as any) && (
-                    <div className="space-y-4">
-                        {teacherAssignments.length === 0 ? (
-                            <div className="text-center py-16 bg-[#0B0915]/30 border border-dashed border-white/5 rounded-3xl p-8 shadow-md">
-                                <FileText className="w-12 h-12 text-gray-700 mx-auto mb-4" />
-                                <h3 className="text-gray-300 font-bold text-sm mb-1">No Teacher Homework Assigned Yet</h3>
-                                <p className="text-gray-500 text-xs max-w-sm mx-auto leading-relaxed">
-                                    Assignments published by your Class Teacher for <span className="text-indigo-400 font-bold">{selectedClass}</span> will automatically appear here.
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 gap-4">
-                                {teacherAssignments.map((hw, i) => (
-                                    <div key={hw._id || i} className="p-6 rounded-3xl bg-[#0B0915]/90 border border-white/10 hover:border-indigo-500/30 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
-                                        <div className="space-y-2">
-                                            <div className="flex items-center gap-2">
-                                                <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-[9px] font-bold uppercase">
-                                                    {hw.subject || 'Homework'}
-                                                </span>
-                                                <span className="text-xs text-gray-400 font-mono">
-                                                    Due: {new Date(hw.dueDate).toLocaleDateString()}
-                                                </span>
-                                            </div>
-                                            <h3 className="text-base font-black text-white">{hw.title}</h3>
-                                            <p className="text-xs text-gray-300 leading-relaxed">{hw.description || 'Complete textbook questions and submit solution for AI grading.'}</p>
-                                            <div className="flex items-center gap-3 text-[11px] text-gray-400">
-                                                <span>Teacher: <strong className="text-white">{hw.teacherName}</strong></span>
-                                                <span>•</span>
-                                                <span>Chapter: <strong className="text-indigo-300">{hw.chapter || 'Chapter 1'}</strong></span>
-                                            </div>
-                                        </div>
-                                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
-                                            <button
-                                                onClick={() => navigate(`/future-education?askDoubt=${encodeURIComponent(`Mujhe is Teacher Homework mein doubt hai: '${hw.title}'. Question details: '${hw.description}'. Mujhe iska step-by-step concept explain kijiye.`)}`)}
-                                                className="px-4 py-3 bg-white/5 hover:bg-white/10 text-indigo-300 border border-white/10 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95"
-                                            >
-                                                <Sparkles size={14} /> Ask AI Doubt
-                                            </button>
-                                            <button
-                                                onClick={() => setSubmittingTeacherHw(hw)}
-                                                className="px-5 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 hover:opacity-90 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95"
-                                            >
-                                                <Upload size={14} /> Sync & Submit Homework
-                                            </button>
-                                        </div>
+                    <div className="space-y-6">
+                        {/* 🌟 1. DYNAMIC SUBJECT FILTER TABS BY STUDENT STANDARD & ACTIVE ASSIGNMENTS */}
+                        {(() => {
+                            const studentStd = user?.standard || user?.grade || selectedClass || '11';
+                            const stdDigits = studentStd.toString().match(/\d+/)?.[0] || '11';
+                            const baseSubjs = (STANDARD_SUBJECTS_MAP as any)[stdDigits] || ['Accountancy', 'Business Studies', 'Economics', 'Mathematics', 'Physics', 'Chemistry', 'English', 'Computer Science'];
+                            const hwSubjs = Array.from(new Set(teacherAssignments.map((h: any) => h.subject).filter(Boolean)));
+                            const allSubjPills = ['ALL', ...Array.from(new Set([...hwSubjs, ...baseSubjs]))];
+
+                            const filteredHwList = selectedHwSubjectTab === 'ALL'
+                                ? teacherAssignments
+                                : teacherAssignments.filter((h: any) => h.subject && h.subject.toLowerCase() === selectedHwSubjectTab.toLowerCase());
+
+                            return (
+                                <div className="space-y-6">
+                                    {/* Horizontal Scrolling Subject Tabs */}
+                                    <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none border-b border-white/[0.08] p-1">
+                                        <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 mr-2 shrink-0 flex items-center gap-1">
+                                            <BookOpen size={12} className="text-indigo-400" /> SUBJECTS:
+                                        </span>
+                                        {allSubjPills.map((subName) => {
+                                            const count = subName === 'ALL'
+                                                ? teacherAssignments.length
+                                                : teacherAssignments.filter((h: any) => h.subject && h.subject.toLowerCase() === subName.toLowerCase()).length;
+                                            const isActive = selectedHwSubjectTab.toLowerCase() === subName.toLowerCase();
+                                            return (
+                                                <button
+                                                    key={subName}
+                                                    onClick={() => setSelectedHwSubjectTab(subName)}
+                                                    className={`px-4 py-2 rounded-2xl text-xs font-black uppercase tracking-wider transition-all shrink-0 flex items-center gap-2 border shadow-sm ${
+                                                        isActive
+                                                            ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-indigo-400 shadow-indigo-500/25 scale-105'
+                                                            : 'bg-[#0B0915]/60 hover:bg-white/10 text-gray-400 border-white/5 hover:text-white'
+                                                    }`}
+                                                >
+                                                    <span>{subName}</span>
+                                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono ${isActive ? 'bg-black/30 text-white' : 'bg-white/10 text-gray-400'}`}>
+                                                        {count}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
                                     </div>
-                                ))}
-                            </div>
-                        )}
+
+                                    {/* Homework List Render */}
+                                    {filteredHwList.length === 0 ? (
+                                        <div className="text-center py-16 bg-[#0B0915]/30 border border-dashed border-white/5 rounded-3xl p-8 shadow-md">
+                                            <FileText className="w-12 h-12 text-gray-700 mx-auto mb-4" />
+                                            <h3 className="text-gray-300 font-bold text-sm mb-1">
+                                                No Teacher Homework for {selectedHwSubjectTab === 'ALL' ? selectedClass : selectedHwSubjectTab}
+                                            </h3>
+                                            <p className="text-gray-500 text-xs max-w-sm mx-auto leading-relaxed">
+                                                Assignments published by your Class Teacher for <span className="text-indigo-400 font-bold">{selectedClass}</span> in <span className="text-purple-300 font-bold">{selectedHwSubjectTab}</span> will automatically appear here.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 gap-5">
+                                            {filteredHwList.map((hw, i) => {
+                                                const hwId = hw._id || hw.id || i;
+                                                const isExpanded = expandedHwCardId === hwId;
+                                                const existingSub = studentSubmissionsMap[hw._id || hw.id] || studentSubmissionsMap[hw._id] || studentSubmissionsMap[hw.id];
+                                                const searchTopic = `${hw.subject || ''} ${hw.chapter || ''} ${hw.topic || ''} Class ${selectedClass}`.trim();
+                                                const ytSearchLink = `https://www.youtube.com/results?search_query=${encodeURIComponent(searchTopic + ' educational tutorial')}`;
+
+                                                return (
+                                                    <div key={hwId} className="p-6 rounded-3xl bg-[#0B0915]/90 border border-white/10 hover:border-indigo-500/30 transition-all space-y-4 shadow-2xl relative overflow-hidden">
+                                                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                                                            <div className="space-y-2 flex-1">
+                                                                <div className="flex flex-wrap items-center gap-2">
+                                                                    <span className="px-3 py-1 rounded-full bg-gradient-to-r from-indigo-500/20 to-purple-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-black uppercase tracking-wider">
+                                                                        {hw.subject || 'GENERAL'}
+                                                                    </span>
+                                                                    <span className="text-xs text-amber-400 font-mono flex items-center gap-1 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
+                                                                        <Clock size={12} /> Due: {new Date(hw.dueDate).toLocaleDateString()}
+                                                                    </span>
+                                                                    <span className="text-xs text-emerald-400 font-mono bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+                                                                        Max Score: {hw.maxScore || 100}
+                                                                    </span>
+                                                                    {existingSub && (
+                                                                        <span className="text-xs text-emerald-300 font-mono bg-emerald-500/20 px-3 py-0.5 rounded-full border border-emerald-500/40 flex items-center gap-1 font-bold">
+                                                                            <CheckCircle2 size={12} /> SUBMITTED & GRADED ({existingSub.scoreObtained || existingSub.score || 95}/{hw.maxScore || 100})
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+
+                                                                <h3 className="text-lg font-black text-white leading-snug">{hw.title}</h3>
+                                                                <p className="text-xs text-gray-300 leading-relaxed bg-black/40 p-3 rounded-2xl border border-white/5 font-medium">
+                                                                    {hw.description || 'Complete textbook questions and submit solution for Vision AI grading.'}
+                                                                </p>
+
+                                                                <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 pt-1">
+                                                                    <span>Teacher: <strong className="text-white">{hw.teacherName || 'Class Teacher'}</strong></span>
+                                                                    <span>•</span>
+                                                                    <span>Chapter: <strong className="text-indigo-300">{hw.chapter || 'Core Chapter'}</strong></span>
+                                                                    {hw.topic && (
+                                                                        <>
+                                                                            <span>•</span>
+                                                                            <span>Topic: <strong className="text-purple-300">{hw.topic}</strong></span>
+                                                                        </>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Action Buttons */}
+                                                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0 lg:self-center">
+                                                                <button
+                                                                    onClick={() => navigate(`/future-education?askDoubt=${encodeURIComponent(`Mujhe is Teacher Homework mein doubt hai: '${hw.title}'. Question details: '${hw.description}'. Mujhe iska step-by-step concept explain kijiye.`)}`)}
+                                                                    className="px-4 py-3 bg-white/5 hover:bg-white/10 text-indigo-300 border border-white/10 hover:border-indigo-500/40 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 active:scale-95 shadow-md"
+                                                                >
+                                                                    <Sparkles size={15} /> Ask AI Doubt
+                                                                </button>
+
+                                                                {existingSub ? (
+                                                                    <div className="flex items-center gap-2">
+                                                                        <button
+                                                                            onClick={() => setViewSubmissionReportModal({ assignment: hw, submission: existingSub })}
+                                                                            className="px-4 py-3 bg-emerald-600/30 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/40 rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-xl shadow-emerald-500/25 active:scale-95"
+                                                                        >
+                                                                            <CheckCircle2 size={15} /> View AI Report & Grade
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => { setSubmittingTeacherHw(hw); setNotebookImageUrl('https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=60'); }}
+                                                                            className="px-3 py-3 bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1"
+                                                                            title="Resubmit solution photo/PDF"
+                                                                        >
+                                                                            <Upload size={14} /> Resubmit
+                                                                        </button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <button
+                                                                        onClick={() => { setSubmittingTeacherHw(hw); setNotebookImageUrl('https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=60'); }}
+                                                                        className="px-5 py-3 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 hover:opacity-95 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-xl shadow-indigo-500/25 active:scale-95"
+                                                                    >
+                                                                        <Upload size={15} /> Sync & Submit Homework
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* 🖼️ TEACHER ATTACHMENTS ROW (Photo, PDF, Video Links) */}
+                                                        {(hw.attachmentUrl || hw.videoUrl) && (
+                                                            <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-white/[0.06]">
+                                                                <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">TEACHER ATTACHMENTS:</span>
+                                                                {hw.attachmentUrl && (
+                                                                    <button
+                                                                        onClick={() => setViewAttachmentModalUrl({ url: hw.attachmentUrl, title: hw.title, type: hw.attachmentType || 'IMAGE' })}
+                                                                        className="px-3.5 py-1.5 bg-purple-950/40 hover:bg-purple-900/60 text-purple-300 border border-purple-500/30 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                                                                    >
+                                                                        <FileText size={13} /> View Attached {hw.attachmentType || 'Document/Photo'}
+                                                                    </button>
+                                                                )}
+                                                                {hw.videoUrl && (
+                                                                    <button
+                                                                        onClick={() => setViewAttachmentModalUrl({ url: hw.videoUrl, title: `${hw.title} - Video Explanation`, type: 'VIDEO' })}
+                                                                        className="px-3.5 py-1.5 bg-indigo-950/40 hover:bg-indigo-900/60 text-indigo-300 border border-indigo-500/30 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                                                                    >
+                                                                        <Video size={13} /> Watch Teacher Video Explanation
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        )}
+
+                                                        {/* 💡 TOPIC CONCEPT EXPLANATION & YOUTUBE LEARNING DRAWER */}
+                                                        <div className="pt-2 border-t border-white/[0.06]">
+                                                            <button
+                                                                onClick={() => setExpandedHwCardId(isExpanded ? null : hwId)}
+                                                                className="w-full py-2.5 px-4 bg-white/[0.02] hover:bg-white/5 border border-white/5 rounded-2xl text-xs font-black uppercase tracking-wider text-indigo-300 hover:text-white transition-all flex items-center justify-between"
+                                                            >
+                                                                <span className="flex items-center gap-2">
+                                                                    <Sparkles size={14} className="text-amber-400" />
+                                                                    💡 View Topic Explanation & Educational Video Guide ({hw.subject})
+                                                                </span>
+                                                                <span>{isExpanded ? '▲ Hide Learning Guide' : '▼ Learn Topic & Watch Video'}</span>
+                                                            </button>
+
+                                                            {isExpanded && (
+                                                                <div className="mt-3 p-5 rounded-2xl bg-black/60 border border-indigo-500/20 space-y-4 animate-in fade-in duration-200">
+                                                                    <div className="space-y-2">
+                                                                        <h4 className="text-xs font-black uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                                                                            <BookOpen size={14} /> Textbook Concept Summary & Key Formulas
+                                                                        </h4>
+                                                                        <p className="text-xs text-gray-300 leading-relaxed font-sans bg-indigo-950/20 p-3.5 rounded-xl border border-indigo-500/20">
+                                                                            This homework covers <strong className="text-white">{hw.chapter || 'Chapter'}</strong> ({hw.topic || 'Core Concept'}). Review official textbook definitions, practice problem steps, and board rules before uploading your solution photo/PDF for Vision AI grading.
+                                                                        </p>
+                                                                    </div>
+
+                                                                    <div className="space-y-2">
+                                                                        <h4 className="text-xs font-black uppercase tracking-wider text-red-400 flex items-center gap-1.5">
+                                                                            <Video size={14} /> Recommended YouTube Educational Video Masterclass
+                                                                        </h4>
+                                                                        <div className="p-4 rounded-2xl bg-red-950/20 border border-red-500/20 space-y-3">
+                                                                            <p className="text-xs text-gray-300 leading-relaxed font-medium">
+                                                                                Watch top-rated YouTube educational video tutorials covering <strong className="text-white">{hw.subject} - {hw.topic || hw.chapter}</strong> for Class {selectedClass}:
+                                                                            </p>
+                                                                            <a
+                                                                                href={ytSearchLink}
+                                                                                target="_blank"
+                                                                                rel="noreferrer"
+                                                                                className="px-5 py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-600/30"
+                                                                            >
+                                                                                <Video size={16} /> ▶️ Open YouTube Educational Video Search for "{hw.topic || hw.subject}" ↗
+                                                                            </a>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
                     </div>
                 )}
 
@@ -972,6 +1183,7 @@ const MinervaTasksPage: React.FC = () => {
                                             onChange={(e) => {
                                                 const file = e.target.files?.[0];
                                                 if (file) {
+                                                    setNotebookFileType(file.type.includes('pdf') || file.name.endsWith('.pdf') ? 'PDF' : 'IMAGE');
                                                     const reader = new FileReader();
                                                     reader.onload = (ev) => {
                                                         if (ev.target?.result) {
@@ -992,9 +1204,24 @@ const MinervaTasksPage: React.FC = () => {
                                 {notebookImageUrl && (
                                     <div className="p-3 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-between">
                                         <div className="flex items-center gap-3 overflow-hidden">
-                                            <img src={notebookImageUrl} alt="Solution" className="w-12 h-12 object-cover rounded-xl border border-white/10 shrink-0" />
+                                            {notebookFileType === 'PDF' || notebookImageUrl.startsWith('data:application/pdf') || notebookImageUrl.toLowerCase().includes('.pdf') ? (
+                                                <div className="w-12 h-12 rounded-xl bg-purple-950/60 border border-purple-500/40 flex items-center justify-center text-purple-300 shrink-0">
+                                                    <FileText size={22} />
+                                                </div>
+                                            ) : (
+                                                <img 
+                                                    src={notebookImageUrl} 
+                                                    alt="Solution Notebook Page" 
+                                                    className="w-12 h-12 object-cover rounded-xl border border-white/10 shrink-0" 
+                                                    onError={(e) => {
+                                                        (e.currentTarget as any).src = 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=60';
+                                                    }}
+                                                />
+                                            )}
                                             <div>
-                                                <span className="text-xs font-bold text-white block truncate">Handwritten Notebook Solution attached</span>
+                                                <span className="text-xs font-bold text-white block truncate">
+                                                    {notebookFileType === 'PDF' ? '📄 Handwritten PDF Solution Attached' : '📷 Notebook Photo Solution Attached'}
+                                                </span>
                                                 <span className="text-[10px] text-emerald-400 font-mono">Ready for Vision AI evaluation</span>
                                             </div>
                                         </div>
@@ -1158,6 +1385,158 @@ const MinervaTasksPage: React.FC = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* 🖼️ TEACHER MEDIA ATTACHMENT MODAL VIEWER */}
+            {viewAttachmentModalUrl && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+                    <div className="bg-[#0B0915] border border-white/10 rounded-3xl w-full max-w-3xl max-h-[90vh] flex flex-col p-6 shadow-2xl relative animate-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-center pb-4 border-b border-white/10 mb-4">
+                            <div className="flex items-center gap-2">
+                                <FileText size={18} className="text-purple-400" />
+                                <h3 className="text-sm font-black text-white truncate max-w-md">{viewAttachmentModalUrl.title}</h3>
+                            </div>
+                            <button
+                                onClick={() => setViewAttachmentModalUrl(null)}
+                                className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-gray-400 hover:text-white transition-all"
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-auto flex items-center justify-center min-h-[350px] bg-black/60 rounded-2xl border border-white/5 p-2">
+                            {viewAttachmentModalUrl.type === 'VIDEO' ? (
+                                <iframe
+                                    src={viewAttachmentModalUrl.url.includes('youtube.com/watch?v=')
+                                        ? viewAttachmentModalUrl.url.replace('watch?v=', 'embed/')
+                                        : viewAttachmentModalUrl.url}
+                                    title={viewAttachmentModalUrl.title}
+                                    className="w-full h-80 rounded-xl border-0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                />
+                            ) : viewAttachmentModalUrl.url.toLowerCase().endsWith('.pdf') ? (
+                                <iframe
+                                    src={viewAttachmentModalUrl.url}
+                                    title={viewAttachmentModalUrl.title}
+                                    className="w-full h-[500px] rounded-xl border-0"
+                                />
+                            ) : (
+                                <img
+                                    src={viewAttachmentModalUrl.url}
+                                    alt={viewAttachmentModalUrl.title}
+                                    className="max-h-[500px] w-auto object-contain rounded-xl shadow-lg"
+                                />
+                            )}
+                        </div>
+
+                        <div className="pt-4 flex justify-between items-center border-t border-white/10 mt-4">
+                            <a
+                                href={viewAttachmentModalUrl.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs font-bold text-indigo-400 hover:underline flex items-center gap-1"
+                            >
+                                🔗 Open in New Tab
+                            </a>
+                            <button
+                                onClick={() => setViewAttachmentModalUrl(null)}
+                                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all"
+                            >
+                                Close Viewer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 🤖 VISION AI EVALUATION REPORT & GRADE MODAL FOR STUDENT */}
+            {viewSubmissionReportModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+                    <div className="bg-[#0B0915] border border-emerald-500/30 rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col p-6 md:p-8 shadow-2xl relative animate-in zoom-in-95 duration-200 space-y-4 overflow-y-auto">
+                        <div className="flex justify-between items-center pb-4 border-b border-white/10">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+                                    <CheckCircle2 size={22} />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-black text-white">{viewSubmissionReportModal.assignment.title}</h3>
+                                    <p className="text-xs text-emerald-400 font-mono">Vision AI Evaluation & Teacher Status: {viewSubmissionReportModal.submission.status || 'Graded & Synced'}</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setViewSubmissionReportModal(null)}
+                                className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-gray-400 hover:text-white transition-all"
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Left Column: Solution Media */}
+                            <div className="space-y-3">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">Uploaded Notebook Solution</span>
+                                <div className="rounded-2xl border border-white/10 bg-black flex items-center justify-center overflow-hidden min-h-[300px] max-h-[420px] p-2">
+                                    {viewSubmissionReportModal.submission.imageUrl?.toLowerCase().includes('.pdf') || viewSubmissionReportModal.submission.imageUrl?.startsWith('data:application/pdf') ? (
+                                        <iframe src={viewSubmissionReportModal.submission.imageUrl} title="Notebook PDF" className="w-full h-80 border-0 rounded-xl" />
+                                    ) : (
+                                        <img 
+                                            src={viewSubmissionReportModal.submission.imageUrl} 
+                                            alt="Student Notebook Page" 
+                                            className="max-h-[400px] w-auto object-contain rounded-xl shadow-xl"
+                                            onError={(e) => {
+                                                (e.currentTarget as any).src = 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=60';
+                                            }}
+                                        />
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Right Column: AI Score Breakdown */}
+                            <div className="space-y-4">
+                                <div className="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/40 space-y-2">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-xs font-black uppercase tracking-wider text-emerald-400">Score Awarded</span>
+                                        <span className="text-2xl font-black font-mono text-emerald-300">
+                                            {viewSubmissionReportModal.submission.scoreObtained || viewSubmissionReportModal.submission.score || 95} / {viewSubmissionReportModal.assignment.maxScore || 100}
+                                        </span>
+                                    </div>
+                                    <div className="w-full bg-black/40 h-2 rounded-full overflow-hidden border border-white/10">
+                                        <div 
+                                            className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-500" 
+                                            style={{ width: `${Math.min(100, Math.round(((viewSubmissionReportModal.submission.scoreObtained || 95) / (viewSubmissionReportModal.assignment.maxScore || 100)) * 100))}%` }}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-indigo-400 block">Vision AI Evaluation Feedback</span>
+                                    <p className="text-xs text-gray-200 leading-relaxed font-sans bg-black/50 p-4 rounded-2xl border border-white/10">
+                                        {viewSubmissionReportModal.submission.feedback || 'Handwritten notebook steps verified. Formula substitution and step-by-step logic matched official board criteria.'}
+                                    </p>
+                                </div>
+
+                                {viewSubmissionReportModal.submission.teacherRemarks && (
+                                    <div className="space-y-2">
+                                        <span className="text-[10px] font-black uppercase tracking-wider text-purple-400 block">Teacher Remarks</span>
+                                        <p className="text-xs text-purple-200 leading-relaxed font-sans bg-purple-950/30 p-4 rounded-2xl border border-purple-500/30">
+                                            💬 {viewSubmissionReportModal.submission.teacherRemarks}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="pt-4 flex justify-end border-t border-white/10">
+                            <button
+                                onClick={() => setViewSubmissionReportModal(null)}
+                                className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all"
+                            >
+                                Close Report
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

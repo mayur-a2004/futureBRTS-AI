@@ -90,4 +90,4 @@ const LiveExamRoomSchema = new Schema({
     finishedAt: { type: Date, default: null }
 }, { timestamps: true });
 
-export default mongoose.model<ILiveExamRoom>('LiveExamRoom', LiveExamRoomSchema);
+export default (mongoose.models.LiveExamRoom as mongoose.Model<ILiveExamRoom>) || mongoose.model<ILiveExamRoom>('LiveExamRoom', LiveExamRoomSchema);

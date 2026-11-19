@@ -19,6 +19,17 @@ const handleRes = async (res: Response) => {
 
 export const minervaApi = {
 
+    // ── OFFICIAL CURRICULUM REGISTRY ─────────────
+    getOfficialChapters: async (token?: string, board?: string, standard?: string, subject?: string, medium?: string) => {
+        const query = new URLSearchParams();
+        if (board) query.append('board', board);
+        if (standard) query.append('standard', standard);
+        if (subject) query.append('subject', subject);
+        if (medium) query.append('medium', medium);
+        const res = await fetch(`${BASE_URL}/official-chapters?${query.toString()}`, { headers: authHeaders(token) });
+        return handleRes(res);
+    },
+
     // ── PROFILE ──────────────────────────────────
     getProfile: async (token: string) => {
         const res = await fetch(`${BASE_URL}/profile`, { headers: authHeaders(token) });
@@ -49,11 +60,11 @@ export const minervaApi = {
     },
 
     // ── CHAT ──────────────────────────────────────
-    sendChat: async (token: string, message: string, session_id?: string, chat_session_id?: string, deep_study?: boolean, forceRoadmap?: boolean, file_url?: string, file_type?: string, response_mode?: string) => {
+    sendChat: async (token: string, message: string, session_id?: string, chat_session_id?: string, deep_study?: boolean, forceRoadmap?: boolean, file_url?: string, file_type?: string, response_mode?: string, subject?: string) => {
         const res = await fetch(`${BASE_URL}/chat`, {
             method: 'POST',
             headers: authHeaders(token),
-            body: JSON.stringify({ message, session_id, chat_session_id, deep_study, forceRoadmap, file_url, file_type, response_mode }),
+            body: JSON.stringify({ message, session_id, chat_session_id, deep_study, forceRoadmap, file_url, file_type, response_mode, subject }),
         });
         return handleRes(res);
     },

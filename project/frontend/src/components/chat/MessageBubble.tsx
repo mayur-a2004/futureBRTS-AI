@@ -41,17 +41,15 @@ const SearchBadge = ({ subject }: { subject: string }) => (
     </motion.div>
 );
 
-// Sanitize Pollinations AI image links in Markdown (combines newlines and encodes prompt parts)
+// Sanitize image links in Markdown (removes broken/rate-limited pollinations URLs and cleans newlines)
 const sanitizeMarkdownImages = (text: string): string => {
     if (!text) return text;
-    // 1. Remove newlines and whitespace between ![...] and (...)
-    let sanitized = text.replace(/!\[([^\]]*)\]\s*\n+\s*\(([^)]+)\)/g, '![$1]($2)');
-    
-    // 2. Find pollinations.ai URLs and URL-encode their prompts safely
-    sanitized = sanitized.replace(/https:\/\/image\.pollinations\.ai\/prompt\/([^?)\s]+(?:\s+[^?)\s]+)*)(?=\?|\)|$)/g, (_, promptPart) => {
-        return `https://image.pollinations.ai/prompt/${encodeURIComponent(promptPart.trim())}`;
-    });
-    
+    // 1. Remove broken/rate-limited pollinations.ai markdown image links completely
+    let sanitized = text.replace(/!\[[^\]]*\]\s*\(\s*https?:\/\/image\.pollinations\.ai\/[^)]*\)/gi, '');
+    // 2. Remove newlines and whitespace between any other ![...] and (...)
+    sanitized = sanitized.replace(/!\[([^\]]*)\]\s*\n+\s*\(([^)]+)\)/g, '![$1]($2)');
+    // 3. Clean up multiple empty lines
+    sanitized = sanitized.replace(/\n{3,}/g, '\n\n');
     return sanitized;
 };
 
@@ -464,28 +462,50 @@ export const MessageBubble = React.memo(({
                                     h1: ({ node, ...props }) => <h1 className="!text-[1.8rem] !font-black !text-white !mb-6 first:!mt-0 !mt-10 !italic !uppercase !leading-tight !tracking-tighter" {...props} />,
                                     h2: ({ node, ...props }) => <h2 className="!text-[1.5rem] !font-black !text-white !mb-4 first:!mt-0 !mt-8 !tracking-tight" {...props} />,
                                     h3: ({ node, ...props }) => <h3 className="!text-[1.2rem] !font-bold !text-white !mb-3 first:!mt-0 !mt-6" {...props} />,
-                                    img: ({ src, alt }) => (
-                                        <div className="my-6 flex flex-col items-center justify-center mx-auto max-w-lg w-full group/img relative">
-                                            <div className="relative overflow-hidden rounded-2xl border border-white/10 shadow-2xl bg-black/40 w-full flex items-center justify-center">
-                                                <img
-                                                    src={src}
-                                                    alt={alt || 'Educational Media'}
-                                                    className="w-full h-auto max-h-[340px] object-cover hover:scale-[1.02] transition-transform duration-500 rounded-2xl"
-                                                    onError={(e) => {
-                                                        const target = e.target as HTMLImageElement;
-                                                        if (!target.dataset.failed) {
-                                                            target.dataset.failed = 'true';
-                                                            target.src = `https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=800`;
-                                                        }
-                                                    }}
-                                                />
-                                            </div>
-                                            {alt && (
-                                                <div className="mt-2 text-center text-[11px] font-bold text-gray-300 bg-white/5 border border-white/10 rounded-full px-4 py-1 flex items-center gap-2 backdrop-blur-md">
-                                                    🖼️ <span>{alt}</span>
+                                    img: ({ src, alt }) => {
+                                        if (src && src.includes('pollinations.ai')) return null;
+                                        return (
+                                            <div className="my-6 flex flex-col items-center justify-center mx-auto max-w-lg w-full group/img relative">
+                                                <div className="relative overflow-hidden rounded-2xl border border-white/10 shadow-2xl bg-black/40 w-full flex items-center justify-center">
+                                                    <img
+                                                        src={src}
+                                                        alt={alt || 'Visual'}
+                                                        className="w-full h-auto max-h-[340px] object-cover hover:scale-[1.02] transition-transform duration-500 rounded-2xl"
+                                                        onError={(e) => {
+                                                            const target = e.target as HTMLImageElement;
+                                                            target.style.display = 'none';
+                                                            const parent = target.closest('.group\\/img') as HTMLElement;
+                                                            if (parent) parent.style.display = 'none';
+                                                        }}
+                                                    />
                                                 </div>
-                                            )}
+                                                {alt && (
+                                                    <div className="mt-2 text-center text-[11px] font-bold text-gray-300 bg-white/5 border border-white/10 rounded-full px-4 py-1 flex items-center gap-2 backdrop-blur-md">
+                                                        🖼️ <span>{alt}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    },
+                                    table: ({ children }) => (
+                                        <div className="my-6 w-full overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.02] shadow-xl backdrop-blur-sm">
+                                            <table className="w-full text-left text-sm border-collapse min-w-[500px]">{children}</table>
                                         </div>
+                                    ),
+                                    thead: ({ children }) => (
+                                        <thead className="bg-indigo-500/10 border-b border-white/10 text-xs uppercase tracking-wider text-indigo-300 font-bold">{children}</thead>
+                                    ),
+                                    tbody: ({ children }) => (
+                                        <tbody className="divide-y divide-white/5">{children}</tbody>
+                                    ),
+                                    tr: ({ children }) => (
+                                        <tr className="hover:bg-white/[0.04] transition-colors">{children}</tr>
+                                    ),
+                                    th: ({ children }) => (
+                                        <th className="px-4 py-3.5 text-white font-bold text-xs tracking-wider">{children}</th>
+                                    ),
+                                    td: ({ children }) => (
+                                        <td className="px-4 py-3 text-gray-300 text-sm leading-relaxed">{children}</td>
                                     ),
                                     ul: ({ children }) => <ul className="space-y-6 my-8">{children}</ul>,
                                     li: ({ children }) => {
@@ -587,45 +607,154 @@ export const MessageBubble = React.memo(({
                                         const sanitizedHref = href ? sanitizeExternalUrl(href) : href;
                                         const linkText = String(children || '');
                                         
-                                        // 📺 Check YouTube Video Embed
-                                        const getYouTubeEmbedUrl = (url: string) => {
-                                            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-                                            const match = url.match(regExp);
-                                            return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : null;
-                                        };
-
-                                        const ytEmbed = sanitizedHref ? getYouTubeEmbedUrl(sanitizedHref) : null;
+                                        // 1. 📺 YouTube Video Embed (Direct ID, Channel Live, or Search Query)
                                         const isYouTubeUrl = sanitizedHref && (sanitizedHref.includes('youtube.com') || sanitizedHref.includes('youtu.be'));
+                                        if (isYouTubeUrl) {
+                                            let ytEmbedUrl: string | null = null;
+                                            const watchMatch = sanitizedHref.match(/^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/);
+                                            if (watchMatch && watchMatch[2] && watchMatch[2].length === 11) {
+                                                ytEmbedUrl = 'https://www.youtube-nocookie.com/embed/' + watchMatch[2];
+                                            }
+                                            // NEVER use listType=search in iframe because YouTube blocks it with "This video is unavailable"
 
-                                        if (ytEmbed || isYouTubeUrl) {
-                                            const searchFallback = `https://www.youtube.com/results?search_query=${encodeURIComponent(linkText || 'educational tutorial')}`;
                                             return (
-                                                <div className="my-4 rounded-2xl overflow-hidden border border-white/10 shadow-xl bg-black/80 max-w-md w-full">
-                                                    {ytEmbed ? (
+                                                <div className="my-4 rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-black/90 max-w-lg w-full">
+                                                    {ytEmbedUrl ? (
                                                         <div className="aspect-video w-full relative bg-black">
                                                             <iframe
-                                                                src={ytEmbed}
-                                                                title="YouTube Video Player"
+                                                                src={ytEmbedUrl}
+                                                                title={linkText || "YouTube Video Player"}
                                                                 className="w-full h-full border-0 rounded-t-2xl"
                                                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                                                 allowFullScreen
                                                             />
                                                         </div>
-                                                    ) : null}
+                                                    ) : (
+                                                        <div className="p-4 bg-gradient-to-r from-red-950/40 to-black/60 border-b border-white/5 flex items-center gap-3">
+                                                            <div className="w-10 h-10 rounded-xl bg-red-600/20 border border-red-500/30 flex items-center justify-center text-red-500 text-lg">
+                                                                ▶
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="text-xs font-bold text-white truncate">{linkText || 'Official YouTube Video'}</div>
+                                                                <div className="text-[11px] text-gray-400">Watch full high-definition video directly on YouTube</div>
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                     <div className="p-3 bg-white/5 flex items-center justify-between text-xs text-gray-300 gap-2 border-t border-white/5">
-                                                        <span className="font-bold flex items-center gap-1.5 truncate text-[11px]">
-                                                            📺 <span>YouTube Educational Video</span>
+                                                        <span className="font-bold flex items-center gap-1.5 truncate text-[11px] text-white">
+                                                            🎥 <span className="truncate">{linkText || 'Watch Video Stream'}</span>
                                                         </span>
                                                         <a
-                                                            href={sanitizedHref || searchFallback}
+                                                            href={sanitizedHref}
                                                             target="_blank"
                                                             rel="noreferrer"
-                                                            className="text-indigo-400 hover:text-indigo-300 font-bold shrink-0 flex items-center gap-1 bg-indigo-500/10 px-2.5 py-1 rounded-lg border border-indigo-500/20 hover:border-indigo-400 transition-all text-[11px] no-underline"
+                                                            className="text-red-400 hover:text-red-300 font-bold shrink-0 flex items-center gap-1 bg-red-500/10 px-3 py-1 rounded-lg border border-red-500/20 hover:border-red-400 transition-all text-[11px] no-underline"
                                                         >
-                                                            Watch on YouTube <ExternalLink size={10} />
+                                                            YouTube <ExternalLink size={10} />
                                                         </a>
                                                     </div>
                                                 </div>
+                                            );
+                                        }
+
+                                        // 2. 🔬 Sketchfab 3D Model Embed (In-chat Interactive 3D Viewer)
+                                        const isSketchfabUrl = sanitizedHref && sanitizedHref.includes('sketchfab.com/models/');
+                                        if (isSketchfabUrl) {
+                                            const uidMatch = sanitizedHref.match(/sketchfab\.com\/models\/([a-zA-Z0-9_-]+)/);
+                                            const uid = uidMatch ? uidMatch[1] : null;
+                                            if (uid) {
+                                                const embed3D = 'https://sketchfab.com/models/' + uid + '/embed?autostart=0&ui_controls=1&ui_infos=0&transparent=1';
+                                                return (
+                                                    <div className="my-4 rounded-2xl overflow-hidden border border-indigo-500/30 shadow-2xl bg-black/90 max-w-lg w-full">
+                                                        <div className="aspect-video w-full relative bg-black">
+                                                            <iframe
+                                                                src={embed3D}
+                                                                title={linkText || "3D Interactive Model"}
+                                                                className="w-full h-full border-0 rounded-t-2xl"
+                                                                allow="autoplay; fullscreen; vr"
+                                                                allowFullScreen
+                                                            />
+                                                        </div>
+                                                        <div className="p-3 bg-indigo-500/10 flex items-center justify-between text-xs text-indigo-300 gap-2 border-t border-indigo-500/20">
+                                                            <span className="font-bold flex items-center gap-1.5 truncate text-[11px] text-white">
+                                                                🔬 <span>Interactive 3D Simulation (Click to Rotate / Zoom)</span>
+                                                            </span>
+                                                            <a
+                                                                href={sanitizedHref}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="text-indigo-400 hover:text-indigo-300 font-bold shrink-0 flex items-center gap-1 bg-indigo-500/20 px-3 py-1 rounded-lg border border-indigo-500/30 text-[11px] no-underline"
+                                                            >
+                                                                Fullscreen 3D <ExternalLink size={10} />
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }
+                                        }
+
+                                        // 3. 🛍️ E-Commerce / Shopping Matrix Cards
+                                        const isShopUrl = sanitizedHref && (
+                                            sanitizedHref.includes('amazon.in') ||
+                                            sanitizedHref.includes('flipkart.com') ||
+                                            sanitizedHref.includes('indiamart.com') ||
+                                            sanitizedHref.includes('meesho.com')
+                                        );
+                                        if (isShopUrl) {
+                                            let storeName = 'Verified Merchant';
+                                            let storeBadge = 'bg-amber-500/10 text-amber-300 border-amber-500/20';
+                                            if (sanitizedHref.includes('amazon')) {
+                                                storeName = 'Amazon India (Prime Retail)';
+                                                storeBadge = 'bg-amber-500/10 text-amber-300 border-amber-500/20';
+                                            } else if (sanitizedHref.includes('flipkart')) {
+                                                storeName = 'Flipkart (Verified Electronics)';
+                                                storeBadge = 'bg-blue-500/10 text-blue-300 border-blue-500/20';
+                                            } else if (sanitizedHref.includes('indiamart')) {
+                                                storeName = 'IndiaMART (B2B Factory Wholesale)';
+                                                storeBadge = 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20';
+                                            } else if (sanitizedHref.includes('meesho')) {
+                                                storeName = 'Meesho (Direct Wholesalers)';
+                                                storeBadge = 'bg-pink-500/10 text-pink-300 border-pink-500/20';
+                                            }
+
+                                            return (
+                                                <a
+                                                    href={sanitizedHref}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className={'my-2 inline-flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border ' + storeBadge + ' hover:scale-[1.02] transition-all no-underline shadow-md group'}
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-base">🛍️</span>
+                                                        <div className="flex flex-col text-left">
+                                                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{storeName}</span>
+                                                            <span className="text-xs font-black text-white group-hover:text-indigo-200 transition-colors">{linkText || 'Check Live Price & Availability'}</span>
+                                                        </div>
+                                                    </div>
+                                                    <ExternalLink size={12} className="text-gray-400 group-hover:text-white shrink-0 ml-2" />
+                                                </a>
+                                            );
+                                        }
+
+                                        // 4. 🗺️ Google Maps Navigation Card
+                                        const isMapUrl = sanitizedHref && (sanitizedHref.includes('google.com/maps') || sanitizedHref.includes('openstreetmap.org'));
+                                        if (isMapUrl) {
+                                            return (
+                                                <a
+                                                    href={sanitizedHref}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="my-2 inline-flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border border-teal-500/20 bg-teal-500/10 hover:bg-teal-500/20 hover:scale-[1.02] transition-all no-underline shadow-md group"
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-base">🗺️</span>
+                                                        <div className="flex flex-col text-left">
+                                                            <span className="text-[10px] font-bold uppercase tracking-wider text-teal-400">Live Satellite & GPS</span>
+                                                            <span className="text-xs font-black text-white group-hover:text-teal-200 transition-colors">{linkText || 'Open Live Map & Driving Traffic'}</span>
+                                                        </div>
+                                                    </div>
+                                                    <ExternalLink size={12} className="text-teal-400 group-hover:text-white shrink-0 ml-2" />
+                                                </a>
                                             );
                                         }
 

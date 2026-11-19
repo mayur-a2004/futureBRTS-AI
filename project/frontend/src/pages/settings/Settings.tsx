@@ -13,7 +13,7 @@ export default function Settings() {
     const { theme, setTheme } = useTheme();
     const { logout, user, setTokenBalance } = useAuth();
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState("billing")
+    const [activeTab, setActiveTab] = useState("profile")
     const invoiceRef = useRef<HTMLDivElement>(null);
 
     // Billing Logic State
@@ -31,8 +31,8 @@ export default function Settings() {
     const [isDownloading, setIsDownloading] = useState(false);
 
     const tabs = [
-        { id: "billing", label: "Billing", icon: <Wallet size={16} /> },
-        { id: "profile", label: "Profile", icon: <User size={16} /> },
+        { id: "profile", label: "Student Registration Profile", icon: <User size={16} /> },
+        { id: "billing", label: "Energy & Credits", icon: <Wallet size={16} /> },
         { id: "appearance", label: "Appearance", icon: <Palette size={16} /> },
         { id: "security", label: "Security", icon: <Shield size={16} /> },
     ]

@@ -60,8 +60,9 @@ const MinervaDashboardPage = lazy(() => import('./pages/minerva/MinervaDashboard
 const MinervaQuizBattlePage = lazy(() => import('./pages/minerva/MinervaQuizBattlePage'));
 const MinervaParentDashboardPage = lazy(() => import('./pages/minerva/MinervaParentDashboardPage'));
 const SchoolLeaderboardPage = lazy(() => import('./pages/minerva/SchoolLeaderboardPage'));
-const TeacherDashboardPage = lazy(() => import('./pages/minerva/TeacherDashboardPage'));
+const MinervaVirtualLabSuitePage = lazy(() => import('./pages/minerva/MinervaVirtualLabSuitePage'));
 const TeacherWorkspacePage = lazy(() => import('./pages/teacher/TeacherWorkspacePage'));
+const TeacherDashboardPage = lazy(() => import('./pages/minerva/TeacherDashboardPage'));
 const StudentWorkspacePage = lazy(() => import('./pages/student/StudentWorkspacePage'));
 
 
@@ -419,9 +420,15 @@ function App() {
                                                             <Route path="future-education/quiz-battle" element={<MinervaQuizBattlePage />} />
                                                             <Route path="future-education/parent-dashboard" element={<MinervaParentDashboardPage />} />
                                                             <Route path="future-education/school-leaderboard" element={<SchoolLeaderboardPage />} />
-                                                            <Route path="future-education/teacher-dashboard" element={<TeacherDashboardPage />} />
+                                                            <Route path="future-education/virtual-lab" element={<MinervaVirtualLabSuitePage />} />
+                                                            <Route path="virtual-lab" element={<MinervaVirtualLabSuitePage />} />
                                                             <Route path="teacher/workspace" element={<TeacherWorkspacePage />} />
                                                             <Route path="student/workspace" element={<StudentWorkspacePage />} />
+                                                            <Route path="future-education/teacher-workspace" element={<TeacherWorkspacePage />} />
+                                                            <Route path="future-education/student-workspace" element={<StudentWorkspacePage />} />
+                                                            <Route path="future-education/teacher-dashboard" element={<TeacherDashboardPage />} />
+                                                            <Route path="teacher-dashboard" element={<TeacherDashboardPage />} />
+                                                            <Route path="teacher/dashboard" element={<TeacherDashboardPage />} />
                                                             
                                                             {/* Redirect old path to new path recursively */}
                                                             <Route path="minerva" element={<Navigate to="/future-education" replace />} />

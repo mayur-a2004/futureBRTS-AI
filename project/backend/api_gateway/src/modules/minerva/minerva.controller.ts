@@ -155,14 +155,16 @@ const getOrCreateProfile = async (userId: string) => {
     } catch (e) {}
 
     let firstName = 'Student';
+    let userStandard = '';
     try {
-        const user = await User.findById(userId).select('firstName lastName email');
+        const user = await User.findById(userId).select('firstName lastName email standard grade section stream schoolName');
         if (user && user.firstName) firstName = user.firstName;
+        if (user && (user.standard || user.grade)) userStandard = (user.standard || user.grade).toString();
     } catch (e) {}
 
     if (!profile) {
-        let education_type = 'college';
-        let grade_level = 'undergraduate';
+        let education_type = 'school';
+        let grade_level = userStandard ? (userStandard.startsWith('class_') ? userStandard : `class_${userStandard}`) : 'class_10';
         let onboarding_done = false;
 
         try {
@@ -172,9 +174,10 @@ const getOrCreateProfile = async (userId: string) => {
                 if (stage === 'School (8-10)' || stage === 'High School (11-12)') {
                     education_type = 'school';
                     grade_level = stage === 'School (8-10)' ? 'class_10' : 'class_12';
-                } else {
+                } else if (stage && stage.toLowerCase().includes('college')) {
                     education_type = 'college';
-                    onboarding_done = true; // Non-school users do not need school initialization modal
+                    grade_level = 'undergraduate';
+                    onboarding_done = true;
                 }
             }
         } catch (err) {
@@ -684,13 +687,22 @@ export const minervaController = {
                     targetLang = profile.language_preference;
                 }
 
-                // Generate roadmap
-                const subject = intent.subject || studentQuery;
-                const board = intent.board || profile.board || 'cbse';
-                const grade = intent.grade_level || profile.grade_level || 'class_10';
+                // Extract subject accurately from req.body or studentQuery so requested subject is strictly preserved
+                let subject = (req.body as any)?.subject || (req.body as any)?.selectedSubject;
+                if (!subject || typeof subject !== 'string' || !subject.trim() || subject.startsWith('11_') || subject.startsWith('12_')) {
+                    const subMatch = studentQuery.match(/(?:for|subject|syllabus for)\s+([A-Za-z0-9\s/().-]+?)(?:\.|$|Target|Board)/i);
+                    if (subMatch && subMatch[1] && !subMatch[1].toLowerCase().includes('roadmap') && !subMatch[1].toLowerCase().includes('syllabus')) {
+                        subject = subMatch[1].trim();
+                    } else {
+                        subject = intent.subject || studentQuery;
+                    }
+                }
 
-                // Truncate file content if passing to roadmap to keep it within safe token limits (e.g. max 15000 chars)
-                const sourceContent = fullExtractedText ? fullExtractedText.substring(0, 15000) : undefined;
+                const board = intent.board || profile.board || 'gseb';
+                const grade = intent.grade_level || profile.grade_level || '11_COMMERCE';
+
+                // Truncate file content if passing to roadmap to keep it within safe token limits (e.g. max 3000 chars)
+                const sourceContent = fullExtractedText ? fullExtractedText.substring(0, 3000) : undefined;
                 
                 let roadmapData;
                 if (isPYQRequest && (fullExtractedText || studentQuery.length > 30)) {
@@ -698,13 +710,16 @@ export const minervaController = {
                     const paperName = filename || 'Exam Paper';
                     roadmapData = await generatePYQRoadmap(paperName, textToUse, studentQuery, grade, board, targetLang, targetLang);
                 } else {
-                    roadmapData = await generateRoadmap(subject, intent.topic || subject, grade, board, targetLang, sourceContent, targetLang);
+                    roadmapData = await generateRoadmap(subject, subject, grade, board, targetLang, sourceContent, targetLang);
                 }
+
+                const mongoose = require('mongoose');
+                const safeUserId = (userId && mongoose.Types.ObjectId.isValid(userId)) ? userId : undefined;
 
                 if (roadmapData && roadmapData.nodes?.length > 0) {
                     // Create session
                     const session = await MinervaStudySession.create({
-                        userId,
+                        userId: safeUserId,
                         title: roadmapData.title || `${subject} Study Session`,
                         subject: roadmapData.subject || subject,
                         board,
@@ -724,7 +739,7 @@ export const minervaController = {
                         const n = roadmapData.nodes[i];
                         const node = await MinervaKnowledgeNode.create({
                             session_id: session._id,
-                            userId,
+                            userId: safeUserId,
                             title: n.title,
                             chapter: n.chapter || '',
                             topic: n.topic || n.title,
@@ -1206,6 +1221,29 @@ The first topic **"${roadmapData.nodes[0]?.title}"** is already unlocked. Let's 
                             taskIds.push(existingTask._id);
                             continue;
                         }
+                        const task = await MinervaTask.create({
+                            node_id: id,
+                            session_id: node.session_id,
+                            userId,
+                            type: t.type,
+                            task_type: 'micro_task',
+                            prompt: t.prompt,
+                            options: t.options || [],
+                            correct_answer: t.correct_answer || '',
+                            topic_title: node.title,
+                            subject: node.topic,
+                            marks: t.marks || 5,
+                            difficulty: t.difficulty || 'medium',
+                            is_homework: false,
+                        });
+                        taskIds.push(task._id);
+                    }
+                }
+
+                // If no micro_tasks were generated by main AI prompt, fallback to generateUniqueMixTasks to guarantee tasks
+                if (taskIds.length === 0) {
+                    const fallbackTasks = await generateUniqueMixTasks(node, profile, sessionLanguage, []);
+                    for (const t of fallbackTasks) {
                         const task = await MinervaTask.create({
                             node_id: id,
                             session_id: node.session_id,
@@ -3436,6 +3474,95 @@ Guidelines:
         }
     },
 
+    generateChapterPdf: async (req: Request | any, res: Response) => {
+        try {
+            const { chapterTitle, board, standard, subject, medium, subtopics, direct } = req.query;
+            const b = (board || 'GSEB').toString();
+            const std = (standard || '10').toString();
+            const sub = (subject || 'Mathematics').toString();
+            const rawTitle = (chapterTitle || 'Chapter 1: Official Textbook Module').toString();
+            const med = (medium || 'Gujarati').toString();
+
+            const { resolveOfficialCurriculum } = require('./services/curriculum_resolver.service');
+            const curriculumInfo = await resolveOfficialCurriculum(b, med, std, sub);
+
+            // If direct PDF/Portal link is requested and available, redirect to official government source
+            if (direct === 'true' && curriculumInfo && (curriculumInfo.officialPdfUrl || curriculumInfo.officialBookUrl)) {
+                const targetUrl = curriculumInfo.officialPdfUrl || curriculumInfo.officialBookUrl;
+                if (targetUrl && targetUrl.startsWith('http')) {
+                    return res.redirect(targetUrl);
+                }
+            }
+
+            const subs = subtopics ? subtopics.toString().split(',') : ['1. Pehle Samjho / Why (Motivation & Context)', '2. Kya Hai / What (Definitions & Concepts)', '3. Kaise Kaam Karta Hai / How (Mechanism & Analysis)', '4. Kahan Use Hota Hai / Where (Applications)', '5. Summary & Exam Board Blueprint'];
+
+            const PDFDocument = require('pdfkit');
+            const doc = new PDFDocument({ 
+                layout: 'portrait', 
+                size: 'A4',
+                margin: 40,
+                bufferPages: true 
+            });
+
+            // Safe String Sanitizer for PDFKit Helvetica font
+            const safePdfText = (input: string, fallback: string = 'Official Chapter Material') => {
+                if (!input) return fallback;
+                const asciiClean = input.replace(/[^\x20-\x7E]/g, ' ').replace(/\s+/g, ' ').trim();
+                return asciiClean.length > 2 ? asciiClean : `${fallback} (${input.substring(0, 30)})`.replace(/[^\x20-\x7E]/g, '');
+            };
+
+            const safeTitle = safePdfText(rawTitle, 'Official Textbook Chapter');
+            const safeSub = safePdfText(sub, 'Subject Notes');
+            const sourceAuthority = curriculumInfo?.referenceSource || `${b.toUpperCase()} SCERT / NCERT / DIKSHA Portal`;
+            const officialUrl = curriculumInfo?.officialBookUrl || curriculumInfo?.officialSyllabusUrl || 'https://ncert.ncert.org.in';
+
+            const cleanFileName = `${b}_Class${std}_${safeSub}_${safeTitle}`.replace(/[^a-zA-Z0-9]/g, '_');
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `inline; filename="${cleanFileName}.pdf"`);
+
+            doc.pipe(res);
+
+            // Title Banner
+            doc.rect(40, 40, 515, 65).fillColor('#1e1b4b').fill();
+            doc.font('Helvetica-Bold').fontSize(14).fillColor('#ffffff').text(`OFFICIAL GOVERNMENT TEXTBOOK MODULE (${b.toUpperCase()})`, 55, 52);
+            doc.font('Helvetica').fontSize(8.5).fillColor('#fbbf24').text(`BOARD: ${b.toUpperCase()} | CLASS: ${std} | SUBJECT: ${safeSub.toUpperCase()} | MEDIUM: ${med.toUpperCase()}`, 55, 74);
+
+            doc.moveDown(3);
+            doc.font('Helvetica-Bold').fontSize(13).fillColor('#0f172a').text(`Chapter Title: ${safeTitle}`);
+            doc.font('Helvetica').fontSize(8.5).fillColor('#475569').text(`Government Authority: ${safePdfText(sourceAuthority)} | Portal: ${safePdfText(officialUrl)}`);
+            doc.moveDown(0.5);
+
+            doc.rect(40, doc.y, 515, 2).fillColor('#6366f1').fill();
+            doc.moveDown(1);
+
+            doc.font('Helvetica-Bold').fontSize(11).fillColor('#4f46e5').text('Official Textbook Chapter Learning Sections & Exercise Topics:');
+            doc.moveDown(0.5);
+
+            subs.forEach((st: string, idx: number) => {
+                const safeSt = safePdfText(st, `Subtopic ${idx + 1}`);
+                doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#1e293b').text(`${idx + 1}. ${safeSt}`);
+                doc.font('Helvetica').fontSize(8.5).fillColor('#334155').text(`Official ${b} Textbook Concept Coverage: Key definitions, formulas, real-world applications, and step-by-step solved exercises for ${safeSt}.`);
+                doc.moveDown(0.4);
+            });
+
+            doc.moveDown(1);
+            doc.font('Helvetica-Bold').fontSize(11).fillColor('#4f46e5').text('Board Examination Blueprint & Syllabus Weightage:');
+            doc.moveDown(0.5);
+            doc.font('Helvetica').fontSize(8.5).fillColor('#334155').text(`- Board Weightage: 8 to 14 Marks in ${b} Class ${std} ${safeSub} Board Examinations.`);
+            doc.text(`- Medium of Instruction: ${med}. Solved textbook exercises, grammar rules, and key definitions included.`);
+            doc.text(`- Official Source Verification: 100% aligned with official ${safePdfText(sourceAuthority)} government textbook syllabus.`);
+            doc.text(`- Direct Government Portal: ${safePdfText(officialUrl)}`);
+
+            doc.moveDown(2);
+            doc.font('Helvetica-Oblique').fontSize(8).fillColor('#94a3b8').text(`Official ${b} Class ${std} Government Textbook Curriculum System • ${safePdfText(sourceAuthority)} (${med} Medium)`, { align: 'center' });
+
+            doc.end();
+        } catch (err: any) {
+            console.error('[generateChapterPdf Error]', err);
+            res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
     saveSmartBoardSession: async (req: any, res: Response) => {
         try {
             const userId = req.user?.id || req.user?._id;
@@ -3528,69 +3655,6 @@ Guidelines:
         }
     },
 
-    generateChapterPdf: async (req: Request | any, res: Response) => {
-        try {
-            const { chapterTitle, board, standard, subject, medium, subtopics } = req.query;
-            const b = (board || 'CBSE').toString();
-            const std = (standard || '10').toString();
-            const sub = (subject || 'Mathematics').toString();
-            const title = (chapterTitle || 'Chapter 1: Real Numbers').toString();
-            const med = (medium || 'English').toString();
-            const subs = subtopics ? subtopics.toString().split(',') : ['Core Concept & Definitions', 'Theorems & Proofs', 'Solved Examples', 'Exercise Questions'];
-
-            const PDFDocument = require('pdfkit');
-            const doc = new PDFDocument({ 
-                layout: 'portrait', 
-                size: 'A4',
-                margin: 40,
-                bufferPages: true 
-            });
-
-            const cleanFileName = `${b}_Class${std}_${sub}_${title}`.replace(/[^a-zA-Z0-9]/g, '_');
-            res.setHeader('Content-Type', 'application/pdf');
-            res.setHeader('Content-Disposition', `inline; filename="${cleanFileName}.pdf"`);
-
-            doc.pipe(res);
-
-            // Title Banner
-            doc.rect(40, 40, 515, 65).fillColor('#1e1b4b').fill();
-            doc.font('Helvetica-Bold').fontSize(16).fillColor('#ffffff').text(`OFFICIAL ${b.toUpperCase()} TEXTBOOK CHAPTER NOTES`, 55, 52);
-            doc.font('Helvetica').fontSize(9).fillColor('#fbbf24').text(`BOARD: ${b.toUpperCase()} | CLASS: ${std} | SUBJECT: ${sub.toUpperCase()} | MEDIUM: ${med.toUpperCase()}`, 55, 75);
-
-            doc.moveDown(3);
-            doc.font('Helvetica-Bold').fontSize(15).fillColor('#0f172a').text(`Chapter: ${title}`);
-            doc.font('Helvetica').fontSize(10).fillColor('#64748b').text(`Curriculum Standard: ${b} Class ${std} (${med} Medium)`);
-            doc.moveDown(0.5);
-
-            doc.rect(40, doc.y, 515, 2).fillColor('#6366f1').fill();
-            doc.moveDown(1);
-
-            doc.font('Helvetica-Bold').fontSize(12).fillColor('#4f46e5').text('Chapter Subtopics & Micro-Concepts:');
-            doc.moveDown(0.5);
-
-            subs.forEach((st: string, idx: number) => {
-                doc.font('Helvetica-Bold').fontSize(10).fillColor('#1e293b').text(`${idx + 1}. ${st.trim()}`);
-                doc.font('Helvetica').fontSize(9).fillColor('#334155').text(`Explanation: Official ${b} textbook definitions, formulas, and step-by-step resolution for ${st.trim()} in ${med} medium.`);
-                doc.moveDown(0.4);
-            });
-
-            doc.moveDown(1);
-            doc.font('Helvetica-Bold').fontSize(12).fillColor('#4f46e5').text('Board Exam Weightage & Syllabus Guidance:');
-            doc.moveDown(0.5);
-            doc.font('Helvetica').fontSize(9).fillColor('#334155').text(`- Expected Exam Weightage: 8 to 12 Marks in ${b} Board Examinations.`);
-            doc.text(`- Medium of Instruction: ${med}. Solved textbook exercises and key definitions included.`);
-            doc.text(`- Curriculum Match: 100% aligned with ${b} Class ${std} ${sub} syllabus.`);
-
-            doc.moveDown(2);
-            doc.font('Helvetica-Oblique').fontSize(8).fillColor('#94a3b8').text(`Generated by Future Education OS • Official ${b} Class ${std} AI Curriculum System (${med} Medium)`, { align: 'center' });
-
-            doc.end();
-        } catch (err: any) {
-            console.error('[generateChapterPdf Error]', err);
-            res.status(500).json({ success: false, error: err.message });
-        }
-    },
-
     getChapterPdfDetails: async (req: Request | any, res: Response) => {
         try {
             const { chapterTitle, board, standard, subject, medium } = req.query;
@@ -3631,6 +3695,50 @@ Guidelines:
                         { question: 'Find HCF of 135 and 225 using Euclid Division Algorithm', solution: '225 = 135 * 1 + 90; 135 = 90 * 1 + 45; 90 = 45 * 2 + 0. Hence HCF = 45.' }
                     ]
                 }
+            });
+        } catch (err: any) {
+            return res.status(500).json({ success: false, error: err.message });
+        }
+    },
+
+    getOfficialChapters: async (req: Request | any, res: Response) => {
+        try {
+            const { board, standard, subject, medium, book } = req.query;
+            const b = (board || 'gseb').toString();
+            const std = (standard || '10').toString();
+            const sub = (subject || 'mathematics').toString();
+            const med = (medium || 'gujarati').toString();
+            const bk = book ? book.toString() : undefined;
+
+            const { resolveOfficialCurriculum } = require('./services/curriculum_resolver.service');
+            const result = await resolveOfficialCurriculum(b, med, std, sub, bk);
+
+            if (result.found && result.chapters.length > 0) {
+                return res.json({
+                    success: true,
+                    cacheHit: result.cacheHit,
+                    board: result.board,
+                    class_level: result.class_level,
+                    subject: result.subject,
+                    medium: result.medium,
+                    textbook_name: result.bookTitle,
+                    edition: result.edition,
+                    isbn: result.isbn,
+                    official_book_url: result.officialBookUrl,
+                    official_syllabus_url: result.officialSyllabusUrl,
+                    reference_source: result.referenceSource,
+                    chapters: result.chapters.map(ch => ch.chapter_name)
+                });
+            }
+
+            return res.status(404).json({
+                success: false,
+                error: result.error || "Official curriculum not found.",
+                board: b,
+                class_level: std,
+                subject: sub,
+                medium: med,
+                chapters: []
             });
         } catch (err: any) {
             return res.status(500).json({ success: false, error: err.message });

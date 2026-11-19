@@ -30,6 +30,9 @@ const upload = multer({
     limits: { fileSize: 50 * 1024 * 1024 } // 50MB
 });
 
+// ─── OFFICIAL CURRICULUM REGISTRY ─────────────
+router.get('/official-chapters', guestOrAuthMiddleware, minervaController.getOfficialChapters);
+
 // ─── PROFILE ───────────────────────────────────
 router.get('/profile', authMiddleware, minervaController.getProfile);
 router.put('/profile', authMiddleware, minervaController.updateProfile);

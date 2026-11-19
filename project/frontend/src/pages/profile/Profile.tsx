@@ -1,1110 +1,1180 @@
-import { MapPin, Github, Linkedin, Mail, BadgeCheck, Globe, Code, Activity, Edit3, Save, ShieldCheck, GraduationCap, Navigation, Loader2, Upload, Camera, Image as ImageIcon, Trash2 } from "lucide-react"
-import { Button } from "@/components/ui/Button"
-import { useAuth } from "@/context/AuthContext"
-import { useState, useEffect, useRef } from "react"
-import { toast } from "react-toastify"
-import { useNavigate } from "react-router-dom"
-import { motion } from "framer-motion"
-import { BOARDS, STANDARDS } from '../minerva/MinervaQuizBattlePage'
+// 🎓 Official School ERP Student Academic Registration Dossier & Profile
+// Fully synchronized with School ERP Database (futurebilder_erp) & AI Gateway DB (futurebilder_tool)
+
+import React, { useState, useEffect } from "react";
+import {
+  GraduationCap,
+  User,
+  Phone,
+  Mail,
+  MapPin,
+  Building,
+  Calendar,
+  Award,
+  FileText,
+  CheckCircle2,
+  Clock,
+  Edit3,
+  Save,
+  X,
+  Shield,
+  Bus,
+  Home,
+  BookOpen,
+  Layers,
+  Printer,
+  ExternalLink,
+  RefreshCw,
+  Fingerprint,
+  Heart,
+  Globe2,
+  BadgeCheck,
+  Briefcase,
+  Users
+} from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "react-toastify";
+import { motion, AnimatePresence } from "framer-motion";
+import { authApi } from "@/api/auth.api";
 
 export default function Profile() {
-    const { user, setUser, logout } = useAuth();
-    const navigate = useNavigate();
-    const [isEditing, setIsEditing] = useState(false);
-    const [activeTab, setActiveTab] = useState<'overview' | 'academic' | 'security'>('overview');
-    const [stats, setStats] = useState<any>(null);
-    const [projects, setProjects] = useState<any[]>([]);
+  const { user, setUser, token } = useAuth();
+  const [activeTab, setActiveTab] = useState<"personal" | "academic" | "parents" | "address" | "documents">("personal");
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-    const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // Fallback data resolver between user top-level & erpDetails
+  const erp = user?.erpDetails || {};
 
-    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+  // Form State for Bi-directional Editing
+  const [formData, setFormData] = useState({
+    // Student Personal
+    fullName: "",
+    gender: "MALE",
+    dateOfBirth: "",
+    bloodGroup: "O+",
+    category: "GENERAL",
+    nationality: "Indian",
+    house: "Aryabhata House",
 
-        if (file.size > 5 * 1024 * 1024) {
-            toast.error("Image file size should be less than 5MB");
-            return;
+    // Academic Details
+    standard: "Class 10",
+    section: "A",
+    rollNumber: "1",
+    board: "CBSE",
+    medium: "English Medium",
+    stream: "General Academic",
+    schoolName: "AD 6 Campus (Gandhinagar)",
+
+    // Parents & Emergency
+    fatherName: "",
+    fatherPhone: "",
+    fatherOccupation: "",
+    motherName: "",
+    motherPhone: "",
+    motherOccupation: "",
+    primaryEmail: "",
+    primaryEmergencyPhone: "",
+
+    // Residential Address & Facilities
+    street: "",
+    city: "Gandhinagar",
+    state: "Gujarat",
+    postalCode: "382007",
+    busRouteId: "Not Opted",
+    optHostel: false
+  });
+
+  // Hydrate form data when user or erpDetails change
+  useEffect(() => {
+    if (user) {
+      const e = user.erpDetails || {};
+      const p = e.parentDetails || user.parentDetails || {};
+      const addr = p.residentialAddress || {};
+
+      setFormData({
+        fullName: e.fullName || user.fullName || `${user.firstName || ""} ${user.lastName || ""}`.trim() || "Student",
+        gender: e.gender || "MALE",
+        dateOfBirth: e.dateOfBirth ? e.dateOfBirth.split("T")[0] : "",
+        bloodGroup: e.bloodGroup || "O+",
+        category: e.category || "GENERAL",
+        nationality: e.nationality || "Indian",
+        house: e.house || "Aryabhata House",
+
+        standard: e.currentClassId || user.standard || "Class 10",
+        section: e.currentSectionId || user.section || "A",
+        rollNumber: String(e.rollNumber || user.rollNumber || "1"),
+        board: e.board || user.board || "CBSE",
+        medium: e.medium || user.medium || "English Medium",
+        stream: e.stream || user.stream || "General Academic",
+        schoolName: e.schoolName || user.schoolName || "AD 6 Campus (Gandhinagar)",
+
+        fatherName: p.fatherName || "",
+        fatherPhone: p.fatherPhone || p.parentPhone || "",
+        fatherOccupation: p.fatherOccupation || "",
+        motherName: p.motherName || "",
+        motherPhone: p.motherPhone || "",
+        motherOccupation: p.motherOccupation || "",
+        primaryEmail: p.primaryEmail || user.email || "",
+        primaryEmergencyPhone: p.primaryEmergencyPhone || p.fatherPhone || "",
+
+        street: addr.street || "",
+        city: addr.city || user.city || "Gandhinagar",
+        state: addr.state || "Gujarat",
+        postalCode: addr.postalCode || "382007",
+        busRouteId: e.busRouteId || "Not Opted",
+        optHostel: !!e.optHostel
+      });
+    }
+  }, [user]);
+
+  // Handle Input Changes in Edit Mode
+  const handleChange = (field: string, value: any) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // Handle Save: Writes to both AI Database & ERP Database
+  const handleSaveProfile = async () => {
+    if (!token) {
+      toast.error("Authentication token missing. Please re-login.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const payload = {
+        studentId: erp.studentId,
+        fullName: formData.fullName,
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender,
+        bloodGroup: formData.bloodGroup,
+        category: formData.category,
+        nationality: formData.nationality,
+        house: formData.house,
+
+        standard: formData.standard,
+        currentClassId: formData.standard,
+        section: formData.section,
+        currentSectionId: formData.section,
+        rollNumber: formData.rollNumber,
+        board: formData.board,
+        medium: formData.medium,
+        stream: formData.stream,
+        schoolName: formData.schoolName,
+
+        busRouteId: formData.busRouteId,
+        optHostel: formData.optHostel,
+
+        parentDetails: {
+          fatherName: formData.fatherName,
+          fatherPhone: formData.fatherPhone,
+          fatherOccupation: formData.fatherOccupation,
+          motherName: formData.motherName,
+          motherPhone: formData.motherPhone,
+          motherOccupation: formData.motherOccupation,
+          primaryEmail: formData.primaryEmail,
+          primaryEmergencyPhone: formData.primaryEmergencyPhone,
+          residentialAddress: {
+            street: formData.street,
+            city: formData.city,
+            state: formData.state,
+            postalCode: formData.postalCode
+          }
         }
+      };
 
-        const reader = new FileReader();
-        reader.onload = (uploadEvent) => {
-            const base64Url = uploadEvent.target?.result as string;
-            setFormData(prev => ({ ...prev, avatarUrl: base64Url }));
-            setIsEditing(true);
-            toast.success("📷 Photo selected! Click 'Save Sync' to save your profile photo. 🚀");
-        };
-        reader.readAsDataURL(file);
-    };
+      const res = await authApi.updateStudentProfile(token, payload);
+      if (res && res.success && res.user) {
+        setUser(res.user);
+        toast.success("✅ Student registration profile successfully synced and saved in both ERP & AI Databases!");
+        setIsEditing(false);
+      } else {
+        toast.error(res?.error || "Failed to update profile in databases.");
+      }
+    } catch (err: any) {
+      console.error("Save error:", err);
+      toast.error(err.message || "Failed to save profile changes.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
-    const [deletingAccount, setDeletingAccount] = useState(false);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const [detectingGps, setDetectingGps] = useState(false);
+  // Re-fetch latest live data from server
+  const handleRefresh = async () => {
+    if (!token) return;
+    setIsRefreshing(true);
+    try {
+      const res = await authApi.getMe(token);
+      if (res && res.success && res.user) {
+        setUser(res.user);
+        toast.info("🔄 Live student registration data refreshed from ERP.");
+      }
+    } catch (e) {
+      toast.error("Failed to refresh live data.");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
-    const [resendingMail, setResendingMail] = useState(false);
+  const handlePrint = () => {
+    window.print();
+  };
 
-    const handleDetectGpsLocation = () => {
-        if (!navigator.geolocation) {
-            toast.error("Geolocation is not supported by your browser");
-            return;
-        }
-        setDetectingGps(true);
-        navigator.geolocation.getCurrentPosition(
-            async (pos) => {
-                try {
-                    const lat = pos.coords.latitude;
-                    const lon = pos.coords.longitude;
-                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
-                    const data = await res.json();
-                    const detectedCity = data.address?.city || data.address?.town || data.address?.village || data.address?.state_district || data.address?.county || 'Ahmedabad';
-                    setFormData(prev => ({ ...prev, state: detectedCity }));
-                    toast.success(`📍 GPS City Detected: ${detectedCity}! 🎯`);
-                } catch (e) {
-                    toast.error("Could not resolve city name from GPS coordinates");
-                } finally {
-                    setDetectingGps(false);
-                }
-            },
-            (err) => {
-                setDetectingGps(false);
-                toast.error("Location permission denied or GPS unavailable");
-            },
-            { enableHighAccuracy: true, timeout: 10000 }
-        );
-    };
+  // Format Date Helper
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return "N/A";
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+    } catch {
+      return dateStr;
+    }
+  };
 
-    const [formData, setFormData] = useState({
-        firstName: user?.firstName || '',
-        lastName: user?.lastName || '',
-        parentEmail: user?.parentDetails?.parentEmail || '',
-        parentPhone: user?.parentDetails?.parentPhone || '',
-        school_name: user?.schoolName || '',
-        grade_level: user?.standard ? (user.standard.toString().startsWith('class_') ? user.standard : `class_${user.standard}`) : 'class_10',
-        board: user?.board || 'cbse',
-        state: user?.city || '',
-        medium: user?.medium || 'english',
-        mobile_number: user?.mobile_number || '',
-        section: user?.section || 'A',
-        stream: user?.stream || 'Science',
-        rollNumber: user?.rollNumber || '',
-        enrollmentNo: user?.enrollmentNo || '',
-        isSchoolStudent: user?.isSchoolStudent ?? true,
-        avatarUrl: user?.avatarUrl || user?.avatar || '',
-        profile: {
-            bio: user?.profile?.bio || '',
-            location: user?.profile?.location || '',
-            skills: user?.profile?.skills?.join(', ') || '',
-            socialLinks: {
-                github: user?.profile?.socialLinks?.github || '',
-                linkedin: user?.profile?.socialLinks?.linkedin || '',
-                twitter: user?.profile?.socialLinks?.twitter || '',
-                website: user?.profile?.socialLinks?.website || ''
-            }
-        }
-    });
+  // Calculate Age
+  const getAge = (dobStr?: string) => {
+    if (!dobStr) return "";
+    try {
+      const birth = new Date(dobStr);
+      const diff = Date.now() - birth.getTime();
+      const ageDate = new Date(diff);
+      const age = Math.abs(ageDate.getUTCFullYear() - 1970);
+      return isNaN(age) ? "" : `(${age} yrs)`;
+    } catch {
+      return "";
+    }
+  };
 
-    // Password change state
-    const [currentPassword, setCurrentPassword] = useState('');
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [passwordChanging, setPasswordChanging] = useState(false);
-    const [showPasswordSection, setShowPasswordSection] = useState(false);
+  return (
+    <div className="w-full max-w-7xl mx-auto space-y-6 pb-20 print:p-0 print:m-0 text-white font-sans">
+      {/* 🏫 TOP BANNER: OFFICIAL SCHOOL REGISTRATION DOSSIER */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0c0f1d] via-[#101426] to-[#070913] border border-indigo-500/20 shadow-2xl p-6 sm:p-8 backdrop-blur-xl">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-10 -left-10 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
 
-    useEffect(() => {
-        setFormData(prev => ({
-            ...prev,
-            firstName: user?.firstName || '',
-            lastName: user?.lastName || '',
-            parentEmail: user?.parentDetails?.parentEmail || '',
-            parentPhone: user?.parentDetails?.parentPhone || '',
-            school_name: user?.schoolName || prev.school_name || '',
-            grade_level: user?.standard ? (user.standard.toString().startsWith('class_') ? user.standard : `class_${user.standard}`) : prev.grade_level,
-            board: user?.board || prev.board || 'cbse',
-            state: user?.city || prev.state || '',
-            medium: user?.medium || prev.medium || 'english',
-            mobile_number: user?.mobile_number || prev.mobile_number || '',
-            section: user?.section || prev.section || 'A',
-            stream: user?.stream || prev.stream || 'Science',
-            rollNumber: user?.rollNumber || prev.rollNumber || '',
-            enrollmentNo: user?.enrollmentNo || prev.enrollmentNo || '',
-            isSchoolStudent: user?.isSchoolStudent ?? prev.isSchoolStudent ?? true,
-            avatarUrl: user?.avatarUrl || user?.avatar || prev.avatarUrl || '',
-            profile: {
-                bio: user?.profile?.bio || '',
-                location: user?.profile?.location || '',
-                skills: user?.profile?.skills?.join(', ') || '',
-                socialLinks: {
-                    github: user?.profile?.socialLinks?.github || '',
-                    linkedin: user?.profile?.socialLinks?.linkedin || '',
-                    twitter: user?.profile?.socialLinks?.twitter || '',
-                    website: user?.profile?.socialLinks?.website || ''
-                }
-            }
-        }));
-    }, [user]);
-
-    const handleResendParentVerification = async () => {
-        setResendingMail(true);
-        try {
-            const token = localStorage.getItem('fbrts_token');
-            const res = await fetch('/api/minerva/parent/resend-verification', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-            if (data.success) {
-                toast.success("Verification email resent successfully! ✉️");
-            } else {
-                toast.error(data.error || "Failed to resend verification.");
-            }
-        } catch (e) {
-            toast.error("Error connecting to notification server.");
-        } finally {
-            setResendingMail(false);
-        }
-    };
-
-    useEffect(() => {
-        const fetchProfileData = async () => {
-            try {
-                const token = localStorage.getItem('fbrts_token');
-                if (!token) return;
-                
-                const [statsRes, projRes, minervaProfileRes] = await Promise.all([
-                    fetch('/api/builder/dashboard', { headers: { 'Authorization': `Bearer ${token}` } }),
-                    fetch('/api/collage-project/list', { headers: { 'Authorization': `Bearer ${token}` } }),
-                    fetch('/api/future-education/profile', { headers: { 'Authorization': `Bearer ${token}` } })
-                ]);
-                
-                const statsData = await statsRes.json();
-                const projData = await projRes.json();
-                const minervaData = await minervaProfileRes.json();
- 
-                if (statsData.success) setStats(statsData.stats);
-                if (projData.success) setProjects(projData.projects.slice(0, 4));
-                if (minervaData.success && minervaData.profile) {
-                    setFormData(prev => ({
-                        ...prev,
-                        school_name: minervaData.profile.school_name || user?.schoolName || prev.school_name,
-                        grade_level: minervaData.profile.grade_level || (user?.standard ? (user.standard.toString().startsWith('class_') ? user.standard : `class_${user.standard}`) : prev.grade_level),
-                        board: minervaData.profile.board || user?.board || prev.board,
-                        state: minervaData.profile.state || user?.city || prev.state,
-                        medium: minervaData.profile.medium || user?.medium || prev.medium,
-                        mobile_number: minervaData.profile.mobile_number || user?.mobile_number || prev.mobile_number
-                    }));
-                }
-            } catch (e) {
-                console.error("Profile data fetch error", e);
-            }
-        };
-        fetchProfileData();
-    }, [user]);
- 
-    const handleSave = async () => {
-        try {
-            const token = localStorage.getItem('fbrts_token');
-            
-            const rawStandard = formData.grade_level.replace('class_', '');
-            
-            // Save core profile
-            const res = await fetch('/api/auth/update-profile', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    firstName: formData.firstName,
-                    lastName: formData.lastName,
-                    city: formData.state,
-                    schoolName: formData.school_name,
-                    board: formData.board,
-                    standard: rawStandard,
-                    section: formData.section,
-                    stream: formData.stream,
-                    medium: formData.medium,
-                    mobile_number: formData.mobile_number,
-                    rollNumber: formData.rollNumber,
-                    enrollmentNo: formData.enrollmentNo,
-                    isSchoolStudent: formData.isSchoolStudent,
-                    avatarUrl: formData.avatarUrl,
-                    avatar: formData.avatarUrl,
-                    profile: {
-                        ...formData.profile,
-                        skills: formData.profile.skills.split(',').map((s: string) => s.trim()).filter((s: string) => s !== '')
-                    }
-                })
-            });
-            const data = await res.json();
-
-            // Save School Roster Profile Sync
-            const classId = `CLASS-${rawStandard.toUpperCase()}${formData.section.toUpperCase()}`;
-            await fetch('/api/v1/teacher-workspace/student-school-profile', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    externalId: user?.id || user?._id || 'STU-10492',
-                    tenantOrgId: formData.isSchoolStudent && formData.school_name ? formData.school_name.toLowerCase().replace(/\s+/g, '_') : 'independent_student',
-                    name: `${formData.firstName} ${formData.lastName}`.trim(),
-                    email: user?.email || '',
-                    isSchoolStudent: formData.isSchoolStudent,
-                    schoolName: formData.school_name,
-                    classId,
-                    rollNumber: formData.rollNumber,
-                    enrollmentNo: formData.enrollmentNo
-                })
-            });
-
-            // Save parent details
-            const parentRes = await fetch('/api/minerva/parent/details', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    parentEmail: formData.parentEmail,
-                    parentPhone: formData.parentPhone
-                })
-            });
-            const parentData = await parentRes.json();
-
-            // Save Minerva academic/school profile details
-            const minervaRes = await fetch('/api/future-education/profile', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    name: `${formData.firstName} ${formData.lastName}`.trim(),
-                    school_name: formData.school_name,
-                    grade_level: formData.grade_level,
-                    board: formData.board,
-                    state: formData.state,
-                    medium: formData.medium,
-                    mobile_number: formData.mobile_number,
-                    learning_style: 'mixed',
-                    daily_time_minutes: 60,
-                    language_preference: 'english'
-                })
-            });
-            const minervaProfileData = await minervaRes.json();
-
-            if (data.success && parentData.success && minervaProfileData.success) {
-                setUser({
-                    ...data.user,
-                    parentDetails: parentData.parentDetails
-                });
-                if (minervaProfileData.profile) {
-                    setFormData(prev => ({
-                        ...prev,
-                        school_name: minervaProfileData.profile.school_name || '',
-                        grade_level: minervaProfileData.profile.grade_level || 'class_10',
-                        board: minervaProfileData.profile.board || 'cbse',
-                        state: minervaProfileData.profile.state || '',
-                        medium: minervaProfileData.profile.medium || 'english',
-                        mobile_number: minervaProfileData.profile.mobile_number || ''
-                    }));
-                }
-                setIsEditing(false);
-                toast.success("Identity Matrix & School Profile Sync Successful! 🚀");
-            } else {
-                toast.error(data.error || parentData.error || minervaProfileData.error || "Update Failed");
-            }
-        } catch (e) {
-            console.error(e);
-            toast.error("Critical System Error during Sync");
-        }
-    };
-
-    const handleChangePassword = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!currentPassword || !newPassword || !confirmPassword) {
-            toast.error("All password fields are required");
-            return;
-        }
-        if (newPassword !== confirmPassword) {
-            toast.error("New passwords do not match");
-            return;
-        }
-        setPasswordChanging(true);
-        try {
-            const token = localStorage.getItem('fbrts_token');
-            const res = await fetch('/api/auth/change-password', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ currentPassword, newPassword })
-            });
-            const data = await res.json();
-            if (data.success) {
-                toast.success("Vault password updated successfully! 🔒");
-                setCurrentPassword('');
-                setNewPassword('');
-                setConfirmPassword('');
-                setShowPasswordSection(false);
-            } else {
-                toast.error(data.error || "Failed to change password");
-            }
-        } catch (e) {
-            toast.error("Failed to connect to authentication server");
-        } finally {
-            setPasswordChanging(false);
-        }
-    };
-
-    const handleDeleteAccount = async () => {
-        setDeletingAccount(true);
-        try {
-            const token = localStorage.getItem('fbrts_token');
-            const res = await fetch('/api/auth/delete-account', {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-            if (data.success) {
-                toast.success("Your account and data have been permanently deleted.");
-                if (logout) logout();
-                localStorage.clear();
-                navigate('/login', { replace: true });
-            } else {
-                toast.error(data.error || "Failed to delete account");
-            }
-        } catch (e) {
-            toast.error("Error connecting to server to delete account");
-        } finally {
-            setDeletingAccount(false);
-        }
-    };
-
-    return (
-        <div className="text-white space-y-8 animate-in fade-in duration-700 pb-20">
-            {/* Header / Cover */}
-            <div className="relative">
-                <div className="h-56 bg-gradient-to-r from-indigo-900/40 via-purple-900/40 to-indigo-900/40 rounded-[40px] overflow-hidden relative border border-white/5 shadow-2xl">
-                    <div className="absolute inset-0 bg-white/[0.02]" style={{ backgroundImage: "radial-gradient(circle at center, rgba(255,255,255,0.05) 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] to-transparent" />
-                </div>
-
-                <div className="px-8 flex flex-col md:flex-row items-end -mt-20 gap-8 relative z-10">
-                    <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleFileUpload}
-                        accept="image/*"
-                        className="hidden"
-                    />
-
-                    <div className="group relative cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                        <div className="w-40 h-40 rounded-[40px] border-8 border-[#0A0A0A] bg-gray-900 flex items-center justify-center overflow-hidden shadow-3xl transform transition-transform group-hover:scale-105">
-                            {(formData.avatarUrl || user?.avatarUrl || user?.avatar) ? (
-                                <img
-                                    src={formData.avatarUrl || user?.avatarUrl || user?.avatar}
-                                    alt="Profile Avatar"
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => { (e.target as any).style.display = 'none'; }}
-                                />
-                            ) : (
-                                <div className="w-full h-full bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 flex items-center justify-center text-white font-black text-6xl uppercase italic select-none shadow-inner">
-                                    {user?.firstName?.[0] || 'U'}
-                                </div>
-                            )}
-                        </div>
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center rounded-[40px] text-white gap-1.5 p-2 text-center">
-                            <Camera className="text-cyan-400 animate-bounce" size={28} />
-                            <span className="text-[10px] font-black uppercase tracking-wider text-cyan-300">Click to Select Photo</span>
-                        </div>
-                    </div>
-
-                    <div className="flex-1 pb-4">
-                        <div className="flex items-center gap-4 mb-2">
-                            <h1 className="text-5xl font-black italic tracking-tighter uppercase leading-none drop-shadow-2xl">
-                                {user?.firstName} {user?.lastName}
-                            </h1>
-                            <div className="p-1 px-3 bg-indigo-500/10 border border-indigo-500/20 rounded-full flex items-center gap-2">
-                                <BadgeCheck className="text-indigo-400 w-4 h-4" />
-                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400">Verified Identity</span>
-                            </div>
-                        </div>
-                        <p className="text-gray-500 font-bold text-[11px] uppercase tracking-[0.4em] italic">
-                            {user?.subscriptionTier ? `${user.subscriptionStatus || 'Tier-1'} Access` : 'General Node'} • Future Architect_01
-                        </p>
-                    </div>
-
-                    <div className="pb-6 flex gap-4">
-                        {!isEditing ? (
-                            <Button
-                                onClick={() => setIsEditing(true)}
-                                className="bg-indigo-600 hover:bg-indigo-500 px-8 rounded-2xl h-14 font-black uppercase italic tracking-widest gap-2 shadow-xl shadow-indigo-600/20"
-                            >
-                                <Edit3 size={18} /> Edit DNA
-                            </Button>
-                        ) : (
-                            <div className="flex gap-3">
-                                <Button onClick={() => setIsEditing(false)} variant="ghost" className="bg-white/5 hover:bg-white/10 px-6 rounded-2xl h-14 font-black uppercase italic tracking-widest text-gray-400">Cancel</Button>
-                                <Button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-500 px-8 rounded-2xl h-14 font-black uppercase italic tracking-widest gap-2 shadow-xl shadow-emerald-600/20">
-                                    <Save size={18} /> Save Sync
-                                </Button>
-                            </div>
-                        )}
-                    </div>
-                </div>
+        {/* Header Bar */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-6 border-b border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 shadow-lg shadow-indigo-600/20">
+              <Building size={24} />
             </div>
-
-            {/* Tabs Navigation */}
-            <div className="flex border-b border-white/5 pb-px gap-8 px-4">
-                {[
-                    { id: 'overview', name: 'Overview', icon: <Activity size={16} /> },
-                    { id: 'academic', name: 'Academic Profile', icon: <GraduationCap size={16} /> },
-                    { id: 'security', name: 'Security & Parent Alerts', icon: <ShieldCheck size={16} /> }
-                ].map(t => (
-                    <button
-                        key={t.id}
-                        onClick={() => setActiveTab(t.id as any)}
-                        className={`flex items-center gap-2 pb-4 text-xs font-black uppercase tracking-widest transition-all relative ${activeTab === t.id ? 'text-indigo-400 font-extrabold' : 'text-gray-500 hover:text-gray-300'}`}
-                    >
-                        {t.icon}
-                        {t.name}
-                        {activeTab === t.id && (
-                            <motion.div 
-                                layoutId="activeProfileTabLine" 
-                                className="absolute bottom-0 inset-x-0 h-0.5 bg-indigo-500 rounded-full" 
-                            />
-                        )}
-                    </button>
-                ))}
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-black tracking-widest text-indigo-400 uppercase">
+                  School ERP Academic Roster
+                </span>
+                <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-500/10 text-emerald-400 px-2.5 py-0.5 rounded-full border border-emerald-500/20 font-bold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  LIVE TWO-WAY SYNC
+                </span>
+              </div>
+              <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                {formData.schoolName || "AD 6 Campus (Gandhinagar)"}
+              </h1>
             </div>
+          </div>
 
-            {/* Tab Contents */}
-            <div className="px-4">
-                {activeTab === 'overview' && (
-                    <div className="grid lg:grid-cols-3 gap-10">
-                        {/* Left Column: Bio & Skills */}
-                        <div className="space-y-8">
-                            {/* Neural Biography */}
-                            <div className="bg-black/40 backdrop-blur-3xl border border-white/5 p-8 rounded-[40px] shadow-3xl space-y-6">
-                                <h3 className="text-xs font-black uppercase tracking-[0.3em] text-gray-500 border-b border-white/5 pb-4 italic">Neural Biography</h3>
-                                {isEditing ? (
-                                    <div className="space-y-4">
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Core Identity</label>
-                                            <div className="flex gap-2">
-                                                <input
-                                                    value={formData.firstName}
-                                                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none"
-                                                    placeholder="First Name"
-                                                />
-                                                <input
-                                                    value={formData.lastName}
-                                                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none"
-                                                    placeholder="Last Name"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Bio Blueprint</label>
-                                            <textarea
-                                                value={formData.profile.bio}
-                                                onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, bio: e.target.value } })}
-                                                className="w-full h-32 bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-sm focus:border-indigo-500 outline-none resize-none"
-                                                placeholder="Explain your architectural purpose..."
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Node Location</label>
-                                            <input
-                                                value={formData.profile.location}
-                                                onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, location: e.target.value } })}
-                                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none"
-                                                placeholder="e.g. Earth_Sector_01"
-                                            />
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-6">
-                                        <p className="text-md text-gray-300 leading-relaxed font-medium italic">"{user?.profile?.bio || 'Future Architect & Innovation Specialist.'}"</p>
-                                        <div className="pt-6 border-t border-white/5 flex flex-col gap-4">
-                                            <div className="flex items-center gap-3 text-sm text-gray-400 font-bold">
-                                                <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400"><MapPin size={16} /></div>
-                                                {user?.profile?.location || 'Digital Nomad'}
-                                            </div>
-                                            <div className="flex items-center gap-3 text-sm text-gray-400 font-bold">
-                                                <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400"><Mail size={16} /></div>
-                                                {user?.email}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
+          {/* Action Buttons */}
+          <div className="flex flex-wrap items-center gap-2.5 print:hidden">
+            <Button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              variant="outline"
+              size="sm"
+              className="h-10 px-4 rounded-xl border-white/10 hover:bg-white/5 text-gray-300 gap-2 text-xs font-bold"
+            >
+              <RefreshCw size={14} className={isRefreshing ? "animate-spin text-indigo-400" : ""} />
+              Refresh
+            </Button>
+            <Button
+              onClick={handlePrint}
+              variant="outline"
+              size="sm"
+              className="h-10 px-4 rounded-xl border-white/10 hover:bg-white/5 text-gray-300 gap-2 text-xs font-bold"
+            >
+              <Printer size={14} />
+              Print Dossier
+            </Button>
 
-                            {/* Skill Inventory */}
-                            <div className="bg-black/40 backdrop-blur-3xl border border-white/5 p-8 rounded-[40px] shadow-3xl space-y-6">
-                                <h3 className="text-xs font-black uppercase tracking-[0.3em] text-gray-500 border-b border-white/5 pb-4 italic">Skill Inventory</h3>
-                                {isEditing ? (
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Comma Separated Skills</label>
-                                        <input
-                                            value={formData.profile.skills}
-                                            onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, skills: e.target.value } })}
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none"
-                                            placeholder="React, ML, Strategy..."
-                                        />
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-wrap gap-2">
-                                        {(user?.profile?.skills?.length ? user.profile.skills : ["Strategic Planning", "Problem Solving", "Growth Architecture"]).map((skill: string) => (
-                                            <span key={skill} className="text-[10px] font-black uppercase tracking-widest bg-white/[0.03] border border-white/10 px-4 py-2 rounded-xl text-gray-300 hover:bg-indigo-500/20 hover:border-indigo-500/40 transition-all cursor-default">{skill}</span>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Neural Links (when editing) */}
-                            {isEditing && (
-                                <div className="bg-black/40 backdrop-blur-3xl border border-white/5 p-8 rounded-[40px] shadow-3xl space-y-6">
-                                    <h3 className="text-xs font-black uppercase tracking-[0.3em] text-gray-500 border-b border-white/5 pb-4 italic">Neural Links</h3>
-                                    <div className="space-y-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-3 bg-white/5 rounded-xl text-gray-400"><Github size={18} /></div>
-                                            <input
-                                                value={formData.profile.socialLinks.github}
-                                                onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, socialLinks: { ...formData.profile.socialLinks, github: e.target.value } } })}
-                                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs focus:border-indigo-500 outline-none"
-                                                placeholder="GitHub Handle"
-                                            />
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-3 bg-white/5 rounded-xl text-gray-400"><Linkedin size={18} /></div>
-                                            <input
-                                                value={formData.profile.socialLinks.linkedin}
-                                                onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, socialLinks: { ...formData.profile.socialLinks, linkedin: e.target.value } } })}
-                                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs focus:border-indigo-500 outline-none"
-                                                placeholder="LinkedIn URL"
-                                            />
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-3 bg-white/5 rounded-xl text-gray-400"><Globe size={18} /></div>
-                                            <input
-                                                value={formData.profile.socialLinks.website}
-                                                onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, socialLinks: { ...formData.profile.socialLinks, website: e.target.value } } })}
-                                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs focus:border-indigo-500 outline-none"
-                                                placeholder="Portfolio URL"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Right Column: Stats & System Showcase */}
-                        <div className="lg:col-span-2 space-y-10">
-                            {/* Social Stats Strip */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                {[
-                                    { label: 'Artifacts', value: projects.length.toString().padStart(2, '0') || '00', icon: <Code size={16} /> },
-                                    { label: 'Roadmaps', value: stats?.activeRoadmaps?.toString().padStart(2, '0') || '00', icon: <MapPin size={16} /> },
-                                    { label: 'Credits', value: user?.tokenBalance?.toLocaleString() || '1,000', icon: <Activity size={16} /> },
-                                    { label: 'Level', value: user?.subscriptionTier === 'monthly' || user?.subscriptionTier === 'yearly' ? 'Pro' : 'Core', icon: <BadgeCheck size={16} /> },
-                                ].map((stat, i) => (
-                                    <div key={i} className="bg-white/[0.02] border border-white/5 p-6 rounded-[32px] text-center space-y-2 group hover:bg-indigo-500/5 hover:border-indigo-500/20 transition-all">
-                                        <div className="flex justify-center text-gray-600 group-hover:text-indigo-400 transition-colors">{stat.icon}</div>
-                                        <div className="text-2xl font-black italic tracking-tighter uppercase leading-none">{stat.value}</div>
-                                        <div className="text-[9px] font-black uppercase tracking-widest text-gray-500">{stat.label}</div>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* System Showcase */}
-                            <section className="space-y-6">
-                                <div className="flex justify-between items-center px-4">
-                                    <h2 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-3">
-                                        <Code className="text-indigo-400" /> System Showcase
-                                    </h2>
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400 cursor-pointer hover:underline">Sync All Deployment</span>
-                                </div>
-                                <div className="grid md:grid-cols-2 gap-6">
-                                    {projects.length > 0 ? projects.map((proj, i) => (
-                                        <div key={i} onClick={() => navigate(`/projects/live/${proj._id}`)} className="group cursor-pointer overflow-hidden rounded-[40px] border border-white/5 bg-black/40 backdrop-blur-3xl relative p-8 hover:border-indigo-500/30 transition-all shadow-3xl">
-                                            <div className="flex justify-between items-start mb-6">
-                                                <div className="p-4 bg-indigo-500/10 rounded-2xl text-indigo-400"><Code size={24} /></div>
-                                                <span className="text-[9px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20">{proj.status === 'COMPLETED' ? 'Active' : 'Deploying'}</span>
-                                            </div>
-                                            <h3 className="text-2xl font-black italic uppercase tracking-tighter group-hover:text-indigo-400 transition-colors line-clamp-1" title={proj.title}>{proj.title || "Experimental Node"}</h3>
-                                            <p className="text-[10px] text-gray-500 mt-2 font-black uppercase tracking-[0.2em]">{proj.category?.replace(/_/g, ' ') || 'Architecture'}</p>
-                                            <div className="mt-8 pt-6 border-t border-white/5 flex justify-between items-center">
-                                                <span className="text-[9px] font-black text-gray-600 uppercase tracking-widest italic">{new Date(proj.createdAt).toLocaleDateString()}</span>
-                                            </div>
-                                        </div>
-                                    )) : (
-                                        <div className="col-span-2 text-center py-20 bg-white/[0.02] border border-white/5 p-6 rounded-[32px]">
-                                            <Code size={40} className="mx-auto text-gray-600 mb-4" />
-                                            <div className="text-lg font-black uppercase text-gray-500 tracking-widest">No Projects Found</div>
-                                            <div className="text-[10px] uppercase text-gray-600 mt-2 tracking-widest">Launch Builder to create your first architecture</div>
-                                        </div>
-                                    )}
-                                </div>
-                            </section>
-                        </div>
-                    </div>
-                )}
-
-                {activeTab === 'academic' && (
-                    <div className="max-w-4xl mx-auto space-y-8">
-                        {/* School & Academic Details Card */}
-                        <div className="bg-black/40 backdrop-blur-3xl border border-white/5 p-8 rounded-[40px] shadow-3xl space-y-6">
-                            <div className="flex justify-between items-center border-b border-white/5 pb-4">
-                                <h3 className="text-sm font-black uppercase tracking-[0.2em] text-indigo-400 flex items-center gap-2">
-                                    <GraduationCap size={18} /> Academic profile details
-                                </h3>
-                                {!isEditing && (
-                                    <span className="text-[9px] font-black bg-indigo-500/10 text-indigo-400 px-3 py-1 rounded-full border border-indigo-500/20 uppercase tracking-wider">
-                                        Education OS Active
-                                    </span>
-                                )}
-                            </div>
-
-                            {isEditing ? (
-                                <div className="space-y-6">
-                                    {/* 🏫 Dual Mode Toggle & Avatar URL */}
-                                    <div className="p-4 rounded-2xl bg-indigo-950/30 border border-indigo-500/30 flex flex-col md:flex-row items-center justify-between gap-4">
-                                        <div className="flex items-center gap-3">
-                                            <input
-                                                type="checkbox"
-                                                id="profileIsSchoolStudent"
-                                                checked={formData.isSchoolStudent}
-                                                onChange={(e) => setFormData({ ...formData, isSchoolStudent: e.target.checked })}
-                                                className="w-5 h-5 accent-indigo-500 rounded cursor-pointer"
-                                            />
-                                            <label htmlFor="profileIsSchoolStudent" className="text-xs font-bold text-white cursor-pointer select-none">
-                                                🏫 Enrolled School Student (Roster & Timetable Sync Active)
-                                            </label>
-                                        </div>
-                                        <span className={`text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full border ${
-                                            formData.isSchoolStudent ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                                        }`}>
-                                            {formData.isSchoolStudent ? 'School Sync On' : 'Independent Self-Study'}
-                                        </span>
-                                    </div>
-
-                                    {/* Profile Avatar Photo Uploader & Image Link */}
-                                    <div className="p-5 rounded-2xl bg-black/40 border border-indigo-500/30 space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <label className="text-[10px] font-black text-indigo-300 uppercase tracking-widest flex items-center gap-1.5">
-                                                <Camera size={14} className="text-cyan-400" /> Profile Photo (Upload File or Enter Image Link)
-                                            </label>
-                                            <button
-                                                type="button"
-                                                onClick={() => fileInputRef.current?.click()}
-                                                className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-cyan-600/30 transition-all active:scale-95 cursor-pointer"
-                                            >
-                                                <Upload size={14} /> 📁 Choose Photo File
-                                            </button>
-                                        </div>
-
-                                        <div className="flex flex-col sm:flex-row items-center gap-3">
-                                            {formData.avatarUrl && (
-                                                <div className="relative w-14 h-14 rounded-2xl overflow-hidden border-2 border-cyan-400 shrink-0 bg-gray-900">
-                                                    <img src={formData.avatarUrl} alt="Preview" className="w-full h-full object-cover" />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setFormData({ ...formData, avatarUrl: '' })}
-                                                        className="absolute inset-0 bg-black/70 opacity-0 hover:opacity-100 flex items-center justify-center text-rose-400 transition-opacity"
-                                                        title="Remove Photo"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                </div>
-                                            )}
-                                            <input
-                                                value={formData.avatarUrl}
-                                                onChange={(e) => setFormData({ ...formData, avatarUrl: e.target.value })}
-                                                className="flex-1 w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-xs font-mono text-cyan-200 focus:border-indigo-500 outline-none"
-                                                placeholder="Or paste image URL (e.g. https://example.com/photo.jpg)"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid md:grid-cols-2 gap-6">
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">School / Academy Name</label>
-                                            <input
-                                                value={formData.school_name}
-                                                onChange={(e) => setFormData({ ...formData, school_name: e.target.value })}
-                                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-sm focus:border-indigo-500 outline-none"
-                                                placeholder="e.g. Divine Buds School"
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Student Mobile Number</label>
-                                            <input
-                                                value={formData.mobile_number}
-                                                onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })}
-                                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-sm focus:border-indigo-500 outline-none"
-                                                placeholder="e.g. 9876543210"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* 🆔 Roll Number & Enrollment GR Number inputs */}
-                                    <div className="grid md:grid-cols-2 gap-6 bg-cyan-950/20 p-5 rounded-2xl border border-cyan-500/30">
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-cyan-300 uppercase tracking-widest ml-1">Class Roll Number (e.g. 14, 02)</label>
-                                            <input
-                                                value={formData.rollNumber}
-                                                onChange={(e) => setFormData({ ...formData, rollNumber: e.target.value })}
-                                                className="w-full bg-black/60 border border-cyan-500/40 rounded-2xl px-4 py-3.5 text-sm font-bold font-mono text-cyan-200 focus:border-cyan-400 outline-none"
-                                                placeholder="e.g. 14"
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-cyan-300 uppercase tracking-widest ml-1">Enrollment / GR Number (e.g. 12-ER-2026-1001)</label>
-                                            <input
-                                                value={formData.enrollmentNo}
-                                                onChange={(e) => setFormData({ ...formData, enrollmentNo: e.target.value })}
-                                                className="w-full bg-black/60 border border-cyan-500/40 rounded-2xl px-4 py-3.5 text-sm font-bold font-mono text-cyan-200 focus:border-cyan-400 outline-none"
-                                                placeholder="e.g. 12-ER-2026-1001"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid md:grid-cols-3 gap-6">
-                                        <div className="space-y-2">
-                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Standard/Grade</label>
-                                             <select
-                                                 value={formData.grade_level}
-                                                 onChange={(e) => setFormData({ ...formData, grade_level: e.target.value })}
-                                                 className="w-full bg-[#111] border border-white/10 rounded-2xl px-4 py-3.5 text-sm text-white focus:border-indigo-500 outline-none"
-                                             >
-                                                 {STANDARDS.map(g => (
-                                                     <option key={g.id} value={g.id.startsWith('class_') ? g.id : `class_${g.id}`}>{g.name}</option>
-                                                 ))}
-                                             </select>
-                                         </div>
-
-                                         <div className="space-y-2">
-                                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Board / Council</label>
-                                              <select
-                                                  value={formData.board}
-                                                  onChange={(e) => setFormData({ ...formData, board: e.target.value })}
-                                                  className="w-full bg-[#111] border border-white/10 rounded-2xl px-4 py-3.5 text-sm text-white focus:border-indigo-500 outline-none"
-                                              >
-                                                  {BOARDS.map(b => (
-                                                      <option key={b.id} value={b.id.toLowerCase()}>{b.name}</option>
-                                                  ))}
-                                              </select>
-                                         </div>
-
-                                        <div className="space-y-2">
-                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Class Section</label>
-                                             <select
-                                                 value={formData.section}
-                                                 onChange={(e) => setFormData({ ...formData, section: e.target.value })}
-                                                 className="w-full bg-[#111] border border-white/10 rounded-2xl px-4 py-3.5 text-sm text-white focus:border-indigo-500 outline-none"
-                                             >
-                                                 <option value="A">Section A</option>
-                                                 <option value="B">Section B</option>
-                                                 <option value="C">Section C</option>
-                                                 <option value="D">Section D</option>
-                                                 <option value="E">Section E</option>
-                                             </select>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Stream / Field</label>
-                                             <select
-                                                 value={formData.stream}
-                                                 onChange={(e) => setFormData({ ...formData, stream: e.target.value })}
-                                                 className="w-full bg-[#111] border border-white/10 rounded-2xl px-4 py-3.5 text-sm text-white focus:border-indigo-500 outline-none"
-                                             >
-                                                 <option value="Science">Science (PCM/PCB)</option>
-                                                 <option value="Commerce">Commerce</option>
-                                                 <option value="Arts">Arts / Humanities</option>
-                                                 <option value="General">General Studies</option>
-                                             </select>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Medium / Language</label>
-                                             <select
-                                                 value={formData.medium}
-                                                 onChange={(e) => setFormData({ ...formData, medium: e.target.value })}
-                                                 className="w-full bg-[#111] border border-white/10 rounded-2xl px-4 py-3.5 text-sm text-white focus:border-indigo-500 outline-none"
-                                             >
-                                                 <option value="english">English (English)</option>
-                                                 <option value="hindi">Hindi (हिंदी)</option>
-                                                 <option value="gujarati">Gujarati (ગુજરાતી)</option>
-                                                 <option value="marathi">Marathi (मराठी)</option>
-                                                 <option value="bengali">Bengali (বাংলা)</option>
-                                                 <option value="tamil">Tamil (தமிழ்)</option>
-                                                 <option value="telugu">Telugu (తెలుగు)</option>
-                                                 <option value="kannada">Kannada (કન્નડ)</option>
-                                                 <option value="malayalam">Malayalam (മലയാളം)</option>
-                                                 <option value="punjabi">Punjabi (ਪੰਜਾਬੀ)</option>
-                                                 <option value="urdu">Urdu (اردو)</option>
-                                             </select>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <div className="flex justify-between items-center">
-                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">City / Location</label>
-                                            <button
-                                                type="button"
-                                                onClick={handleDetectGpsLocation}
-                                                disabled={detectingGps}
-                                                className="text-[10px] font-bold text-indigo-300 hover:text-white flex items-center gap-1 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 px-3 py-1 rounded-xl transition-all"
-                                            >
-                                                {detectingGps ? <Loader2 size={12} className="animate-spin" /> : <Navigation size={12} />}
-                                                {detectingGps ? 'Detecting City...' : '📍 Auto Detect GPS City'}
-                                            </button>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <input
-                                                value={formData.state}
-                                                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                                                className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-sm focus:border-indigo-500 outline-none"
-                                                placeholder="e.g. Ahmedabad, Surat, Vadodara, Mumbai..."
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={handleDetectGpsLocation}
-                                                disabled={detectingGps}
-                                                className="px-4 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shrink-0 transition-all shadow-lg shadow-indigo-600/30 active:scale-95 disabled:opacity-50"
-                                            >
-                                                {detectingGps ? <Loader2 size={14} className="animate-spin" /> : <Navigation size={14} />}
-                                                GPS Location
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="grid md:grid-cols-2 gap-6 text-sm">
-                                    <div className="bg-white/[0.01] p-5 rounded-[24px] border border-white/5 space-y-1">
-                                        <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">School Name & Mode</span>
-                                        <span className="text-white font-extrabold block text-base flex items-center gap-2">
-                                            {formData.school_name || user?.schoolName || 'Not Configured'}
-                                            <span className={`text-[9px] px-2 py-0.5 rounded-full border ${
-                                                formData.isSchoolStudent ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                                            }`}>
-                                                {formData.isSchoolStudent ? 'School Student' : 'Self Study'}
-                                            </span>
-                                        </span>
-                                    </div>
-
-                                    {/* 🆔 Roll Number & Enrollment GR Number Displays */}
-                                    <div className="bg-cyan-950/20 p-5 rounded-[24px] border border-cyan-500/30 space-y-1">
-                                        <span className="text-[9px] font-black text-cyan-300 uppercase tracking-widest">Class Roll No & GR Number</span>
-                                        <div className="text-cyan-200 font-extrabold block text-base font-mono flex items-center gap-3">
-                                            <span>Roll #{formData.rollNumber || user?.rollNumber || 'Not Set'}</span>
-                                            <span className="text-gray-500">•</span>
-                                            <span>GR: {formData.enrollmentNo || user?.enrollmentNo || 'Auto'}</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-white/[0.01] p-5 rounded-[24px] border border-white/5 space-y-1">
-                                        <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">City / Location</span>
-                                        <span className="text-white font-extrabold block text-base">
-                                            {(formData.state || user?.city) ? ((formData.state || user?.city || '').charAt(0).toUpperCase() + (formData.state || user?.city || '').slice(1)) : 'Not Provided'}
-                                        </span>
-                                    </div>
-                                    <div className="bg-white/[0.01] p-5 rounded-[24px] border border-white/5 space-y-1">
-                                        <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Board / Standard / Class</span>
-                                        <span className="text-white font-extrabold block text-base uppercase">
-                                            {(formData.board || user?.board || 'N/A').toUpperCase()} • Class {(formData.grade_level || user?.standard || '10').toString().replace(/^class_/i, '')}-{formData.section || user?.section || 'A'} {(formData.stream || user?.stream) ? `(${formData.stream || user?.stream})` : ''}
-                                        </span>
-                                    </div>
-                                    <div className="bg-white/[0.01] p-5 rounded-[24px] border border-white/5 space-y-1">
-                                        <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Medium / Language</span>
-                                        <span className="text-white font-extrabold block text-base capitalize">
-                                            {formData.medium || user?.medium || 'English'}
-                                        </span>
-                                    </div>
-                                    <div className="bg-white/[0.01] p-5 rounded-[24px] border border-white/5 space-y-1">
-                                        <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Student Mobile</span>
-                                        <span className="text-indigo-400 font-extrabold block text-base">{formData.mobile_number || user?.mobile_number || 'Not Configured'}</span>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {activeTab === 'security' && (
-                    <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-8">
-                        {/* Parent Alerts Card */}
-                        <div className="bg-black/40 backdrop-blur-3xl border border-white/5 p-8 rounded-[40px] shadow-3xl space-y-6">
-                            <h3 className="text-xs font-black uppercase tracking-[0.3em] text-gray-500 border-b border-white/5 pb-4 italic">Parent Alerts 👨‍👩‍👦</h3>
-                            {isEditing ? (
-                                <div className="space-y-4">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Parent Email</label>
-                                        <input
-                                            value={formData.parentEmail}
-                                            onChange={(e) => setFormData({ ...formData, parentEmail: e.target.value })}
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none"
-                                            placeholder="parent@example.com"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Parent Phone (WhatsApp)</label>
-                                        <input
-                                            value={formData.parentPhone}
-                                            onChange={(e) => setFormData({ ...formData, parentPhone: e.target.value })}
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none"
-                                            placeholder="e.g. 919876543210"
-                                        />
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    <div className="flex flex-col gap-1">
-                                        <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Parent Email</span>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm font-bold text-gray-300">{user?.parentDetails?.parentEmail || 'Not Configured'}</span>
-                                            {user?.parentDetails?.parentEmail && (
-                                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border ${user.parentDetails.parentEmailVerified ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
-                                                    {user.parentDetails.parentEmailVerified ? 'Verified 🟢' : 'Pending Verification 🟡'}
-                                                </span>
-                                            )}
-                                        </div>
-                                        {user?.parentDetails?.parentEmail && !user.parentDetails.parentEmailVerified && (
-                                            <button
-                                                onClick={handleResendParentVerification}
-                                                disabled={resendingMail}
-                                                className="text-[10px] text-indigo-400 hover:text-indigo-300 font-black uppercase text-left mt-2 underline"
-                                            >
-                                                {resendingMail ? 'Resending...' : 'Resend Verification Mail'}
-                                            </button>
-                                        )}
-                                    </div>
-                                    <div className="flex flex-col gap-1 pt-4 border-t border-white/5">
-                                        <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Parent WhatsApp</span>
-                                        <span className="text-sm font-bold text-gray-300">{user?.parentDetails?.parentPhone || 'Not Configured'}</span>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Security Credentials Card */}
-                        <div className="bg-black/40 backdrop-blur-3xl border border-white/5 p-8 rounded-[40px] shadow-3xl space-y-6">
-                            <h3 className="text-xs font-black uppercase tracking-[0.3em] text-gray-500 border-b border-white/5 pb-4 italic">Security Credentials 🔒</h3>
-                            {!showPasswordSection ? (
-                                <Button
-                                    onClick={() => setShowPasswordSection(true)}
-                                    className="w-full bg-white/5 hover:bg-white/10 text-white rounded-2xl h-12 font-black uppercase tracking-widest text-xs border border-white/10"
-                                >
-                                    Change Vault Password
-                                </Button>
-                            ) : (
-                                <form onSubmit={handleChangePassword} className="space-y-4">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Current Password</label>
-                                        <input
-                                            type="password"
-                                            required
-                                            value={currentPassword}
-                                            onChange={(e) => setCurrentPassword(e.target.value)}
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none"
-                                            placeholder="••••••••"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">New Password</label>
-                                        <input
-                                            type="password"
-                                            required
-                                            value={newPassword}
-                                            onChange={(e) => setNewPassword(e.target.value)}
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none"
-                                            placeholder="••••••••"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Confirm New Password</label>
-                                        <input
-                                            type="password"
-                                            required
-                                            value={confirmPassword}
-                                            onChange={(e) => setConfirmPassword(e.target.value)}
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none"
-                                            placeholder="••••••••"
-                                        />
-                                    </div>
-                                    <div className="flex gap-2 pt-2">
-                                        <Button
-                                            type="button"
-                                            onClick={() => {
-                                                setShowPasswordSection(false);
-                                                setCurrentPassword('');
-                                                setNewPassword('');
-                                                setConfirmPassword('');
-                                            }}
-                                            variant="ghost"
-                                            className="w-full bg-white/5 hover:bg-white/10 text-gray-400 rounded-xl h-10 text-xs font-black uppercase"
-                                        >
-                                            Cancel
-                                        </Button>
-                                        <Button
-                                            type="submit"
-                                            disabled={passwordChanging}
-                                            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl h-10 text-xs font-black uppercase"
-                                        >
-                                            {passwordChanging ? 'Syncing...' : 'Sync Key'}
-                                        </Button>
-                                    </div>
-                                </form>
-                            )}
-                        </div>
-
-                        {/* Danger Zone: Permanent Account Deletion Card */}
-                        <div className="bg-rose-950/20 backdrop-blur-3xl border border-rose-500/20 p-8 rounded-[40px] shadow-3xl space-y-4 md:col-span-2">
-                            <h3 className="text-xs font-black uppercase tracking-[0.3em] text-rose-400 border-b border-rose-500/20 pb-4 italic flex items-center gap-2">
-                                🚨 Danger Zone • Account Deletion
-                            </h3>
-                            <p className="text-xs text-gray-400">
-                                Permanently delete your Future BRTS account, AI learning profile, and associated platform data. This action cannot be undone.
-                            </p>
-                            
-                            {!showDeleteConfirm ? (
-                                <button
-                                    onClick={() => setShowDeleteConfirm(true)}
-                                    className="px-6 py-3 bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/40 text-rose-300 font-bold rounded-2xl text-xs transition-all flex items-center gap-2 active:scale-95"
-                                >
-                                    🗑️ Delete My Account Permanently
-                                </button>
-                            ) : (
-                                <div className="p-4 rounded-2xl bg-rose-950/50 border border-rose-500/40 space-y-3">
-                                    <div className="text-xs font-bold text-rose-200">
-                                        Are you 100% sure you want to delete your account? All progress, XP, and roadmaps will be lost forever.
-                                    </div>
-                                    <div className="flex gap-3">
-                                        <button
-                                            onClick={() => setShowDeleteConfirm(false)}
-                                            className="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 font-bold rounded-xl text-xs"
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            onClick={handleDeleteAccount}
-                                            disabled={deletingAccount}
-                                            className="px-6 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-xl text-xs transition-all flex items-center gap-2 shadow-lg shadow-rose-600/30 active:scale-95 disabled:opacity-50"
-                                        >
-                                            {deletingAccount ? 'Deleting Account...' : 'Yes, Delete My Account Now'}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-            </div>
+            {!isEditing ? (
+              <Button
+                onClick={() => setIsEditing(true)}
+                size="sm"
+                className="h-10 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white gap-2 text-xs font-bold shadow-lg shadow-indigo-600/30"
+              >
+                <Edit3 size={14} />
+                Edit Registration Details
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => setIsEditing(false)}
+                  disabled={isSaving}
+                  variant="outline"
+                  size="sm"
+                  className="h-10 px-4 rounded-xl border-white/10 hover:bg-white/5 text-gray-400 text-xs font-bold"
+                >
+                  <X size={14} />
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveProfile}
+                  disabled={isSaving}
+                  size="sm"
+                  className="h-10 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white gap-2 text-xs font-bold shadow-lg shadow-emerald-600/30"
+                >
+                  {isSaving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                  {isSaving ? "Saving to ERP DB..." : "Save & Sync to ERP"}
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
-    )
-}
 
+        {/* Student Primary Identity Ribbon */}
+        <div className="pt-6 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+          <div className="flex items-center gap-5">
+            {/* Student Avatar */}
+            <div className="relative">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white text-3xl sm:text-4xl font-black shadow-xl ring-4 ring-indigo-500/20">
+                {formData.fullName.charAt(0).toUpperCase()}
+              </div>
+              <div className="absolute -bottom-1 -right-1 bg-emerald-500 p-1.5 rounded-full ring-4 ring-[#0c0f1d] text-black">
+                <BadgeCheck size={14} className="stroke-[3]" />
+              </div>
+            </div>
+
+            {/* Name and Admission badges */}
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white capitalize">
+                  {formData.fullName}
+                </h2>
+                <span className="text-[10px] bg-indigo-500/20 text-indigo-300 font-extrabold uppercase px-2.5 py-0.5 rounded-full border border-indigo-500/30">
+                  {erp.lifecycleStatus || "ACTIVE STUDENT"}
+                </span>
+              </div>
+              <p className="text-xs text-gray-400 font-medium">
+                Official Student ID: <span className="text-indigo-400 font-bold">{erp.studentId || "STU-REGISTERED"}</span> • Permanent BRTS ID: <span className="text-gray-300 font-mono">{erp.permanentBrtsId || "BRTS-USER-786219"}</span>
+              </p>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-gray-300 pt-1">
+                <span className="inline-flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-lg border border-white/5 font-semibold">
+                  <GraduationCap size={14} className="text-indigo-400" />
+                  {formData.standard} - {formData.section} (Roll #{formData.rollNumber})
+                </span>
+                <span className="inline-flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-lg border border-white/5 font-semibold">
+                  <Award size={14} className="text-purple-400" />
+                  GR: {erp.admissionNumber || formData.rollNumber}
+                </span>
+                <span className="inline-flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-lg border border-white/5 font-semibold">
+                  <BookOpen size={14} className="text-blue-400" />
+                  {formData.board} • {formData.stream}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Metrics / Attendance Counter */}
+          <div className="flex items-center gap-3 w-full lg:w-auto justify-between lg:justify-end border-t lg:border-t-0 border-white/5 pt-4 lg:pt-0">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center min-w-[110px]">
+              <span className="block text-[10px] font-black uppercase text-gray-400 tracking-wider">Attendance</span>
+              <span className="text-2xl font-black text-emerald-400 leading-none mt-1 block">
+                {erp.attendancePercent || 95}%
+              </span>
+              <span className="text-[10px] text-emerald-500 font-bold mt-1 inline-block">
+                Status: {erp.lastStatus || "PRESENT"}
+              </span>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center min-w-[110px]">
+              <span className="block text-[10px] font-black uppercase text-gray-400 tracking-wider">Academic Year</span>
+              <span className="text-lg font-black text-indigo-400 leading-none mt-1 block">
+                {erp.academicYearId || "AY-2026-27"}
+              </span>
+              <span className="text-[10px] text-gray-400 font-bold mt-1 inline-block">
+                Type: {erp.admissionType || "TRANSFER"}
+              </span>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center min-w-[110px]">
+              <span className="block text-[10px] font-black uppercase text-gray-400 tracking-wider">House</span>
+              <span className="text-lg font-black text-purple-400 leading-none mt-1 block">
+                {formData.house.split(" ")[0] || "Aryabhata"}
+              </span>
+              <span className="text-[10px] text-gray-400 font-bold mt-1 inline-block">
+                Blood: {formData.bloodGroup}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Edit Mode Notice Banner */}
+        {isEditing && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between text-amber-300 text-xs font-semibold"
+          >
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+              <span>
+                <strong>EDIT MODE ACTIVE:</strong> You are modifying official student registration records. Any saved changes will automatically update both the <strong>AI Database</strong> and the <strong>School ERP Database</strong>.
+              </span>
+            </div>
+            <span className="text-[11px] underline font-bold cursor-pointer" onClick={handleSaveProfile}>
+              Save Now
+            </span>
+          </motion.div>
+        )}
+      </div>
+
+      {/* 🧭 NAVIGATION TABS (CATEGORIES OF SCHOOL REGISTRATION) */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-white/10 custom-scrollbar print:hidden">
+        {[
+          { id: "personal", label: "1. Personal & Identity", icon: <User size={16} /> },
+          { id: "academic", label: "2. Academic & Enrollment", icon: <GraduationCap size={16} /> },
+          { id: "parents", label: "3. Parents & Emergency", icon: <Users size={16} /> },
+          { id: "address", label: "4. Address & Transport", icon: <MapPin size={16} /> },
+          { id: "documents", label: "5. Uploaded Certificates", icon: <FileText size={16} /> }
+        ].map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setActiveTab(t.id as any)}
+            className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold transition-all whitespace-nowrap ${
+              activeTab === t.id
+                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 border border-indigo-400/30"
+                : "bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 border border-white/5"
+            }`}
+          >
+            {t.icon}
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* 📋 TAB CONTENT SECTIONS */}
+      <AnimatePresence mode="wait">
+        {/* TAB 1: PERSONAL & IDENTITY */}
+        {activeTab === "personal" && (
+          <motion.div
+            key="personal"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          >
+            {/* Card: Legal Full Name */}
+            <div className="p-6 rounded-3xl bg-[#0c0f1d] border border-white/10 space-y-2">
+              <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1.5">
+                <User size={14} className="text-indigo-400" /> Student Full Name
+              </span>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={formData.fullName}
+                  onChange={(e) => handleChange("fullName", e.target.value)}
+                  className="w-full bg-white/5 border border-white/20 rounded-xl px-3.5 py-2.5 text-sm text-white font-bold focus:outline-none focus:border-indigo-500"
+                />
+              ) : (
+                <p className="text-lg font-bold text-white capitalize">{formData.fullName || "Not Provided"}</p>
+              )}
+              <span className="text-[10px] text-gray-500 block">As registered in official school admission ledger</span>
+            </div>
+
+            {/* Card: Date of Birth */}
+            <div className="p-6 rounded-3xl bg-[#0c0f1d] border border-white/10 space-y-2">
+              <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1.5">
+                <Calendar size={14} className="text-blue-400" /> Date of Birth & Age
+              </span>
+              {isEditing ? (
+                <input
+                  type="date"
+                  value={formData.dateOfBirth}
+                  onChange={(e) => handleChange("dateOfBirth", e.target.value)}
+                  className="w-full bg-white/5 border border-white/20 rounded-xl px-3.5 py-2.5 text-sm text-white font-bold focus:outline-none focus:border-indigo-500"
+                />
+              ) : (
+                <p className="text-lg font-bold text-white">
+                  {formatDate(formData.dateOfBirth)} <span className="text-xs text-indigo-400">{getAge(formData.dateOfBirth)}</span>
+                </p>
+              )}
+              <span className="text-[10px] text-gray-500 block">Verified against Birth Certificate</span>
+            </div>
+
+            {/* Card: Gender & Blood Group */}
+            <div className="p-6 rounded-3xl bg-[#0c0f1d] border border-white/10 space-y-2">
+              <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1.5">
+                <Heart size={14} className="text-rose-400" /> Gender & Blood Group
+              </span>
+              {isEditing ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    value={formData.gender}
+                    onChange={(e) => handleChange("gender", e.target.value)}
+                    className="bg-white/5 border border-white/20 rounded-xl px-3 py-2.5 text-sm text-white font-bold focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="MALE" className="bg-gray-900">MALE</option>
+                    <option value="FEMALE" className="bg-gray-900">FEMALE</option>
+                    <option value="OTHER" className="bg-gray-900">OTHER</option>
+                  </select>
+                  <select
+                    value={formData.bloodGroup}
+                    onChange={(e) => handleChange("bloodGroup", e.target.value)}
+                    className="bg-white/5 border border-white/20 rounded-xl px-3 py-2.5 text-sm text-white font-bold focus:outline-none focus:border-indigo-500"
+                  >
+                    {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((b) => (
+                      <option key={b} value={b} className="bg-gray-900">{b}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <p className="text-lg font-bold text-white">
+                  {formData.gender} • <span className="text-rose-400 font-extrabold">{formData.bloodGroup}</span>
+                </p>
+              )}
+              <span className="text-[10px] text-gray-500 block">Medical record in school dispensary</span>
+            </div>
+
+            {/* Card: Category & Nationality */}
+            <div className="p-6 rounded-3xl bg-[#0c0f1d] border border-white/10 space-y-2">
+              <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1.5">
+                <Globe2 size={14} className="text-amber-400" /> Social Category & Nationality
+              </span>
+              {isEditing ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    value={formData.category}
+                    onChange={(e) => handleChange("category", e.target.value)}
+                    className="bg-white/5 border border-white/20 rounded-xl px-3 py-2.5 text-sm text-white font-bold focus:outline-none focus:border-indigo-500"
+                  >
+                    {["GENERAL", "OBC", "SC", "ST", "EWS"].map((c) => (
+                      <option key={c} value={c} className="bg-gray-900">{c}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    value={formData.nationality}
+                    onChange={(e) => handleChange("nationality", e.target.value)}
+                    className="bg-white/5 border border-white/20 rounded-xl px-3 py-2.5 text-sm text-white font-bold focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+              ) : (
+                <p className="text-lg font-bold text-white">
+                  {formData.category} • {formData.nationality}
+                </p>
+              )}
+              <span className="text-[10px] text-gray-500 block">Government UDISE+ Compliance category</span>
+            </div>
+
+            {/* Card: Masked Aadhaar Card Number */}
+            <div className="p-6 rounded-3xl bg-[#0c0f1d] border border-white/10 space-y-2">
+              <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1.5">
+                <Shield size={14} className="text-emerald-400" /> Aadhaar Identification (Masked)
+              </span>
+              <p className="text-lg font-mono font-bold text-emerald-400 tracking-wider">
+                {erp.aadhaarNumberMasked || "9821-4455-8890"}
+              </p>
+              <span className="text-[10px] text-gray-500 block">Encrypted under Indian UIDAI Aadhaar Privacy Laws</span>
+            </div>
+
+            {/* Card: Permanent Education Number (PEN) */}
+            <div className="p-6 rounded-3xl bg-[#0c0f1d] border border-white/10 space-y-2">
+              <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1.5">
+                <Fingerprint size={14} className="text-purple-400" /> Permanent Education No (PEN)
+              </span>
+              <p className="text-lg font-mono font-bold text-purple-300">
+                {erp.penNumber || "PEN-2026-990142"}
+              </p>
+              <span className="text-[10px] text-gray-500 block">Ministry of Education (Govt of India) National PEN</span>
+            </div>
+
+            {/* Card: School House & Biometric RFID */}
+            <div className="p-6 rounded-3xl bg-[#0c0f1d] border border-white/10 space-y-2">
+              <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1.5">
+                <Award size={14} className="text-yellow-400" /> School House & RFID Smart Card
+              </span>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={formData.house}
+                  onChange={(e) => handleChange("house", e.target.value)}
+                  className="w-full bg-white/5 border border-white/20 rounded-xl px-3.5 py-2.5 text-sm text-white font-bold focus:outline-none focus:border-indigo-500"
+                />
+              ) : (
+                <p className="text-lg font-bold text-white">
+                  {formData.house} • <span className="text-xs text-gray-400 font-mono">RFID: {erp.biometricCardId || "RFID-0679"}</span>
+                </p>
+              )}
+              <span className="text-[10px] text-gray-500 block">Gate entry and campus RFID tag ID</span>
+            </div>
+          </motion.div>
+        )}
+
+        {/* TAB 2: ACADEMIC & ENROLLMENT */}
+        {activeTab === "academic" && (
+          <motion.div
+            key="academic"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="space-y-6"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Standard / Class */}
+              <div className="p-6 rounded-3xl bg-[#0c0f1d] border border-white/10 space-y-2">
+                <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1.5">
+                  <GraduationCap size={14} className="text-indigo-400" /> Class / Standard
+                </span>
+                {isEditing ? (
+                  <select
+                    value={formData.standard}
+                    onChange={(e) => handleChange("standard", e.target.value)}
+                    className="w-full bg-white/5 border border-white/20 rounded-xl px-3.5 py-2.5 text-sm text-white font-bold focus:outline-none focus:border-indigo-500"
+                  >
+                    {["Class 6", "Class 7", "Class 8", "Class 9", "Class 10", "Class 11", "Class 12"].map((s) => (
+                      <option key={s} value={s} className="bg-gray-900">{s}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-xl font-bold text-white">{formData.standard}</p>
+                )}
+                <span className="text-[10px] text-gray-500 block">Academic cohort grade level</span>
+              </div>
+
+              {/* Section & Roll No */}
+              <div className="p-6 rounded-3xl bg-[#0c0f1d] border border-white/10 space-y-2">
+                <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1.5">
+                  <Layers size={14} className="text-blue-400" /> Section & Roll Number
+                </span>
+                {isEditing ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Section"
+                      value={formData.section}
+                      onChange={(e) => handleChange("section", e.target.value)}
+                      className="bg-white/5 border border-white/20 rounded-xl px-3 py-2.5 text-sm text-white font-bold focus:outline-none focus:border-indigo-500"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Roll No"
+                      value={formData.rollNumber}
+                      onChange={(e) => handleChange("rollNumber", e.target.value)}
+                      className="bg-white/5 border border-white/20 rounded-xl px-3 py-2.5 text-sm text-white font-bold focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                ) : (
+                  <p className="text-xl font-bold text-white">
+                    Section {formData.section} • Roll #{formData.rollNumber}
+                  </p>
+                )}
+                <span className="text-[10px] text-gray-500 block">Class roster seat index</span>
+              </div>
+
+              {/* Board, Medium & Stream */}
+              <div className="p-6 rounded-3xl bg-[#0c0f1d] border border-white/10 space-y-2">
+                <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1.5">
+                  <BookOpen size={14} className="text-emerald-400" /> Board, Medium & Stream
+                </span>
+                {isEditing ? (
+                  <div className="space-y-2">
+                    <select
+                      value={formData.board}
+                      onChange={(e) => handleChange("board", e.target.value)}
+                      className="w-full bg-white/5 border border-white/20 rounded-xl px-3 py-2 text-xs text-white font-bold focus:outline-none focus:border-indigo-500"
+                    >
+                      {["CBSE", "GSEB", "ICSE", "IB"].map((b) => (
+                        <option key={b} value={b} className="bg-gray-900">{b}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={formData.stream}
+                      onChange={(e) => handleChange("stream", e.target.value)}
+                      className="w-full bg-white/5 border border-white/20 rounded-xl px-3 py-2 text-xs text-white font-bold focus:outline-none focus:border-indigo-500"
+                    >
+                      {["General Academic", "Commerce Stream", "Science Stream (PCM)", "Science Stream (PCB)", "Arts & Humanities"].map((st) => (
+                        <option key={st} value={st} className="bg-gray-900">{st}</option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <p className="text-base font-bold text-white">
+                    {formData.board} • {formData.medium} • {formData.stream}
+                  </p>
+                )}
+                <span className="text-[10px] text-gray-500 block">Curriculum affiliation</span>
+              </div>
+            </div>
+
+            {/* Core Enrolled Subjects */}
+            <div className="p-6 rounded-3xl bg-[#0c0f1d] border border-white/10 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase text-gray-300 tracking-wider flex items-center gap-2">
+                  <BookOpen size={16} className="text-indigo-400" /> Enrolled Subjects in Official Curriculum
+                </span>
+                <span className="text-[10px] bg-indigo-500/10 text-indigo-400 px-3 py-1 rounded-full border border-indigo-500/20 font-bold">
+                  {erp.aiLearningContext?.enrolledSubjectCodes?.length || 5} Subjects Mapped
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2.5">
+                {(erp.aiLearningContext?.enrolledSubjectCodes || [
+                  "Accountancy & Financial Statements",
+                  "Business Studies & Management",
+                  "Economics",
+                  "Mathematics & Statistics",
+                  "Physical Education & Sports",
+                  "Computer Science (Python & SQL)"
+                ]).map((sub: string, idx: number) => (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-2 bg-white/5 border border-white/10 hover:border-indigo-500/40 px-4 py-2.5 rounded-2xl text-xs font-bold text-gray-200 transition-colors"
+                  >
+                    <CheckCircle2 size={14} className="text-emerald-400" />
+                    {sub}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* TAB 3: PARENTS & EMERGENCY */}
+        {activeTab === "parents" && (
+          <motion.div
+            key="parents"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-6"
+          >
+            {/* Father's Information */}
+            <div className="p-6 sm:p-8 rounded-3xl bg-[#0c0f1d] border border-white/10 space-y-5">
+              <div className="flex items-center gap-3 pb-3 border-b border-white/10">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold">
+                  <User size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Father's Information</h3>
+                  <span className="text-[10px] text-gray-400">Primary legal guardian details</span>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block mb-1">
+                    Father's Full Name
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={formData.fatherName}
+                      onChange={(e) => handleChange("fatherName", e.target.value)}
+                      className="w-full bg-white/5 border border-white/20 rounded-xl px-3.5 py-2.5 text-sm text-white font-bold focus:outline-none focus:border-indigo-500"
+                    />
+                  ) : (
+                    <p className="text-base font-bold text-white capitalize">{formData.fatherName || "Sanjaybhai Savaliya"}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block mb-1">
+                    Father's Mobile / WhatsApp Phone
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={formData.fatherPhone}
+                      onChange={(e) => handleChange("fatherPhone", e.target.value)}
+                      className="w-full bg-white/5 border border-white/20 rounded-xl px-3.5 py-2.5 text-sm text-white font-bold focus:outline-none focus:border-indigo-500"
+                    />
+                  ) : (
+                    <a
+                      href={`tel:${formData.fatherPhone}`}
+                      className="inline-flex items-center gap-2 text-base font-bold text-indigo-400 hover:underline"
+                    >
+                      <Phone size={14} />
+                      {formData.fatherPhone || "+91 98250 11223"}
+                    </a>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block mb-1">
+                    Father's Occupation
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={formData.fatherOccupation}
+                      onChange={(e) => handleChange("fatherOccupation", e.target.value)}
+                      className="w-full bg-white/5 border border-white/20 rounded-xl px-3.5 py-2.5 text-sm text-white font-bold focus:outline-none focus:border-indigo-500"
+                    />
+                  ) : (
+                    <p className="text-sm font-semibold text-gray-300 flex items-center gap-1.5">
+                      <Briefcase size={14} className="text-gray-400" />
+                      {formData.fatherOccupation || "Senior Software Architect"}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Mother's Information */}
+            <div className="p-6 sm:p-8 rounded-3xl bg-[#0c0f1d] border border-white/10 space-y-5">
+              <div className="flex items-center gap-3 pb-3 border-b border-white/10">
+                <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold">
+                  <User size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Mother's Information</h3>
+                  <span className="text-[10px] text-gray-400">Secondary legal guardian details</span>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block mb-1">
+                    Mother's Full Name
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={formData.motherName}
+                      onChange={(e) => handleChange("motherName", e.target.value)}
+                      className="w-full bg-white/5 border border-white/20 rounded-xl px-3.5 py-2.5 text-sm text-white font-bold focus:outline-none focus:border-indigo-500"
+                    />
+                  ) : (
+                    <p className="text-base font-bold text-white capitalize">{formData.motherName || "Sunita K. Patel"}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block mb-1">
+                    Mother's Mobile Phone
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={formData.motherPhone}
+                      onChange={(e) => handleChange("motherPhone", e.target.value)}
+                      className="w-full bg-white/5 border border-white/20 rounded-xl px-3.5 py-2.5 text-sm text-white font-bold focus:outline-none focus:border-indigo-500"
+                    />
+                  ) : (
+                    <a
+                      href={`tel:${formData.motherPhone}`}
+                      className="inline-flex items-center gap-2 text-base font-bold text-purple-400 hover:underline"
+                    >
+                      <Phone size={14} />
+                      {formData.motherPhone || "+91 98250 11224"}
+                    </a>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block mb-1">
+                    Mother's Occupation
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={formData.motherOccupation}
+                      onChange={(e) => handleChange("motherOccupation", e.target.value)}
+                      className="w-full bg-white/5 border border-white/20 rounded-xl px-3.5 py-2.5 text-sm text-white font-bold focus:outline-none focus:border-indigo-500"
+                    />
+                  ) : (
+                    <p className="text-sm font-semibold text-gray-300 flex items-center gap-1.5">
+                      <Briefcase size={14} className="text-gray-400" />
+                      {formData.motherOccupation || "Assistant Professor"}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Emergency Alerts & Registered Email */}
+            <div className="p-6 rounded-3xl bg-[#0c0f1d] border border-white/10 md:col-span-2 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <span className="text-xs font-black uppercase text-gray-300 tracking-wider flex items-center gap-2">
+                  <Mail size={16} className="text-indigo-400" /> Registered Email & SMS Emergency Alerts
+                </span>
+                <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20 font-bold">
+                  Verified Contact Channel
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <span className="text-[10px] text-gray-400 font-bold block mb-1">Primary School Registered Email</span>
+                  <p className="text-sm font-bold text-white font-mono">{formData.primaryEmail}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-400 font-bold block mb-1">Primary Emergency Phone</span>
+                  <p className="text-sm font-bold text-indigo-400">{formData.primaryEmergencyPhone || formData.fatherPhone}</p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* TAB 4: ADDRESS & TRANSPORT */}
+        {activeTab === "address" && (
+          <motion.div
+            key="address"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-6"
+          >
+            {/* Residential Address */}
+            <div className="p-6 sm:p-8 rounded-3xl bg-[#0c0f1d] border border-white/10 space-y-4">
+              <div className="flex items-center gap-3 pb-3 border-b border-white/10">
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold">
+                  <MapPin size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Residential Address</h3>
+                  <span className="text-[10px] text-gray-400">Official student residential coordinates</span>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block mb-1">
+                    Street Address & Bungalow/Flat No
+                  </label>
+                  {isEditing ? (
+                    <textarea
+                      rows={3}
+                      value={formData.street}
+                      onChange={(e) => handleChange("street", e.target.value)}
+                      className="w-full bg-white/5 border border-white/20 rounded-xl px-3.5 py-2.5 text-sm text-white font-bold focus:outline-none focus:border-indigo-500"
+                    />
+                  ) : (
+                    <p className="text-sm font-medium text-gray-200 leading-relaxed">
+                      {formData.street || "42, Sunrise Bungalows, Near Infocity, Sector 7"}
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block mb-1">
+                      City
+                    </label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={formData.city}
+                        onChange={(e) => handleChange("city", e.target.value)}
+                        className="w-full bg-white/5 border border-white/20 rounded-xl px-3 py-2 text-xs text-white font-bold focus:outline-none focus:border-indigo-500"
+                      />
+                    ) : (
+                      <p className="text-sm font-bold text-white">{formData.city}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block mb-1">
+                      State
+                    </label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={formData.state}
+                        onChange={(e) => handleChange("state", e.target.value)}
+                        className="w-full bg-white/5 border border-white/20 rounded-xl px-3 py-2 text-xs text-white font-bold focus:outline-none focus:border-indigo-500"
+                      />
+                    ) : (
+                      <p className="text-sm font-bold text-white">{formData.state}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block mb-1">
+                      Pincode
+                    </label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={formData.postalCode}
+                        onChange={(e) => handleChange("postalCode", e.target.value)}
+                        className="w-full bg-white/5 border border-white/20 rounded-xl px-3 py-2 text-xs text-white font-bold focus:outline-none focus:border-indigo-500"
+                      />
+                    ) : (
+                      <p className="text-sm font-mono font-bold text-indigo-400">{formData.postalCode}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* School Transport & Hostel Facility */}
+            <div className="p-6 sm:p-8 rounded-3xl bg-[#0c0f1d] border border-white/10 space-y-4">
+              <div className="flex items-center gap-3 pb-3 border-b border-white/10">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
+                  <Bus size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Campus Facilities & Transport</h3>
+                  <span className="text-[10px] text-gray-400">School bus route and accommodation</span>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block mb-1">
+                    School Bus Route Allocation
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={formData.busRouteId}
+                      onChange={(e) => handleChange("busRouteId", e.target.value)}
+                      className="w-full bg-white/5 border border-white/20 rounded-xl px-3.5 py-2.5 text-sm text-white font-bold focus:outline-none focus:border-indigo-500"
+                    />
+                  ) : (
+                    <div className="flex items-center gap-2 text-base font-bold text-white">
+                      <Bus size={18} className="text-amber-400" />
+                      {formData.busRouteId}
+                    </div>
+                  )}
+                  <span className="text-[10px] text-gray-500 block mt-1">Equipped with GPS & RFID reader</span>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block mb-1">
+                    Hostel Accommodation Facility
+                  </label>
+                  {isEditing ? (
+                    <div className="flex items-center gap-4 pt-1">
+                      <label className="flex items-center gap-2 cursor-pointer text-xs font-bold">
+                        <input
+                          type="checkbox"
+                          checked={formData.optHostel}
+                          onChange={(e) => handleChange("optHostel", e.target.checked)}
+                          className="w-4 h-4 rounded text-indigo-600 focus:ring-0"
+                        />
+                        Opt for Campus Residential Hostel
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-base font-bold text-white">
+                      <Home size={18} className="text-purple-400" />
+                      {formData.optHostel ? "Hostel Resident" : "Day Scholar (Commuter)"}
+                    </div>
+                  )}
+                  <span className="text-[10px] text-gray-500 block mt-1">Hostel block & mess allocation status</span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* TAB 5: UPLOADED CERTIFICATES */}
+        {activeTab === "documents" && (
+          <motion.div
+            key="documents"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="space-y-4"
+          >
+            <div className="p-6 rounded-3xl bg-[#0c0f1d] border border-white/10 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <FileText size={18} className="text-indigo-400" /> Official Registration Certificates & Documents
+                  </h3>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Verified original documents deposited during student admission
+                  </p>
+                </div>
+                <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20 font-bold">
+                  {erp.documents?.length || 5} Documents in School Vault
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+                {(erp.documents?.length ? erp.documents : [
+                  {
+                    code: "BIRTH_CERTIFICATE",
+                    name: "Municipal Birth Certificate",
+                    fileName: "birth_certificate_mayur.pdf",
+                    status: "VERIFIED",
+                    fileUrl: "https://images.unsplash.com/photo-1568667256549-094345857637?w=800&auto=format&fit=crop&q=80"
+                  },
+                  {
+                    code: "MARKSHEET",
+                    name: "Previous Class 10 Marksheet",
+                    fileName: "class10_marksheet_92pct.pdf",
+                    status: "VERIFIED",
+                    fileUrl: "https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=800&auto=format&fit=crop&q=80"
+                  },
+                  {
+                    code: "AADHAAR_CARD",
+                    name: "Student Aadhaar Card (Masked)",
+                    fileName: "aadhaar_card_masked.jpg",
+                    status: "VERIFIED",
+                    fileUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80"
+                  },
+                  {
+                    code: "GOVT_AFFILIATION",
+                    name: "School Transfer / Migration Cert",
+                    fileName: "cbse_migration_cert.pdf",
+                    status: "VERIFIED",
+                    fileUrl: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=800&auto=format&fit=crop&q=80"
+                  },
+                  {
+                    code: "PASSPORT_PHOTO",
+                    name: "Official Student Passport Photo",
+                    fileName: "passport_photo.png",
+                    status: "VERIFIED",
+                    fileUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=80"
+                  }
+                ]).map((doc: any, i: number) => (
+                  <div
+                    key={i}
+                    className="p-5 rounded-2xl bg-white/5 border border-white/5 hover:border-indigo-500/40 transition-all flex flex-col justify-between space-y-4 group"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="p-3 rounded-xl bg-indigo-600/20 text-indigo-400 group-hover:scale-105 transition-transform">
+                        <FileText size={20} />
+                      </div>
+                      <span
+                        className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                          doc.status === "VERIFIED"
+                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                            : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                        }`}
+                      >
+                        {doc.status || "VERIFIED"}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-bold text-white group-hover:text-indigo-400 transition-colors">
+                        {doc.name || doc.code}
+                      </h4>
+                      <p className="text-[11px] text-gray-500 font-mono mt-1 truncate">
+                        {doc.fileName || "document_certificate.pdf"}
+                      </p>
+                    </div>
+
+                    {doc.fileUrl && (
+                      <a
+                        href={doc.fileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 font-bold"
+                      >
+                        <ExternalLink size={12} />
+                        View Document
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

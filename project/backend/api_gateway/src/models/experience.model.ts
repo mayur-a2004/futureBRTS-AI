@@ -12,4 +12,4 @@ const ExperienceSchema = new mongoose.Schema({
 // Index for fast retrieval of patterns
 ExperienceSchema.index({ type: 1, timestamp: -1 });
 
-export default mongoose.model('Experience', ExperienceSchema);
+export default mongoose.models.Experience || mongoose.model('Experience', ExperienceSchema);

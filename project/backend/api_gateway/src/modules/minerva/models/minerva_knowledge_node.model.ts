@@ -89,7 +89,7 @@ const OfficialDownloadLink = new Schema({
 
 const MinervaKnowledgeNodeSchema = new Schema({
     session_id: { type: Schema.Types.ObjectId, ref: 'MinervaStudySession', required: true },
-    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: false },
     title: { type: String, required: true },
     chapter: { type: String, default: '' },
     topic: { type: String, default: '' },

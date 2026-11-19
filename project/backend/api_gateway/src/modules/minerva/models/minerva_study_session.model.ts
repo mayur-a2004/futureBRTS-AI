@@ -26,7 +26,7 @@ export interface IMinervaStudySession extends Document {
 }
 
 const MinervaStudySessionSchema = new Schema({
-    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: false },
     title: { type: String, required: true },
     subject: { type: String, default: '' },
     board: { type: String, default: 'cbse' },

@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import { TenantController } from './tenant.controller';
+import { TeacherPortalController } from './teacher_portal.controller';
 
 const router = Router();
 
 router.post('/register', TenantController.register);
+router.post('/teacher/register', TeacherPortalController.registerTeacher);
 router.post('/verify-token', TenantController.verifyToken);
 router.post('/test-webhook', TenantController.testWebhook);
 router.post('/grade-homework', TenantController.gradeHomework);

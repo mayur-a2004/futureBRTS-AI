@@ -9,6 +9,11 @@ export interface ITenantUser extends Document {
   email?: string;
   role: TenantUserRole;
   grade?: string;
+  section?: string;
+  stream?: string;
+  board?: string;
+  medium?: string;
+  udiseCode?: string;
   subject?: string;
   assignedClasses?: string[];
   assignedSubjects?: string[];
@@ -36,9 +41,14 @@ const TenantUserSchema = new Schema<ITenantUser>(
       default: 'STUDENT' 
     },
     grade: { type: String, default: '' },
+    section: { type: String, default: '' },
+    stream: { type: String, default: '' },
+    board: { type: String, default: '' },
+    medium: { type: String, default: '' },
+    udiseCode: { type: String, default: '' },
     subject: { type: String, default: '' },
-    assignedClasses: { type: [String], default: ['CLASS-10A', 'CLASS-11B'] },
-    assignedSubjects: { type: [String], default: ['Mathematics', 'Science'] },
+    assignedClasses: { type: [String], default: [] },
+    assignedSubjects: { type: [String], default: [] },
     isSchoolStudent: { type: Boolean, default: false },
     schoolName: { type: String, default: '' },
     classId: { type: String, default: '' },

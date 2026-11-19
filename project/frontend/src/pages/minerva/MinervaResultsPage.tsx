@@ -22,26 +22,26 @@ const MinervaResultsPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (token) {
-            loadResults();
-        }
+        loadResults();
     }, [token]);
 
     const loadResults = async () => {
         setLoading(true);
         try {
-            const [examsRes, profileRes] = await Promise.all([
-                minervaApi.getExams(token),
-                minervaApi.getProfile(token),
-            ]);
-            
-            if (examsRes.success) {
-                // Filter only submitted/completed exams for results dashboard
-                const completed = (examsRes.exams || []).filter((e: any) => e.status === 'submitted');
-                setExams(completed);
-            }
-            if (profileRes.success) {
-                setProfile(profileRes.profile);
+            if (token) {
+                const [examsRes, profileRes] = await Promise.all([
+                    minervaApi.getExams(token),
+                    minervaApi.getProfile(token),
+                ]);
+                
+                if (examsRes.success) {
+                    // Filter only submitted/completed exams for results dashboard
+                    const completed = (examsRes.exams || []).filter((e: any) => e.status === 'submitted');
+                    setExams(completed);
+                }
+                if (profileRes.success) {
+                    setProfile(profileRes.profile);
+                }
             }
         } catch (err) {
             console.error("Failed to load results data:", err);

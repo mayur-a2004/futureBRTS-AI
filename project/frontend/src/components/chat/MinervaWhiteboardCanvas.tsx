@@ -200,7 +200,7 @@ export const MinervaWhiteboardCanvas: React.FC<MinervaWhiteboardCanvasProps> = (
   const [scrollY, setScrollY] = useState(0);
   const activeSteps = buildDynamicSteps(initialTitle, solutionSteps);
   const [activeStepIdx, setActiveStepIdx] = useState(0);
-  const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
+  const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
   const [writingCharCount, setWritingCharCount] = useState(0);
   const [isWritingCompleted, setIsWritingCompleted] = useState(false);
   const [showCalc, setShowCalc] = useState(false);
@@ -211,6 +211,26 @@ export const MinervaWhiteboardCanvas: React.FC<MinervaWhiteboardCanvasProps> = (
   const [selectedStamp, setSelectedStamp] = useState<SyllabusToolItem | null>(null);
 
   const COLORS = ["#ffffff", "#6366f1", "#38bdf8", "#4ade80", "#f43f5e", "#fbbf24", "#a855f7", "#f97316"];
+
+  const speakText = useCallback((text: string) => {
+    if (!text || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      const cleaned = text.replace(/[\*#`_]/g, "").replace(/Step \d+:/gi, "").trim();
+      if (!cleaned) return;
+      const utterance = new SpeechSynthesisUtterance(cleaned);
+      utterance.rate = 0.95;
+      utterance.pitch = 1.0;
+      const voices = window.speechSynthesis.getVoices();
+      const preferredVoice = voices.find(v => 
+        v.lang.includes("hi") || v.lang.includes("IN") || v.name.includes("India") || v.name.includes("Google")
+      );
+      if (preferredVoice) utterance.voice = preferredVoice;
+      window.speechSynthesis.speak(utterance);
+    } catch (err) {
+      console.warn("Speech synthesis error:", err);
+    }
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -232,6 +252,12 @@ export const MinervaWhiteboardCanvas: React.FC<MinervaWhiteboardCanvasProps> = (
     if (!step) return;
     setWritingCharCount(0);
     setIsWritingCompleted(false);
+
+    // Speak explanation immediately on step change if voice enabled
+    if (isVoiceEnabled) {
+      speakText(step.explanation);
+    }
+
     let i = 0;
     const t = setInterval(() => {
       i++;
@@ -239,11 +265,10 @@ export const MinervaWhiteboardCanvas: React.FC<MinervaWhiteboardCanvasProps> = (
       if (i >= step.latexOrFormula.length) {
         clearInterval(t);
         setIsWritingCompleted(true);
-        if (isVoiceEnabled) speakExplanation(step.explanation);
       }
     }, 22);
     return () => clearInterval(t);
-  }, [activeStepIdx, boardMode, isOpen]);
+  }, [activeStepIdx, boardMode, isOpen, isVoiceEnabled, speakText]);
 
   useEffect(() => {
     if (boardMode === "ai_solution") setScrollY(Math.max(0, (activeStepIdx - 1) * 145));
@@ -945,11 +970,23 @@ export const MinervaWhiteboardCanvas: React.FC<MinervaWhiteboardCanvasProps> = (
           {boardMode === "ai_solution" && currentStep && (
             <div className="absolute bottom-2 left-2 right-2 bg-[#0B0915]/95 border border-indigo-500/30 rounded-xl p-2.5 backdrop-blur-xl shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0 w-full sm:w-auto">
-                <div className="p-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg shrink-0">
-                  <Volume2 size={12} className="animate-pulse" />
-                </div>
+                <button
+                  onClick={() => {
+                    const nextVoice = !isVoiceEnabled;
+                    setIsVoiceEnabled(nextVoice);
+                    if (nextVoice && currentStep) {
+                      speakText(currentStep.explanation);
+                    } else if (typeof window !== "undefined" && "speechSynthesis" in window) {
+                      window.speechSynthesis.cancel();
+                    }
+                  }}
+                  className={`p-2 rounded-xl border transition-all shrink-0 ${isVoiceEnabled ? "bg-indigo-600/30 border-indigo-500/50 text-indigo-300 shadow-md" : "bg-white/5 border-white/10 text-gray-500 hover:text-white"}`}
+                  title={isVoiceEnabled ? "Voice Enabled (Click to Mute/Replay)" : "Voice Muted (Click to Enable)"}
+                >
+                  {isVoiceEnabled ? <Volume2 size={15} className="animate-pulse" /> : <VolumeX size={15} />}
+                </button>
                 <div className="min-w-0">
-                  <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest block">AI Teacher Explanation</span>
+                  <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest block">AI Teacher Explanation (Voice Active)</span>
                   <p className="text-[11px] font-medium text-gray-200 truncate sm:whitespace-normal">"{currentStep.explanation}"</p>
                 </div>
               </div>

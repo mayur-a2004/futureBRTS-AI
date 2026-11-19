@@ -12,6 +12,7 @@ export interface IUser extends Document {
     age?: number;
     grade?: number;            // Class 6-12 — for quiz battle grade matching
     schoolName?: string;       // e.g. "DPS Gandhinagar" — for school leaderboard
+    udiseCode?: string;        // e.g. "24070101501" — official Govt UDISE Code
     city?: string;             // e.g. "Gandhinagar" — for city-wise leaderboard
     tenantOrgId?: string;      // e.g. "mount_carmel_school"
     educationType?: 'k12' | 'higher_ed' | 'competitive';
@@ -66,7 +67,7 @@ export interface IUser extends Document {
             website?: string;
         };
     };
-    role: 'user' | 'admin' | 'teacher';
+    role: 'user' | 'admin' | 'teacher' | 'STUDENT' | 'TEACHER';
     status: 'active' | 'inactive' | 'suspended';
     tokenBalance: number;
     isPremium: boolean;
@@ -76,6 +77,7 @@ export interface IUser extends Document {
     adConsumptionCount: number;
     lastActiveAt: Date;
     lastDailyChallengePlayedAt?: Date; // To track daily challenge limit
+    isTeacher?: boolean;
     teacherDetails?: {
         schoolName?: string;
         teacherId?: string;
@@ -84,6 +86,11 @@ export interface IUser extends Document {
         roleInSchool?: string;
         gender?: string;
         whatsappNumber?: string;
+        assignedClasses?: string[];
+        assignedSubjects?: string[];
+        assignedBoards?: string[];
+        assignedMediums?: string[];
+        assignedSchools?: string[];
     };
     lastIpAddress?: string;
     registeredIpAddress?: string;
@@ -106,16 +113,17 @@ const UserSchema: Schema = new Schema({
     passwordHash: { type: String },
     dateOfBirth: { type: Date },
     age: { type: Number },
-    grade: { type: Number, default: 10 },          // Class 6-12
+    grade: { type: Number },          // Class 6-12
     schoolName: { type: String, default: '' },      // "DPS Gandhinagar"
-    city: { type: String, default: 'Ahmedabad' },
-    tenantOrgId: { type: String, default: 'mount_carmel_school', index: true },
+    udiseCode: { type: String, default: '', index: true },       // "24070101501"
+    city: { type: String, default: '' },
+    tenantOrgId: { type: String, default: '', index: true },
     educationType: { type: String, enum: ['k12', 'higher_ed', 'competitive'], default: 'k12' },
-    board: { type: String, default: 'CBSE' },
-    standard: { type: String, default: '10' },
-    section: { type: String, default: 'A' },
-    stream: { type: String, default: 'Science' },
-    medium: { type: String, default: 'english' },
+    board: { type: String, default: '' },
+    standard: { type: String, default: '' },
+    section: { type: String, default: '' },
+    stream: { type: String, default: '' },
+    medium: { type: String, default: '' },
     mobile_number: { type: String, default: '' },
     rollNumber: { type: String, default: '' },
     enrollmentNo: { type: String, default: '' },
@@ -161,7 +169,7 @@ const UserSchema: Schema = new Schema({
             website: { type: String }
         }
     },
-    role: { type: String, enum: ['user', 'admin', 'teacher'], default: 'user' },
+    role: { type: String, enum: ['user', 'admin', 'teacher', 'student', 'TEACHER', 'STUDENT'], default: 'STUDENT' },
     status: { type: String, enum: ['active', 'inactive', 'suspended'], default: 'active' },
     tokenBalance: { type: Number, default: 1000 }, // 1000 for new users as requested
     isPremium: { type: Boolean, default: false },
@@ -176,12 +184,18 @@ const UserSchema: Schema = new Schema({
     resetPasswordExpiry: { type: Date },
     teacherDetails: {
         schoolName: { type: String, default: '' },
+        udiseCode: { type: String, default: '' },
         teacherId: { type: String, default: '' },
         schoolAddress: { type: String, default: '' },
         subject: { type: String, default: '' },
         roleInSchool: { type: String, default: '' },
         gender: { type: String, default: '' },
-        whatsappNumber: { type: String, default: '' }
+        whatsappNumber: { type: String, default: '' },
+        assignedClasses: { type: [String], default: [] },
+        assignedSubjects: { type: [String], default: [] },
+        assignedMediums: { type: [String], default: [] },
+        assignedBoards: { type: [String], default: [] },
+        assignedSchools: { type: [String], default: [] }
     },
     lastIpAddress: { type: String, default: '' },
     registeredIpAddress: { type: String, default: '' },

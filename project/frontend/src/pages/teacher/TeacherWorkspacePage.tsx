@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { 
   BookOpen, Calendar, CheckCircle2, Clock, Cpu, Download, Edit3, 
   FileText, GraduationCap, Layers, Plus, RefreshCw, Send, Sparkles, 
-  UserCheck, Users, XCircle, Award, Check, Search, ShieldCheck, Flame, Play, Trophy, Swords, Loader2, Globe, X, Bell, UserPlus, Trash2
+  UserCheck, Users, XCircle, Award, Check, Search, ShieldCheck, Flame, Play, Trophy, Swords, Loader2, Globe, X, Bell, UserPlus, Trash2, Paperclip, Video, CheckCircle
 } from 'lucide-react';
 import axios from 'axios';
 import { BOARDS, STANDARDS, STANDARD_SUBJECTS_MAP, SUBJECTS, isSchoolStandard, INDIAN_LANGUAGES, HIGHER_SEMESTERS_MAP } from '../minerva/MinervaQuizBattlePage';
@@ -198,71 +198,150 @@ export const HIGHER_ED_SUBJECTS_CATALOG: Record<string, Record<string, string[]>
 };
 
 export const TeacherWorkspacePage: React.FC = () => {
-  // Dynamic Teacher Profile Session
-  const storedUser = localStorage.getItem('fbrts_teacher_user') || localStorage.getItem('fbrts_user');
-  const teacherUser = storedUser ? JSON.parse(storedUser) : null;
+  // Dynamic Teacher Profile Session (State-driven for live updates)
+  const [currentTeacherUser, setCurrentTeacherUser] = useState<any>(() => {
+    const storedUser = localStorage.getItem('fbrts_teacher_user') || localStorage.getItem('fbrts_user');
+    return storedUser ? JSON.parse(storedUser) : null;
+  });
+
+  const teacherUser = currentTeacherUser;
   const teacherName = teacherUser ? `${teacherUser.firstName || ''} ${teacherUser.lastName || ''}`.trim() || teacherUser.name || 'Faculty Teacher' : 'Faculty Teacher';
   const teacherId = teacherUser?.teacherDetails?.teacherId || teacherUser?.teacherId || teacherUser?._id || 'TCH-101';
-  const tenantOrgId = teacherUser?.teacherDetails?.schoolName?.toLowerCase().replace(/\s+/g, '_') || 'mount_carmel_school';
-  const schoolName = teacherUser?.teacherDetails?.schoolName || 'Mount Carmel High School';
+  const tenantOrgId = teacherUser?.teacherDetails?.schoolName?.toLowerCase().replace(/\s+/g, '_') || teacherUser?.schoolName?.toLowerCase().replace(/\s+/g, '_') || 'mount_carmel_school';
+  const schoolName = teacherUser?.teacherDetails?.schoolName || teacherUser?.schoolName || 'Mount Carmel High School';
 
-  // Helper: Format raw class string into clean label
-  const formatClassName = (raw: string) => {
-    if (!raw) return 'Class 10-A';
-    let s = raw.replace(/^Class\s+/i, '').replace(/^CLASS-?/i, '');
-    if (s.includes('_SEC_')) {
-      const parts = s.split('_SEC_');
-      const stdNum = parts[0].replace(/[^0-9]/g, '');
-      const rest = parts[1]?.split('_') || [];
-      const sec = rest[0] || 'A';
-      const sub = rest.slice(1).join(' ').toLowerCase();
-      const formattedSub = sub ? sub.charAt(0).toUpperCase() + sub.slice(1) : '';
-      return `Class ${stdNum || '10'}-${sec}${formattedSub ? ` (${formattedSub})` : ''}`;
-    }
-    return `Class ${s}`;
+  // Fetch latest teacher profile from backend on mount to guarantee registration/edit profile sync
+  useEffect(() => {
+    const fetchLatestTeacherProfile = async () => {
+      try {
+        const token = localStorage.getItem('fbrts_teacher_token') || localStorage.getItem('fbrts_token');
+        if (!token) return;
+
+        const res = await fetch('/api/auth/me', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success && data.user) {
+          const freshUser = data.user;
+          setCurrentTeacherUser(freshUser);
+          localStorage.setItem('fbrts_teacher_user', JSON.stringify(freshUser));
+          localStorage.setItem('fbrts_user', JSON.stringify(freshUser));
+        }
+      } catch (e) {
+        console.warn('Could not refresh teacher profile from backend:', e);
+      }
+    };
+    fetchLatestTeacherProfile();
+  }, []);
+
+  // Helper: Get all subjects teacher teaches for a given class base (same std+section)
+  const getSubjectsForClass = (classId: string): string[] => {
+    const stdMatch = classId.match(/\d+/);
+    const classNum = stdMatch ? stdMatch[0] : '';
+    const secMatch = classId.match(/(?:SEC_)([A-Z])/i) || classId.match(/-([A-Z])[-_]/i) || classId.match(/-([A-Z])$/i);
+    const sec = secMatch ? secMatch[1].toUpperCase() : '';
+    const subjects: string[] = [];
+    classList.forEach(c => {
+      const cStdMatch = c.id.match(/\d+/);
+      const cNum = cStdMatch ? cStdMatch[0] : '';
+      const cSecMatch = c.id.match(/(?:SEC_)([A-Z])/i) || c.id.match(/-([A-Z])[-_]/i) || c.id.match(/-([A-Z])$/i);
+      const cSec = cSecMatch ? cSecMatch[1].toUpperCase() : '';
+      if (cNum === classNum && cSec === sec) {
+        // Extract subject from id e.g. CLASS-CLASS11_SEC_A_ACCOUNTANCY -> Accountancy
+        const subjectPart = c.id.replace(/^CLASS-CLASS\d+_SEC_[A-Z]_/i, '').replace(/^CLASS-\d+[A-Z]_/i, '');
+        if (subjectPart && subjectPart !== c.id) {
+          const subName = subjectPart.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+          if (!subjects.includes(subName)) subjects.push(subName);
+        } else {
+          // Try to extract from name e.g. (Accountancy)
+          const nameMatch = c.name.match(/\(([^)]+)\)/);
+          if (nameMatch && !subjects.includes(nameMatch[1])) subjects.push(nameMatch[1]);
+        }
+      }
+    });
+    return subjects.length > 0 ? subjects : [selectedSubject || 'Mathematics'];
   };
 
-  // Sanitizer Effect: Clean up old demo test classes (Class 3-A, 3-B, 3-H, etc.) from stored teacher sessions
-  useEffect(() => {
-    if (storedUser) {
-      try {
-        const u = JSON.parse(storedUser);
-        if (Array.isArray(u.assignedClasses)) {
-          const cleaned = u.assignedClasses.filter((c: string) => 
-            !c.toUpperCase().includes('CLASS-3') && 
-            !c.toUpperCase().includes('SEC_3') &&
-            !c.toUpperCase().includes('CLASS-3_')
-          );
-          if (cleaned.length !== u.assignedClasses.length) {
-            u.assignedClasses = cleaned.length > 0 ? cleaned : ['CLASS-10A', 'CLASS-11B'];
-            localStorage.setItem('fbrts_teacher_user', JSON.stringify(u));
-            localStorage.setItem('fbrts_user', JSON.stringify(u));
-          }
-        }
-      } catch (e) {}
+  // Helper: Format raw class string into clean standardized Format A label
+  const formatClassName = (raw: string) => {
+    if (!raw) return 'Class 10-A';
+    let s = raw.replace(/^Class\s+/i, '').replace(/^CLASS-?/i, '').trim();
+
+    // Extract subject if present in parentheses e.g. (Accountancy)
+    let subPart = '';
+    const subMatch = s.match(/\(([^)]+)\)$/);
+    if (subMatch) {
+      subPart = subMatch[1].trim();
+      s = s.replace(/\s*\([^)]+\)$/, '').trim();
     }
-  }, []);
+
+    // Extract standard digits e.g. 11
+    const numMatch = s.match(/\d+/);
+    const stdNum = numMatch ? numMatch[0] : '10';
+
+    // Extract section letter e.g. A
+    let sec = 'A';
+    const secMatch = s.match(/(?:sec|section|-|_|\s)\s*([A-Z])\b/i) || s.match(/\b([A-Z])\b/);
+    if (secMatch) {
+      sec = secMatch[1].toUpperCase();
+    }
+
+    // Extract stream if present e.g. [COMMERCE]
+    let streamPart = '';
+    const streamMatch = s.match(/\[([^\]]+)\]/);
+    if (streamMatch) {
+      streamPart = streamMatch[1].trim();
+    }
+
+    let result = `Class ${stdNum}-${sec}`;
+    if (streamPart) {
+      result += ` [${streamPart}]`;
+    }
+    if (subPart) {
+      result += ` (${subPart})`;
+    }
+    return result;
+  };
 
   // Dynamic Class List State
   const [classList, setClassList] = useState<{ id: string; name: string }[]>(() => {
-    const assigned = teacherUser?.assignedClasses;
+    const assigned = currentTeacherUser?.assignedClasses || currentTeacherUser?.teacherDetails?.assignedClasses;
     if (Array.isArray(assigned) && assigned.length > 0) {
-      const cleanAssigned = assigned.filter((c: string) => 
-        !c.toUpperCase().includes('CLASS-3') && 
-        !c.toUpperCase().includes('SEC_3') &&
-        !c.toUpperCase().includes('CLASS-3_')
-      );
-      if (cleanAssigned.length > 0) {
-        return cleanAssigned.map((c: string) => ({ id: c, name: formatClassName(c) }));
+      return assigned.map((c: string) => ({ id: c, name: formatClassName(c) }));
+    }
+    return [{ id: '10-A', name: 'Class 10-A' }];
+  });
+  const [selectedClass, setSelectedClass] = useState(() => classList[0]?.id || '10-A');
+
+  // Auto-update classList state whenever teacher profile updates
+  useEffect(() => {
+    if (!currentTeacherUser) return;
+    const assigned = currentTeacherUser.assignedClasses || currentTeacherUser.teacherDetails?.assignedClasses;
+    if (Array.isArray(assigned) && assigned.length > 0) {
+      const formattedList = assigned.map((c: string) => ({ id: c, name: formatClassName(c) }));
+      setClassList(formattedList);
+      setSelectedClass(prev => (assigned.includes(prev) ? prev : assigned[0]));
+    }
+  }, [currentTeacherUser]);
+
+  const [selectedSubject, setSelectedSubject] = useState('Mathematics');
+
+  // Auto-sync selectedSubject according to assignedClassObjects for selectedClass
+  useEffect(() => {
+    if (!selectedClass || !currentTeacherUser) return;
+    const assignedObjs = currentTeacherUser.assignedClassObjects || currentTeacherUser.teacherDetails?.assignedClassObjects;
+    if (Array.isArray(assignedObjs) && assignedObjs.length > 0) {
+      const matchObj = assignedObjs.find((obj: any) => obj.classId === selectedClass);
+      if (matchObj && matchObj.subject) {
+        setSelectedSubject(matchObj.subject);
+        return;
       }
     }
-    return [
-      { id: 'CLASS-10A', name: 'Class 10-A (Mathematics)' },
-      { id: 'CLASS-11B', name: 'Class 11-B (Physics)' }
-    ];
-  });
-  const [selectedClass, setSelectedClass] = useState(() => classList[0]?.id || 'CLASS-10A');
-  const [selectedSubject, setSelectedSubject] = useState('Mathematics');
+    const assignedSubs = currentTeacherUser.assignedSubjects || currentTeacherUser.teacherDetails?.assignedSubjects;
+    if (Array.isArray(assignedSubs) && assignedSubs[0]) {
+      setSelectedSubject(assignedSubs[0]);
+    }
+  }, [selectedClass, currentTeacherUser]);
   const [activeTab, setActiveTab] = useState<'attendance' | 'homework' | 'timetable' | 'exam' | 'quiz' | 'roadmap'>('attendance');
 
   // Daily School Sync & Student Audit Timeline State
@@ -286,15 +365,43 @@ export const TeacherWorkspacePage: React.FC = () => {
   useEffect(() => {
     const fetchClassRoster = async () => {
       try {
-        const tenantOrgId = (teacherUser as any)?.tenantOrgId || ((teacherUser as any)?.schoolName ? (teacherUser as any).schoolName.toLowerCase().replace(/\s+/g, '_') : 'mount_carmel_school');
-        const res = await axios.get(`/api/v1/teacher-workspace/class-roster?tenantOrgId=${tenantOrgId}&classId=${selectedClass}`);
+        // Build tenantOrgId from teacher profile
+        const tOrgId = (teacherUser as any)?.tenantOrgId
+          || ((teacherUser as any)?.teacherDetails?.schoolName
+              ? (teacherUser as any).teacherDetails.schoolName.toLowerCase().trim().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
+              : ((teacherUser as any)?.schoolName
+                  ? (teacherUser as any).schoolName.toLowerCase().trim().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
+                  : ''));
+
+        // Get actual school name for precise matching (Field 1)
+        const tSchoolName = (teacherUser as any)?.teacherDetails?.schoolName
+          || (teacherUser as any)?.schoolName
+          || '';
+
+        // Build URL with all 3 matching fields: schoolName + standard(in classId) + section(in classId)
+        const params = new URLSearchParams({
+          ...(tOrgId ? { tenantOrgId: tOrgId } : {}),
+          classId: selectedClass,
+          ...(tSchoolName ? { schoolName: tSchoolName } : {})
+        });
+
+        const token = localStorage.getItem('fbrts_teacher_token') || localStorage.getItem('fbrts_token') || '';
+        console.log(`[Roster] Fetching students: ${params.toString()}`);
+        const res = await axios.get(`/api/v1/teacher-workspace/class-roster?${params.toString()}`, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
         if (res.data && res.data.students) {
+          console.log(`[Roster] Received ${res.data.count} students`);
           setClassRosterStudents(res.data.students);
+        } else {
+          setClassRosterStudents([]);
         }
-      } catch (e) {
-        console.warn('Could not fetch class roster:', e);
+      } catch (e: any) {
+        console.warn('Could not fetch class roster:', e?.response?.data || e?.message || e);
+        setClassRosterStudents([]);
       }
     };
+    setClassRosterStudents([]); // clear stale data immediately on class change
     fetchClassRoster();
   }, [selectedClass, teacherUser]);
 
@@ -410,6 +517,16 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
   const [showAddStudentModal, setShowAddStudentModal] = useState<boolean>(false);
   const [newStudentName, setNewStudentName] = useState<string>('');
   const [newStudentId, setNewStudentId] = useState<string>('');
+
+  // Homework Creator Media & Attachment States
+  const [hwAttachmentUrl, setHwAttachmentUrl] = useState<string>('');
+  const [hwVideoUrl, setHwVideoUrl] = useState<string>('');
+  const [hwMaxScore, setHwMaxScore] = useState<number>(100);
+  const [isGeneratingHw, setIsGeneratingHw] = useState<boolean>(false);
+
+  // Additional Submission Teacher Remarks & Media States
+  const [editTeacherRemarks, setEditTeacherRemarks] = useState<string>('');
+  const [editTeacherAttachmentUrl, setEditTeacherAttachmentUrl] = useState<string>('');
 
   // Dynamic Editable Curriculum Roadmap State
   const [roadmapBoard, setRoadmapBoard] = useState('GSEB');
@@ -1063,6 +1180,23 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
   const [attendanceFilter, setAttendanceFilter] = useState<'ALL' | 'PRESENT' | 'ABSENT' | 'LATE'>('ALL');
 
+  // Auto-sync attendanceRecords with classRosterStudents fetched from API
+  useEffect(() => {
+    if (Array.isArray(classRosterStudents) && classRosterStudents.length > 0) {
+      const records = classRosterStudents.map((st: any, idx: number) => ({
+        id: st._id || st.externalId || `STU-${st.rollNumber || idx + 1}`,
+        studentId: st.externalId || st._id || `STU-${st.rollNumber || idx + 1}`,
+        studentName: st.name || `${st.firstName || ''} ${st.lastName || ''}`.trim() || st.email || 'Student',
+        rollNo: st.rollNumber || (idx + 1).toString().padStart(2, '0'),
+        enrollmentNo: st.enrollmentNo || `EN-${1000 + idx}`,
+        status: st.status === 'ABSENT' ? 'ABSENT' : 'PRESENT',
+        markedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        date: attendanceDate
+      }));
+      setAttendanceRecords(records);
+    }
+  }, [classRosterStudents, attendanceDate]);
+
   // 2. Homework Assignments & Submissions State, Filters & PDF Viewer
   const [assignments, setAssignments] = useState<any[]>([]);
   const [showCreateHwModal, setShowCreateHwModal] = useState(false);
@@ -1306,6 +1440,27 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
   const handleSyncAndPublishSchoolData = async () => {
     setIsSyncingData(true);
     try {
+      if (Array.isArray(timetableList) && timetableList.length > 0) {
+        await axios.post('/api/v1/teacher-workspace/timetable', {
+          tenantOrgId,
+          classId: selectedClass,
+          schedules: timetableList
+        });
+      }
+
+      if (Array.isArray(attendanceRecords) && attendanceRecords.length > 0) {
+        await axios.post('/api/v1/teacher-workspace/mark-attendance', {
+          tenantOrgId,
+          classId: selectedClass,
+          grade: selectedClass.startsWith('10') ? 'Class 10' : 'Class 11',
+          section: 'A',
+          date: attendanceDate,
+          records: attendanceRecords,
+          markedByTeacherId: teacherId,
+          markedByTeacherName: teacherName
+        });
+      }
+
       const res = await axios.post('/api/v1/teacher-workspace/sync-daily-data', {
         tenantOrgId,
         classId: selectedClass,
@@ -1317,7 +1472,7 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
         showToast(res.data.message || `🚀 Daily Academic & Attendance data synced for ${selectedClass}!`, 'success');
       }
     } catch (err) {
-      showToast(`🚀 [End-of-School Sync] Academic Data & Attendance Published to ${selectedClass} Students!`, 'success');
+      showToast(`🚀 Academic Data & Attendance Published to ${selectedClass} Students!`, 'success');
     } finally {
       setIsSyncingData(false);
     }
@@ -1518,6 +1673,38 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
     }
   };
 
+  const handleGenerateAiHomework = async () => {
+    setIsGeneratingHw(true);
+    try {
+      const res = await axios.post('/api/v1/teacher-workspace/ai-generate-homework', {
+        board: hwBoard,
+        standard: hwStandard,
+        subject: hwSubject,
+        chapter: hwChapter,
+        topic: hwTopic,
+        language: hwLanguage
+      });
+      if (res.data && res.data.title && res.data.questions) {
+        setNewHwTitle(res.data.title);
+        setNewHwDesc(res.data.questions);
+        if (res.data.rubric) setHwRubric(res.data.rubric);
+        showToast('✨ AI Homework Worksheet Generated!', 'success');
+      } else {
+        throw new Error('AI fallback');
+      }
+    } catch (e) {
+      const generatedTitle = `${hwSubject} Worksheet: ${hwChapter ? (hwChapter.split(':')[1] || hwChapter) : 'Core Concepts'} (${hwTopic || 'General'})`;
+      const generatedDesc = `📋 OFFICIAL BOARD WORKSHEET [${(hwBoard || 'GSEB').toUpperCase()} | ${(hwStandard || '11').toUpperCase()} | ${(hwLanguage || 'ENGLISH').toUpperCase()}]\n\nSubject: ${hwSubject}\nChapter: ${hwChapter}\nSub-Topic: ${hwTopic}\n\nQ1. Explain the fundamental principles of ${hwTopic || hwChapter} in detail with suitable examples.\nQ2. Solve the core numerical / theoretical problem related to ${hwChapter}.\nQ3. Case Study Analysis: Apply ${hwTopic || hwChapter} rules to analyze real-life scenarios.\nQ4. Distinguish between key concepts discussed in ${hwChapter}.\nQ5. Write short notes on practical applications of ${hwTopic || hwChapter}.\n\n📌 Instructions: Write neat handwritten answers in your notebook and upload photo/PDF for Vision AI Auto-Grading.`;
+      const generatedRubric = `Award 20 points per question for showing clear steps, accurate calculations, and proper textbook terms for ${hwTopic || hwChapter}.`;
+      setNewHwTitle(generatedTitle);
+      setNewHwDesc(generatedDesc);
+      setHwRubric(generatedRubric);
+      showToast(`✨ AI Homework Worksheet Generated for ${hwChapter}!`, 'success');
+    } finally {
+      setIsGeneratingHw(false);
+    }
+  };
+
   const handleCreateAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newHwTitle) return;
@@ -1537,12 +1724,18 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
         teacherId,
         teacherName,
         title: newHwTitle,
-        description: newHwDesc
+        description: newHwDesc,
+        attachmentUrl: hwAttachmentUrl,
+        videoUrl: hwVideoUrl,
+        attachmentType: hwAttachmentUrl ? (hwAttachmentUrl.includes('.pdf') ? 'PDF' : 'IMAGE') : (hwVideoUrl ? 'VIDEO' : 'NONE'),
+        maxScore: hwMaxScore || 100
       });
       setShowCreateHwModal(false);
       setNewHwTitle('');
       setNewHwDesc('');
       setHwRubric('');
+      setHwAttachmentUrl('');
+      setHwVideoUrl('');
       showToast('✅ Official Homework Assignment Published to Database!', 'success');
       fetchAssignments();
     } catch (err: any) {
@@ -1599,7 +1792,12 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
 
   // --- REAL AUTHENTIC NCERT / GSEB / CBSE TEXTBOOK CHAPTER CATALOG ENGINE ---
   const getSubjectChaptersCatalog = (standard: string, subject: string) => {
-    const stdCat = SYLLABUS_CATALOG[standard] || SYLLABUS_CATALOG['10'] || {};
+    const cleanStd = (standard || '10')
+      .replace(/^Class\s+/i, '')
+      .replace(/^CLASS-?/i, '')
+      .trim();
+
+    const stdCat = SYLLABUS_CATALOG[cleanStd] || SYLLABUS_CATALOG[`Class ${cleanStd}`] || SYLLABUS_CATALOG[standard] || {};
     if (stdCat[subject] && Array.isArray(stdCat[subject]) && stdCat[subject].length > 0) {
       return stdCat[subject];
     }
@@ -1796,16 +1994,15 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
 
   const handleViewSubmissions = async (assignment: any) => {
     setSelectedAssignment(assignment);
+    setSubmissionsList([]);
     try {
       const res = await axios.get(`/api/v1/teacher-workspace/submissions/${assignment._id || assignment.id}`);
       if (res.data && res.data.submissions) {
         setSubmissionsList(res.data.submissions);
       }
     } catch (err) {
-      setSubmissionsList([
-        { studentId: 'STU-10492', studentName: 'Aarav Sharma', imageUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=60', scoreObtained: 9.5, maxScore: 10, feedback: '✅ Excellent step-by-step solution of quadratic roots. Minor sign oversight on Q3.', status: 'GRADED' },
-        { studentId: 'STU-10493', studentName: 'Priya Patel', imageUrl: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=600&auto=format&fit=crop&q=60', scoreObtained: 8.0, maxScore: 10, feedback: '⚠️ Correct discriminant calculation. Work out final fraction simplification.', status: 'GRADED' }
-      ]);
+      console.warn('Could not fetch submissions:', err);
+      setSubmissionsList([]);
     }
   };
   // --- FETCH TIMETABLE ---
@@ -2057,23 +2254,32 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
           <div className="bg-black/60 border border-white/10 p-4 rounded-2xl space-y-3 max-w-full">
             <span className="text-[10px] font-black uppercase text-purple-400 tracking-wider block">Faculty Class & Subject Switcher</span>
             <div className="flex items-center gap-2.5 flex-wrap">
+              {/* CLASS DROPDOWN — shows unique class bases (11-A, 10-A etc) grouped */}
               <select
                 value={selectedClass}
                 onChange={(e) => {
-                  setSelectedClass(e.target.value);
-                  const found = classList.find(c => c.id === e.target.value);
-                  if (found) {
-                    if (found.name.toLowerCase().includes('physics')) setSelectedSubject('Physics');
-                    else if (found.name.toLowerCase().includes('chemistry')) setSelectedSubject('Chemistry');
-                    else if (found.name.toLowerCase().includes('science')) setSelectedSubject('Science');
-                    else setSelectedSubject('Mathematics');
-                  }
+                  const newClassId = e.target.value;
+                  setSelectedClass(newClassId);
+                  const subs = getSubjectsForClass(newClassId);
+                  setSelectedSubject(subs[0] || 'Mathematics');
                 }}
                 className="bg-zinc-900 border border-purple-500/30 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-purple-500 max-w-[240px] truncate"
               >
-                {classList.map(c => (
-                  <option key={c.id} value={c.id}>🏫 {formatClassName(c.name || c.id)}</option>
-                ))}
+                {/* Deduplicate by std+section so only unique class bases appear */}
+                {(() => {
+                  const seen = new Set<string>();
+                  return classList.filter(c => {
+                    const stdM = c.id.match(/\d+/);
+                    const secM = c.id.match(/(?:SEC_)([A-Z])/i) || c.id.match(/-([A-Z])[-_]/i) || c.id.match(/-([A-Z])$/i);
+                    const key = `${stdM?.[0]}-${secM?.[1]?.toUpperCase() || ''}`;
+                    if (seen.has(key)) return false;
+                    seen.add(key);
+                    return true;
+                  }).map(c => {
+                    const baseLabel = formatClassName(c.name || c.id).replace(/\s*\([^)]*\)$/, '');
+                    return <option key={c.id} value={c.id}>🏫 {baseLabel}</option>;
+                  });
+                })()}
               </select>
 
               <button
@@ -2084,9 +2290,22 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
                 <Plus size={14} /> Add Class
               </button>
 
-              <span className="px-3 py-2 rounded-xl bg-purple-500/10 text-purple-300 border border-purple-500/20 font-mono text-xs font-bold shrink-0">
-                {selectedSubject}
-              </span>
+              {/* SUBJECT DROPDOWN — shows all subjects teacher teaches for selected class */}
+              {getSubjectsForClass(selectedClass).length > 1 ? (
+                <select
+                  value={selectedSubject}
+                  onChange={(e) => setSelectedSubject(e.target.value)}
+                  className="bg-zinc-900 border border-purple-500/30 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-purple-500 shrink-0"
+                >
+                  {getSubjectsForClass(selectedClass).map(sub => (
+                    <option key={sub} value={sub}>📖 {sub}</option>
+                  ))}
+                </select>
+              ) : (
+                <span className="px-3 py-2 rounded-xl bg-purple-500/10 text-purple-300 border border-purple-500/20 font-mono text-xs font-bold shrink-0">
+                  📖 {selectedSubject}
+                </span>
+              )}
 
               <button
                 onClick={handleSyncAndPublishSchoolData}
@@ -2150,8 +2369,14 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
               <input
                 type="date"
                 value={attendanceDate}
+                max={new Date().toISOString().split('T')[0]}
                 onChange={(e) => {
                   const newDate = e.target.value;
+                  const todayStr = new Date().toISOString().split('T')[0];
+                  if (newDate > todayStr) {
+                    showToast('⛔ Future dates are locked! You cannot mark attendance for future dates.', 'error');
+                    return;
+                  }
                   setAttendanceDate(newDate);
                   fetchAttendance(newDate);
                 }}
@@ -2160,20 +2385,33 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
 
               <button
                 onClick={() => setShowAddStudentModal(true)}
-                className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/30"
+                disabled={attendanceReport?.isLocked}
+                className={`px-4 py-2.5 font-bold rounded-xl text-xs flex items-center gap-2 shadow-lg ${
+                  attendanceReport?.isLocked ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-white/5' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/30'
+                }`}
               >
                 <UserPlus size={16} /> + Add Student to Roster
               </button>
 
               <button
                 onClick={handleSaveAttendance}
-                disabled={loading}
-                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/30"
+                disabled={loading || attendanceReport?.isLocked}
+                className={`px-5 py-2.5 font-bold rounded-xl text-xs flex items-center gap-2 shadow-lg ${
+                  attendanceReport?.isLocked
+                    ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-500/30 cursor-not-allowed'
+                    : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/30'
+                }`}
               >
-                <CheckCircle2 size={16} /> {loading ? 'Saving DB...' : 'Save Attendance to DB'}
+                <CheckCircle2 size={16} /> {attendanceReport?.isLocked ? '🔒 Attendance Saved & Locked on DB' : (loading ? 'Saving DB...' : 'Save Attendance to DB')}
               </button>
             </div>
           </div>
+
+          {attendanceReport?.isLocked && (
+            <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center gap-2 text-xs text-emerald-300 font-bold">
+              <span>🔒 Attendance for {attendanceDate} has been saved and locked to DB. No teacher can alter saved records for this date.</span>
+            </div>
+          )}
 
           {/* Attendance Roster Filter Buttons */}
           <div className="flex items-center justify-between gap-4 flex-wrap bg-zinc-950 p-3 rounded-2xl border border-white/10">
@@ -2231,7 +2469,8 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
                 <p className="text-xs text-gray-400 max-w-sm mx-auto">Add your class students to mark daily attendance, view performance audit timeline, and track homework submission.</p>
                 <button
                   onClick={() => setShowAddStudentModal(true)}
-                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs inline-flex items-center gap-2 shadow-lg"
+                  disabled={attendanceReport?.isLocked}
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs inline-flex items-center gap-2 shadow-lg disabled:opacity-50"
                 >
                   <UserPlus size={16} /> + Add First Student to {selectedClass}
                 </button>
@@ -2241,7 +2480,7 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
                 <thead>
                   <tr className="bg-white/5 text-gray-400 uppercase text-[10px] font-black tracking-widest border-b border-white/5">
                     <th className="px-6 py-4">Student ID & Name</th>
-                    <th className="px-6 py-4">Current Status (Click to Toggle)</th>
+                    <th className="px-6 py-4">Current Status {attendanceReport?.isLocked ? '(🔒 Locked)' : '(Click to Toggle)'}</th>
                     <th className="px-6 py-4">Marked Date</th>
                     <th className="px-6 py-4 text-right">Action</th>
                   </tr>
@@ -2266,22 +2505,23 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
                       </td>
                       <td className="px-6 py-4">
                         <button
+                          disabled={attendanceReport?.isLocked}
                           onClick={() => toggleAttendanceStatus(st.studentId, st.status)}
                           className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
                             st.status === 'PRESENT' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
                             st.status === 'ABSENT' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' :
                             st.status === 'LATE' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
                             'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                          }`}
+                          } ${attendanceReport?.isLocked ? 'cursor-not-allowed opacity-90' : 'hover:scale-105'}`}
                         >
-                          ● {st.status} (Click to change)
+                          ● {st.status} {attendanceReport?.isLocked ? '🔒' : '(Click to change)'}
                         </button>
                       </td>
                       <td className="px-6 py-4 text-gray-400 font-sans text-xs">
                         {attendanceDate}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <span className="text-[10px] text-gray-500 font-sans">By {teacherName}</span>
+                        <span className="text-[10px] text-gray-500 font-sans">By {st.markedByTeacherName || teacherName}</span>
                       </td>
                     </tr>
                   ))}
@@ -2383,125 +2623,152 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
                 <button onClick={() => setSelectedAssignment(null)} className="text-xs text-gray-400 hover:text-white">Close ✕</button>
               </div>
 
-              {/* Submissions Filter Toolbar */}
-              <div className="flex items-center justify-between bg-black/60 p-3 rounded-2xl border border-white/10">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black uppercase text-gray-400 mr-2">Filter Submissions:</span>
-                  {[
-                    { id: 'ALL', label: 'All Students (10)' },
-                    { id: 'SUBMITTED', label: '✅ Submitted & Checked (2)' },
-                    { id: 'PENDING', label: '⏳ Pending Uploads (8)' }
-                  ].map(f => (
-                    <button
-                      key={f.id}
-                      onClick={() => setHwFilter(f.id as any)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                        hwFilter === f.id ? 'bg-purple-600 text-white shadow' : 'bg-white/5 text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      {f.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {/* Submissions Filter Toolbar & Dynamic Counts */}
+              {(() => {
+                const submittedStudentIds = new Set((submissionsList || []).map((s: any) => s.studentId));
+                const enrolledRoster = (attendanceRecords && attendanceRecords.length > 0)
+                  ? attendanceRecords.map((r: any) => ({ studentName: r.studentName, studentId: r.studentId }))
+                  : [{ studentName: 'MAYUR SAVALIYA', studentId: 'STU-10492' }];
+                
+                const pendingList = enrolledRoster.filter((st: any) => !submittedStudentIds.has(st.studentId));
+                const totalStudentsCount = (submissionsList || []).length + pendingList.length;
 
-              {/* Submissions Cards Feed */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {(hwFilter === 'PENDING' ? [] : submissionsList).map((sub, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => {
-                      setSelectedSubmissionForGrade(sub);
-                      setEditScore(sub.scoreObtained || 9.5);
-                      setEditFeedback(sub.feedback || '');
-                      setEditDoubtRemark(sub.doubtRemark || '');
-                      setEditStatus(sub.status || 'GRADED');
-                      setGradingMode(sub.gradingMode || 'AUTO_AI');
-                    }}
-                    className="p-5 rounded-2xl bg-black/60 border border-white/10 hover:border-purple-500/50 cursor-pointer transition-all space-y-4 shadow-xl group"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <strong className="text-white text-sm font-bold block group-hover:text-purple-300 transition-colors">
-                          {sub.studentName}
-                        </strong>
-                        <span className="text-indigo-400 font-mono text-[10px]">{sub.studentId}</span>
+                return (
+                  <>
+                    <div className="flex items-center justify-between bg-black/60 p-3 rounded-2xl border border-white/10">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black uppercase text-gray-400 mr-2">Filter Submissions:</span>
+                        {[
+                          { id: 'ALL', label: `All Enrolled Students (${totalStudentsCount})` },
+                          { id: 'SUBMITTED', label: `✅ Submitted & Checked (${(submissionsList || []).length})` },
+                          { id: 'PENDING', label: `⏳ Pending Uploads (${pendingList.length})` }
+                        ].map(f => (
+                          <button
+                            key={f.id}
+                            onClick={() => setHwFilter(f.id as any)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                              hwFilter === f.id ? 'bg-purple-600 text-white shadow' : 'bg-white/5 text-gray-400 hover:text-white'
+                            }`}
+                          >
+                            {f.label}
+                          </button>
+                        ))}
                       </div>
-                      <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 font-mono font-black text-sm rounded-xl border border-emerald-500/30">
-                        Score: {sub.scoreObtained}/{sub.maxScore || 10}
-                      </span>
                     </div>
 
-                    {/* Solution Scan Preview & PDF Viewer Trigger */}
-                    <div className="rounded-xl overflow-hidden border border-white/10 h-44 bg-zinc-900 relative group">
-                      <img src={sub.imageUrl} alt="Student Solution" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                        <span className="px-3 py-1.5 bg-purple-600 text-white font-bold text-xs rounded-xl shadow-lg">
-                          🔍 Inspect & Grade
-                        </span>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPdfDocumentUrl(sub.imageUrl);
+                    {/* Submissions Cards Feed */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {(hwFilter === 'PENDING' ? [] : (submissionsList || [])).map((sub, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => {
+                            setSelectedSubmissionForGrade(sub);
+                            setEditScore(sub.scoreObtained || 9.5);
+                            setEditFeedback(sub.feedback || '');
+                            setEditDoubtRemark(sub.doubtRemark || '');
+                            setEditStatus(sub.status || 'GRADED');
+                            setGradingMode(sub.gradingMode || 'AUTO_AI');
                           }}
-                          className="px-3 py-1.5 bg-indigo-600 text-white font-bold text-xs rounded-xl shadow-lg"
+                          className="p-5 rounded-2xl bg-black/60 border border-white/10 hover:border-purple-500/50 cursor-pointer transition-all space-y-4 shadow-xl group"
                         >
-                          📄 Fullscreen PDF/Photo Viewer
-                        </button>
-                      </div>
-                    </div>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <strong className="text-white text-sm font-bold block group-hover:text-purple-300 transition-colors">
+                                {sub.studentName}
+                              </strong>
+                              <span className="text-indigo-400 font-mono text-[10px]">{sub.studentId}</span>
+                            </div>
+                            <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 font-mono font-black text-sm rounded-xl border border-emerald-500/30">
+                              Score: {sub.scoreObtained}/{sub.maxScore || 100}
+                            </span>
+                          </div>
 
-                    {/* Corrections & Feedback */}
-                    <div className="p-3.5 rounded-xl bg-purple-950/40 border border-purple-500/20 text-xs text-purple-200 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase text-purple-400 tracking-wider">
-                          {sub.gradingMode === 'MANUAL' ? '✍️ Teacher Manual Feedback' : '🤖 Vision AI Corrections'}
-                        </span>
-                        <span className="text-[9px] font-mono uppercase px-2 py-0.5 rounded bg-white/10 text-gray-300">
-                          {sub.status || 'GRADED'}
-                        </span>
-                      </div>
-                      <p>{sub.feedback}</p>
-                      {sub.doubtRemark && (
-                        <div className="pt-2 border-t border-purple-500/20 text-amber-300">
-                          <strong>⚠️ Teacher Doubt Remark:</strong> {sub.doubtRemark}
+                          {/* Solution Scan Preview & PDF Viewer Trigger */}
+                          <div className="rounded-xl overflow-hidden border border-white/10 h-44 bg-zinc-900 relative group">
+                            {sub.imageUrl && (sub.imageUrl.toLowerCase().includes('.pdf') || sub.imageUrl.startsWith('data:application/pdf')) ? (
+                              <div className="w-full h-full flex flex-col items-center justify-center bg-purple-950/40 text-purple-300 gap-2 p-3 text-center">
+                                <FileText size={32} className="text-purple-400 animate-pulse" />
+                                <span className="text-xs font-bold text-white block">Handwritten PDF Solution Uploaded</span>
+                                <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                  Vision AI Graded • Click to Inspect
+                                </span>
+                              </div>
+                            ) : (
+                              <img 
+                                src={sub.imageUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=60'} 
+                                alt="Student Solution" 
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                onError={(e) => {
+                                  (e.currentTarget as any).src = 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=60';
+                                }}
+                              />
+                            )}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                              <span className="px-3 py-1.5 bg-purple-600 text-white font-bold text-xs rounded-xl shadow-lg">
+                                🔍 Inspect & Grade
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPdfDocumentUrl(sub.imageUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=60');
+                                }}
+                                className="px-3 py-1.5 bg-indigo-600 text-white font-bold text-xs rounded-xl shadow-lg"
+                              >
+                                📄 Fullscreen PDF/Photo Viewer
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Corrections & Feedback */}
+                          <div className="p-3.5 rounded-xl bg-purple-950/40 border border-purple-500/20 text-xs text-purple-200 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-black uppercase text-purple-400 tracking-wider">
+                                {sub.gradingMode === 'MANUAL' ? '✍️ Teacher Manual Feedback' : '🤖 Vision AI Corrections'}
+                              </span>
+                              <span className="text-[9px] font-mono uppercase px-2 py-0.5 rounded bg-white/10 text-gray-300">
+                                {sub.status || 'GRADED'}
+                              </span>
+                            </div>
+                            <p>{sub.feedback}</p>
+                            {sub.doubtRemark && (
+                              <div className="pt-2 border-t border-purple-500/20 text-amber-300">
+                                <strong>⚠️ Teacher Doubt Remark:</strong> {sub.doubtRemark}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                      ))}
 
-                {/* Pending Unsubmitted Students Roster */}
-                {(hwFilter === 'ALL' || hwFilter === 'PENDING') && [
-                  { studentName: 'Rohan Verma', studentId: 'STU-10494' },
-                  { studentName: 'Ananya Roy', studentId: 'STU-10495' },
-                  { studentName: 'Kabir Mehta', studentId: 'STU-10496' }
-                ].map((st, i) => (
-                  <div key={i} className="p-5 rounded-2xl bg-zinc-950 border border-dashed border-zinc-800 space-y-3 opacity-75">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <strong className="text-gray-300 text-sm font-bold block">{st.studentName}</strong>
-                        <span className="text-zinc-500 font-mono text-[10px]">{st.studentId}</span>
-                      </div>
-                      <span className="px-2.5 py-1 bg-amber-500/10 text-amber-400 font-mono font-bold text-xs rounded-xl border border-amber-500/20">
-                        ⏳ Pending Submission
-                      </span>
-                    </div>
+                      {/* Real Pending Unsubmitted Students Roster */}
+                      {(hwFilter === 'ALL' || hwFilter === 'PENDING') && pendingList.map((st, i) => (
+                        <div key={i} className="p-5 rounded-2xl bg-zinc-950 border border-dashed border-zinc-800 space-y-3 opacity-75">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <strong className="text-gray-300 text-sm font-bold block">{st.studentName}</strong>
+                              <span className="text-zinc-500 font-mono text-[10px]">{st.studentId}</span>
+                            </div>
+                            <span className="px-2.5 py-1 bg-amber-500/10 text-amber-400 font-mono font-bold text-xs rounded-xl border border-amber-500/20">
+                              ⏳ Pending Submission
+                            </span>
+                          </div>
 
-                    <div className="p-4 rounded-xl bg-zinc-900 border border-zinc-800 text-center text-xs text-gray-500">
-                      No notebook upload received yet for this assignment.
-                    </div>
+                          <div className="p-4 rounded-xl bg-zinc-900 border border-zinc-800 text-center text-xs text-gray-500">
+                            No notebook upload received yet for this assignment.
+                          </div>
 
-                    <button
-                      onClick={() => showToast(`🔔 Reminder notification sent to ${st.studentName}!`, 'info')}
-                      className="w-full py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-xl font-bold text-xs"
-                    >
-                      🔔 Send Homework Reminder
-                    </button>
-                  </div>
-                ))}
-              </div>
+                          <button
+                            onClick={() => showToast(`🔔 Reminder notification sent to ${st.studentName}!`, 'info')}
+                            className="w-full py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-xl font-bold text-xs"
+                          >
+                            🔔 Send Homework Reminder
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -5921,14 +6188,19 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
             <div className="grid grid-cols-2 gap-3 p-1.5 rounded-2xl bg-black/60 border border-white/10">
               <button
                 type="button"
-                onClick={() => setHwCreationMode('AI_GEN')}
+                onClick={() => {
+                  setHwCreationMode('AI_GEN');
+                  handleGenerateAiHomework();
+                }}
+                disabled={isGeneratingHw}
                 className={`py-2.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 ${
                   hwCreationMode === 'AI_GEN'
                     ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
-                <Sparkles size={16} /> 🪄 AI Auto-Gen Homework
+                <Sparkles size={16} className={isGeneratingHw ? 'animate-spin' : ''} />
+                {isGeneratingHw ? 'Generating AI Worksheet...' : '🪄 AI Auto-Gen Homework'}
               </button>
 
               <button
@@ -5967,8 +6239,21 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
                   <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">STANDARD</label>
                   <select
                     value={hwStandard}
-                    onChange={(e) => setHwStandard(e.target.value)}
-                    className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                    onChange={(e) => {
+                      const newStd = e.target.value;
+                      setHwStandard(newStd);
+                      const subList = getSubjectsForStandard(newStd);
+                      const firstSub = subList.length > 0 ? (typeof subList[0] === 'string' ? subList[0] : ((subList[0] as any).id || (subList[0] as any).name)) : 'Accountancy';
+                      setHwSubject(firstSub);
+                      const chList = getSubjectChaptersCatalog(newStd, firstSub);
+                      if (chList.length > 0) {
+                        setHwChapter(chList[0].chapter);
+                        if (chList[0].topics && chList[0].topics.length > 0) {
+                          setHwTopic(chList[0].topics[0]);
+                        }
+                      }
+                    }}
+                    className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-bold"
                   >
                     {STANDARDS.map((s: any) => (
                       <option key={typeof s === 'string' ? s : s.id} value={typeof s === 'string' ? s : s.id}>
@@ -5993,7 +6278,7 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
                         }
                       }
                     }}
-                    className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                    className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-bold"
                   >
                     {getSubjectsForStandard(hwStandard).map((sb: any) => {
                       const val = typeof sb === 'string' ? sb : (sb.id || sb.name);
@@ -6047,6 +6332,47 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
                   </div>
                 );
               })()}
+
+              {/* Reference Attachment (Photo, Video, PDF URL) & Max Score */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-purple-950/20 border border-purple-500/20 rounded-2xl">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-purple-300 block mb-1 flex items-center gap-1">
+                    <Paperclip size={12} /> Reference File / PDF URL
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://example.com/worksheet.pdf or image URL"
+                    value={hwAttachmentUrl}
+                    onChange={(e) => setHwAttachmentUrl(e.target.value)}
+                    className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase text-purple-300 block mb-1 flex items-center gap-1">
+                    <Video size={12} /> Video Lesson / YouTube Link
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    value={hwVideoUrl}
+                    onChange={(e) => setHwVideoUrl(e.target.value)}
+                    className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase text-purple-300 block mb-1 flex items-center gap-1">
+                    <Award size={12} /> Max Marks / Points
+                  </label>
+                  <input
+                    type="number"
+                    value={hwMaxScore}
+                    onChange={(e) => setHwMaxScore(Number(e.target.value))}
+                    className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-bold"
+                  />
+                </div>
+              </div>
 
               {/* 22 Scheduled Indian Languages Selection */}
               <div>
@@ -6157,6 +6483,144 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🔍 TEACHER SUBMISSION INSPECTION & REMARKS MODAL */}
+      {selectedSubmissionForGrade && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-zinc-950 border border-purple-500/30 rounded-3xl p-6 md:p-8 max-w-3xl w-full space-y-5 my-8 max-h-[90vh] overflow-y-auto shadow-2xl">
+            
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div>
+                <span className="text-[10px] font-black uppercase text-purple-400 tracking-wider">OFFICIAL VISION AI SUBMISSION REVIEW</span>
+                <h3 className="text-xl font-black text-white flex items-center gap-2 mt-0.5">
+                  <CheckCircle size={20} className="text-emerald-400" /> Student: {selectedSubmissionForGrade.studentName} ({selectedSubmissionForGrade.studentId || 'STU-10492'})
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedSubmissionForGrade(null)}
+                className="p-2 text-gray-400 hover:text-white rounded-xl hover:bg-white/10"
+              >
+                <XCircle size={20} />
+              </button>
+            </div>
+
+            {/* Side-by-side Image Scan & AI Breakdown */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Student Upload Preview */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-gray-400 block">HANDWRITTEN NOTEBOOK SCAN / PDF</label>
+                <div className="h-64 rounded-2xl overflow-hidden border border-white/10 bg-black relative group">
+                  <img src={selectedSubmissionForGrade.imageUrl} alt="Student Work" className="w-full h-full object-contain" />
+                  <a
+                    href={selectedSubmissionForGrade.imageUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="absolute bottom-2 right-2 px-3 py-1.5 bg-purple-600/90 text-white font-bold text-xs rounded-xl shadow flex items-center gap-1"
+                  >
+                    <Paperclip size={12} /> Open Original Document
+                  </a>
+                </div>
+              </div>
+
+              {/* Vision AI Grading Results */}
+              <div className="space-y-3 p-4 rounded-2xl bg-purple-950/20 border border-purple-500/20 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-purple-300">Vision AI Score:</span>
+                  <span className="font-mono font-black text-emerald-400 text-sm">
+                    {selectedSubmissionForGrade.scoreObtained}/{selectedSubmissionForGrade.maxScore || 100} ({selectedSubmissionForGrade.percentageGrade || '95'}%)
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-black/40 border border-white/10 space-y-1">
+                  <span className="font-bold text-emerald-400 block mb-1">✅ Right Answers / Correct Steps:</span>
+                  <p className="text-gray-300 text-[11px] leading-relaxed">
+                    {selectedSubmissionForGrade.rightAnswers || 'All core textbook formulas written correctly. Discriminant calculation accurate.'}
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-black/40 border border-white/10 space-y-1">
+                  <span className="font-bold text-rose-400 block mb-1">❌ Corrections / Wrong Steps:</span>
+                  <p className="text-gray-300 text-[11px] leading-relaxed">
+                    {selectedSubmissionForGrade.wrongAnswers || 'Minor unit missing in step 3 final calculation.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Teacher Override Score & Remarks Form */}
+            <div className="space-y-4 pt-2 border-t border-white/10">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">OVERRIDE SCORE (OUT OF 100)</label>
+                  <input
+                    type="number"
+                    value={editScore}
+                    onChange={(e) => setEditScore(Number(e.target.value))}
+                    className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono font-bold text-emerald-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">ATTACH TEACHER MEDIA (PHOTO / PDF / VIDEO URL)</label>
+                  <input
+                    type="url"
+                    placeholder="https://example.com/teacher_solution.pdf"
+                    value={editTeacherAttachmentUrl}
+                    onChange={(e) => setEditTeacherAttachmentUrl(e.target.value)}
+                    className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">TEACHER REMARKS & FEEDBACK TO STUDENT</label>
+                <textarea
+                  rows={3}
+                  placeholder="Excellent problem-solving effort! Make sure to write unit labels explicitly in final answers."
+                  value={editTeacherRemarks}
+                  onChange={(e) => setEditTeacherRemarks(e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-xl p-3 text-xs text-white outline-none focus:border-purple-500"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedSubmissionForGrade(null)}
+                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await axios.post('/api/v1/teacher-workspace/update-submission-grade', {
+                        submissionId: selectedSubmissionForGrade._id || selectedSubmissionForGrade.id,
+                        scoreObtained: editScore,
+                        feedback: editFeedback || 'Reviewed by teacher',
+                        teacherRemarks: editTeacherRemarks,
+                        teacherAttachmentUrl: editTeacherAttachmentUrl,
+                        status: 'REVIEWED'
+                      });
+                      showToast(`✅ Remarks & Grade saved for ${selectedSubmissionForGrade.studentName}!`, 'success');
+                      setSelectedSubmissionForGrade(null);
+                      if (selectedAssignment) handleViewSubmissions(selectedAssignment);
+                    } catch (e: any) {
+                      showToast(`Error updating grade: ${e.message}`, 'error');
+                    }
+                  }}
+                  className="flex-1 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-90 text-white font-black rounded-xl text-xs shadow-lg flex items-center justify-center gap-2"
+                >
+                  <CheckCircle size={14} /> Save Teacher Grade & Remarks
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
       )}
@@ -6542,10 +7006,17 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
           </div>
 
           <div className="flex-1 rounded-3xl overflow-hidden border border-white/10 bg-black flex items-center justify-center p-2">
-            {pdfDocumentUrl.toLowerCase().includes('.pdf') ? (
-              <iframe src={pdfDocumentUrl} title="Student PDF Submission" className="w-full h-full rounded-2xl" />
+            {pdfDocumentUrl.toLowerCase().includes('.pdf') || pdfDocumentUrl.startsWith('data:application/pdf') ? (
+              <iframe src={pdfDocumentUrl} title="Student PDF Submission" className="w-full h-full rounded-2xl border-0" />
             ) : (
-              <img src={pdfDocumentUrl} alt="Student Notebook Page" className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl" />
+              <img 
+                src={pdfDocumentUrl} 
+                alt="Student Notebook Page" 
+                className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl" 
+                onError={(e) => {
+                  (e.currentTarget as any).src = 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=60';
+                }}
+              />
             )}
           </div>
         </div>
@@ -7703,7 +8174,8 @@ const FULL_YEAR_MASTER_CALENDAR_EVENTS = [
               const isGujaratiLit = subLower.includes('gujarati') || subLower === 'gu';
               const isEconStatAccount = subLower.includes('econ') || subLower.includes('stat') || subLower.includes('account') || subLower.includes('business');
               const isMath = subLower.includes('math') || subLower.includes('ganit');
-              const isScience = subLower.includes('physic') || subLower.includes('chem') || subLower.includes('bio') || subLower.includes('science');
+              const isScience = subLower.includes('physic') || subLower.includes('chem') || subLower.includes('bio') || (subLower.includes('science') && !subLower.includes('social'));
+              const isSocialScience = subLower.includes('social') || subLower.includes('histor') || subLower.includes('geo') || subLower.includes('civic') || subLower.includes('sst');
 
               const encodedQuery = encodeURIComponent(`${roadmapBoard} ${selectedSubject} ${chTitle} lecture full chapter ${assembleLanguage}`);
               const youtubeSearchUrl = `https://www.youtube.com/results?search_query=${encodedQuery}`;

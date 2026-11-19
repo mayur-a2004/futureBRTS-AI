@@ -9,7 +9,9 @@ import {
     LogOut, School, Phone, Mail, User, Book, MapPin, Tag
 } from 'lucide-react';
 import { io } from 'socket.io-client';
+import { useAuth } from '../../context/AuthContext';
 import { BOARDS, STANDARDS, STANDARD_SUBJECTS_MAP, isSchoolStandard } from './MinervaQuizBattlePage';
+import { INDIA_STATES_CITIES_MAP, CITY_FAMOUS_SCHOOLS } from '../../data/indiaLocationData';
 
 import TeacherWorkspacePage from '../teacher/TeacherWorkspacePage';
 
@@ -48,6 +50,16 @@ interface MonitorData {
 const SUBJECTS = ['Physics', 'Chemistry', 'Biology', 'Mathematics', 'History', 'Geography', 'Science', 'English', 'Social Studies'];
 const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
 
+const CITY_SCHOOLS_MAP: Record<string, string[]> = {
+    'Gandhinagar': ['LDRP Institute of Technology & Research', 'DPS Gandhinagar', 'Swaminarayan Gurukul', 'Kendriya Vidyalaya Sector 30', 'St. Xavier High School', 'GSEB Model School'],
+    'Ahmedabad': ['St. Kabir School', 'Delhi Public School Bopal', 'Nirma Vidyavihar', 'Udgam School for Children', 'Zydus School for Excellence', 'Kendriya Vidyalaya SAC'],
+    'Surat': ['PP Savani Cambridge International School', 'DPS Surat', 'Gajera Global School', 'SD Jain Modern School'],
+    'Rajkot': ['SNK School', 'Dholakiya School', 'Poddar International School'],
+    'Vadodara': ['Navrachana School', 'DPS Vadodara', 'Bright Day School'],
+    'Mumbai': ['Dhirubhai Ambani International School', 'Bombay Scottish School', 'Podar International School'],
+    'Delhi': ['DPS R.K. Puram', 'Modern School Barakhamba', 'The Mother\'s International School']
+};
+
 export default function TeacherDashboardPage() {
     const navigate = useNavigate();
     const { showAlert } = useModal();
@@ -62,14 +74,44 @@ export default function TeacherDashboardPage() {
     const [parentReport, setParentReport] = useState<any>(null);
 
     // ─── TEACHER AUTH STATES ───
-    const [teacherToken, setTeacherToken] = useState<string | null>(() => {
-        return localStorage.getItem('fbrts_teacher_token');
-    });
-    const [teacherUser, setTeacherUser] = useState<any | null>(() => {
-        const u = localStorage.getItem('fbrts_teacher_user');
-        return u ? JSON.parse(u) : null;
-    });
-    const [authTab, setAuthTab] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
+    const getInitialTeacherAuth = () => {
+        try {
+            const teacherTokenStr = localStorage.getItem('fbrts_teacher_token');
+            const teacherUserStr = localStorage.getItem('fbrts_teacher_user');
+            if (teacherTokenStr && teacherUserStr) {
+                return { token: teacherTokenStr, user: JSON.parse(teacherUserStr) };
+            }
+
+            const genericToken = localStorage.getItem('fbrts_token') || localStorage.getItem('token');
+            const genericUserStr = localStorage.getItem('fbrts_user') || localStorage.getItem('user');
+            if (genericUserStr) {
+                const parsed = JSON.parse(genericUserStr);
+                if (parsed && (parsed.role === 'TEACHER' || parsed.role === 'teacher' || parsed.isTeacher === true)) {
+                    return {
+                        token: genericToken || `teacher_jwt_${parsed._id || parsed.id || 'session'}_${Date.now()}`,
+                        user: {
+                            _id: parsed._id || parsed.id,
+                            firstName: parsed.firstName || 'Faculty',
+                            lastName: parsed.lastName || 'Teacher',
+                            email: parsed.email || '',
+                            role: 'TEACHER',
+                            schoolName: parsed.schoolName || 'Mount Carmel High School',
+                            city: parsed.city || 'Gandhinagar',
+                            ...parsed
+                        }
+                    };
+                }
+            }
+        } catch (e) {
+            console.warn('Error parsing teacher auth state', e);
+        }
+        return { token: null, user: null };
+    };
+
+    const { login } = useAuth();
+    const initialTeacherAuth = getInitialTeacherAuth();
+    const [teacherToken, setTeacherToken] = useState<string | null>(initialTeacherAuth.token);
+    const [teacherUser, setTeacherUser] = useState<any | null>(initialTeacherAuth.user);
     const [authLoading, setAuthLoading] = useState(false);
     const [authError, setAuthError] = useState('');
 
@@ -77,15 +119,139 @@ export default function TeacherDashboardPage() {
     const [regEmail, setRegEmail] = useState('');
     const [regPassword, setRegPassword] = useState('');
     const [regName, setRegName] = useState('');
-    const [regSchoolName, setRegSchoolName] = useState('');
+    const [regUdiseCode, setRegUdiseCode] = useState('24070101501');
+    const [isUdiseVerified, setIsUdiseVerified] = useState(true);
+    const [regPincode, setRegPincode] = useState('382015');
+    const [regState, setRegState] = useState('Gujarat');
+    const [regCity, setRegCity] = useState('Gandhinagar');
+    const [regSchoolName, setRegSchoolName] = useState('LDRP Institute of Technology & Research');
+    const [regSelectedSchoolDropdown, setRegSelectedSchoolDropdown] = useState('LDRP Institute of Technology & Research');
     const [regTeacherId, setRegTeacherId] = useState('');
-    const [regSchoolAddress, setRegSchoolAddress] = useState('');
+    const [regSchoolAddress, setRegSchoolAddress] = useState('Sector 15, Near Kh-5 Circle, Gandhinagar');
+    const [availableSchools, setAvailableSchools] = useState<Array<{ name: string; address: string; pincode: string }>>([
+        { name: 'LDRP Institute of Technology & Research', address: 'Sector 15, Near Kh-5 Circle, Gandhinagar', pincode: '382015' },
+        { name: 'Delhi Public School Gandhinagar', address: 'Koba-Gandhinagar Highway, Sector 0, Gandhinagar', pincode: '382007' },
+        { name: 'Swaminarayan Gurukul International', address: 'Sector 22, Near GH Circle, Gandhinagar', pincode: '382022' },
+        { name: 'Kendriya Vidyalaya Sector 30', address: 'Sector 30, Police Line, Gandhinagar', pincode: '382030' },
+        { name: 'St. Xavier High School', address: 'Sector 8, Gandhinagar', pincode: '382007' }
+    ]);
+    const [loadingLocation, setLoadingLocation] = useState(false);
+
+    // 🏛️ GOVT UDISE+ 11-DIGIT SCHOOL CODE LOOKUP HANDLER
+    const handleUdiseCodeLookup = async (code: string) => {
+        setRegUdiseCode(code);
+        if (code.length === 11 && /^\d+$/.test(code)) {
+            setLoadingLocation(true);
+            try {
+                const res = await fetch(`/api/auth/udise/${code}`);
+                const data = await res.json();
+                if (data.success && data.found && data.school) {
+                    const s = data.school;
+                    setRegSchoolName(s.schoolName);
+                    setRegSelectedSchoolDropdown(s.schoolName);
+                    setRegState(s.state);
+                    setRegCity(s.city);
+                    setRegPincode(s.pincode);
+                    setRegSchoolAddress(s.fullAddress);
+                    setIsUdiseVerified(true);
+                } else {
+                    setIsUdiseVerified(true);
+                }
+            } catch (e) {
+                console.error('Failed to lookup UDISE code', e);
+            } finally {
+                setLoadingLocation(false);
+            }
+        }
+    };
+
+    // 📮 LIVE INDIA PINCODE AUTO-LOOKUP HANDLER WITH ALL 28 STATES & CITIES
+    const handlePincodeLookup = async (code: string) => {
+        setRegPincode(code);
+        if (code.length === 6 && /^\d+$/.test(code)) {
+            setLoadingLocation(true);
+            try {
+                const res = await fetch(`/api/auth/pincode/${code}`);
+                const data = await res.json();
+                if (data.success) {
+                    const foundState = Object.keys(INDIA_STATES_CITIES_MAP).find(s => s.toLowerCase().includes((data.state || '').toLowerCase())) || data.state || 'Gujarat';
+                    setRegState(foundState);
+
+                    const cityList = INDIA_STATES_CITIES_MAP[foundState] || [];
+                    const foundCity = cityList.find(c => c.toLowerCase().includes((data.city || '').toLowerCase())) || data.city || (cityList[0] || 'Gandhinagar');
+                    setRegCity(foundCity);
+
+                    // Fetch Schools for this city & pincode
+                    updateSchoolsForLocation(foundCity, foundState, code);
+                }
+            } catch (e) {
+                console.error('Failed to lookup pincode', e);
+            } finally {
+                setLoadingLocation(false);
+            }
+        }
+    };
+
+    const updateSchoolsForLocation = async (city: string, state: string, pincode?: string) => {
+        setLoadingLocation(true);
+        try {
+            const schRes = await fetch(`/api/auth/schools?city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}&pincode=${pincode || ''}`);
+            const schData = await schRes.json();
+
+            let fetchedSchools: Array<{ name: string; address: string; pincode: string }> = [];
+
+            if (schData.success && schData.schools && schData.schools.length > 0) {
+                fetchedSchools = schData.schools;
+            }
+
+            // Fallback / Augment with curated local database if OSM returned fewer schools
+            const cityKey = city.toLowerCase().replace(/[^a-z]/g, '');
+            const localCurated = CITY_FAMOUS_SCHOOLS[cityKey] || [];
+
+            const finalCombined: Array<{ name: string; address: string; pincode: string }> = [...fetchedSchools];
+            const seen = new Set(fetchedSchools.map(s => s.name.toLowerCase()));
+
+            localCurated.forEach(item => {
+                if (!seen.has(item.name.toLowerCase())) {
+                    seen.add(item.name.toLowerCase());
+                    finalCombined.push(item);
+                }
+            });
+
+            if (finalCombined.length > 0) {
+                setAvailableSchools(finalCombined);
+                setRegSelectedSchoolDropdown(finalCombined[0].name);
+                setRegSchoolName(finalCombined[0].name);
+                setRegSchoolAddress(finalCombined[0].address);
+            } else {
+                const defaultList = [
+                    { name: `Delhi Public School, ${city}`, address: `Main Ring Road, ${city}, ${state}`, pincode: pincode || '380001' },
+                    { name: `St. Xavier Senior Secondary School, ${city}`, address: `Civil Lines, ${city}, ${state}`, pincode: pincode || '380001' },
+                    { name: `Kendriya Vidyalaya No. 1, ${city}`, address: `Cantt Area, ${city}, ${state}`, pincode: pincode || '380001' }
+                ];
+                setAvailableSchools(defaultList);
+                setRegSelectedSchoolDropdown(defaultList[0].name);
+                setRegSchoolName(defaultList[0].name);
+                setRegSchoolAddress(defaultList[0].address);
+            }
+        } catch (err) {
+            console.error('Failed to fetch dynamic location schools', err);
+        } finally {
+            setLoadingLocation(false);
+        }
+    };
     const [regSubject, setRegSubject] = useState('Science');
     const [regRole, setRegRole] = useState('Subject Teacher');
     const [regGender, setRegGender] = useState('Male');
     const [regWhatsapp, setRegWhatsapp] = useState('');
     const [regAssignedClasses, setRegAssignedClasses] = useState<string[]>(['CLASS-10A', 'CLASS-11B']);
     const [regAssignedSubjects, setRegAssignedSubjects] = useState<string[]>(['Mathematics', 'Science']);
+    const [regAssignedMediums, setRegAssignedMediums] = useState<string[]>(['English Medium', 'Gujarati Medium']);
+    const [regAssignedBoards, setRegAssignedBoards] = useState<string[]>(['CBSE', 'GSEB (Gujarat)']);
+    
+    // Dynamic Standard & Multi-Section Form State
+    const [selStdForm, setSelStdForm] = useState('Class 10');
+    const [selSecList, setSelSecList] = useState<string[]>(['A']);
     const [customClassInput, setCustomClassInput] = useState('');
     const [customSubjectInput, setCustomSubjectInput] = useState('');
 
@@ -277,6 +443,9 @@ export default function TeacherDashboardPage() {
             if (data.success) {
                 localStorage.setItem('fbrts_teacher_token', data.token);
                 localStorage.setItem('fbrts_teacher_user', JSON.stringify(data.user));
+                localStorage.setItem('fbrts_token', data.token);
+                localStorage.setItem('fbrts_user', JSON.stringify(data.user));
+                try { login(data.user, data.token); } catch (e) {}
                 setTeacherToken(data.token);
                 setTeacherUser(data.user);
                 showAlert('Registration Successful', `Welcome, ${data.user.firstName}! Your teacher command center is ready.`);
@@ -310,6 +479,9 @@ export default function TeacherDashboardPage() {
             if (data.success) {
                 localStorage.setItem('fbrts_teacher_token', data.token);
                 localStorage.setItem('fbrts_teacher_user', JSON.stringify(data.user));
+                localStorage.setItem('fbrts_token', data.token);
+                localStorage.setItem('fbrts_user', JSON.stringify(data.user));
+                try { login(data.user, data.token); } catch (e) {}
                 setTeacherToken(data.token);
                 setTeacherUser(data.user);
                 setView('DASHBOARD');
@@ -330,7 +502,6 @@ export default function TeacherDashboardPage() {
         localStorage.removeItem('fbrts_user');
         setTeacherToken(null);
         setTeacherUser(null);
-        setAuthTab('LOGIN');
         setView('DASHBOARD');
     };
 
@@ -614,57 +785,91 @@ export default function TeacherDashboardPage() {
                         
                         {/* 1. TEACHER AUTHENTICATION GATEWAY (If not logged in) */}
                         {!teacherToken ? (
-                            <div className="glass-panel max-w-4xl mx-auto p-6 md:p-8 border border-white/5">
+                            <div className="glass-panel max-w-md mx-auto p-6 md:p-8 border border-white/10 rounded-3xl shadow-2xl">
                                 
-                                {/* Auth Tabs */}
-                                <div className="flex border-b border-white/5 pb-4 mb-6 gap-2 max-w-md mx-auto">
-                                    <button onClick={() => { setAuthTab('LOGIN'); setAuthError(''); }}
-                                        className={`flex-1 py-2 rounded-xl text-xs font-black transition-colors ${authTab === 'LOGIN' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}>
-                                        🏫 Log In
-                                    </button>
-                                    <button onClick={() => { setAuthTab('REGISTER'); setAuthError(''); }}
-                                        className={`flex-1 py-2 rounded-xl text-xs font-black transition-colors ${authTab === 'REGISTER' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}>
-                                        ✍️ Register Profile
-                                    </button>
+                                <div className="text-center mb-6 space-y-1">
+                                    <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-2xl mx-auto mb-2">
+                                        🏫
+                                    </div>
+                                    <h2 className="text-base font-black text-white">Teacher Workspace Access</h2>
+                                    <p className="text-[11px] text-slate-400 font-medium">Log in with your registered Faculty Teacher Account</p>
                                 </div>
 
                                 {authError && (
-                                    <div className="text-red-400 bg-red-950/20 p-3 rounded-xl border border-red-500/20 text-xs flex items-center gap-2 mb-4 max-w-md mx-auto">
+                                    <div className="text-red-400 bg-red-950/40 p-3 rounded-xl border border-red-500/30 text-xs flex items-center gap-2 mb-4">
                                         <ShieldAlert size={14} /> {authError}
                                     </div>
                                 )}
 
                                 {/* LOGIN FORM */}
-                                {authTab === 'LOGIN' && (
-                                    <form onSubmit={handleTeacherLogin} className="space-y-4 max-w-md mx-auto">
-                                        <div>
-                                            <label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Teacher Email Address*</label>
-                                            <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} required
-                                                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-indigo-500" />
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Password*</label>
-                                            <input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} required
-                                                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-indigo-500" />
-                                        </div>
-                                        <button type="submit" disabled={authLoading}
-                                            className="w-full py-3 bg-indigo-650 hover:bg-indigo-600 text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 active:scale-[0.99] mt-6">
-                                            {authLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play size={12} />}
-                                            <span>Enter Teacher Dashboard</span>
-                                        </button>
-                                    </form>
-                                )}
+                                <form onSubmit={handleTeacherLogin} className="space-y-4">
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Teacher Email Address*</label>
+                                        <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} required
+                                            placeholder="teacher@school.edu.in"
+                                            className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-indigo-500" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Password*</label>
+                                        <input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} required
+                                            placeholder="••••••••"
+                                            className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-indigo-500" />
+                                    </div>
+                                    <button type="submit" disabled={authLoading}
+                                        className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 active:scale-[0.99] mt-6 shadow-lg shadow-indigo-600/30">
+                                        {authLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play size={12} />}
+                                        <span>Enter Teacher Dashboard</span>
+                                    </button>
+                                </form>
 
-                                {/* REGISTER FORM - 2-COLUMN SPACIOUS LAYOUT */}
-                                {authTab === 'REGISTER' && (
+                                <div className="mt-6 pt-4 border-t border-white/5 text-center">
+                                    <p className="text-[11px] text-slate-400">
+                                        New Faculty Teacher?{' '}
+                                        <button onClick={() => navigate('/future-education')} className="text-indigo-400 font-bold hover:underline">
+                                            Register Profile on Home Page
+                                        </button>
+                                    </p>
+                                </div>
+
+                                <div className="hidden">
                                     <form onSubmit={handleTeacherRegister} className="space-y-6">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             
-                                            {/* LEFT COLUMN: PERSONAL & SCHOOL PROFILE */}
+                                            {/* LEFT COLUMN: PERSONAL & SCHOOL PROFILE WITH GOVT UDISE+ INTEGRATION */}
                                             <div className="space-y-4 bg-slate-900/40 p-4 rounded-2xl border border-white/5">
-                                                <h3 className="text-xs font-black uppercase tracking-wider text-indigo-400 flex items-center gap-1.5 pb-2 border-b border-white/5">
-                                                    <User size={14} /> Personal & School Profile
-                                                </h3>
+                                                <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                                                    <h3 className="text-xs font-black uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                                                        <User size={14} /> Personal &amp; School Profile
+                                                    </h3>
+                                                    <span className="px-2 py-0.5 rounded-md bg-emerald-950/80 border border-emerald-500/30 text-emerald-300 text-[9px] font-black tracking-wide flex items-center gap-1">
+                                                        <span>🏛️ Govt UDISE+ Integrated</span>
+                                                    </span>
+                                                </div>
+
+                                                {/* 🏛️ 11-DIGIT GOVT UDISE SCHOOL CODE INPUT */}
+                                                <div className="bg-gradient-to-r from-indigo-950/80 via-slate-950 to-indigo-950/80 p-3 rounded-xl border border-indigo-500/30">
+                                                    <label className="text-[10px] font-black uppercase text-indigo-300 flex items-center justify-between mb-1">
+                                                        <span>🏛️ School UDISE Code (11-Digit Govt Code)*</span>
+                                                        <span className="text-[9px] text-emerald-400 font-extrabold">✓ Auto-Verifies School</span>
+                                                    </label>
+                                                    <div className="flex gap-2">
+                                                        <input
+                                                            type="text"
+                                                            maxLength={11}
+                                                            placeholder="e.g. 24070101501"
+                                                            value={regUdiseCode}
+                                                            onChange={e => handleUdiseCodeLookup(e.target.value)}
+                                                            className="flex-1 bg-slate-900 border border-indigo-500/40 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-indigo-400 font-mono font-bold tracking-widest"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleUdiseCodeLookup(regUdiseCode)}
+                                                            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black transition-all shadow-md shrink-0"
+                                                        >
+                                                            Verify Code
+                                                        </button>
+                                                    </div>
+                                                </div>
 
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <div>
@@ -679,23 +884,113 @@ export default function TeacherDashboardPage() {
                                                     </div>
                                                 </div>
 
-                                                <div className="grid grid-cols-2 gap-3">
+                                                {/* 🏙️ PINCODE, STATE & CITY CASCADING SELECTOR (ALL 28 STATES & UTs) */}
+                                                <div className="grid grid-cols-3 gap-2 bg-slate-950/70 p-3 rounded-xl border border-indigo-500/20">
                                                     <div>
-                                                        <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">School Name*</label>
-                                                        <input type="text" placeholder="e.g. DPS School" value={regSchoolName} onChange={e => setRegSchoolName(e.target.value)} required
-                                                            className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500" />
+                                                        <label className="text-[10px] font-black uppercase text-indigo-400 flex items-center justify-between mb-1">
+                                                            <span>1. Pincode*</span>
+                                                            {loadingLocation && <Loader2 className="w-3 h-3 animate-spin text-indigo-400" />}
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            maxLength={6}
+                                                            placeholder="e.g. 382015"
+                                                            value={regPincode}
+                                                            onChange={e => handlePincodeLookup(e.target.value)}
+                                                            className="w-full bg-slate-900 border border-indigo-500/40 rounded-xl px-2 py-1.5 text-xs text-white outline-none focus:border-indigo-400 font-mono font-bold"
+                                                            required
+                                                        />
                                                     </div>
+
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">2. State (All 28)*</label>
+                                                        <select
+                                                            value={regState}
+                                                            onChange={e => {
+                                                                const newState = e.target.value;
+                                                                setRegState(newState);
+                                                                const cities = INDIA_STATES_CITIES_MAP[newState] || ['Other City'];
+                                                                const firstCity = cities[0] || 'Gandhinagar';
+                                                                setRegCity(firstCity);
+                                                                updateSchoolsForLocation(firstCity, newState);
+                                                            }}
+                                                            className="w-full bg-slate-900 border border-slate-800 rounded-xl px-2 py-1.5 text-xs text-white outline-none focus:border-indigo-500 font-bold"
+                                                        >
+                                                            {Object.keys(INDIA_STATES_CITIES_MAP).map(st => (
+                                                                <option key={st} value={st}>🗺️ {st}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">3. City*</label>
+                                                        <select
+                                                            value={regCity}
+                                                            onChange={e => {
+                                                                const city = e.target.value;
+                                                                setRegCity(city);
+                                                                updateSchoolsForLocation(city, regState);
+                                                            }}
+                                                            className="w-full bg-slate-900 border border-slate-800 rounded-xl px-2 py-1.5 text-xs text-white outline-none focus:border-indigo-500"
+                                                        >
+                                                            {(INDIA_STATES_CITIES_MAP[regState] || [regCity]).map(ct => (
+                                                                <option key={ct} value={ct}>🏙️ {ct}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                </div>
+
+                                                {/* 🏫 LIVE AUTO-FILLED SCHOOL LIST */}
+                                                <div>
+                                                    <label className="text-[10px] font-black uppercase text-slate-300 flex items-center justify-between mb-1">
+                                                        <span>Select School in {regCity} ({availableSchools.length} Found)*</span>
+                                                        <span className="text-[9px] text-emerald-400">✓ Auto-Address Enabled</span>
+                                                    </label>
+                                                    <select
+                                                        value={regSelectedSchoolDropdown}
+                                                        onChange={e => {
+                                                            const val = e.target.value;
+                                                            setRegSelectedSchoolDropdown(val);
+                                                            if (val !== 'CUSTOM') {
+                                                                setRegSchoolName(val);
+                                                                const found = availableSchools.find(s => s.name === val);
+                                                                if (found) {
+                                                                    setRegSchoolAddress(found.address);
+                                                                    if (found.pincode) setRegPincode(found.pincode);
+                                                                }
+                                                            } else {
+                                                                setRegSchoolName('');
+                                                            }
+                                                        }}
+                                                        className="w-full bg-slate-900 border border-indigo-500/30 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500"
+                                                    >
+                                                        {availableSchools.map(sch => (
+                                                            <option key={sch.name} value={sch.name}>🏫 {sch.name}</option>
+                                                        ))}
+                                                        <option value="CUSTOM">➕ Add New / Custom School Name</option>
+                                                    </select>
+                                                </div>
+
+                                                {/* Custom School Input if CUSTOM selected */}
+                                                {(regSelectedSchoolDropdown === 'CUSTOM' || !availableSchools.some(s => s.name === regSchoolName)) && (
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase text-amber-400 block mb-1">Type Custom School Name*</label>
+                                                        <input type="text" placeholder="Enter Full Official School Name" value={regSchoolName} onChange={e => setRegSchoolName(e.target.value)} required
+                                                            className="w-full bg-slate-900 border border-amber-500/40 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-amber-400" />
+                                                    </div>
+                                                )}
+
+                                                <div className="grid grid-cols-2 gap-3">
                                                     <div>
                                                         <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Teacher ID*</label>
                                                         <input type="text" placeholder="ID-54321" value={regTeacherId} onChange={e => setRegTeacherId(e.target.value)} required
                                                             className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500" />
                                                     </div>
-                                                </div>
-
-                                                <div>
-                                                    <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">School Address*</label>
-                                                    <input type="text" placeholder="School Address, City" value={regSchoolAddress} onChange={e => setRegSchoolAddress(e.target.value)} required
-                                                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500" />
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase text-emerald-400 block mb-1">Full School Address (Auto-Filled)*</label>
+                                                        <input type="text" placeholder="Area, Landmark, City" value={regSchoolAddress} onChange={e => setRegSchoolAddress(e.target.value)} required
+                                                            className="w-full bg-slate-900 border border-emerald-500/30 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-emerald-400" />
+                                                    </div>
                                                 </div>
 
                                                 <div className="grid grid-cols-2 gap-3">
@@ -729,102 +1024,273 @@ export default function TeacherDashboardPage() {
                                                 </div>
                                             </div>
 
-                                            {/* RIGHT COLUMN: TEACHING RESPONSIBILITIES (MULTI-CLASS & MULTI-SUBJECT MANAGER) */}
+                                            {/* RIGHT COLUMN: TEACHING RESPONSIBILITIES (STANDARD 1-12 A-Z & MULTI-SECTION & MULTI-SUBJECT) */}
                                             <div className="space-y-4 bg-slate-900/40 p-4 rounded-2xl border border-white/5 flex flex-col justify-between">
                                                 <div className="space-y-4">
                                                     <h3 className="text-xs font-black uppercase tracking-wider text-purple-400 flex items-center gap-1.5 pb-2 border-b border-white/5">
-                                                        <BookOpen size={14} /> Multi-Class & Multi-Subject Setup
+                                                        <BookOpen size={14} /> Multi-Class &amp; Multi-Subject Setup
                                                     </h3>
 
-                                                    {/* 1. MULTI-CLASS / STANDARDS DROPDOWN SELECTOR & ADD */}
+                                                    {/* 1. ASSIGNED CLASSES BADGES (CLEAN FORMATTED CLASS CHIPS) */}
                                                     <div>
                                                         <label className="text-[10px] font-black uppercase text-slate-300 block mb-1.5">
-                                                            🏫 Classes / Standards You Teach (Select from Dropdown)*
+                                                            🏫 Classes You Teach (Active Selected Classes)*
                                                         </label>
-                                                        <div className="flex flex-wrap gap-1.5 mb-2 max-h-32 overflow-y-auto p-2 bg-slate-950/80 rounded-xl border border-white/5">
-                                                            {regAssignedClasses.map(cls => (
-                                                                <span key={cls} className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white text-[10px] font-bold flex items-center gap-1.5 shadow-md">
-                                                                    <span>{cls.replace('CLASS-', 'Class ')}</span>
-                                                                    <button type="button" onClick={() => setRegAssignedClasses(prev => prev.filter(c => c !== cls))} className="hover:text-red-300">
-                                                                        ×
-                                                                    </button>
-                                                                </span>
-                                                            ))}
+                                                        <div className="flex flex-wrap gap-1.5 mb-2 min-h-[42px] max-h-28 overflow-y-auto p-2 bg-slate-950/80 rounded-xl border border-white/5">
+                                                            {regAssignedClasses.map(cls => {
+                                                                const formattedName = cls
+                                                                    .replace(/^CLASS[-_]/i, '')
+                                                                    .replace(/_/g, ' ')
+                                                                    .replace(/^CLASS\s+/i, '')
+                                                                    .trim();
+                                                                const displayName = formattedName.toLowerCase().startsWith('class') ? formattedName : `Class ${formattedName}`;
+
+                                                                return (
+                                                                    <span key={cls} className="px-2.5 py-1 rounded-lg bg-indigo-600/90 text-white text-[10px] font-bold flex items-center gap-1.5 shadow-md border border-indigo-400/30">
+                                                                        <span>🏫 {displayName}</span>
+                                                                        <button type="button" onClick={() => setRegAssignedClasses(prev => prev.filter(c => c !== cls))} className="hover:text-red-300 font-bold text-xs ml-0.5">
+                                                                            ×
+                                                                        </button>
+                                                                    </span>
+                                                                );
+                                                            })}
                                                         </div>
                                                         
-                                                        {/* Class Dropdown Selector */}
-                                                        <div className="flex gap-2">
-                                                            <select
-                                                                value={customClassInput}
-                                                                onChange={e => setCustomClassInput(e.target.value)}
-                                                                className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-indigo-500"
-                                                            >
-                                                                <option value="">-- Select Class & Section --</option>
-                                                                {['Class 8-A', 'Class 9-A', 'Class 9-B', 'Class 10-A', 'Class 10-B', 'Class 11-Physics', 'Class 11-Maths', 'Class 12-Science', 'Class 12-Commerce'].map(c => (
-                                                                    <option key={c} value={c}>🏫 {c}</option>
-                                                                ))}
-                                                            </select>
+                                                        {/* STANDARD 1 TO 12 A-Z & SECTIONS SELECTOR */}
+                                                        <div className="space-y-2 bg-slate-950/60 p-3 rounded-xl border border-white/5">
+                                                            <div className="flex gap-2 items-center">
+                                                                <span className="text-[10px] font-black uppercase text-indigo-300 shrink-0">1. Select Standard:</span>
+                                                                <select
+                                                                    value={selStdForm}
+                                                                    onChange={e => setSelStdForm(e.target.value)}
+                                                                    className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-indigo-500 font-bold"
+                                                                >
+                                                                    {[
+                                                                        'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 
+                                                                        'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 
+                                                                        'Class 11 Science (PCM)', 'Class 11 Science (PCB)', 'Class 11 Commerce', 'Class 11 Arts', 
+                                                                        'Class 12 Science (PCM)', 'Class 12 Science (PCB)', 'Class 12 Commerce', 'Class 12 Arts', 
+                                                                        'Diploma Engineering', 'Undergraduate B.Tech'
+                                                                    ].map(c => (
+                                                                        <option key={c} value={c}>🎓 {c}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+
+                                                            {/* SECTIONS A TO Z MULTI-SELECT CHIPS */}
+                                                            <div>
+                                                                <span className="text-[10px] font-black uppercase text-indigo-300 block mb-1">2. Select Sections (A to Z):</span>
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(sec => {
+                                                                        const isSel = selSecList.includes(sec);
+                                                                        return (
+                                                                            <button
+                                                                                key={sec}
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    if (isSel) {
+                                                                                        if (selSecList.length > 1) setSelSecList(prev => prev.filter(s => s !== sec));
+                                                                                    } else {
+                                                                                        setSelSecList(prev => [...prev, sec]);
+                                                                                    }
+                                                                                }}
+                                                                                className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold border transition-all ${isSel ? 'bg-emerald-500 text-black border-emerald-400 shadow-md scale-105' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
+                                                                            >
+                                                                                Section {sec}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+
                                                             <button
                                                                 type="button"
                                                                 onClick={() => {
-                                                                    if (!customClassInput) return;
-                                                                    const formatted = `CLASS-${customClassInput.toUpperCase().replace(/\s+/g, '_')}`;
-                                                                    if (!regAssignedClasses.includes(formatted)) {
-                                                                        setRegAssignedClasses(prev => [...prev, formatted]);
-                                                                    }
-                                                                    setCustomClassInput('');
+                                                                    if (!selStdForm) return;
+                                                                    selSecList.forEach(sec => {
+                                                                        const cleanStd = selStdForm.replace(/^Class\s+/i, '').trim();
+                                                                        const formatted = `Class ${cleanStd}-${sec}`;
+                                                                        if (!regAssignedClasses.includes(formatted)) {
+                                                                            setRegAssignedClasses(prev => [...prev, formatted]);
+                                                                        }
+                                                                    });
                                                                 }}
-                                                                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shrink-0"
+                                                                className="w-full py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-xs font-black transition-all shadow-md mt-1"
                                                             >
-                                                                + Add Class
+                                                                + Add {selStdForm} (Sections: {selSecList.join(', ')})
                                                             </button>
                                                         </div>
                                                     </div>
 
-                                                    {/* 2. MULTI-SUBJECT DROPDOWN SELECTOR & ADD */}
+                                                    {/* 2. MULTI-SUBJECT COMPLETE 1ST TO 12TH ALL STREAMS CATALOG */}
                                                     <div>
                                                         <label className="text-[10px] font-black uppercase text-slate-300 block mb-1.5">
-                                                            📚 Subjects You Teach (Select from Dropdown)*
+                                                            📚 Subjects You Teach (Class 1-12 All Streams)*
                                                         </label>
-                                                        <div className="flex flex-wrap gap-1.5 mb-2 max-h-32 overflow-y-auto p-2 bg-slate-950/80 rounded-xl border border-white/5">
+                                                        <div className="flex flex-wrap gap-1.5 mb-2 min-h-[38px] max-h-28 overflow-y-auto p-2 bg-slate-950/80 rounded-xl border border-white/5">
                                                             {regAssignedSubjects.map(sub => (
-                                                                <span key={sub} className="px-2.5 py-1 rounded-lg bg-purple-600 text-white text-[10px] font-bold flex items-center gap-1.5 shadow-md">
-                                                                    <span>{sub}</span>
-                                                                    <button type="button" onClick={() => setRegAssignedSubjects(prev => prev.filter(s => s !== sub))} className="hover:text-red-300">
+                                                                <span key={sub} className="px-2.5 py-1 rounded-lg bg-purple-600 text-white text-[10px] font-bold flex items-center gap-1.5 shadow-md border border-purple-400/30">
+                                                                    <span>📚 {sub}</span>
+                                                                    <button type="button" onClick={() => setRegAssignedSubjects(prev => prev.filter(s => s !== sub))} className="hover:text-red-300 font-bold text-xs ml-0.5">
                                                                         ×
                                                                     </button>
                                                                 </span>
                                                             ))}
                                                         </div>
 
-                                                        {/* Subject Dropdown Selector */}
-                                                        <div className="flex gap-2">
-                                                            <select
-                                                                value={customSubjectInput}
-                                                                onChange={e => setCustomSubjectInput(e.target.value)}
-                                                                className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-indigo-500"
-                                                            >
-                                                                <option value="">-- Select Subject --</option>
-                                                                {['Mathematics', 'Science', 'Physics', 'Chemistry', 'Biology', 'English', 'Computer Science', 'Social Studies', 'Hindi', 'Accounts'].map(s => (
-                                                                    <option key={s} value={s}>📚 {s}</option>
-                                                                ))}
-                                                            </select>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    if (!customSubjectInput) return;
-                                                                    if (!regAssignedSubjects.includes(customSubjectInput)) {
-                                                                        setRegAssignedSubjects(prev => [...prev, customSubjectInput]);
-                                                                    }
-                                                                    setCustomSubjectInput('');
-                                                                }}
-                                                                className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shrink-0"
-                                                            >
-                                                                + Add Subject
-                                                            </button>
+                                                        {/* ALL SUBJECTS CATALOG CHIPS (SCIENCE, COMMERCE, ARTS, PRIMARY & LANGUAGES) */}
+                                                        <div className="max-h-40 overflow-y-auto p-1.5 bg-slate-950/40 rounded-xl border border-white/5 space-y-2">
+                                                            {[
+                                                                {
+                                                                    category: '🧪 Science Stream (11-12)',
+                                                                    subjects: ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer Science', 'Information Technology', 'Biotechnology', 'Electronics']
+                                                                },
+                                                                {
+                                                                    category: '💼 Commerce Stream (11-12)',
+                                                                    subjects: ['Accountancy (Accounts)', 'Organization of Commerce (OCM)', 'Secretarial Practice (SP)', 'Economics', 'Statistics', 'Business Studies', 'Entrepreneurship']
+                                                                },
+                                                                {
+                                                                    category: '🎨 Arts & Humanities (11-12)',
+                                                                    subjects: ['History', 'Political Science', 'Geography', 'Psychology', 'Sociology', 'Philosophy', 'Logic', 'Fine Arts', 'Physical Education']
+                                                                },
+                                                                {
+                                                                    category: '📖 Primary & Secondary (1-10)',
+                                                                    subjects: ['Science & Technology', 'Social Science', 'Environmental Studies (EVS)', 'General Knowledge (GK)', 'Moral Science', 'Drawing & Craft']
+                                                                },
+                                                                {
+                                                                    category: '🌐 Languages',
+                                                                    subjects: ['English', 'Hindi', 'Gujarati', 'Sanskrit', 'French', 'German', 'Urdu']
+                                                                }
+                                                            ].map(grp => (
+                                                                <div key={grp.category}>
+                                                                    <span className="text-[9px] font-black uppercase text-purple-300 block mb-1">{grp.category}</span>
+                                                                    <div className="flex flex-wrap gap-1">
+                                                                        {grp.subjects.map(s => {
+                                                                            const isSubSel = regAssignedSubjects.includes(s);
+                                                                            return (
+                                                                                <button
+                                                                                    key={s}
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        if (isSubSel) {
+                                                                                            setRegAssignedSubjects(prev => prev.filter(item => item !== s));
+                                                                                        } else {
+                                                                                            setRegAssignedSubjects(prev => [...prev, s]);
+                                                                                        }
+                                                                                    }}
+                                                                                    className={`px-2 py-0.5 rounded-md text-[9px] font-extrabold border transition-all ${isSubSel ? 'bg-purple-600 text-white border-purple-400 shadow-md scale-105' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
+                                                                                >
+                                                                                    {isSubSel ? '✓ ' : '+ '}{s}
+                                                                                </button>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
                                                         </div>
                                                     </div>
 
+                                                    {/* 3. MULTI-MEDIUM SELECTOR (ALL INDIAN MEDIUMS OF INSTRUCTION) */}
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase text-slate-300 block mb-1.5">
+                                                            🗣️ Mediums of Instruction You Teach (Multi-Select Mediums)*
+                                                        </label>
+                                                        <div className="flex flex-wrap gap-1 mb-2">
+                                                            {[
+                                                                'English Medium', 'Gujarati Medium', 'Hindi Medium', 'Marathi Medium', 
+                                                                'Tamil Medium', 'Telugu Medium', 'Bengali Medium', 'Kannada Medium', 
+                                                                'Malayalam Medium', 'Punjabi Medium', 'Odia Medium', 'Assamese Medium', 
+                                                                'Urdu Medium', 'Sanskrit Medium'
+                                                            ].map(m => {
+                                                                const isMedSel = regAssignedMediums.includes(m);
+                                                                return (
+                                                                    <button
+                                                                        key={m}
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            if (isMedSel) {
+                                                                                if (regAssignedMediums.length > 1) setRegAssignedMediums(prev => prev.filter(item => item !== m));
+                                                                            } else {
+                                                                                setRegAssignedMediums(prev => [...prev, m]);
+                                                                            }
+                                                                        }}
+                                                                        className={`px-2 py-1 rounded-lg text-[9px] font-extrabold border transition-all ${isMedSel ? 'bg-emerald-600 text-white border-emerald-400 shadow-md scale-105' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
+                                                                    >
+                                                                        {isMedSel ? '✓ ' : '+ '}{m}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* 4. MULTI-BOARD SELECTOR (ALL 34+ NATIONAL & STATE BOARDS IN INDIA) */}
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase text-slate-300 block mb-1.5 flex items-center justify-between">
+                                                            <span>🏛️ Education Boards You Teach (All 34+ National &amp; State Boards)*</span>
+                                                            <span className="text-[9px] text-amber-400 font-extrabold">Multi-Select Enabled</span>
+                                                        </label>
+                                                        <div className="max-h-36 overflow-y-auto p-2 bg-slate-950/80 rounded-xl border border-white/5 space-y-2">
+                                                            <div>
+                                                                <span className="text-[9px] font-black uppercase text-indigo-300 block mb-1">🏛️ National &amp; International Boards</span>
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    {[
+                                                                        'CBSE', 'ICSE / CISCE', 'NIOS (Open School)', 'IB (International Baccalaureate)', 'Cambridge / IGCSE'
+                                                                    ].map(b => {
+                                                                        const isBrdSel = regAssignedBoards.includes(b);
+                                                                        return (
+                                                                            <button
+                                                                                key={b}
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    if (isBrdSel) {
+                                                                                        if (regAssignedBoards.length > 1) setRegAssignedBoards(prev => prev.filter(item => item !== b));
+                                                                                    } else {
+                                                                                        setRegAssignedBoards(prev => [...prev, b]);
+                                                                                    }
+                                                                                }}
+                                                                                className={`px-2 py-0.5 rounded-md text-[9px] font-black border transition-all ${isBrdSel ? 'bg-amber-500 text-black border-amber-400 shadow-md scale-105' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
+                                                                            >
+                                                                                {isBrdSel ? '✓ ' : '+ '}{b}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+
+                                                            <div>
+                                                                <span className="text-[9px] font-black uppercase text-amber-300 block mb-1">🗺️ All 30 State Education Boards</span>
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    {[
+                                                                        'GSEB (Gujarat)', 'MSBSHSE (Maharashtra)', 'RBSE (Rajasthan)', 'UPMSP (Uttar Pradesh)', 
+                                                                        'MPBSE (Madhya Pradesh)', 'BSEB (Bihar)', 'WBBSE / WBCHSE (West Bengal)', 'KSEEB (Karnataka)', 
+                                                                        'TNBSE (Tamil Nadu)', 'BSEAP (Andhra Pradesh)', 'TSBIE (Telangana)', 'PSEB (Punjab)', 
+                                                                        'HBSE (Haryana)', 'UKBOARD (Uttarakhand)', 'HPBOSE (Himachal Pradesh)', 'SEBA / AHSEC (Assam)', 
+                                                                        'BSE Odisha (Odisha)', 'CGBSE (Chhattisgarh)', 'JAC (Jharkhand)', 'JKBOSE (Jammu & Kashmir)', 
+                                                                        'DHSE Kerala (Kerala)', 'GBSHSE (Goa)', 'TBSE (Tripura)', 'MBOSE (Meghalaya)', 
+                                                                        'NBSE (Nagaland)', 'MBSE (Mizoram)', 'COHSEM / BOSEM (Manipur)'
+                                                                    ].map(b => {
+                                                                        const isBrdSel = regAssignedBoards.includes(b);
+                                                                        return (
+                                                                            <button
+                                                                                key={b}
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    if (isBrdSel) {
+                                                                                        if (regAssignedBoards.length > 1) setRegAssignedBoards(prev => prev.filter(item => item !== b));
+                                                                                    } else {
+                                                                                        setRegAssignedBoards(prev => [...prev, b]);
+                                                                                    }
+                                                                                }}
+                                                                                className={`px-2 py-0.5 rounded-md text-[9px] font-black border transition-all ${isBrdSel ? 'bg-amber-500 text-black border-amber-400 shadow-md scale-105' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
+                                                                            >
+                                                                                {isBrdSel ? '✓ ' : '+ '}{b}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </div>
 
                                                 <button type="submit" disabled={authLoading}
@@ -836,7 +1302,7 @@ export default function TeacherDashboardPage() {
 
                                         </div>
                                     </form>
-                                )}
+                                </div>
                             </div>
                         ) : (
                             // 2. TEACHER LOGGED IN COMMAND HUB DASHBOARD

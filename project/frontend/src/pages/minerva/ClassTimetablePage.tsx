@@ -9,9 +9,12 @@ export const ClassTimetablePage: React.FC = () => {
     const { token, user } = useAuth() as any;
     const navigate = useNavigate();
 
-    const userStandard = user?.standard ? user.standard.toString().replace(/^class_/i, '') : '10';
+    const cleanOrg = (name: string) => name ? name.toLowerCase().trim().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') : '';
+
+    const userStandard = user?.standard ? user.standard.toString().replace(/^class_/i, '') : '11';
     const userSection = user?.section || 'A';
-    const initialClass = `CLASS-${userStandard.toUpperCase()}${userSection.toUpperCase()}`;
+    const userStream = user?.stream || '';
+    const initialClass = user?.classId || (userStream ? `${userStandard} ${userStream}-${userSection}` : `${userStandard}-${userSection}`);
 
     const [selectedClass, setSelectedClass] = useState(initialClass);
     const [selectedSubject, setSelectedSubject] = useState('Mathematics');
@@ -25,8 +28,9 @@ export const ClassTimetablePage: React.FC = () => {
     const [classmates, setClassmates] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
-    const tenantOrgId = user?.tenantOrgId || (user?.schoolName ? user.schoolName.toLowerCase().replace(/\s+/g, '_') : 'mount_carmel_school');
-    const studentId = user?.id || 'STU-10492';
+    const rawSchool = user?.schoolName || user?.school_name || user?.school || '';
+    const tenantOrgId = user?.tenantOrgId || (rawSchool ? cleanOrg(rawSchool) : 'independent_student');
+    const studentId = user?.id || user?._id || 'STU-10492';
 
     const daysList = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'All'] as const;
 
@@ -39,16 +43,18 @@ export const ClassTimetablePage: React.FC = () => {
     const fetchTimetableAndAttendance = async () => {
         setLoading(true);
         try {
+            const schoolQuery = rawSchool ? `&schoolName=${encodeURIComponent(rawSchool)}` : '';
             const [ttRes, attRes, calRes, examRes, rosterRes] = await Promise.all([
-                axios.get(`/api/v1/teacher-workspace/timetable?tenantOrgId=${tenantOrgId}&classId=${selectedClass}`),
-                axios.get(`/api/v1/teacher-workspace/student-attendance-summary?tenantOrgId=${tenantOrgId}&studentId=${studentId}&classId=${selectedClass}&range=${attendanceRange}`),
-                axios.get(`/api/v1/teacher-workspace/calendar/events?tenantOrgId=${tenantOrgId}&classId=${selectedClass}`),
-                axios.get(`/api/v1/teacher-workspace/exam-schedules?tenantOrgId=${tenantOrgId}&classId=${selectedClass}`),
-                axios.get(`/api/v1/teacher-workspace/class-roster?tenantOrgId=${tenantOrgId}&classId=${selectedClass}`)
+                axios.get(`/api/v1/teacher-workspace/timetable?tenantOrgId=${tenantOrgId}&classId=${selectedClass}${schoolQuery}`),
+                axios.get(`/api/v1/teacher-workspace/student-attendance-summary?tenantOrgId=${tenantOrgId}&studentId=${studentId}&classId=${selectedClass}&range=${attendanceRange}${schoolQuery}`),
+                axios.get(`/api/v1/teacher-workspace/calendar/events?tenantOrgId=${tenantOrgId}&classId=${selectedClass}${schoolQuery}`),
+                axios.get(`/api/v1/teacher-workspace/exam-schedules?tenantOrgId=${tenantOrgId}&classId=${selectedClass}${schoolQuery}`),
+                axios.get(`/api/v1/teacher-workspace/class-roster?tenantOrgId=${tenantOrgId}&classId=${selectedClass}${schoolQuery}`)
             ]);
 
             if (ttRes.data && ttRes.data.schedule) setTimetableList(ttRes.data.schedule);
-            if (attRes.data) setAttendanceData(attRes.data);
+            if (attRes.data && attRes.data.summary) setAttendanceData(attRes.data.summary);
+            else if (attRes.data) setAttendanceData(attRes.data);
             if (calRes.data && calRes.data.events) setCalendarEvents(calRes.data.events);
             if (examRes.data && examRes.data.schedules) setExamSchedules(examRes.data.schedules);
             if (rosterRes.data && rosterRes.data.students) setClassmates(rosterRes.data.students);
@@ -65,13 +71,22 @@ export const ClassTimetablePage: React.FC = () => {
         ? timetableList
         : timetableList.filter(item => (item.dayOfWeek || 'Monday').toLowerCase() === selectedDay.toLowerCase());
 
-    const attRate = attendanceData?.attendanceRate ?? 95;
-    const totalDays = attendanceData?.totalWorkingDays ?? 20;
-    const presentDays = attendanceData?.presentCount ?? 19;
-    const lateDays = attendanceData?.lateCount ?? 1;
-    const absentDays = attendanceData?.absentCount ?? 0;
-    const todayStatus = attendanceData?.todayStatus || 'PRESENT';
-    const teacherMarked = attendanceData?.markedByTeacherName || 'Class Teacher';
+    const attRecords = attendanceData?.records || attendanceData?.summary?.records || [];
+    const attRate = attendanceData?.attendanceRate ?? (attendanceData?.summary?.attendanceRate ?? 100);
+    const totalDays = attendanceData?.totalWorkingDays ?? (attendanceData?.summary?.totalWorkingDays ?? 1);
+    const presentDays = attendanceData?.presentCount ?? (attendanceData?.summary?.presentCount ?? 1);
+    const lateDays = attendanceData?.lateCount ?? (attendanceData?.summary?.lateCount ?? 0);
+    const absentDays = attendanceData?.absentCount ?? (attendanceData?.summary?.absentCount ?? 0);
+    const todayStatus = attendanceData?.todayStatus || (attendanceData?.summary?.todayStatus || 'PRESENT');
+    const teacherMarked = attendanceData?.markedByTeacherName || (attendanceData?.summary?.markedByTeacherName || '');
+
+    const formatClassLabel = (cls: string) => {
+        if (!cls) return '';
+        const clean = cls.replace(/^CLASS-/i, '').replace(/^CLASS_/i, '');
+        const match = clean.match(/^(\d+)([A-Z])$/i);
+        if (match) return `${match[1]}-${match[2].toUpperCase()}`;
+        return clean;
+    };
 
     return (
         <div className="min-h-screen bg-[#05030a] text-white p-4 sm:p-8 font-inter relative overflow-x-hidden pb-28">
@@ -89,67 +104,70 @@ export const ClassTimetablePage: React.FC = () => {
                 />
 
                 {/* Top Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/5">
-                    <div className="flex items-center gap-3">
-                        <button 
-                            onClick={() => navigate('/future-education')}
-                            className="p-2.5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-gray-300 transition-all active:scale-95"
-                        >
-                            <ChevronLeft size={18} />
-                        </button>
-                        <div>
-                            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
-                                <Clock size={24} className="text-indigo-400" /> Class {selectedClass} Routine & Attendance
+                <div className="flex items-center gap-3 pb-4 border-b border-white/5">
+                    <button 
+                        onClick={() => navigate('/future-education')}
+                        className="p-2.5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-gray-300 transition-all active:scale-95 shrink-0"
+                    >
+                        <ChevronLeft size={20} />
+                    </button>
+                    <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2.5">
+                            <span className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shrink-0">
+                                <Clock size={20} />
+                            </span>
+                            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight truncate">
+                                Class {formatClassLabel(selectedClass)} Routine & Attendance
                             </h1>
-                            <p className="text-xs text-gray-400 mt-0.5">
-                                Full day period schedule, room numbers, faculty teachers & student attendance logs.
-                            </p>
                         </div>
+                        <p className="text-xs text-gray-400 mt-1 truncate">
+                            Full day period schedule, room numbers, faculty teachers & student attendance logs.
+                        </p>
                     </div>
+                </div>
 
-                    {/* Mode Toggle Buttons */}
-                    <div className="flex items-center gap-2 p-1.5 bg-[#0B0915] border border-white/10 rounded-2xl shrink-0 overflow-x-auto">
-                        <button
-                            onClick={() => setViewMode('routine')}
-                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-                                viewMode === 'routine' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-gray-400 hover:text-white'
-                            }`}
-                        >
-                            <Clock size={14} /> Timetable
-                        </button>
-                        <button
-                            onClick={() => setViewMode('attendance')}
-                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-                                viewMode === 'attendance' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30' : 'text-gray-400 hover:text-white'
-                            }`}
-                        >
-                            <UserCheck size={14} /> Attendance Log
-                        </button>
-                        <button
-                            onClick={() => setViewMode('calendar')}
-                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-                                viewMode === 'calendar' ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30' : 'text-gray-400 hover:text-white'
-                            }`}
-                        >
-                            <Calendar size={14} /> School Calendar & Events
-                        </button>
-                        <button
-                            onClick={() => setViewMode('exams')}
-                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-                                viewMode === 'exams' ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/30' : 'text-gray-400 hover:text-white'
-                            }`}
-                        >
-                            <FileText size={14} /> Exam Schedule
-                        </button>
-                        <button
-                            onClick={() => setViewMode('classmates')}
-                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-                                viewMode === 'classmates' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/30' : 'text-gray-400 hover:text-white'
-                            }`}
-                        >
-                            <Users size={14} /> Classmates Hub ({classmates.length})
-                        </button>
-                    </div>
+                {/* Mode Toggle Buttons Subtab Bar */}
+                <div className="flex items-center gap-2 p-1.5 bg-[#0B0915] border border-white/10 rounded-2xl overflow-x-auto scrollbar-none">
+                    <button
+                        onClick={() => setViewMode('routine')}
+                        className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+                            viewMode === 'routine' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-gray-400 hover:text-white'
+                        }`}
+                    >
+                        <Clock size={14} /> Timetable
+                    </button>
+                    <button
+                        onClick={() => setViewMode('attendance')}
+                        className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+                            viewMode === 'attendance' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30' : 'text-gray-400 hover:text-white'
+                        }`}
+                    >
+                        <UserCheck size={14} /> Attendance Log
+                    </button>
+                    <button
+                        onClick={() => setViewMode('calendar')}
+                        className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+                            viewMode === 'calendar' ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30' : 'text-gray-400 hover:text-white'
+                        }`}
+                    >
+                        <Calendar size={14} /> School Calendar & Events
+                    </button>
+                    <button
+                        onClick={() => setViewMode('exams')}
+                        className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+                            viewMode === 'exams' ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/30' : 'text-gray-400 hover:text-white'
+                        }`}
+                    >
+                        <FileText size={14} /> Exam Schedule
+                    </button>
+                    <button
+                        onClick={() => setViewMode('classmates')}
+                        className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+                            viewMode === 'classmates' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/30' : 'text-gray-400 hover:text-white'
+                        }`}
+                    >
+                        <Users size={14} /> Classmates
+                    </button>
                 </div>
 
                 {/* 🔴 LIVE FACULTY & CURRENT PERIOD BANNER */}
@@ -220,7 +238,7 @@ export const ClassTimetablePage: React.FC = () => {
                         <div className="text-2xl font-black text-emerald-400 font-mono">
                             {attRate}%
                         </div>
-                        <p className="text-[10px] text-gray-400 mt-1">{presentDays} / {totalDays} Days Marked ({selectedClass})</p>
+                        <p className="text-[10px] text-gray-400 mt-1">{presentDays} / {totalDays} Days Marked ({formatClassLabel(selectedClass)})</p>
                     </div>
 
                     {/* Card 2: Today's Status */}
@@ -281,14 +299,14 @@ export const ClassTimetablePage: React.FC = () => {
                         <div className="rounded-3xl border border-white/10 bg-[#0B0915]/80 overflow-hidden shadow-2xl">
                             {loading ? (
                                 <div className="p-16 text-center text-gray-400 text-xs font-mono">
-                                    Loading period routine for Class {selectedClass}...
+                                    Loading period routine for Class {formatClassLabel(selectedClass)}...
                                 </div>
                             ) : filteredTimetable.length === 0 ? (
                                 <div className="p-16 text-center space-y-3">
                                     <Clock className="w-12 h-12 text-indigo-400 mx-auto opacity-40" />
                                     <h3 className="text-base font-bold text-white">No Timetable Scheduled for {selectedDay}</h3>
                                     <p className="text-xs text-gray-400 max-w-sm mx-auto">
-                                        Teachers have not scheduled period routines for {selectedDay} in Class {selectedClass}.
+                                        Teachers have not scheduled period routines for {selectedDay} in Class {formatClassLabel(selectedClass)}.
                                     </p>
                                 </div>
                             ) : (
@@ -342,12 +360,12 @@ export const ClassTimetablePage: React.FC = () => {
                                         <UserCheck size={20} className="text-emerald-400" /> Official Attendance Record & Subject Attendance
                                     </h3>
                                     <p className="text-xs text-gray-400 mt-0.5">
-                                        Student ID: <span className="font-mono text-indigo-300">{studentId}</span> • Registered Class: <span className="font-bold text-white">{selectedClass}</span>
-                                    </p>
-                                </div>
-                                <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-mono text-xs font-bold">
-                                    Status: Verified Active
-                                </span>
+                                        Student ID: <span className="font-mono text-indigo-300">{studentId}</span> • Registered Class: <span className="font-bold text-white">{formatClassLabel(selectedClass)}</span>
+                                     </p>
+                                 </div>
+                                 <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-mono text-xs font-bold">
+                                     Status: Verified Active
+                                 </span>
                             </div>
 
                             {/* Today's Subject-Wise Attendance Status Table */}
@@ -365,11 +383,11 @@ export const ClassTimetablePage: React.FC = () => {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-white/5">
-                                            {(attendanceData?.records && attendanceData.records.length > 0) ? (
-                                                attendanceData.records.map((p: any, idx: number) => (
+                                            {(attRecords && attRecords.length > 0) ? (
+                                                attRecords.map((p: any, idx: number) => (
                                                     <tr key={idx} className="hover:bg-white/[0.02]">
                                                         <td className="px-5 py-3 text-white font-bold">{p.date || 'Today'}</td>
-                                                        <td className="px-5 py-3 text-gray-400">{p.classId || selectedClass}</td>
+                                                        <td className="px-5 py-3 text-gray-400">{p.classId ? formatClassLabel(p.classId) : formatClassLabel(selectedClass)}</td>
                                                         <td className="px-5 py-3 text-indigo-300 font-bold">{p.studentName || 'Student'}</td>
                                                         <td className="px-5 py-3 text-gray-300">{p.markedByTeacherName || 'Class Teacher'}</td>
                                                         <td className="px-5 py-3 text-right">
@@ -413,7 +431,7 @@ export const ClassTimetablePage: React.FC = () => {
 
                             {calendarEvents.length === 0 ? (
                                 <div className="p-12 text-center text-gray-500 text-xs font-mono">
-                                    No special events or holidays currently published for Class {selectedClass}.
+                                    No special events or holidays currently published for Class {formatClassLabel(selectedClass)}.
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -447,12 +465,12 @@ export const ClassTimetablePage: React.FC = () => {
                                 <FileText className="w-5 h-5 text-amber-400" /> Published Board & School Exam Timetables
                             </h3>
                             <p className="text-xs text-gray-400">
-                                Official datesheets, room seating matrix, and syllabus coverage for Class {selectedClass}.
+                                Official datesheets, room seating matrix, and syllabus coverage for Class {formatClassLabel(selectedClass)}.
                             </p>
 
                             {examSchedules.length === 0 ? (
                                 <div className="p-12 text-center text-gray-500 text-xs font-mono">
-                                    No exam schedules currently published by Teachers for Class {selectedClass}.
+                                    No exam schedules currently published by Teachers for Class {formatClassLabel(selectedClass)}.
                                 </div>
                             ) : (
                                 <div className="divide-y divide-white/5 rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
@@ -488,7 +506,7 @@ export const ClassTimetablePage: React.FC = () => {
                                         <Users className="w-5 h-5 text-cyan-400" /> Registered Classmates Roster & Student Directory
                                     </h3>
                                     <p className="text-xs text-gray-400 mt-0.5">
-                                        Live student roll list registered under <span className="font-bold text-white">{selectedClass}</span>
+                                        Live student roll list registered under <span className="font-bold text-white">{formatClassLabel(selectedClass)}</span>
                                     </p>
                                 </div>
                                 <span className="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-mono text-xs font-bold">
@@ -498,7 +516,7 @@ export const ClassTimetablePage: React.FC = () => {
 
                             {classmates.length === 0 ? (
                                 <div className="p-12 text-center text-gray-500 text-xs font-mono">
-                                    No enrolled classmates registered under Class {selectedClass} yet.
+                                    No enrolled classmates registered under Class {formatClassLabel(selectedClass)} yet.
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

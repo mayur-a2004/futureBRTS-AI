@@ -277,10 +277,7 @@ export class TenantService {
       try {
         await this.syncTenantUsers(orgId, [
           { externalId: 'STU-10492', name: 'Aarav Sharma', role: 'STUDENT', grade: 'Class 10-A', email: 'aarav.s@school.edu.in', queriesUsed: 42, status: 'ACTIVE' },
-          { externalId: 'STU-10493', name: 'Priya Patel', role: 'STUDENT', grade: 'Class 10-A', email: 'priya.p@school.edu.in', queriesUsed: 89, status: 'ACTIVE' },
-          { externalId: 'TCH-901', name: 'Mrs. Anjali Mehta', role: 'TEACHER', subject: 'Mathematics', email: 'anjali.m@school.edu.in', status: 'ACTIVE' },
-          { externalId: 'STU-10494', name: 'Rohan Verma', role: 'STUDENT', grade: 'Class 10-B', email: 'rohan.v@school.edu.in', queriesUsed: 19, status: 'ACTIVE' },
-          { externalId: 'PRN-001', name: 'Dr. Ramesh Kumar', role: 'PRINCIPAL', email: 'principal@school.edu.in', status: 'ACTIVE' }
+          { externalId: 'STU-10493', name: 'Priya Patel', role: 'STUDENT', grade: 'Class 10-A', email: 'priya.p@school.edu.in', queriesUsed: 89, status: 'ACTIVE' }
         ]);
         users = await TenantUserModel.find({ tenantOrgId: orgId }).sort({ updatedAt: -1 });
       } catch (err) {

@@ -66,11 +66,14 @@ export const parseMessageToSmartBoardSteps = (
         };
     }
 
-    // 1. Universal Pre-processing: Inject line breaks (\n) before Step markers if text is continuous
+    // 1. Universal Pre-processing: Split continuous text into distinct lines on bullets, steps, numbers, or colons
     let normalizedContent = content
-        .replace(/(?<!^)(\bStep \d+:?|\b\d+[\.\)]\s+[A-Z]|\bPhase \d+:?|\bSection \d+:?|\bDerivation \d+:?|\bJournal Entry \d+:?|\bGiven:?|\bSolution:?|\bResult:?|\bFinal Answer:?)/gi, '\n$1');
+        .replace(/(?<!^)(\bStep \d+:?|\b\d+[\.\)]\s+|\bPhase \d+:?|\bSection \d+:?|\bPoint \d+:?|[-*•]\s+|\bGiven:?|\bSolution:?|\bResult:?|\bFinal Answer:?)/gi, '\n$1');
 
-    const rawLines = normalizedContent.split('\n').map(l => l.trim()).filter(Boolean);
+    const rawLines = normalizedContent
+        .split('\n')
+        .map(l => l.trim().replace(/^[-*•]\s*/, '')) // Remove leading bullet markers
+        .filter(Boolean);
 
     // 2. Extract Clean Dynamic Topic Title from First Lines or Header
     let extractedTitle = fallbackTitle;
@@ -79,7 +82,6 @@ export const parseMessageToSmartBoardSteps = (
         extractedTitle = cleanMathText(headerLine.replace(/^(#+|\*\*Topic:?|Title:?|Question:?)\s*/i, ''));
     } else if (rawLines.length > 0) {
         extractedTitle = cleanMathText(rawLines[0].slice(0, 60));
-        // Remove 'To evaluate this expression' generic intros from title
         if (extractedTitle.toLowerCase().startsWith('to evaluate') || extractedTitle.toLowerCase().startsWith('let\'s break')) {
             extractedTitle = fallbackTitle;
         }
@@ -88,76 +90,47 @@ export const parseMessageToSmartBoardSteps = (
         extractedTitle = fallbackTitle;
     }
 
-    // 3. Partition Lines into Dynamic Step Blocks
-    const stepBlocks: { title?: string; lines: string[] }[] = [];
-    let currentBlock: { title?: string; lines: string[] } | null = null;
-
-    rawLines.forEach((line) => {
-        const cleanLine = cleanMathText(line);
-        if (!cleanLine) return;
-
-        const isStepHeader = /^(\*\*Step \d+:?|Step \d+:?|\d+[\.\)]|Phase \d+:?|Section \d+:?|Given:?|Solution:?|Result:?|Derivation \d+:?|Journal Entry \d+:?|Transaction \d+:?|Year \d+:?)/i.test(line);
-
-        if (isStepHeader || !currentBlock) {
-            if (currentBlock) {
-                stepBlocks.push(currentBlock);
-            }
-            const headerMatch = cleanLine.match(/^(Step \d+:?|\d+[\.\)]|Phase \d+:?|Section \d+:?|Given:?|Solution:?|Result:?|Derivation \d+:?|Journal Entry \d+:?|Transaction \d+:?|Year \d+:?)\s*(.*)/i);
-            const titleText = headerMatch && headerMatch[2] ? headerMatch[2].slice(0, 60) : cleanLine.slice(0, 60);
-            currentBlock = {
-                title: titleText || 'Teacher Blackboard Step',
-                lines: [cleanLine]
-            };
-        } else {
-            currentBlock.lines.push(cleanLine);
-        }
-    });
-
-    if (currentBlock) {
-        stepBlocks.push(currentBlock);
-    }
-
-    // 4. UNLIMITED DYNAMIC STEP GENERATION (1 to 20+ steps based on content depth)
+    // 3. Partition Lines into Individual Dynamic Step Cards (One Step Card per Bullet Point / Logical Point)
     const steps: SmartBoardStep[] = [];
 
-    if (stepBlocks.length > 0) {
-        stepBlocks.forEach((b, idx) => {
-            const num = idx + 1;
-            const fullText = b.lines.map(cleanMathText).join(' ');
-            
-            // Extract calculation equation line if present, else fallback to block title/text
-            const formulaLine = b.lines.map(cleanMathText).find(l => l.includes('=') || l.includes('×') || l.includes('÷') || l.includes('+') || l.includes('-') || l.includes('√') || l.includes('/') || l.includes('±') || l.includes('→')) || b.lines[0] || fullText;
-            
-            steps.push({
-                stepNumber: num,
-                title: `Step ${num}: ${b.title || 'Teacher Blackboard Step'}`,
-                explanation: fullText,
-                latexOrFormula: formulaLine
-            });
+    rawLines.forEach((line, idx) => {
+        const cleanLine = cleanMathText(line);
+        if (!cleanLine || cleanLine.length < 2) return;
+
+        // Extract formula/calculation equation line if present
+        const hasFormula = cleanLine.includes('=') || cleanLine.includes('×') || cleanLine.includes('÷') || 
+                           cleanLine.includes('+') || cleanLine.includes('-') || cleanLine.includes('√') || 
+                           cleanLine.includes('/') || cleanLine.includes('±') || cleanLine.includes('→');
+
+        // Extract a clean title for this specific point card
+        let pointTitle = cleanLine.replace(/^(Step \d+:?|\d+[\.\)]\s*|Phase \d+:?|Section \d+:?|Point \d+:?|Given:?|Solution:?|Result:?)\s*/i, '');
+        if (pointTitle.length > 55) {
+            const firstClause = pointTitle.split(/[:.?,]/)[0];
+            pointTitle = firstClause.length > 5 ? firstClause : pointTitle.slice(0, 55);
+        }
+
+        const stepNum = steps.length + 1;
+        steps.push({
+            stepNumber: stepNum,
+            title: `Step ${stepNum}: ${pointTitle.trim() || 'Core Concept Point'}`,
+            explanation: cleanLine,
+            latexOrFormula: hasFormula ? cleanLine : `Key Insight: ${pointTitle.trim()}`
         });
-    } else {
-        // Fallback for single block
-        const mathLines = rawLines.map(cleanMathText).filter(l => l.includes('=') || l.includes('+') || l.includes('-') || l.includes('√') || l.includes('/') || l.includes('×') || l.includes('±'));
-        
+    });
+
+    // Fallback if no steps were parsed
+    if (steps.length === 0) {
         steps.push({
             stepNumber: 1,
             title: 'Step 1: Given Data & Concept Setup',
             explanation: cleanMathText(rawLines[0]) || `Set up problem parameters for ${extractedTitle}`,
-            latexOrFormula: mathLines[0] || cleanMathText(rawLines[0]) || `Topic: ${extractedTitle}`
+            latexOrFormula: cleanMathText(rawLines[0]) || `Topic: ${extractedTitle}`
         });
-
         steps.push({
             stepNumber: 2,
-            title: 'Step 2: Step-by-Step Derivation & Calculation',
-            explanation: rawLines.slice(1, Math.max(2, rawLines.length - 1)).map(cleanMathText).join(' ') || 'Apply rules of algebra and arithmetic step-by-step.',
-            latexOrFormula: mathLines[1] || mathLines[0] || 'Step 2: Substitute & Calculate'
-        });
-
-        steps.push({
-            stepNumber: 3,
-            title: 'Step 3: Final Verified Answer & Result Box',
-            explanation: cleanMathText(rawLines[rawLines.length - 1]) || 'State final evaluated value and check against standard solution format.',
-            latexOrFormula: mathLines[mathLines.length - 1] || 'Final Verified Result ✅'
+            title: 'Step 2: Step-by-Step Derivation & Solution',
+            explanation: rawLines.map(cleanMathText).join(' ') || 'Apply core principles step-by-step.',
+            latexOrFormula: 'Step 2: Solution Evaluation ✅'
         });
     }
 

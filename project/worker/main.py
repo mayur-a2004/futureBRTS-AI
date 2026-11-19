@@ -8,6 +8,7 @@ if sys.platform == "win32":
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 os.environ['DISABLE_MODEL_SOURCE_CHECK'] = 'True'
+os.environ['PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK'] = 'True'
 
 from fastapi import FastAPI, BackgroundTasks, Request
 from dotenv import load_dotenv
@@ -427,5 +428,6 @@ async def scrape_leads(payload: dict):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    worker_port = int(os.getenv("WORKER_PORT", 8005))
+    uvicorn.run(app, host="0.0.0.0", port=worker_port)
 

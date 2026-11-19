@@ -292,54 +292,10 @@ const generateDynamicQuestions = async (
                 };
             });
         }
-        throw new Error(`AI returned ${Array.isArray(questions) ? 'empty' : 'invalid'} response`);
     } catch (err: any) {
         const cleanTopicStr = cleanTopic(topic) || topic;
-        logger.warn(`[Arena] Question generation failed for ${board}/${standard}/${subject}/${cleanTopicStr}, using dynamic topic fallback: ${err.message}`);
-        
-        // Curricular fallback questions mapping
-        const fallbackCatalog: Record<string, any[]> = {
-            'Accountancy': [
-                { question: `In ${cleanTopicStr}, which of the following is classified as an asset?`, options: ["Accounts Payable", "Cash", "Capital", "Salary Expense"], correctAnswer: 1, difficulty: "Easy", explanation: "Cash is a resource owned by the business that has economic value." },
-                { question: `Under ${cleanTopicStr}, what is the fundamental accounting equation?`, options: ["Assets = Liabilities - Capital", "Assets = Liabilities + Capital", "Liabilities = Assets + Capital", "Capital = Assets + Liabilities"], correctAnswer: 1, difficulty: "Easy", explanation: "The fundamental accounting equation is Assets = Liabilities + Owner's Equity (Capital)." },
-                { question: `Which account increases with a debit entry in ${cleanTopicStr}?`, options: ["Accounts Payable", "Cash", "Service Revenue", "Owner's Capital"], correctAnswer: 1, difficulty: "Medium", explanation: "Asset accounts (like Cash) and Expense accounts increase with a debit." },
-                { question: `How is double-entry bookkeeping applied in ${cleanTopicStr}?`, options: ["Recording transactions twice", "Having two accountants check the books", "Every transaction affects at least two accounts with equal debits and credits", "Maintaining two separate sets of books"], correctAnswer: 2, difficulty: "Medium", explanation: "Double-entry bookkeeping requires that every financial transaction has equal and opposite debit and credit entries." },
-                { question: `The process of transferring journal entries to ledger accounts in ${cleanTopicStr} is:`, options: ["Journalizing", "Posting", "Balancing", "Analyzing"], correctAnswer: 1, difficulty: "Easy", explanation: "Posting refers to transferring entries from the journal to the ledger." },
-                { question: `Which statement shows financial position for ${cleanTopicStr}?`, options: ["Income Statement", "Statement of Cash Flows", "Balance Sheet", "Retained Earnings Statement"], correctAnswer: 2, difficulty: "Medium", explanation: "The Balance Sheet reports assets, liabilities, and equity as of a specific date." }
-            ],
-            'Economics': [
-                { question: `What is the core economic principle of ${cleanTopicStr}?`, options: ["Inflation control", "Scarcity of resources", "Unemployment reduction", "Poverty alleviation"], correctAnswer: 1, difficulty: "Easy", explanation: "Scarcity of resources relative to unlimited human wants is the core economic problem." },
-                { question: `According to the Law of Demand applied to ${cleanTopicStr}, what happens when price rises?`, options: ["Demand increases", "Quantity demanded decreases", "Quantity demanded increases", "Demand decreases"], correctAnswer: 1, difficulty: "Easy", explanation: "There is an inverse relationship between price and quantity demanded." },
-                { question: `What represents opportunity cost in ${cleanTopicStr}?`, options: ["The monetary cost of a choice", "The value of the next best alternative forgone", "The cost of starting a business", "Sunk costs"], correctAnswer: 1, difficulty: "Medium", explanation: "Opportunity cost is the value of what you give up when making a decision." },
-                { question: `When analyzing ${cleanTopicStr}, Gross Domestic Product (GDP) represents:`, options: ["Gross Domestic Product", "General Demand Product", "Government Debt Percentage", "Growth Development Plan"], correctAnswer: 0, difficulty: "Easy", explanation: "Gross Domestic Product measures the total value of goods and services produced within a country." }
-            ]
-        };
-
-        const subjectKey = Object.keys(fallbackCatalog).find(k => k.toLowerCase() === subject.toLowerCase()) || 'Science';
-        const rawList = fallbackCatalog[subjectKey] || [
-            { question: `What is the fundamental concept underlying ${cleanTopicStr}?`, options: ["Core Principle & Definition", "Secondary Derivative", "Historical Myth", "Irrelevant Assumption"], correctAnswer: 0, difficulty: "Easy", explanation: `Understanding the core definition of ${cleanTopicStr} is fundamental to mastering ${subject}.` },
-            { question: `Which of the following is a primary application of ${cleanTopicStr}?`, options: ["Practical Real-World Problem Solving", "Outdated Method", "Purely Theoretical Illusion", "None of the above"], correctAnswer: 0, difficulty: "Medium", explanation: `${cleanTopicStr} is widely used for practical analytical and real-world applications.` },
-            { question: `In the study of ${cleanTopicStr}, which key parameter is continuously evaluated?`, options: ["Key Variable / Indicator", "Fixed Constant Zero", "Random Guess", "Unrelated Metric"], correctAnswer: 0, difficulty: "Medium", explanation: "Evaluations focus on the primary variables governing the system." },
-            { question: `Why is ${cleanTopicStr} essential in ${subject}?`, options: ["It provides essential foundational framework", "It has no practical use", "It replaces all other subjects", "It is optional"], correctAnswer: 0, difficulty: "Easy", explanation: `${cleanTopicStr} provides the core structural framework for ${subject}.` }
-        ];
-
-        // Shuffle fallback list using random seed
-        const shuffledList = [...rawList].sort(() => Math.random() - 0.5);
-        
-        const paddedQuestions = [];
-        for (let i = 0; i < totalRounds; i++) {
-            const rawQ = shuffledList[i % shuffledList.length];
-            const randomizedQ = shuffleQuestionOptions(rawQ);
-            paddedQuestions.push(randomizedQ);
-        }
-
-        return paddedQuestions.map((q: any) => ({
-            ...q,
-            grade: standard,
-            subject,
-            board,
-            topicRef: topic
-        }));
+        logger.warn(`[Arena] Question generation failed for ${board}/${standard}/${subject}/${cleanTopicStr}: ${err.message}`);
+        return [];
     }
 };
 

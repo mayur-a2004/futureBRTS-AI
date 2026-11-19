@@ -140,6 +140,7 @@ export const MinervaRoadmapsPage: React.FC = () => {
     const [scopeType, setScopeType] = useState<'full_subject' | 'single_chapter'>('full_subject');
     const [specificChapter, setSpecificChapter] = useState('');
     const [language, setLanguage] = useState('hinglish');
+    const [dynamicChapterList, setDynamicChapterList] = useState<string[]>([]);
 
     // Custom / Out of Course Form States
     const [customTopic, setCustomTopic] = useState('');
@@ -151,9 +152,7 @@ export const MinervaRoadmapsPage: React.FC = () => {
     const isHigherEd = Boolean(HIGHER_ED_DEGREE_MAP[gradeLevel]);
 
     useEffect(() => {
-        if (token) {
-            loadCourses();
-        }
+        loadCourses();
         if (user) {
             if (user.board) setBoard(user.board.toUpperCase());
             if (user.standard) {
@@ -163,6 +162,36 @@ export const MinervaRoadmapsPage: React.FC = () => {
             if (user.medium) setLanguage(user.medium.toLowerCase());
         }
     }, [token, user]);
+
+    // STATE MANAGEMENT CASCADE RESET HANDLERS
+    const handleBoardChange = (newBoard: string) => {
+        setBoard(newBoard);
+        setLanguage('hinglish');
+        setGradeLevel('10');
+        setSelectedSubject('Mathematics');
+        setSpecificChapter('');
+        setDynamicChapterList([]);
+    };
+
+    const handleMediumChange = (newMedium: string) => {
+        setLanguage(newMedium);
+        setSelectedSubject('Mathematics');
+        setSpecificChapter('');
+        setDynamicChapterList([]);
+    };
+
+    const handleClassChange = (newClass: string) => {
+        setGradeLevel(newClass);
+        setSelectedSubject('Mathematics');
+        setSpecificChapter('');
+        setDynamicChapterList([]);
+    };
+
+    const handleSubjectChange = (newSubject: string) => {
+        setSelectedSubject(newSubject);
+        setSpecificChapter('');
+        setDynamicChapterList([]);
+    };
 
     // When gradeLevel changes, sync degree options and subjects
     useEffect(() => {
@@ -183,9 +212,11 @@ export const MinervaRoadmapsPage: React.FC = () => {
     const loadCourses = async () => {
         setLoading(true);
         try {
-            const res = await minervaApi.getSessions(token);
-            if (res.success) {
-                setCourses(res.sessions || []);
+            if (token) {
+                const res = await minervaApi.getSessions(token);
+                if (res.success) {
+                    setCourses(res.sessions || []);
+                }
             }
             const tenantOrgId = (user as any)?.tenantOrgId || ((user as any)?.schoolName ? (user as any).schoolName.toLowerCase().replace(/\s+/g, '_') : 'mount_carmel_school');
             const roadmapRes = await axios.get(`/api/v1/teacher-workspace/assignments?tenantOrgId=${tenantOrgId}&classId=${selectedClass}`);
@@ -219,6 +250,14 @@ export const MinervaRoadmapsPage: React.FC = () => {
         }
     };
 
+    // When selectedSubject or gradeLevel changes, update specificChapter automatically to Chapter 1
+    useEffect(() => {
+        const chs = getSubjectChapterList(selectedSubject, gradeLevel);
+        if (chs && chs.length > 0 && (!specificChapter || !chs.includes(specificChapter))) {
+            setSpecificChapter(chs[0]);
+        }
+    }, [selectedSubject, gradeLevel]);
+
     const handleCreateCourse = async (e: React.FormEvent) => {
         e.preventDefault();
         setGenLoading(true);
@@ -233,16 +272,16 @@ export const MinervaRoadmapsPage: React.FC = () => {
                     const semLabel = semester.replace('sem_', 'Semester ');
 
                     const roadmapTypeStr = scopeType === 'full_subject' 
-                        ? `Full University Course Syllabus for Subject: "${selectedSubject}"` 
+                        ? `Full Official University Course Syllabus for Subject: "${selectedSubject}"` 
                         : `Single Chapter Study Roadmap for Chapter: "${specificChapter || 'Chapter 1'}" in Subject: "${selectedSubject}"`;
                     
-                    promptMsg = `Create an official university college syllabus course (${roadmapTypeStr}). Degree: ${degreeName}. Term: ${semLabel}. Subject: ${selectedSubject}. Target Level: ${gradeLevel}. Instruction Language: ${language}. Include sequential modules, lab practicals, exam weightage marks, and semester curriculum topics.`;
+                    promptMsg = `Create an official university college syllabus course (${roadmapTypeStr}). Degree: ${degreeName}. Term: ${semLabel}. Subject: ${selectedSubject}. Target Level: ${gradeLevel}. Instruction Language: ${language}. Include sequential modules, lab practicals, exam weightage marks, and ALL official textbook semester curriculum topics from start to finish.`;
                 } else {
                     const roadmapTypeStr = scopeType === 'full_subject' 
-                        ? `Full Official Board Textbook Roadmap for ${selectedSubject}` 
+                        ? `Full Official Board Textbook Syllabus Roadmap covering ALL chapters from Chapter 1 to final chapter for ${selectedSubject}` 
                         : `Single Chapter Textbook Roadmap for Chapter: "${specificChapter || 'Chapter 1'}" in Subject: ${selectedSubject}`;
                     
-                    promptMsg = `Create an official textbook-aligned ${roadmapTypeStr}. Target Standard / Grade Level: Class ${gradeLevel}. Board Alignment: ${board}. Medium of Instruction: ${language}. Include all official textbook chapters and sub-topics with board exam weightage marks.`;
+                    promptMsg = `Create an official textbook-aligned ${roadmapTypeStr}. Target Standard / Grade Level: Class ${gradeLevel}. Board Alignment: ${board}. Medium of Instruction: ${language}. CRITICAL REQUIREMENT: You MUST include ALL official textbook chapters for Class ${gradeLevel} ${board} ${selectedSubject} from Chapter 1 to the end without omitting any chapter. Provide 12 to 16 sequential roadmap nodes covering the complete official textbook syllabus with board exam weightage marks.`;
                 }
             } else {
                 if (!customTopic.trim()) {
@@ -253,11 +292,12 @@ export const MinervaRoadmapsPage: React.FC = () => {
                 promptMsg = `Create a custom skill roadmap course for topic: "${customTopic}". Medium of Instruction: ${language}. Include sequential learning nodes and practical projects.`;
             }
 
-            const res = await minervaApi.sendChat(token, promptMsg, undefined, undefined, false, true);
+            const res = await minervaApi.sendChat(token, promptMsg, undefined, undefined, false, true, undefined, undefined, undefined, selectedSubject);
             
-            if (res.success && res.content_type === 'roadmap' && res.metadata?.session_id) {
+            const sid = res.metadata?.session_id || res.session_id;
+            if (res.success && sid) {
                 setShowCreateModal(false);
-                navigate(`/future-education/session/${res.metadata.session_id}`);
+                navigate(`/future-education/session/${sid}`);
             } else if (res.success && res.reply) {
                 alert(`AI Response: ${res.reply}\n\nPlease ask the AI Tutor directly in the Chat room to build a roadmap.`);
                 setShowCreateModal(false);
@@ -276,105 +316,521 @@ export const MinervaRoadmapsPage: React.FC = () => {
     // Helper: Dynamic Official Textbook Chapters based on Subject and Grade Level
     const getSubjectChapterList = (subjectName: string, grade: string): string[] => {
         const subLower = (subjectName || '').toLowerCase();
+        const is12th = grade.startsWith('12') || grade === '12';
+        const is11th = grade.startsWith('11') || grade === '11';
+
+        // 1. GUJARATI (ધોરણ 11 vs ધોરણ 12 ગુજરાતી)
+        if (subLower.includes('gujarat')) {
+            if (is12th) {
+                return [
+                    'Chapter 1: ક્રોધી સ્વભાવને જીતવો ને (પદ - ગંગાસતી)',
+                    'Chapter 2: કુસુમનું કઠણ તપ (નવલકથાખંડ - ગોવર્ધનરામ ત્રિપાઠી)',
+                    'Chapter 3: એમ ઉગાર્યો ચંદ્રહાસ (આખ્યાનખંડ - પ્રેમાનંદ)',
+                    'Chapter 4: સત્યાગ્રહાશ્રમ (આત્મકથાખંડ - વિનોબા ભાબે)',
+                    'Chapter 5: થીગડું (વાર્તા - સુરેશ જોષી)',
+                    'Chapter 6: ઉછીનું માંગનારાઓ (હાસ્ય નિબંધ - નટવરલાલ બૂચ)',
+                    'Chapter 7: શ્યામ રંગ સમીપે (પદ - દયારામ)',
+                    'Chapter 8: અમરનાથની યાત્રાએ (પ્રવાસ નિબંધ - વિનોદિની નીલકંઠ)',
+                    'Chapter 9: ભવના અબોલા (લોકગીત)',
+                    'Chapter 10: યુધિષ્ઠિર યુદ્ધવિષાદ (નાટ્યાંશ - ઉમાશંકર જોશી)',
+                    'Chapter 11: ઉર્મિલા (ખંડકાવ્ય - કવિ કાન્ત)',
+                    'Chapter 12: પુંજા મેજરની લગની (વાર્તા - રઘુવીર ચૌધરી)',
+                    'Chapter 13: મહાત્માના માણસ (વાર્તા - ધીરુબેન પટેલ)',
+                    'Chapter 14: છેલ્લું દર્શન (સોનેટ - નિરંજન ભગત)',
+                    'Chapter 15: ધોરણ 12 ગુજરાતી વ્યાકરણ & લેખન (સંયોજકો, વાક્યરૂપાંતર, વિચારવિસ્તાર)'
+                ];
+            } else {
+                return [
+                    'Chapter 1: જાગને જાદવા (પદ - નરસિંહ મહેતા)',
+                    'Chapter 2: ખરી મા (વાર્તા - મહાશ્વેતા દેવી)',
+                    'Chapter 3: નાવિક વળતો બોલિયો (પદ - ભાલણ)',
+                    'Chapter 4: પોસ્ટ ઑફિસ (વાર્તા - ધૂમકેતુ)',
+                    'Chapter 5: પરાજયની જીત (ખંડકાવ્ય - સુરેશ જોષી)',
+                    'Chapter 6: સુન્દરીની શોધ (આત્મકથાખંડ - જયશંકર \'સુન્દરી\')',
+                    'Chapter 7: વનમાં ચાંદલિયો ઊગ્યો (લોકગીત)',
+                    'Chapter 8: બુરાઈના દ્વાર પરથી (નવલિકા - ઝવેરચંદ મેઘાણી)',
+                    'Chapter 9: ચક્રવાકમિથુન (ખંડકાવ્ય - કાન્ત)',
+                    'Chapter 10: બે લઘુકથાઓ (ઠેસ & સાચો રસ્તો)',
+                    'Chapter 11: ભવિષ્યવેત્તા (હાસ્ય વાર્તા)',
+                    'Chapter 12: ધોરણ 11 ગુજરાતી વ્યાકરણ & લેખન (સમાસ, કહેવતો, વિચારવિસ્તાર)'
+                ];
+            }
+        }
+
+        // 2. ACCOUNTANCY (નામાના મૂળતત્વો Std 11 vs Std 12)
+        if (subLower.includes('account')) {
+            if (is12th) {
+                return [
+                    'Chapter 1: ભાગીદારી વિષય પ્રવેશ (Partnership Fundamentals)',
+                    'Chapter 2: ભાગીદારી પેઢીના વાર્ષિક હિસાબો (Final Accounts)',
+                    'Chapter 3: પાઘડીનું મૂલ્યાંકન (Valuation of Goodwill)',
+                    'Chapter 4: ભાગીદારીનું પુનર્ગઠન (Reconstitution of Partnership)',
+                    'Chapter 5: નવા ભાગીદારનો પ્રવેશ (Admission of Partner)',
+                    'Chapter 6: ભાગીદારની નિવૃત્તિ / મૃત્યુ (Retirement of Partner)',
+                    'Chapter 7: ભાગીદારી પેઢીનું વિસર્જન (Dissolution of Firm)',
+                    'Chapter 8: શેરમૂડીના વ્યવહારો (Share Capital Accounting)',
+                    'Chapter 9: ડિબેન્ચરના વ્યવહારો (Issue of Debentures)',
+                    'Chapter 10: કંપનીના વાર્ષિક હિસાબો (Company Final Accounts)',
+                    'Chapter 11: નાણાકીય પત્રકોનું વિશ્લેષણ & ગુણોત્તર (Ratio Analysis)',
+                    'Chapter 12: રોકડ પ્રવાહ પત્રક (Cash Flow Statement - CFS)'
+                ];
+            } else {
+                return [
+                    'Chapter 1: હિસાબી પદ્ધતિ અને પારિભાષિક શબ્દો (Introduction)',
+                    'Chapter 2: વ્યવહારોની દ્વિઅસર અને ખાતાના પ્રકારો (Dual Effect)',
+                    'Chapter 3: આમનોંધ અને વસ્તુ-સેવાઓ કર (Journal & GST)',
+                    'Chapter 4: સહાયક ચોપડાઓ (Subsidiary Books)',
+                    'Chapter 5: રોકડમેળ અને તેના પ્રકારો (Cash Book)',
+                    'Chapter 6: બેંક સિલકમેળ (Bank Reconciliation Statement)',
+                    'Chapter 7: કાચું સરવૈયું અને ભૂલ સુધારણા (Trial Balance)',
+                    'Chapter 8: ઘસારાના હિસાબો (Depreciation Accounting)',
+                    'Chapter 9: જોગવાઈઓ અને અનામતો (Provisions and Reserves)',
+                    'Chapter 10: એકાંકી વેપારીના વાર્ષિક હિસાબો (Sole Trader Final Accounts)',
+                    'Chapter 11: અપૂર્ણ નોંધો પરથી હિસાબો (Single Entry System)'
+                ];
+            }
+        }
+
+        // 3. ECONOMICS (અર્થશાસ્ત્ર Std 11 vs Std 12)
+        if (subLower.includes('econ')) {
+            if (is12th) {
+                return [
+                    'Chapter 1: અર્થશાસ્ત્રમાં આલેખ (Graphs in Economics)',
+                    'Chapter 2: વૃદ્ધિ અને વિકાસના નિર્દેશકો (Growth Indicators)',
+                    'Chapter 3: નાણું અને ફુગાવો (Money and Inflation)',
+                    'Chapter 4: બેંકિંગ અને નાણાકીય નીતિ (Banking & Policy)',
+                    'Chapter 5: ગરીબી (Poverty & Poverty Alleviation)',
+                    'Chapter 6: બેરોજગારી (Unemployment & Employment Schemes)',
+                    'Chapter 7: વસ્તી (Population Demographics)',
+                    'Chapter 8: કૃષિ ક્ષેત્ર (Agricultural Sector)',
+                    'Chapter 9: વિદેશ વેપાર (Foreign Trade & BoP)',
+                    'Chapter 10: ઉદ્યોગ ક્ષેત્ર (Industrial Sector & MSME)',
+                    'Chapter 11: સ્થાનાંતર અને શહેરીકરણ (Migration & Urbanisation)'
+                ];
+            } else {
+                return [
+                    'Chapter 1: અર્થશાસ્ત્ર વિષય પ્રવેશ (Introduction to Economics)',
+                    'Chapter 2: મૂળભૂત ખ્યાલો અને સંકલ્પનાઓ (Basic Concepts)',
+                    'Chapter 3: માંગ અને માંગની સાપેક્ષતા (Demand Theory)',
+                    'Chapter 4: પુરવઠો અને પુરવઠાની સાપેક્ષતા (Supply Theory)',
+                    'Chapter 5: આવક અને ખર્ચના ખ્યાલો (Revenue & Cost Functions)',
+                    'Chapter 6: બજાર અને બજારના પ્રકારો (Forms of Market)',
+                    'Chapter 7: ભારતીય અર્થતંત્ર (Indian Economy)',
+                    'Chapter 8: આર્થિક સુધારાઓ 1991 (LPG Policies)',
+                    'Chapter 9: રાષ્ટ્રીય આવક (National Income Accounting)',
+                    'Chapter 10: અંદાજપત્ર (Government Budget & Taxation)',
+                    'Chapter 11: આર્થિક વિચારો (Economic Thoughts)'
+                ];
+            }
+        }
+
+        // 4. STATISTICS (આંકડાશાસ્ત્ર Std 11 vs Std 12)
+        if (subLower.includes('stat')) {
+            if (is12th) {
+                return [
+                    'Chapter 1: સૂચક આંક (Index Numbers - Laspeyres, Paasche, Fisher)',
+                    'Chapter 2: રેખીય સહસંબંધ (Linear Correlation)',
+                    'Chapter 3: રેખીય નિયતસંબંધ (Linear Regression)',
+                    'Chapter 4: સામાયિક શ્રેણી (Time Series Analysis)',
+                    'Chapter 5: સંભાવના (Probability Theory & Bayes Theorem)',
+                    'Chapter 6: યાદચ્છિક ચલ અને દ્વિપદી વિતરણ (Random Variables)',
+                    'Chapter 7: પ્રમાણ્ય વિતરણ (Normal Distribution & Z-Scores)',
+                    'Chapter 8: લક્ષ (Limits & Continuity)',
+                    'Chapter 9: વિકલન (Differentiation & Marginal Analysis)'
+                ];
+            } else {
+                return [
+                    'Chapter 1: માહિતીનું એકત્રીકરણ (Collection of Data)',
+                    'Chapter 2: માહિતીનું પ્રસ્તુતીકરણ (Tabulation of Data)',
+                    'Chapter 3: મધ્યવર્તી સ્થિતિના માપો (Mean, Median, Mode)',
+                    'Chapter 4: પ્રસારમાન (Range, SD, Quartile Deviation)',
+                    'Chapter 5: આવૃત્તિ વિતરણની વિષમતા (Skewness)',
+                    'Chapter 6: ક્રમચય, સંચય અને દ્વિપદી પ્રમેય (Permutations & Combinations)',
+                    'Chapter 7: નિદર્શન પદ્ધતિઓ (Sampling Techniques)',
+                    'Chapter 8: વિધેય (Functions & Functional Relations)',
+                    'Chapter 9: ગુણોત્તર શ્રેણી (Geometric Progression - GP)'
+                ];
+            }
+        }
+
+        // 5. BUSINESS STUDIES / OCM (વાણિજ્ય વ્યવસ્થા અને સંચાલન Std 11 vs Std 12)
+        if (subLower.includes('business') || subLower.includes('commerc') || subLower.includes('o.c.m') || subLower.includes('ocm')) {
+            if (is12th) {
+                return [
+                    'Chapter 1: સંચાલનનું સ્વરૂપ અને મહત્વ (Nature & Significance of Management)',
+                    'Chapter 2: સંચાલનના સિદ્ધાંતો (Principles of Management)',
+                    'Chapter 3: આયોજન (Planning & Strategic Goals)',
+                    'Chapter 4: વ્યવસ્થાતંત્ર (Organising & Structure)',
+                    'Chapter 5: કર્મચારી વ્યવસ્થા (Staffing & Recruitment)',
+                    'Chapter 6: દોરવણી (Directing & Leadership)',
+                    'Chapter 7: અંકુશ (Controlling & Feedback)',
+                    'Chapter 8: નાણાકીય સંચાલન (Financial Management)',
+                    'Chapter 9: નાણાકીય બજાર (Financial Markets & SEBI)',
+                    'Chapter 10: બજારીય સંચાલન (Marketing Management & 4Ps)',
+                    'Chapter 11: ગ્રાહક સુરક્ષા (Consumer Protection Act)',
+                    'Chapter 12: ધંધાકીય પર્યાવરણ (Business Environment)'
+                ];
+            } else {
+                return [
+                    'Chapter 1: ધંધાનું સ્વરૂપ, હેતુ અને કાર્યક્ષેત્ર (Nature & Scope of Business)',
+                    'Chapter 2: ધંધાકીય સેવાઓ - 1 (Banking, Post, Insurance)',
+                    'Chapter 3: ધંધાકીય સેવાઓ - 2 (Warehousing & Transport)',
+                    'Chapter 4: માહિતી સંચાર, ઈ-કોમર્સ અને આઉટસોર્સિંગ (E-Commerce)',
+                    'Chapter 5: ધંધાકીય સાહસના સ્વરૂપો - 1 (Sole Trader & Partnership)',
+                    'Chapter 6: ધંધાકીય સાહસના સ્વરૂપો - 2 (Joint Stock Company & Co-op)',
+                    'Chapter 7: જાહેર ક્ષેત્ર, ખાનગી ક્ષેત્ર અને વૈશ્વિક સાહસો (Public & Global)',
+                    'Chapter 8: ધંધાકીય મૂડીના પ્રાપ્તિસ્થાનો (Sources of Business Finance)',
+                    'Chapter 9: આંતરિક વેપાર (Internal Trade & Retail)',
+                    'Chapter 10: આંતરરાષ્ટ્રીય વેપાર (International Trade)',
+                    'Chapter 11: ધંધાની સામાજિક જવાબદારીઓ (Social Responsibility & Ethics)'
+                ];
+            }
+        }
+
+        // 6. SECRETARIAL PRACTICE / SPCC (Std 11 vs Std 12)
+        if (subLower.includes('spcc') || subLower.includes('secretar') || subLower.includes('correspondence') || subLower.includes('s.p.c.c')) {
+            if (is12th) {
+                return [
+                    'Chapter 1: બેંક પત્રવ્યવહાર (Bank Correspondence)',
+                    'Chapter 2: સરકારી વિભાગો સાથે પત્રવ્યવહાર (Government Dept Letters)',
+                    'Chapter 3: આંતર-વિભાગીય અને કર્મચારી પત્રવ્યવહાર (Inter-departmental)',
+                    'Chapter 4: વીમા પત્રવ્યવહાર (Insurance Correspondence)',
+                    'Chapter 5: ઈ-કોમ્યુનિકેશન અને તેના પ્રકારો (E-Communication)',
+                    'Chapter 6: શેર બહાર પાડવા અને શેર વહેંચણી (Share Issue & Allotment)',
+                    'Chapter 7: શેર ફેરબદલી અને ભૌતિકીકરણ (Share Transfer & Demat)',
+                    'Chapter 8: ડિબેન્ચર અને તેના પ્રકારો (Debentures)',
+                    'Chapter 9: કંપનીના સંચાલકો (Company Directors & KMP)',
+                    'Chapter 10: કંપનીની સભાઓ (Company Meetings & Resolutions)',
+                    'Chapter 11: કંપનીનું વિસર્જન (Winding Up & Dissolution)'
+                ];
+            } else {
+                return [
+                    'Chapter 1: વાણિજ્યિક પત્રવ્યવહારનો અર્થ અને શૈલી (Commercial Correspondence)',
+                    'Chapter 2: અસરકારક પત્રવ્યવહાર અને તેની શૈલીઓ (Effective Writing)',
+                    'Chapter 3: વેપારી પૂછપરછ અને તેના પ્રત્યુત્તરના પત્રો (Inquiry & Quotation)',
+                    'Chapter 4: ઓર્ડર આપતા, અમલ કરતા અને રદ કરતા પત્રો (Orders & Execution)',
+                    'Chapter 5: ફરિયાદ અને તેના નિકાલના પત્રો (Complaints & Adjustment)',
+                    'Chapter 6: ઉઘરાણી અને પતવટના પત્રો (Collection Letters)',
+                    'Chapter 7: સેક્રેટરીનો અર્થ, પ્રકારો અને ગુણો (Secretary Duties)',
+                    'Chapter 8: કંપનીની સ્થાપના વિધિ (Company Incorporation)',
+                    'Chapter 9: આવેદનપત્ર (Memorandum of Association - MOA)',
+                    'Chapter 10: નિયમનપત્ર (Articles of Association - AOA)',
+                    'Chapter 11: વિજ્ઞાપનપત્ર (Prospectus & Statutory Filing)'
+                ];
+            }
+        }
+
+        // 7. MATHEMATICS (Class 1-5, Class 6, Class 7, Class 8, Class 9, Class 10, Class 11, Class 12)
         if (subLower.includes('math')) {
+            if (is12th) {
+                return [
+                    'Chapter 1: Relations and Functions',
+                    'Chapter 2: Inverse Trigonometric Functions',
+                    'Chapter 3: Matrices & Determinants',
+                    'Chapter 4: Continuity and Differentiability',
+                    'Chapter 5: Applications of Derivatives (AOD)',
+                    'Chapter 6: Integrals & Integration Techniques',
+                    'Chapter 7: Applications of Integrals (Area under Curves)',
+                    'Chapter 8: Differential Equations',
+                    'Chapter 9: Vector Algebra',
+                    'Chapter 10: Three Dimensional Geometry (3D)',
+                    'Chapter 11: Linear Programming (LPP)',
+                    'Chapter 12: Probability & Conditional Probability'
+                ];
+            } else if (is11th) {
+                return [
+                    'Chapter 1: Sets, Relations & Functions',
+                    'Chapter 2: Trigonometric Functions & Equations',
+                    'Chapter 3: Complex Numbers & Quadratic Equations',
+                    'Chapter 4: Linear Inequalities',
+                    'Chapter 5: Permutations and Combinations',
+                    'Chapter 6: Binomial Theorem',
+                    'Chapter 7: Sequences and Series (AP & GP)',
+                    'Chapter 8: Straight Lines & Conic Sections',
+                    'Chapter 9: Introduction to Three Dimensional Geometry',
+                    'Chapter 10: Limits and Derivatives',
+                    'Chapter 11: Statistics & Dispersion',
+                    'Chapter 12: Probability Theory'
+                ];
+            } else if (grade === '9') {
+                return [
+                    'Chapter 1: Number Systems (સંખ્યા પદ્ધતિ)',
+                    'Chapter 2: Polynomials (બહુપદીઓ)',
+                    'Chapter 3: Coordinate Geometry (યામ ભૂમિતિ)',
+                    'Chapter 4: Linear Equations in Two Variables (દ્વિચલ રેખીય સમીકરણો)',
+                    'Chapter 5: Introduction to Euclid Geometry (યુક્લિડની ભૂમિતિનો પરિચય)',
+                    'Chapter 6: Lines and Angles (રેખાઓ અને ખૂણાઓ)',
+                    'Chapter 7: Triangles (ત્રિકોણ)',
+                    'Chapter 8: Quadrilaterals (ચતુષ્કોણ)',
+                    'Chapter 9: Circles (વર્તુળ)',
+                    'Chapter 10: Heron\'s Formula (હેરોનનું સૂત્ર)',
+                    'Chapter 11: Surface Areas and Volumes (પૃષ્ઠફળ અને ઘનફળ)',
+                    'Chapter 12: Statistics (આંકડાશાસ્ત્ર)'
+                ];
+            } else if (grade === '8') {
+                return [
+                    'Chapter 1: Rational Numbers (સંમેય સંખ્યાઓ)',
+                    'Chapter 2: Linear Equations in One Variable (એકચલ રેખીય સમીકરણ)',
+                    'Chapter 3: Understanding Quadrilaterals (ચતુષ્કોણની સમજ)',
+                    'Chapter 4: Data Handling (માહિતીનું નિયામન)',
+                    'Chapter 5: Squares and Square Roots (વર્ગ અને વર્ગમૂળ)',
+                    'Chapter 6: Cubes and Cube Roots (ઘન અને ઘનમૂળ)',
+                    'Chapter 7: Comparing Quantities (રાશિઓની સરખામણી)',
+                    'Chapter 8: Algebraic Expressions and Identities (બેજિક પદાવલીઓ)',
+                    'Chapter 9: Mensuration (ક્ષેત્રફળ અને માપન)',
+                    'Chapter 10: Exponents and Powers (ઘાત અને ઘાતાંક)',
+                    'Chapter 11: Direct and Inverse Proportions (સમપ્રમાણ અને વ્યસ્ત પ્રમાણ)',
+                    'Chapter 12: Factorisation (અવયવીકરણ)',
+                    'Chapter 13: Introduction to Graphs (આલેખનો પરિચય)'
+                ];
+            } else if (grade === '7') {
+                return [
+                    'Chapter 1: Integers (પૂર્ણાંક સંખ્યાઓ)',
+                    'Chapter 2: Fractions and Decimals (અપૂર્ણાંક અને દશાંશ સંખ્યાઓ)',
+                    'Chapter 3: Data Handling (માહિતીનું નિયામન)',
+                    'Chapter 4: Simple Equations (સાદા સમીકરણ)',
+                    'Chapter 5: Lines and Angles (રેખા અને ખૂણા)',
+                    'Chapter 6: The Triangle and its Properties (ત્રિકોણ અને તેના ગુણધર્મો)',
+                    'Chapter 7: Comparing Quantities (રાશીઓની સરખામણી)',
+                    'Chapter 8: Rational Numbers (સંમેય સંખ્યાઓ)',
+                    'Chapter 9: Perimeter and Area (પરિમિતિ અને ક્ષેત્રફળ)',
+                    'Chapter 10: Algebraic Expressions (બીજગણિતીય પદાવલી)',
+                    'Chapter 11: Exponents and Powers (ઘાત અને ઘાતાંક)',
+                    'Chapter 12: Symmetry (સિમિતિ)'
+                ];
+            } else if (grade === '6') {
+                return [
+                    'Chapter 1: Knowing Our Numbers (આપણી સંખ્યાઓને જાણવી)',
+                    'Chapter 2: Whole Numbers (પૂર્ણ સંખ્યાઓ)',
+                    'Chapter 3: Playing with Numbers (સંખ્યા સાથે રમત)',
+                    'Chapter 4: Basic Geometrical Ideas (પાયાના ભૂમિતિના ખ્યાલો)',
+                    'Chapter 5: Understanding Elementary Shapes (પ્રારંભિક આકારોની સમજ)',
+                    'Chapter 6: Integers (પૂર્ણાંક સંખ્યાઓ)',
+                    'Chapter 7: Fractions (અપૂર્ણાંક સંખ્યાઓ)',
+                    'Chapter 8: Decimals (દશાંશ સંખ્યાઓ)',
+                    'Chapter 9: Data Handling (માહિતીનું નિયામન)',
+                    'Chapter 10: Mensuration (માપન)',
+                    'Chapter 11: Algebra (બીજગણિત)',
+                    'Chapter 12: Ratio and Proportion (ગુણોત્તર અને પ્રમાણ)'
+                ];
+            } else if (['1', '2', '3', '4', '5'].includes(grade)) {
+                return [
+                    'Chapter 1: ક્યાંથી જોવું? (Where to Look From)',
+                    'Chapter 2: સંખ્યાની ગમ્મત (Fun with Numbers)',
+                    'Chapter 3: આપો અને લો (Give and Take)',
+                    'Chapter 4: લાંબુ અને ટૂંકું (Long and Short)',
+                    'Chapter 5: આકાર અને ભાત (Shapes and Designs)',
+                    'Chapter 6: આપ-લેની ગમ્મત (Fun with Give and Take)',
+                    'Chapter 7: સમય વહી જાય છે (Time Goes On)',
+                    'Chapter 8: કોણ ભારે છે? (Who is Heavier?)',
+                    'Chapter 9: કેટલા વખત? (How Many Times?)',
+                    'Chapter 10: ભાતની પેટર્ન (Play with Patterns)',
+                    'Chapter 11: જગ અને મગ (Jugs and Mugs)',
+                    'Chapter 12: આપણે સરખા ભાગે વહેંચી શકીએ? (Can We Share?)',
+                    'Chapter 13: સ્માર્ટ ચાર્ટ (Smart Charts)',
+                    'Chapter 14: રૂપિયા અને પૈસા (Rupees and Paise)'
+                ];
+            } else {
+                return [
+                    'Chapter 1: Real Numbers (વાસ્તવિક સંખ્યાઓ)',
+                    'Chapter 2: Polynomials (બહુપદીઓ)',
+                    'Chapter 3: Pair of Linear Equations in Two Variables (દ્વિચલ રેખીય સમીકરણ)',
+                    'Chapter 4: Quadratic Equations (દ્વિઘાત સમીકરણ)',
+                    'Chapter 5: Arithmetic Progressions (સમાંતર શ્રેણી)',
+                    'Chapter 6: Triangles (ત્રિકોણ)',
+                    'Chapter 7: Coordinate Geometry (યામ ભૂમિતિ)',
+                    'Chapter 8: Introduction to Trigonometry (ત્રિકોણમિતિનો પરિચય)',
+                    'Chapter 9: Some Applications of Trigonometry (ત્રિકોણમિતિના ઉપયોગો)',
+                    'Chapter 10: Circles (વર્તુળ)',
+                    'Chapter 11: Areas Related to Circles (વર્તુળ સંબંધિત ક્ષેત્રફળ)',
+                    'Chapter 12: Surface Areas and Volumes (પૃષ્ઠફળ અને ઘનફળ)',
+                    'Chapter 13: Statistics (આંકડાશાસ્ત્ર)',
+                    'Chapter 14: Probability (સંભાવના)'
+                ];
+            }
+        }
+
+        // 8. PHYSICS (Class 11 vs Class 12)
+        if (subLower.includes('physic')) {
+            if (is12th) {
+                return [
+                    'Chapter 1: Electric Charges and Fields',
+                    'Chapter 2: Electrostatic Potential and Capacitance',
+                    'Chapter 3: Current Electricity & Ohm\'s Law',
+                    'Chapter 4: Moving Charges and Magnetism',
+                    'Chapter 5: Magnetism and Matter',
+                    'Chapter 6: Electromagnetic Induction (EMI)',
+                    'Chapter 7: Alternating Current (AC Circuits)',
+                    'Chapter 8: Electromagnetic Waves (EM Waves)',
+                    'Chapter 9: Ray Optics and Optical Instruments',
+                    'Chapter 10: Wave Optics & Interference',
+                    'Chapter 11: Dual Nature of Radiation and Matter',
+                    'Chapter 12: Atoms & Spectral Series',
+                    'Chapter 13: Nuclei & Nuclear Fission/Fusion',
+                    'Chapter 14: Semiconductor Electronics: Materials & Devices'
+                ];
+            } else {
+                return [
+                    'Chapter 1: Units and Measurements & Error Analysis',
+                    'Chapter 2: Motion in a Straight Line (Kinematics)',
+                    'Chapter 3: Motion in a Plane & Vectors',
+                    'Chapter 4: Laws of Motion & Friction',
+                    'Chapter 5: Work, Energy and Power',
+                    'Chapter 6: System of Particles and Rotational Motion',
+                    'Chapter 7: Gravitation & Planetary Motion',
+                    'Chapter 8: Mechanical Properties of Solids (Elasticity)',
+                    'Chapter 9: Mechanical Properties of Fluids (Hydrostatics)',
+                    'Chapter 10: Thermal Properties of Matter & Heat Transfer',
+                    'Chapter 11: Thermodynamics & Heat Engines',
+                    'Chapter 12: Kinetic Theory of Gases',
+                    'Chapter 13: Oscillations & Simple Harmonic Motion',
+                    'Chapter 14: Waves & Sound Doppler Effect'
+                ];
+            }
+        }
+
+        // 9. CHEMISTRY (Class 11 vs Class 12)
+        if (subLower.includes('chemist')) {
+            if (is12th) {
+                return [
+                    'Chapter 1: Solutions & Colligative Properties',
+                    'Chapter 2: Electrochemistry & Nernst Equation',
+                    'Chapter 3: Chemical Kinetics & Rate Laws',
+                    'Chapter 4: d- and f-Block Elements',
+                    'Chapter 5: Coordination Compounds & IUPAC Naming',
+                    'Chapter 6: Haloalkanes and Haloarenes',
+                    'Chapter 7: Alcohols, Phenols and Ethers',
+                    'Chapter 8: Aldehydes, Ketones and Carboxylic Acids',
+                    'Chapter 9: Amines & Diazonium Salts',
+                    'Chapter 10: Biomolecules (Carbohydrates, Proteins, DNA)'
+                ];
+            } else {
+                return [
+                    'Chapter 1: Some Basic Concepts of Chemistry (Mole Concept)',
+                    'Chapter 2: Structure of Atom & Quantum Numbers',
+                    'Chapter 3: Periodicity in Properties',
+                    'Chapter 4: Chemical Bonding and Molecular Structure',
+                    'Chapter 5: Chemical Thermodynamics & Energetics',
+                    'Chapter 6: Chemical & Ionic Equilibrium',
+                    'Chapter 7: Redox Reactions & Oxidation Numbers',
+                    'Chapter 8: Organic Chemistry: Basic Principles & Techniques',
+                    'Chapter 9: Hydrocarbons (Alkanes, Alkenes, Alkynes)'
+                ];
+            }
+        }
+
+        // 10. BIOLOGY (Class 11 vs Class 12)
+        if (subLower.includes('bio')) {
+            if (is12th) {
+                return [
+                    'Chapter 1: Sexual Reproduction in Flowering Plants',
+                    'Chapter 2: Human Reproduction & Embryology',
+                    'Chapter 3: Reproductive Health & Contraception',
+                    'Chapter 4: Principles of Inheritance and Variation',
+                    'Chapter 5: Molecular Basis of Inheritance',
+                    'Chapter 6: Evolution & Natural Selection',
+                    'Chapter 7: Human Health and Diseases',
+                    'Chapter 8: Microbes in Human Welfare',
+                    'Chapter 9: Biotechnology: Principles and Processes',
+                    'Chapter 10: Biotechnology and its Applications',
+                    'Chapter 11: Organisms and Populations',
+                    'Chapter 12: Ecosystem & Nutrient Cycling',
+                    'Chapter 13: Biodiversity and Conservation'
+                ];
+            } else {
+                return [
+                    'Chapter 1: The Living World & Biological Classification',
+                    'Chapter 2: Plant Kingdom & Animal Kingdom',
+                    'Chapter 3: Morphology & Anatomy of Flowering Plants',
+                    'Chapter 4: Structural Organisation in Animals',
+                    'Chapter 5: Cell: The Unit of Life',
+                    'Chapter 6: Biomolecules',
+                    'Chapter 7: Cell Cycle and Cell Division',
+                    'Chapter 8: Photosynthesis in Higher Plants',
+                    'Chapter 9: Respiration in Plants',
+                    'Chapter 10: Plant Growth and Development',
+                    'Chapter 11: Breathing and Exchange of Gases',
+                    'Chapter 12: Body Fluids and Circulation',
+                    'Chapter 13: Excretory Products and their Elimination',
+                    'Chapter 14: Locomotion and Movement',
+                    'Chapter 15: Neural Control and Coordination',
+                    'Chapter 16: Chemical Coordination and Integration'
+                ];
+            }
+        }
+
+        // 11. GENERAL SCIENCE (Class 1 to 10)
+        if (subLower.includes('scien')) {
             return [
-                'Chapter 1: Real Numbers & Euclid Lemma',
-                'Chapter 2: Polynomials & Algebraic Identities',
-                'Chapter 3: Pair of Linear Equations in Two Variables',
-                'Chapter 4: Quadratic Equations & Factorization',
-                'Chapter 5: Arithmetic Progressions (AP)',
-                'Chapter 6: Triangles & Similarity Theorems',
-                'Chapter 7: Coordinate Geometry & Distance Formula',
-                'Chapter 8: Introduction to Trigonometry',
-                'Chapter 9: Heights and Distances (Trigonometry Applications)',
-                'Chapter 10: Circles & Tangents',
-                'Chapter 11: Areas Related to Circles',
-                'Chapter 12: Surface Areas and Volumes',
-                'Chapter 13: Statistics (Mean, Median, Mode)',
-                'Chapter 14: Probability & Random Experiments'
-            ];
-        } else if (subLower.includes('physic')) {
-            return [
-                'Chapter 1: Units, Measurements & Error Analysis',
-                'Chapter 2: Motion in a Straight Line & Kinematics',
-                'Chapter 3: Motion in a Plane & Vectors',
-                'Chapter 4: Laws of Motion & Friction',
-                'Chapter 5: Work, Energy and Power',
-                'Chapter 6: System of Particles & Rotational Dynamics',
-                'Chapter 7: Gravitation & Orbital Velocity',
-                'Chapter 8: Electrostatics & Electric Charges',
-                'Chapter 9: Electric Potential & Capacitance',
-                'Chapter 10: Current Electricity & Ohm\'s Law',
-                'Chapter 11: Magnetic Effects of Electric Current',
-                'Chapter 12: Electromagnetic Induction & AC Circuits',
-                'Chapter 13: Ray Optics & Optical Instruments',
-                'Chapter 14: Wave Optics & Interference',
-                'Chapter 15: Dual Nature of Radiation, Atoms & Nuclei'
-            ];
-        } else if (subLower.includes('chemist')) {
-            return [
-                'Chapter 1: Chemical Reactions and Equations',
-                'Chapter 2: Acids, Bases and Salts',
-                'Chapter 3: Metals and Non-Metals',
-                'Chapter 4: Carbon and Its Compounds (Organic Basics)',
-                'Chapter 5: Structure of Atom & Quantum Numbers',
-                'Chapter 6: Chemical Bonding & Molecular Structure',
-                'Chapter 7: Chemical Thermodynamics & Energetics',
-                'Chapter 8: Chemical Equilibrium & Le Chatelier Principle',
-                'Chapter 9: Redox Reactions & Electrochemistry',
-                'Chapter 10: Chemical Kinetics & Reaction Rates',
-                'Chapter 11: Coordination Compounds & Isomerism',
-                'Chapter 12: Organic Compounds & Functional Groups'
-            ];
-        } else if (subLower.includes('bio') || subLower.includes('scien')) {
-            return [
-                'Chapter 1: Chemical Reactions & Equations',
-                'Chapter 2: Acids, Bases and Salts',
-                'Chapter 3: Metals and Non-Metals',
-                'Chapter 4: Life Processes (Nutrition, Respiration, Transportation, Excretion)',
-                'Chapter 5: Control and Coordination in Organisms',
-                'Chapter 6: How do Organisms Reproduce?',
-                'Chapter 7: Heredity and Genetic Evolution',
-                'Chapter 8: Light - Reflection and Refraction',
-                'Chapter 9: Human Eye and Colourful World',
-                'Chapter 10: Electricity & Electric Circuits',
-                'Chapter 11: Magnetic Effects of Electric Current',
-                'Chapter 12: Our Environment & Ecosystems'
-            ];
-        } else if (subLower.includes('social') || subLower.includes('histor') || subLower.includes('geo')) {
-            return [
-                'Chapter 1: The Rise of Nationalism in Europe',
-                'Chapter 2: Nationalism in India & Freedom Movement',
-                'Chapter 3: Resources and Land Development',
-                'Chapter 4: Forest, Wildlife & Water Resources',
-                'Chapter 5: Agriculture & Major Crops',
-                'Chapter 6: Minerals, Energy Resources & Manufacturing',
-                'Chapter 7: Power Sharing & Federalism',
-                'Chapter 8: Gender, Religion and Caste in Politics',
-                'Chapter 9: Economic Development & National Income',
-                'Chapter 10: Sectors of the Indian Economy',
-                'Chapter 11: Money, Banking and Credit Systems'
-            ];
-        } else if (subLower.includes('data') || subLower.includes('programming') || subLower.includes('computer') || subLower.includes('c++') || subLower.includes('java') || subLower.includes('python')) {
-            return [
-                'Unit 1: Programming Fundamentals & Logic Development',
-                'Unit 2: Object-Oriented Programming (OOP) Principles',
-                'Unit 3: Data Structures (Arrays, Linked Lists, Stacks, Queues)',
-                'Unit 4: Trees, Binary Search Trees & Graph Algorithms',
-                'Unit 5: Sorting & Searching Algorithms (Bubble, Quick, Merge)',
-                'Unit 6: Database Management Systems (DBMS) & SQL Queries',
-                'Unit 7: Operating Systems & Process Management',
-                'Unit 8: Computer Networks & TCP/IP Protocols'
-            ];
-        } else {
-            return [
-                'Chapter 1: Fundamental Principles & Core Concepts',
-                'Chapter 2: Theoretical Framework & Key Definitions',
-                'Chapter 3: Advanced Methods & Analytical Techniques',
-                'Chapter 4: Practical Applications & Solved Examples',
-                'Chapter 5: Case Studies & Exercise Problem Set'
+                'Chapter 1: Chemical Reactions and Equations (રાસાયણિક પ્રક્રિયાઓ)',
+                'Chapter 2: Acids, Bases and Salts (એસિડ, બેઇઝ અને ક્ષાર)',
+                'Chapter 3: Metals and Non-Metals (ધાતુઓ અને અધાતુઓ)',
+                'Chapter 4: Carbon and Its Compounds (કાર્બન અને તેના સંયોજનો)',
+                'Chapter 5: Life Processes (જૈવિક ક્રિયાઓ)',
+                'Chapter 6: Control and Coordination (નિયંત્રણ અને સંકલન)',
+                'Chapter 7: How do Organisms Reproduce? (સજીવો કેવી રીતે પ્રજનન કરે છે?)',
+                'Chapter 8: Heredity and Evolution (આનુવંશિકતા અને વિકાસ)',
+                'Chapter 9: Light - Reflection and Refraction (પ્રકાશ - પરાવર્તન અને વક્રીભવન)',
+                'Chapter 10: Human Eye and Colourful World (માનવ આંખ અને રંગબેરંગી દુનિયા)',
+                'Chapter 11: Electricity (વિદ્યુત)',
+                'Chapter 12: Magnetic Effects of Electric Current (વિદ્યુતપ્રવાહની ચુંબકીય અસરો)',
+                'Chapter 13: Our Environment (આપણું પર્યાવરણ)',
+                'Chapter 14: Sustainable Management of Natural Resources (કુદરતી સ્ત્રોતોનું પ્રબંધન)'
             ];
         }
+
+        // 12. SOCIAL SCIENCE (Class 1 to 10)
+        if (subLower.includes('social') || subLower.includes('histor') || subLower.includes('geo') || subLower.includes('civic') || subLower.includes('politi')) {
+            return [
+                'Chapter 1: Heritage of India (ભારતનો વારસો)',
+                'Chapter 2: Cultural Heritage of India: Traditional Handicrafts (સાંસ્કૃતિક વારસો)',
+                'Chapter 3: Cultural Heritage of India: Sculpture and Architecture (શિલ્પ-સ્થાપત્ય)',
+                'Chapter 4: Literary Heritage of India (સાહિત્યિક વારસો)',
+                'Chapter 5: India\'s Heritage of Science and Technology (વિજ્ઞાન અને ટેકનોલોજી)',
+                'Chapter 6: Places of Indian Cultural Heritage (સાંસ્કૃતિક વારસાના સ્થળો)',
+                'Chapter 7: Preservation of Our Heritage (આપણા વારસાનું જતન)',
+                'Chapter 8: Natural Resources (કુદરતી સંસાધનો)',
+                'Chapter 9: Forests and Wildlife Resources (વન અને વન્યજીવ સંસાધન)',
+                'Chapter 10: India: Agriculture (ભારત: કૃષિ)',
+                'Chapter 11: Water Resources (જળ સંસાધનો)',
+                'Chapter 12: Mineral and Energy Resources (ખનિજ અને શક્તિના સંસાધનો)',
+                'Chapter 13: Manufacturing Industries (ઉત્પાદન ઉદ્યોગો)',
+                'Chapter 14: Transportation, Communication and Trade (પરિવહન અને વ્યાપાર)',
+                'Chapter 15: Economic Development (આર્થિક વિકાસ)',
+                'Chapter 16: Economic Liberalization and Globalization (ઉદારીકરણ અને વૈશ્વિકીકરણ)',
+                'Chapter 17: Poverty and Unemployment (ગરીબી અને બેરોજગારી)',
+                'Chapter 18: Price Rise and Consumer Awareness (ભાવવધારો અને ગ્રાહક જાગૃતિ)',
+                'Chapter 19: Human Development (માનવ વિકાસ)',
+                'Chapter 20: Social Problems of India and Challenges (સામાજિક સમસ્યાઓ)',
+                'Chapter 21: Social Change (સામાજિક પરિવર્તન)'
+            ];
+        }
+
+        // 13. COMPUTER & IT
+        if (subLower.includes('data') || subLower.includes('programming') || subLower.includes('computer') || subLower.includes('c++') || subLower.includes('java') || subLower.includes('python') || subLower.includes('it')) {
+            return [
+                'Unit 1: Computer Fundamentals & Hardware Architecture',
+                'Unit 2: Networking Concepts, Internet Protocols & Cyber Safety',
+                'Unit 3: Algorithmic Thinking & Flowchart Design',
+                'Unit 4: Object-Oriented Programming (OOP) Principles',
+                'Unit 5: Linear Data Structures (Arrays, Linked Lists, Stacks, Queues)',
+                'Unit 6: Non-Linear Data Structures (Trees, Binary Search Trees, Graphs)',
+                'Unit 7: Sorting & Searching Algorithms (Bubble, Quick, Merge)',
+                'Unit 8: Database Management Systems (DBMS) & SQL Queries',
+                'Unit 9: Operating Systems, Memory & Process Management',
+                'Unit 10: Web Development Basics (HTML5, CSS3, JavaScript)'
+            ];
+        }
+
+        // Default Fallback
+        return [
+            'Chapter 1: Introduction to Core Concepts & Principles',
+            'Chapter 2: Fundamental Theories, Definitions & Axioms',
+            'Chapter 3: Analytical Framework & Methodological Approaches',
+            'Chapter 4: Practical Applications & Standard Blueprints',
+            'Chapter 5: Advanced Case Studies & Exercise Problem Sets',
+            'Chapter 6: Board & University Comprehensive Revision Unit'
+        ];
     };
 
     // Helper: Dynamic Subjects based on Grade Level, Selected Degree Branch AND Semester
@@ -475,19 +931,23 @@ export const MinervaRoadmapsPage: React.FC = () => {
             }
         }
 
-        // School Standards Branching
-        if (['11_SCI_A', '12_SCI_A'].includes(gradeLevel)) {
-            return ['Physics', 'Chemistry', 'Mathematics', 'English Core', 'Computer Science / IP'];
+        // School Standards Branching (Class 1 to 12 & Streams)
+        if (['1', '2', '3', '4', '5'].includes(gradeLevel)) {
+            return ['Mathematics', 'Environmental Studies (EVS / આસપાસ)', 'English Language & Literature', 'Gujarati Subject (ગુજરાતી વિષય)', 'Hindi Subject (हिंदी विषय)', 'General Knowledge (GK)', 'Computer / Drawing'];
+        } else if (['6', '7', '8', '9', '10'].includes(gradeLevel)) {
+            return ['Mathematics', 'Science (વિજ્ઞાન)', 'Social Science (સામાજિક વિજ્ઞાન)', 'English Language & Literature', 'Gujarati Subject (ગુજરાતી વિષય & સાહિત્ય)', 'Hindi Subject (हिंदी साहित्य एवं व्याकरण)', 'Sanskrit Subject (संस्कृतम्)', 'Computer / IT'];
+        } else if (['11_SCI_A', '12_SCI_A'].includes(gradeLevel)) {
+            return ['Physics', 'Chemistry', 'Mathematics', 'English Core', 'Gujarati Subject (ગુજરાતી વિષય)', 'Hindi Subject (हिंदी विषय)', 'Computer Science / IP'];
         } else if (['11_SCI_B', '12_SCI_B'].includes(gradeLevel)) {
-            return ['Physics', 'Chemistry', 'Biology', 'English Core', 'Computer Science / IP'];
+            return ['Physics', 'Chemistry', 'Biology', 'English Core', 'Gujarati Subject (ગુજરાતી વિષય)', 'Hindi Subject (हिंदी विषय)', 'Computer Science / IP'];
         } else if (['11_COMMERCE', '12_COMMERCE'].includes(gradeLevel)) {
-            return ['Accountancy', 'Business Studies', 'Economics', 'Statistics', 'English Core'];
+            return ['Accountancy', 'Business Studies (O.C.M.)', 'Economics', 'Statistics', 'Gujarati Subject (ગુજરાતી વિષય)', 'Hindi Subject (हिंदी विषय)', 'English Core', 'Secretarial Practice (S.P.C.C.)', 'Computer / IT'];
         } else if (['11_ARTS', '12_ARTS'].includes(gradeLevel)) {
-            return ['History', 'Geography', 'Political Science', 'Sociology', 'Psychology', 'English Core'];
+            return ['History', 'Geography', 'Political Science', 'Sociology', 'Psychology', 'Philosophy / Logic (તત્વજ્ઞાન)', 'Gujarati Subject (ગુજરાતી વિષય & સાહિત્ય)', 'Hindi Subject (हिंदी साहित्य)', 'Sanskrit Subject (संस्कृतम्)', 'English Core', 'Computer / IT'];
         } else if (['JEE', 'NEET', 'UPSC', 'GATE'].includes(gradeLevel)) {
             return ['Physics', 'Chemistry', 'Mathematics', 'Biology', 'General Studies (Paper 1-4)', 'CSAT & Reasoning'];
         } else {
-            return ['Mathematics', 'Science (Physics/Chemistry/Biology)', 'Social Science', 'English', 'Computer / IT', 'Hindi', 'Gujarati'];
+            return ['Mathematics', 'Science (વિજ્ઞાન)', 'Social Science (સામાજિક વિજ્ઞાન)', 'English Language & Literature', 'Hindi Subject (हिंदी विषय)', 'Gujarati Subject (ગુજરાતી વિષય)', 'Sanskrit Subject (संस्कृतम्)', 'Computer / IT'];
         }
     };
 
@@ -748,9 +1208,7 @@ export const MinervaRoadmapsPage: React.FC = () => {
                                         <label className="text-[9px] text-gray-400 font-bold uppercase tracking-wider mb-1.5 block">1. Select Student Standard / Education Category</label>
                                         <select
                                             value={gradeLevel}
-                                            onChange={e => {
-                                                setGradeLevel(e.target.value);
-                                            }}
+                                            onChange={e => handleClassChange(e.target.value)}
                                             className="w-full bg-[#030209] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-indigo-500/50"
                                         >
                                             {ALL_STANDARDS.map(group => (
@@ -811,7 +1269,7 @@ export const MinervaRoadmapsPage: React.FC = () => {
                                         </label>
                                         <select
                                             value={board}
-                                            onChange={e => setBoard(e.target.value)}
+                                            onChange={e => handleBoardChange(e.target.value)}
                                             className="w-full bg-[#030209] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-indigo-500/50 max-h-48"
                                         >
                                             {BOARDS.map(b => (
@@ -827,7 +1285,7 @@ export const MinervaRoadmapsPage: React.FC = () => {
                                         </label>
                                         <select
                                             value={selectedSubject}
-                                            onChange={e => setSelectedSubject(e.target.value)}
+                                            onChange={e => handleSubjectChange(e.target.value)}
                                             className="w-full bg-[#030209] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-indigo-500/50"
                                         >
                                             {getSubjectOptions().map(subj => (
@@ -1010,14 +1468,24 @@ export const MinervaRoadmapsPage: React.FC = () => {
                                     <FileText className="text-indigo-400" size={18} />
                                     <span className="text-xs font-bold text-white">Official Board Textbook PDF & Solution Notes</span>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    {(selectedChapterDetail.official_pdf_url || selectedChapterDetail.official_book_url) && (
+                                        <a
+                                            href={selectedChapterDetail.official_pdf_url || selectedChapterDetail.official_book_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1"
+                                        >
+                                            🌐 Open Official Govt Portal ↗
+                                        </a>
+                                    )}
                                     <a
-                                        href={`/api/v1/minerva/chapter-pdf/download?chapterTitle=${encodeURIComponent(selectedChapterDetail.title)}&board=${encodeURIComponent(board)}&standard=${encodeURIComponent(gradeLevel)}&subject=${encodeURIComponent(selectedSubject)}&medium=${encodeURIComponent(language)}&subtopics=${encodeURIComponent((selectedChapterDetail.subtopics || []).join(','))}`}
+                                        href={`/api/v1/minerva/chapter-pdf/download?direct=true&chapterTitle=${encodeURIComponent(selectedChapterDetail.title)}&board=${encodeURIComponent(board)}&standard=${encodeURIComponent(gradeLevel)}&subject=${encodeURIComponent(selectedSubject)}&medium=${encodeURIComponent(language)}&subtopics=${encodeURIComponent((selectedChapterDetail.subtopics || []).join(','))}`}
                                         target="_blank"
                                         rel="noreferrer"
                                         className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1"
                                     >
-                                        📥 Download PDF ↗
+                                        📥 Download Official PDF ↗
                                     </a>
                                     <button
                                         onClick={() => setViewPdfDocument(!viewPdfDocument)}
@@ -1031,14 +1499,14 @@ export const MinervaRoadmapsPage: React.FC = () => {
                             {viewPdfDocument ? (
                                 <div className="space-y-3 pt-2">
                                     <div className="p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/20 text-indigo-200 flex items-center justify-between text-xs font-bold">
-                                        <span>📖 Live Interactive PDF View — {board} Class {gradeLevel} ({language.toUpperCase()} Medium)</span>
+                                        <span>📖 Official Government Textbook Curriculum — {board} Class {gradeLevel} ({language.toUpperCase()} Medium)</span>
                                         <a 
-                                            href={`/api/v1/minerva/chapter-pdf/download?chapterTitle=${encodeURIComponent(selectedChapterDetail.title)}&board=${encodeURIComponent(board)}&standard=${encodeURIComponent(gradeLevel)}&subject=${encodeURIComponent(selectedSubject)}&medium=${encodeURIComponent(language)}&subtopics=${encodeURIComponent((selectedChapterDetail.subtopics || []).join(','))}`}
+                                            href={`/api/v1/minerva/chapter-pdf/download?direct=true&chapterTitle=${encodeURIComponent(selectedChapterDetail.title)}&board=${encodeURIComponent(board)}&standard=${encodeURIComponent(gradeLevel)}&subject=${encodeURIComponent(selectedSubject)}&medium=${encodeURIComponent(language)}&subtopics=${encodeURIComponent((selectedChapterDetail.subtopics || []).join(','))}`}
                                             target="_blank" 
                                             rel="noreferrer"
                                             className="underline text-emerald-400 font-bold flex items-center gap-1"
                                         >
-                                            📥 Open Full PDF in New Tab ↗
+                                            📥 Open Official PDF Stream ↗
                                         </a>
                                     </div>
                                     <iframe 
@@ -1049,7 +1517,7 @@ export const MinervaRoadmapsPage: React.FC = () => {
                                 </div>
                             ) : (
                                 <p className="text-[11px] text-gray-400">
-                                    Click <strong>"Preview PDF Content"</strong> or <strong>"Download PDF ↗"</strong> to generate and view the exact {board} Class {gradeLevel} textbook PDF in {language} medium.
+                                    Click <strong>"Preview PDF Content"</strong> or <strong>"Download Official PDF ↗"</strong> to view the official {board} Class {gradeLevel} textbook PDF module in {language} medium.
                                 </p>
                             )}
                         </div>

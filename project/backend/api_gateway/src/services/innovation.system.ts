@@ -18,7 +18,7 @@ export class InnovationSystem {
         try {
             logger.info('🚀 Initiating Autonomous Evolution Cycle...');
 
-            const recentSignals = await Experience.find().sort({ createdAt: -1 }).limit(100);
+            const recentSignals = await (Experience as any).find().sort({ createdAt: -1 }).limit(100);
 
             if (recentSignals.length < 5) {
                 logger.info('Evolution deferred: Insufficient signals (minimum 5 required).');

@@ -17,6 +17,10 @@ export interface ITeacherAssignment extends Document {
   teacherName: string;
   title: string;
   description: string;
+  attachmentUrl?: string;
+  videoUrl?: string;
+  attachmentType?: 'IMAGE' | 'PDF' | 'VIDEO' | 'NONE';
+  maxScore?: number;
   dueDate: Date;
   submissionsCount: number;
   createdAt: Date;
@@ -40,6 +44,10 @@ const TeacherAssignmentSchema = new Schema<ITeacherAssignment>(
     teacherName: { type: String, required: true },
     title: { type: String, required: true },
     description: { type: String, default: '' },
+    attachmentUrl: { type: String, default: '' },
+    videoUrl: { type: String, default: '' },
+    attachmentType: { type: String, default: 'NONE' },
+    maxScore: { type: Number, default: 100 },
     dueDate: { type: Date, required: true },
     submissionsCount: { type: Number, default: 0 }
   },
@@ -57,6 +65,10 @@ export interface IHomeworkSubmission extends Document {
   scoreObtained: number;
   maxScore: number;
   feedback: string;
+  rightAnswers?: string[];
+  wrongAnswers?: string[];
+  teacherRemarks?: string;
+  teacherAttachmentUrl?: string;
   status: 'SUBMITTED' | 'GRADED' | 'REVIEWED';
   gradedAt: Date;
   createdAt: Date;
@@ -72,8 +84,12 @@ const HomeworkSubmissionSchema = new Schema<IHomeworkSubmission>(
     studentName: { type: String, required: true },
     imageUrl: { type: String, required: true },
     scoreObtained: { type: Number, default: 0 },
-    maxScore: { type: Number, default: 10 },
+    maxScore: { type: Number, default: 100 },
     feedback: { type: String, default: '' },
+    rightAnswers: [{ type: String }],
+    wrongAnswers: [{ type: String }],
+    teacherRemarks: { type: String, default: '' },
+    teacherAttachmentUrl: { type: String, default: '' },
     status: { type: String, enum: ['SUBMITTED', 'GRADED', 'REVIEWED'], default: 'GRADED' },
     gradedAt: { type: Date, default: Date.now }
   },

@@ -20,12 +20,14 @@ const MinervaHomeworkPage: React.FC = () => {
     const [results, setResults] = useState<Record<string, any>>({});
     const [submitting, setSubmitting] = useState<string | null>(null);
 
-    useEffect(() => { if (token) loadHomework(); }, [token]);
+    useEffect(() => { loadHomework(); }, [token]);
 
     const loadHomework = async () => {
         setLoading(true);
-        const res = await minervaApi.getTodayHomework(token);
-        if (res.success) setHw(res);
+        if (token) {
+            const res = await minervaApi.getTodayHomework(token);
+            if (res.success) setHw(res);
+        }
         setLoading(false);
     };
 
