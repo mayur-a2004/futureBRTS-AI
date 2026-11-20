@@ -7,6 +7,15 @@ import { financialTickerService } from './financialTicker.service';
 import { omniGroundingService } from './omniGrounding.service';
 import { liveWebSearchService } from './liveWebSearch.service';
 import { liveIntelligenceService } from './liveIntelligence.service';
+import {
+  PERSONA_REGISTRY,
+  getPersona,
+  listPersonas,
+  detectPersonaFromQuery,
+  getPersonaSystemPrompt,
+  type PersonaConfig,
+  type PersonaId
+} from './personaConfig';
 
 
 // System Prompts
@@ -1848,6 +1857,45 @@ INSTRUCTIONS:
     `;
             }
 
+            // 🎭 PHASE 2: SPECIALIZED PERSONA SYSTEM — Auto-detect or explicit persona selection
+            let selectedPersona: PersonaConfig | null = null;
+            let personaId: string | null = null;
+
+            // Check for explicit persona selection in systemContext (from frontend)
+            const explicitPersonaId = systemContext?.userContext?.selectedPersona as string | undefined;
+            if (explicitPersonaId && PERSONA_REGISTRY[explicitPersonaId as PersonaId]) {
+              personaId = explicitPersonaId;
+              selectedPersona = PERSONA_REGISTRY[explicitPersonaId as PersonaId];
+              console.log(`🎭 [Persona] Explicit selection: ${selectedPersona.name} (${personaId})`);
+            } else {
+              // Auto-detect from query
+              const detectedPersonaId = detectPersonaFromQuery(userMessage);
+              if (detectedPersonaId) {
+                personaId = detectedPersonaId;
+                selectedPersona = PERSONA_REGISTRY[detectedPersonaId];
+                console.log(`🎭 [Persona] Auto-detected: ${selectedPersona.name} (${personaId})`);
+              }
+            }
+
+            // Inject persona system prompt if detected
+            if (selectedPersona) {
+              const personaPrompt = getPersonaSystemPrompt(personaId!, systemContext?.userContext);
+              contextInjection += `
+================================================================================
+🎭 ACTIVE PERSONA: ${selectedPersona.icon} ${selectedPersona.name} — ${selectedPersona.title}
+================================================================================
+${personaPrompt}
+
+[PERSONA TOOL ACCESS CONTROL]
+${JSON.stringify(selectedPersona.toolAccess, null, 2)}
+
+[PERSONA MODEL PREFERENCES]
+Preferred: ${selectedPersona.preferredProviders.join(', ')}
+Fallback: ${selectedPersona.fallbackProviders.join(', ')}
+================================================================================
+`;
+            }
+
             // 1. Build Historical Context: Focus on the last 20 turns to maintain sharp context.
             const history = chatHistory.slice(-20).map(m => ({
                 role: m.role,
@@ -2100,6 +2148,45 @@ INSTRUCTIONS:
 4. Maintain the persona while prioritizing this data.
 --------------------------------------------------------------------------------
     `;
+            }
+
+            // 🎭 PHASE 2: SPECIALIZED PERSONA SYSTEM — Auto-detect or explicit persona selection
+            let selectedPersona: PersonaConfig | null = null;
+            let personaId: string | null = null;
+
+            // Check for explicit persona selection in systemContext (from frontend)
+            const explicitPersonaId = systemContext?.userContext?.selectedPersona as string | undefined;
+            if (explicitPersonaId && PERSONA_REGISTRY[explicitPersonaId as PersonaId]) {
+              personaId = explicitPersonaId;
+              selectedPersona = PERSONA_REGISTRY[explicitPersonaId as PersonaId];
+              console.log(`🎭 [Persona] Explicit selection: ${selectedPersona.name} (${personaId})`);
+            } else {
+              // Auto-detect from query
+              const detectedPersonaId = detectPersonaFromQuery(userMessage);
+              if (detectedPersonaId) {
+                personaId = detectedPersonaId;
+                selectedPersona = PERSONA_REGISTRY[detectedPersonaId];
+                console.log(`🎭 [Persona] Auto-detected: ${selectedPersona.name} (${personaId})`);
+              }
+            }
+
+            // Inject persona system prompt if detected
+            if (selectedPersona) {
+              const personaPrompt = getPersonaSystemPrompt(personaId!, systemContext?.userContext);
+              contextInjection += `
+================================================================================
+🎭 ACTIVE PERSONA: ${selectedPersona.icon} ${selectedPersona.name} — ${selectedPersona.title}
+================================================================================
+${personaPrompt}
+
+[PERSONA TOOL ACCESS CONTROL]
+${JSON.stringify(selectedPersona.toolAccess, null, 2)}
+
+[PERSONA MODEL PREFERENCES]
+Preferred: ${selectedPersona.preferredProviders.join(', ')}
+Fallback: ${selectedPersona.fallbackProviders.join(', ')}
+================================================================================
+`;
             }
 
             const history = chatHistory.slice(-20).map(m => ({
